@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Your Cover Letter</h1>
+            <p class="text-gray-600">For {{ letter.job.title }} at {{ letter.job.company }}</p>
+        </div>
+        <div class="flex space-x-4">
+            <button onclick="copyToClipboard()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                Copy to Clipboard
+            </button>
+        </div>
+    </div>
+
+    <!-- Letter Content -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-gray-800 leading-relaxed max-w-3xl mx-auto whitespace-pre-wrap" id="cover-letter-text">
+Dear Hiring Manager,
+
+{{ letter.content }}
+
+Sincerely,
+{{ letter.profile.full_name }}
+    </div>
+</div>
+
+<script>
+function copyToClipboard() {
+    const text = document.getElementById('cover-letter-text').innerText;
+    navigator.clipboard.writeText(text).then(() => {
+        alert("Copied to clipboard!");
+    });
+}
+</script>
+{% endblock %}

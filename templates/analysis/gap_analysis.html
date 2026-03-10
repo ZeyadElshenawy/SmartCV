@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-gray-900 mb-2">Gap Analysis Report</h1>
+        <p class="text-gray-600">{{ job.title }} at {{ job.company }}</p>
+    </div>
+    
+    <!-- The Hook: Match Score Gauge -->
+    <div class="max-w-3xl mx-auto mb-12">
+        <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-3xl shadow-2xl p-12 border border-blue-100">
+            <div class="text-center mb-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Your Match Score</h2>
+                
+                <!-- Circular Gauge -->
+                <div class="relative inline-block">
+                    <svg class="transform -rotate-90" width="200" height="200">
+                        <!-- Background Circle -->
+                        <circle cx="100" cy="100" r="80" stroke="#e5e7eb" stroke-width="20" fill="none"></circle>
+                        <!-- Progress Circle -->
+                        <circle 
+                            cx="100" 
+                            cy="100" 
+                            r="80" 
+                            stroke="{% if match_percentage >= 70 %}#10b981{% elif match_percentage >= 50 %}#f59e0b{% else %}#ef4444{% endif %}" 
+                            stroke-width="20" 
+                            fill="none"
+                            stroke-dasharray="{{ match_percentage|floatformat:0 }} 100"
+                            stroke-linecap="round"
+                            style="stroke-dasharray: calc({{ match_percentage }} * 5.02); stroke-dashoffset: 0; transition: stroke-dasharray 1s ease-out;"
+                        ></circle>
+                    </svg>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <div class="text-center">
+                            <div class="text-5xl font-bold {% if match_percentage >= 70 %}text-green-600{% elif match_percentage >= 50 %}text-yellow-600{% else %}text-red-600{% endif %}">
+                                {{ match_percentage }}%
+                            </div>
+                            <div class="text-sm text-gray-500 mt-1">Match</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <p class="text-gray-600 mt-6">
+                    {% if match_percentage >= 70 %}
+                        <span class="text-green-600 font-semibold">Strong match!</span> You have most of the required skills.
+                    {% elif match_percentage >= 50 %}
+                        <span class="text-yellow-600 font-semibold">Good potential.</span> A few gaps to address.
+                    {% else %}
+                        <span class="text-red-600 font-semibold">Significant gaps.</span> Let's work on improving your profile.
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Red Flags Section -->
+    {% if red_flags %}
+    <div class="max-w-3xl mx-auto mb-8">
+        <div class="bg-white rounded-2xl shadow-xl p-8 border-l-4 border-red-500">
+            <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <svg class="w-6 h-6 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                Critical Missing Skills
+            </h3>
+            <ul class="space-y-2">
+                {% for skill in red_flags %}
+                <li class="flex items-center text-gray-700">
+                    <span class="w-2 h-2 bg-red-500 rounded-full mr-3"></span>
+                    {{ skill }}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Soft Gaps Section -->
+    {% if soft_gaps %}
+    <div class="max-w-3xl mx-auto mb-8">
+        <div class="bg-white rounded-2xl shadow-xl p-8 border-l-4 border-yellow-500">
+            <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <svg class="w-6 h-6 text-yellow-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                Soft Skill Gaps
+            </h3>
+            <ul class="space-y-2">
+                {% for gap in soft_gaps %}
+                <li class="text-gray-700">{{ gap }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- The CTA: Fix These Gaps -->
+    <div class="max-w-3xl mx-auto text-center space-y-4 md:space-y-0 md:space-x-4">
+        <a 
+            href="{% url 'profile_chatbot' job_id=job.id %}" 
+            class="inline-block px-12 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xl font-bold rounded-xl shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
+        >
+            Fix These Gaps with AI →
+        </a>
+
+        <a 
+            href="{% url 'generate_resume' job_id=job.id %}" 
+            class="inline-block px-12 py-4 bg-white border-2 border-gray-200 text-gray-700 text-xl font-bold rounded-xl shadow-sm hover:shadow-md hover:border-gray-300 transform hover:scale-105 transition-all duration-300"
+        >
+            Generate Resume
+        </a>
+        
+        <p class="text-sm text-gray-500 mt-4">
+            Improve your score with AI or generate your resume now.
+        </p>
+    </div>
+    
+    <!-- Detailed Breakdown (Collapsible) -->
+    <div class="max-w-3xl mx-auto mt-12" x-data="{ showDetails: false }">
+        <button 
+            @click="showDetails = !showDetails"
+            class="w-full text-left px-6 py-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors flex justify-between items-center"
+        >
+            <span class="font-medium text-gray-700">View Detailed Breakdown</span>
+            <svg 
+                class="w-5 h-5 text-gray-500 transform transition-transform" 
+                :class="showDetails ? 'rotate-180' : ''"
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+            >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+        </button>
+        
+        <div x-show="showDetails" x-cloak class="mt-4 bg-white rounded-lg shadow p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Matched Skills -->
+                <div>
+                    <h4 class="font-bold text-green-600 mb-3">✓ Matched Skills</h4>
+                    <ul class="space-y-1 text-sm">
+                        {% for skill in analysis.matched_skills %}
+                        <li class="text-gray-700">{{ skill }}</li>
+                        {% empty %}
+                        <li class="text-gray-400 italic">None</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                
+                <!-- Missing Skills -->
+                <div>
+                    <h4 class="font-bold text-red-600 mb-3">✗ Missing Skills</h4>
+                    <ul class="space-y-1 text-sm">
+                        {% for skill in analysis.missing_skills %}
+                        <li class="text-gray-700">{{ skill }}</li>
+                        {% empty %}
+                        <li class="text-gray-400 italic">None</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+[x-cloak] { display: none !important; }
+</style>
+{% endblock %}

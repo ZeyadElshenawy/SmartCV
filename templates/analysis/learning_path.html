@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Personalized Learning Path</h1>
+        <p class="text-gray-600 border-l-4 border-blue-500 pl-4 py-1">Based on the jobs you've applied to, our AI has identified the most critical skills you are currently missing and generated a custom curriculum to help you succeed.</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <!-- Sidebar: Missing Skills Summary -->
+        <div class="lg:col-span-1">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-6">
+                <h2 class="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2">Target Skills</h2>
+                
+                {% if skills_to_learn %}
+                    <ul class="space-y-3">
+                        {% for skill, count in skills_to_learn %}
+                        <li class="flex justify-between items-center group">
+                            <span class="font-medium text-gray-700 capitalize group-hover:text-blue-600 transition-colors">{{ skill }}</span>
+                            <span class="text-xs bg-red-50 text-red-600 px-2 py-1 rounded-full font-bold" title="Missing in {{ count }} applications">Missing {{ count }}x</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    
+                    {% if not learning_path %}
+                    <div class="mt-8">
+                        <form method="POST" onsubmit="showLoading('Generating personalized learning path... (this may take up to 60s if the AI is waking up)')">
+                            {% csrf_token %}
+                            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition-all flex justify-center items-center">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                Generate Curriculum
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center py-6">
+                        <div class="text-gray-400 mb-2">
+                            <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                        <p class="text-sm text-gray-500">You aren't missing any critical skills across your applications!</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Main Area: The Learning Path -->
+        <div class="lg:col-span-2 space-y-6">
+            {% if learning_path %}
+                {% for item in learning_path %}
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="bg-gradient-to-r from-slate-800 to-slate-700 px-6 py-4 text-white">
+                        <h3 class="text-xl font-bold flex items-center">
+                            <span class="bg-blue-500 w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 shadow-inner">{{ forloop.counter }}</span>
+                            {{ item.skill|title }}
+                        </h3>
+                    </div>
+                    
+                    <div class="p-6">
+                        <div class="mb-6">
+                            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Why It Matters</h4>
+                            <p class="text-gray-700 leading-relaxed">{{ item.importance }}</p>
+                        </div>
+                        
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <div>
+                                <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Recommended Resources</h4>
+                                <ul class="space-y-3">
+                                    {% for resource in item.resources %}
+                                    <li class="flex items-start">
+                                        <div class="flex-shrink-0 mt-0.5 mr-2">
+                                            {% if 'video' in resource.type|lower or 'youtube' in resource.type|lower %}
+                                            <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
+                                            {% else %}
+                                            <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                                            {% endif %}
+                                        </div>
+                                        <div>
+                                            <p class="text-sm font-medium text-gray-900">{{ resource.name }}</p>
+                                            <p class="text-xs text-gray-500">{{ resource.type }}</p>
+                                        </div>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            
+                            <div class="bg-blue-50 rounded-lg p-4 border border-blue-100">
+                                <h4 class="text-xs font-bold text-blue-400 uppercase tracking-wider mb-2 flex items-center">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+                                    Project Idea
+                                </h4>
+                                <p class="text-sm text-blue-900 leading-relaxed">{{ item.project_idea }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <!-- Empty State / Welcome Screen -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center h-full flex flex-col items-center justify-center">
+                    <img src="https://cdni.iconscout.com/illustration/premium/thumb/online-learning-4487771-3738435.png" alt="Learning Path" class="h-48 mb-6 opacity-80 mix-blend-multiply">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-3">Your AI Learning Coach</h3>
+                    <p class="text-gray-500 max-w-md mx-auto mb-8">We've identified the skills you need to land the jobs you've been saving. Click generate to create a free, personalized curriculum tailored to your gap analysis.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

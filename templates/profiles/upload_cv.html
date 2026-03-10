@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-8">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+        {% if is_master %}
+        <h1 class="text-2xl font-bold text-gray-900 mb-2">Create Your Master Profile</h1>
+        <p class="text-gray-600 mb-6">Upload your resume to build your base profile. This will be used for all future applications.</p>
+        {% else %}
+        <h1 class="text-2xl font-bold text-gray-900 mb-6">Upload Your CV for this Job</h1>
+        {% endif %}
+        
+        {% if error %}
+        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+            {{ error }}
+        </div>
+        {% endif %}
+        
+        <form method="post" enctype="multipart/form-data" class="space-y-6" onsubmit="showLoading('Extracting and validating CV sections with AI... (this may take up to 60s if the AI is waking up)')">
+            {% csrf_token %}
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Select CV File (PDF or DOCX)
+                </label>
+                <input 
+                    type="file" 
+                    name="cv_file" 
+                    accept=".pdf,.docx"
+                    required
+                    class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                >
+            </div>
+            
+            <button 
+                type="submit"
+                class="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+            >
+                Parse CV
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

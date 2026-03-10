@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+    <div class="mb-8 flex items-center justify-between">
+        <div>
+            <a href="{% url 'job_detail' job.id %}" class="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center mb-4">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                Back to Job Details
+            </a>
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">AI Network Outreach</h1>
+            <p class="text-gray-600">Break through the noise. Generate highly personalized messages to connect with Hiring Managers at <span class="font-bold">{{ job.company|default:"the target company" }}</span>.</p>
+        </div>
+        
+        {% if not campaign %}
+        <div>
+            <form method="POST" onsubmit="showLoading('Drafting personalized LinkedIn and Email outreach... (this may take up to 60s if the AI is waking up)')">
+                {% csrf_token %}
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition-all flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                    Generate Outreach
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if campaign %}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- LinkedIn Request -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+            <div class="bg-blue-50 border-b border-blue-100 px-6 py-4 flex justify-between items-center">
+                <h3 class="font-bold text-blue-900 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+                    LinkedIn Connection Request
+                </h3>
+                <button onclick="copyText('linkedin-text')" class="text-xs bg-white text-blue-600 border border-blue-200 px-2 py-1 rounded shadow-sm font-medium hover:bg-blue-50">Copy</button>
+            </div>
+            <div class="p-6 flex-1">
+                <p class="text-sm text-gray-500 mb-4 border-l-2 border-blue-500 pl-3">A short, punchy message designed to fit within LinkedIn's 300-character connection request limit.</p>
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-100 font-sans text-gray-800">
+                    <p id="linkedin-text" class="whitespace-pre-wrap">{{ campaign.linkedin_message }}</p>
+                </div>
+                <div class="mt-2 text-right text-xs text-gray-400">
+                    <span id="linkedin-count"></span>/300 chars
+                </div>
+            </div>
+        </div>
+
+        <!-- Cold Email -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+            <div class="bg-gray-50 border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+                <h3 class="font-bold text-gray-800 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                    Cold Email to Hiring Manager
+                </h3>
+            </div>
+            <div class="p-6 flex-1 flex flex-col">
+                <div class="mb-4">
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Subject Line</label>
+                    <div class="flex">
+                        <input type="text" readonly value="{{ campaign.cold_email_subject }}" id="email-subject" class="flex-1 bg-gray-50 border border-gray-200 rounded-l-lg px-3 py-2 text-sm text-gray-800 font-medium">
+                        <button onclick="copyText('email-subject')" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded-r-lg border border-l-0 border-gray-200 text-sm font-medium transition-colors">Copy</button>
+                    </div>
+                </div>
+                
+                <div class="flex-1 flex flex-col">
+                    <div class="flex justify-between items-end mb-1">
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider">Email Body</label>
+                        <button onclick="copyText('email-body')" class="text-xs text-blue-600 hover:text-blue-800 font-medium">Copy Body</button>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-100 font-sans text-gray-800 flex-1">
+                        <pre id="email-body" class="whitespace-pre-wrap font-sans text-sm">{{ campaign.cold_email_body }}</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- Empty State -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+        <div class="w-24 h-24 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+        </div>
+        <h2 class="text-2xl font-bold text-gray-900 mb-3">Skip the line.</h2>
+        <p class="text-gray-500 max-w-md mx-auto mb-8">Applying through portals usually ends in a black hole. Let our AI write a highly personalized message for you to send directly to the hiring manager on LinkedIn or via email.</p>
+        
+        <form method="POST" onsubmit="showLoading('Drafting personalized LinkedIn and Email outreach... (this may take up to 60s if the AI is waking up)')">
+            {% csrf_token %}
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-xl shadow-lg transition-all text-lg flex items-center mx-auto">
+                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                Generate Drafts
+            </button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function copyText(elementId) {
+    let textToCopy = "";
+    const el = document.getElementById(elementId);
+    
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+        textToCopy = el.value;
+    } else {
+        textToCopy = el.innerText;
+    }
+    
+    navigator.clipboard.writeText(textToCopy).then(() => {
+        // Optional: show a small toast or change button text
+        alert("Copied to clipboard!");
+    });
+}
+
+// Update character count for LinkedIn
+document.addEventListener("DOMContentLoaded", function() {
+    const linkedinEl = document.getElementById('linkedin-text');
+    if (linkedinEl) {
+        const count = linkedinEl.innerText.length;
+        const countEl = document.getElementById('linkedin-count');
+        countEl.innerText = count;
+        if (count > 300) {
+            countEl.classList.add('text-red-500', 'font-bold');
+        }
+    }
+});
+</script>
+{% endblock %}

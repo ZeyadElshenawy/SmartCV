@@ -1,0 +1,291 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="h-screen flex flex-col" x-data="splitChatbot()">
+    <!-- Header -->
+    <div class="bg-white border-b border-gray-200 px-6 py-4">
+        <h1 class="text-2xl font-bold text-gray-900">AI Interview: {{ job.title }}</h1>
+        <p class="text-sm text-gray-600">Answer questions to improve your profile match</p>
+    </div>
+    
+    <!-- Split Screen Container -->
+    <div class="flex-1 flex overflow-hidden">
+        
+        <!-- Left Panel: Live Resume Preview -->
+        <div class="w-1/2 bg-gray-50 border-r border-gray-200 overflow-y-auto p-6">
+            <div class="max-w-2xl mx-auto">
+                <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center justify-between">
+                    <span class="flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        Your Profile (Live Preview)
+                    </span>
+                    
+                    <!-- Live Gap Score Badge -->
+                    <div x-show="gapScore !== null" class="flex items-center gap-2">
+                        <span class="text-xs text-gray-500">Match:</span>
+                        <span 
+                            class="px-3 py-1 rounded-full text-sm font-bold transition-all duration-500"
+                            :class="gapScore >= 70 ? 'bg-green-100 text-green-700' : gapScore >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'"
+                            x-text="gapScore + '%'"
+                        ></span>
+                    </div>
+                </h2>
+                
+                <!-- Loading State -->
+                <div x-show="profileLoading" class="text-center py-8">
+                    <svg class="animate-spin h-8 w-8 text-blue-600 mx-auto" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p class="text-gray-500 mt-2">Loading profile...</p>
+                </div>
+                
+                <!-- Profile Content -->
+                <div x-show="!profileLoading" class="space-y-6">
+                    <!-- Personal Info -->
+                    <div class="bg-white rounded-lg shadow p-4">
+                        <h3 class="font-bold text-gray-900 mb-2" x-text="profile.full_name || 'Your Name'"></h3>
+                        <p class="text-sm text-gray-600" x-text="profile.email"></p>
+                        <p class="text-sm text-gray-600" x-text="profile.phone"></p>
+                    </div>
+                    
+                    <!-- Skills (Highlight New Additions) -->
+                    <div class="bg-white rounded-lg shadow p-4">
+                        <h3 class="font-bold text-gray-900 mb-3">Skills</h3>
+                        <div class="flex flex-wrap gap-2">
+                            <template x-for="(skill, index) in profile.skills" :key="index">
+                                <span 
+                                    class="px-3 py-1 rounded-full text-sm font-medium transition-all duration-500"
+                                    :class="isNewSkill(skill) ? 'bg-green-100 text-green-700 ring-2 ring-green-400 animate-pulse' : 'bg-blue-100 text-blue-700'"
+                                    x-text="typeof skill === 'object' ? skill.name : skill"
+                                ></span>
+                            </template>
+                        </div>
+                    </div>
+                    
+                    <!-- Experience -->
+                    <div class="bg-white rounded-lg shadow p-4" x-show="profile.experiences && profile.experiences.length > 0">
+                        <h3 class="font-bold text-gray-900 mb-3">Experience</h3>
+                        <template x-for="(exp, index) in profile.experiences" :key="index">
+                            <div class="mb-3 pb-3 border-b border-gray-100 last:border-0">
+                                <div class="font-semibold text-gray-800" x-text="exp.title"></div>
+                                <div class="text-sm text-gray-600" x-text="exp.company"></div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Panel: Chat Interface -->
+        <div class="w-1/2 flex flex-col bg-white">
+            <!-- Chat Messages -->
+            <div class="flex-1 overflow-y-auto p-6 space-y-4" x-ref="messages">
+                <template x-for="msg in messages" :key="msg.id">
+                    <div :class="msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'">
+                        <div :class="msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-900'"
+                             class="max-w-md px-4 py-3 rounded-lg shadow">
+                            <p class="text-sm whitespace-pre-wrap" x-text="msg.content"></p>
+                        </div>
+                    </div>
+                </template>
+                
+                <div x-show="loading" class="flex justify-start">
+                    <div class="bg-gray-100 px-4 py-3 rounded-lg">
+                        <div class="flex space-x-2">
+                            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Input Form -->
+            <div class="border-t border-gray-200 p-4 bg-gray-50">
+                <form @submit.prevent="sendMessage" class="flex space-x-4">
+                    <input 
+                        type="text" 
+                        x-model="userInput"
+                        placeholder="Type your answer..."
+                        class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                    <button 
+                        type="submit"
+                        :disabled="loading || !userInput.trim()"
+                        class="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                        Send
+                    </button>
+                </form>
+                
+                <div class="mt-3 text-center">
+                    <button 
+                        @click="skipToReview"
+                        type="button"
+                        class="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                        Skip to Review Form →
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const JOB_ID = "{{ job.id }}";
+
+function splitChatbot() {
+    return {
+        messages: [],
+        userInput: '',
+        loading: false,
+        profile: {},
+        profileLoading: true,
+        previousSkills: [],
+        gapScore: null,  // NEW: Track live gap score
+        
+        init() {
+            console.log('[INIT] Split-screen chatbot initialized');
+            this.fetchProfile();
+            this.fetchNextQuestion();
+        },
+        
+        async fetchProfile() {
+            console.log('[PROFILE] Fetching profile data...');
+            this.profileLoading = true;
+            try {
+                const response = await fetch('/profiles/api/current/', {
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    this.previousSkills = [...(data.skills || [])];
+                    this.profile = data;
+                    console.log('[PROFILE] Loaded:', this.profile);
+                } else {
+                    console.error('[PROFILE] Failed to load');
+                }
+            } catch (error) {
+                console.error('[PROFILE] Error:', error);
+            } finally {
+                this.profileLoading = false;
+            }
+        },
+        
+        isNewSkill(skill) {
+            const skillName = typeof skill === 'object' ? skill.name : skill;
+            const wasPresent = this.previousSkills.some(s => 
+                (typeof s === 'object' ? s.name : s) === skillName
+            );
+            return !wasPresent;
+        },
+        
+        async fetchNextQuestion(userMessage = null) {
+            console.log('[FETCH] Getting next question...');
+            this.loading = true;
+            try {
+                const payload = {
+                    job_id: JOB_ID,
+                    conversation_history: this.messages
+                };
+                
+                if (userMessage) {
+                    payload.message = userMessage;
+                }
+                
+                const response = await fetch('/profiles/chatbot/api/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('[FETCH] Response:', data);
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                if (data.message) {
+                    this.messages.push({
+                        id: Date.now(),
+                        role: 'assistant',
+                        content: data.message
+                    });
+                }
+                
+                // LIVE UPDATE: Refresh profile if bot added skills
+                if (data.profile_updated) {
+                    console.log('[LIVE UPDATE] Profile was updated, refreshing...');
+                    await this.fetchProfile();
+                }
+                
+                // LIVE GAP SCORE: Update if returned
+                if (data.gap_score !== null && data.gap_score !== undefined) {
+                    console.log('[GAP SCORE] Updated to:', data.gap_score);
+                    this.gapScore = data.gap_score;
+                }
+                
+                if (data.complete) {
+                    console.log('[COMPLETE] Interview done, redirecting...');
+                    setTimeout(() => {
+                        window.location.href = data.redirect_url || `/profiles/form/${JOB_ID}/`;
+                    }, 2000);
+                }
+                
+            } catch (error) {
+                console.error('[FETCH] Error:', error);
+                this.messages.push({
+                    id: Date.now(),
+                    role: 'assistant',
+                    content: `Error: ${error.message}`
+                });
+            } finally {
+                this.loading = false;
+                this.$nextTick(() => {
+                    this.$refs.messages.scrollTop = this.$refs.messages.scrollHeight;
+                });
+            }
+        },
+        
+        async sendMessage() {
+            if (!this.userInput.trim() || this.loading) return;
+            
+            const answer = this.userInput;
+            this.userInput = '';
+            
+            console.log('[SEND] User message:', answer);
+            
+            this.messages.push({
+                id: Date.now(),
+                role: 'user',
+                content: answer
+            });
+            
+            this.$nextTick(() => {
+                this.$refs.messages.scrollTop = this.$refs.messages.scrollHeight;
+            });
+            
+            await this.fetchNextQuestion(answer);
+        },
+        
+        skipToReview() {
+            console.log('[SKIP] Skipping to review form');
+            window.location.href = `/profiles/form/${JOB_ID}/`;
+        }
+    }
+}
+</script>
+{% endblock %}

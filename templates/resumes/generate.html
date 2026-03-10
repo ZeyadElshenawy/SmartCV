@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-8">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+        <h1 class="text-2xl font-bold text-gray-900 mb-4">Generate Tailored Resume</h1>
+        <p class="text-gray-600 mb-6">We'll create an ATS-optimized resume tailored for {{ job.title }} at {{ job.company }}</p>
+        
+        {% if error %}
+        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+            {{ error }}
+        </div>
+        {% endif %}
+        
+        <form method="post" onsubmit="showLoading('Tailoring your resume to the job description... (this may take up to 60s if the AI is waking up)')">
+            {% csrf_token %}
+            
+            <div class="bg-blue-50 border border-blue-200 p-4 rounded-lg mb-6">
+                <h3 class="font-semibold text-blue-900 mb-2">What we'll do:</h3>
+                <ul class="text-sm text-blue-800 space-y-1">
+                    <li>✓ Emphasize your matched skills</li>
+                    <li>✓ Optimize for ATS keywords</li>
+                    <li>✓ Tailor your experience descriptions</li>
+                    <li>✓ Ensure proper formatting</li>
+                </ul>
+            </div>
+            
+            <button type="submit"
+                    class="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors">
+                Generate Resume with AI
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

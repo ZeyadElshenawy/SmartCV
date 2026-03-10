@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "G:\New folder\SmartCV\debug_benchmark_error.py", line 26, in debug_single_file
+    data = extractor.parse_cv(str(target_file))
+           ^^^^^^^^^^^^^^^^^^
+AttributeError: 'CVExtractor' object has no attribute 'parse_cv'

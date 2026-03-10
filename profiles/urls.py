@@ -1,0 +1,25 @@
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('input-choice/<uuid:job_id>/', views.profile_input_choice, name='profile_input'),
+    
+    # Job-Specific Flows
+    path('upload/<uuid:job_id>/', views.profile_upload_cv, name='profile_upload_cv'),
+    path('form/<uuid:job_id>/', views.profile_manual_form, name='profile_manual_form'),
+    
+    # Master Profile Flows (No Job ID)
+    path('setup/upload/', views.upload_master_profile, name='upload_master_profile'),
+    path('setup/review/', views.review_master_profile, name='review_master_profile'),
+    path('dashboard/', views.dashboard, name='dashboard'),
+
+    path('chatbot/<uuid:job_id>/', views.profile_chatbot, name='profile_chatbot'),
+    path('chatbot/api/', views.chatbot_api, name='chatbot_api'),
+    path('chatbot/complete/<uuid:job_id>/', views.chatbot_complete, name='chatbot_complete'),
+    
+    # API Endpoints
+    path('api/current/', views.get_current_profile, name='get_current_profile'),
+    
+    # Advanced AI Features
+    path('outreach/<uuid:job_id>/', views.generate_outreach_view, name='generate_outreach'),
+]

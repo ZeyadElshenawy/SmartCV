@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+        <h1 class="text-2xl font-bold text-gray-900 mb-2">{{ job.title }}</h1>
+        <p class="text-gray-600 mb-6">{{ job.company }}</p>
+        
+        <div class="mb-8">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">Extracted Skills ({{ job.extracted_skills|length }})</h2>
+            <div class="flex flex-wrap gap-2">
+                {% for skill in job.extracted_skills %}
+                <span class="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm">
+                    {{ skill }}
+                </span>
+                {% empty %}
+                <p class="text-gray-500 italic">No skills extracted.</p>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="mb-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Description</h3>
+            <div class="prose max-w-none text-gray-700 overflow-y-auto max-h-96 border p-4 rounded bg-gray-50">
+                {{ job.description|linebreaks }}
+            </div>
+        </div>
+
+        <div class="mt-6 space-y-4">
+            <!-- Application Status Controls (Kanban integration) -->
+            <form method="post" class="flex flex-wrap items-center gap-3">
+                {% csrf_token %}
+                <div>
+                    <label for="application_status" class="block text-sm font-medium text-gray-700">
+                        Application Status
+                    </label>
+                    <select
+                        id="application_status"
+                        name="application_status"
+                        class="mt-1 block w-52 px-3 py-2 border border-gray-300 bg-white rounded-md text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                        {% for value, label in status_choices %}
+                        <option value="{{ value }}" {% if job.application_status == value %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button
+                    type="submit"
+                    class="mt-6 inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg shadow-sm hover:bg-blue-700 transition-colors"
+                >
+                    Update Status
+                </button>
+            </form>
+            <p class="text-xs text-gray-500">
+                Changing the status updates which column this job appears in on your Application Tracking Board.
+            </p>
+
+            <div class="flex flex-wrap gap-4">
+            <a 
+                href="{% url 'profile_upload_cv' job.id %}"
+                class="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm"
+            >
+                Upload Your CV to Continue &rarr;
+            </a>
+            <a 
+                href="{% url 'generate_cover_letter' job.id %}"
+                class="inline-block bg-white border border-blue-600 text-blue-600 px-6 py-3 rounded-lg font-medium hover:bg-blue-50 transition-colors shadow-sm"
+            >
+                Generate Cover Letter
+            </a>
+            <a 
+                href="{% url 'generate_outreach' job.id %}"
+                class="inline-block bg-white border border-gray-300 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-50 transition-colors shadow-sm flex items-center"
+            >
+                <svg class="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                AI Outreach
+            </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ full_name }} - Resume</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 1.5cm;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            font-size: 11pt;
+            line-height: 1.5;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #2563eb;
+        }
+        
+        .header h1 {
+            font-size: 24pt;
+            color: #1e40af;
+            margin-bottom: 8px;
+        }
+        
+        .header .contact {
+            font-size: 10pt;
+            color: #666;
+        }
+        
+        .header .contact span {
+            margin: 0 10px;
+        }
+        
+        /* Sections */
+        .section {
+            margin-bottom: 20px;
+        }
+        
+        .section-title {
+            font-size: 14pt;
+            font-weight: bold;
+            color: #1e40af;
+            text-transform: uppercase;
+            border-bottom: 1px solid #cbd5e1;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+        }
+        
+        /* Summary */
+        .summary {
+            font-size: 10.5pt;
+            line-height: 1.6;
+            color: #555;
+        }
+        
+        /* Skills */
+        .skills-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        
+        .skill {
+            padding: 6px 10px;
+            background: #f1f5f9;
+            border-radius: 4px;
+            font-size: 10pt;
+        }
+        
+        .skill.matched {
+            background: #dcfce7;
+            border-left: 3px solid #16a34a;
+            font-weight: 600;
+        }
+        
+        /* Experience */
+        .experience-item {
+            margin-bottom: 15px;
+        }
+        
+        .experience-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        
+        .experience-title {
+            font-weight: bold;
+            font-size: 11.5pt;
+        }
+        
+        .experience-company {
+            color: #1e40af;
+            font-size: 10.5pt;
+        }
+        
+        .experience-dates {
+            color: #666;
+            font-size: 10pt;
+        }
+        
+        .experience-description {
+            font-size: 10pt;
+            color: #555;
+            margin-top: 5px;
+        }
+        
+        /* Education */
+        .education-item {
+            margin-bottom: 12px;
+        }
+        
+        .education-degree {
+            font-weight: bold;
+            font-size: 11pt;
+        }
+        
+        .education-institution {
+            color: #1e40af;
+            font-size: 10.5pt;
+        }
+        
+        /* Projects */
+        .project-item {
+            margin-bottom: 12px;
+        }
+        
+        .project-name {
+            font-weight: bold;
+            font-size: 11pt;
+        }
+        
+        .project-description {
+            font-size: 10pt;
+            color: #555;
+        }
+        
+        /* Dynamic Sections */
+        .dynamic-section {
+            margin-bottom: 15px;
+        }
+        
+        .dynamic-item {
+            margin-bottom: 8px;
+            font-size: 10pt;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>{{ full_name }}</h1>
+            <div class="contact">
+                {% if email %}<span>{{ email }}</span>{% endif %}
+                {% if phone %}<span>•</span><span>{{ phone }}</span>{% endif %}
+                {% if location %}<span>•</span><span>{{ location }}</span>{% endif %}
+                {% if linkedin_url %}<span>•</span><span>{{ linkedin_url }}</span>{% endif %}
+            </div>
+        </div>
+        
+        <!-- Summary -->
+        {% if summary %}
+        <div class="section">
+            <div class="section-title">Professional Summary</div>
+            <div class="summary">{{ summary }}</div>
+        </div>
+        {% endif %}
+        
+        <!-- Skills -->
+        {% if skills %}
+        <div class="section">
+            <div class="section-title">Skills</div>
+            <div class="skills-grid">
+                {% for skill in skills %}
+                <div class="skill {% if skill.name in job_skills or skill in job_skills %}matched{% endif %}">
+                    {% if skill.name %}{{ skill.name }}{% else %}{{ skill }}{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Experience -->
+        {% if experiences %}
+        <div class="section">
+            <div class="section-title">Professional Experience</div>
+            {% for exp in experiences %}
+            <div class="experience-item">
+                <div class="experience-header">
+                    <div>
+                        <div class="experience-title">{{ exp.title }}</div>
+                        <div class="experience-company">{{ exp.company }}</div>
+                    </div>
+                    <div class="experience-dates">
+                        {% if exp.start_date %}{{ exp.start_date }}{% endif %}
+                        {% if exp.end_date %} - {{ exp.end_date }}{% endif %}
+                    </div>
+                </div>
+                {% if exp.description %}
+                <div class="experience-description">{{ exp.description }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <!-- Education -->
+        {% if education %}
+        <div class="section">
+            <div class="section-title">Education</div>
+            {% for edu in education %}
+            <div class="education-item">
+                <div class="education-degree">{{ edu.degree }}{% if edu.field %} in {{ edu.field }}{% endif %}</div>
+                <div class="education-institution">{{ edu.institution }}</div>
+                {% if edu.graduation_year %}<div style="color: #666; font-size: 10pt;">{{ edu.graduation_year }}</div>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <!-- Projects -->
+        {% if projects %}
+        <div class="section">
+            <div class="section-title">Projects</div>
+            {% for project in projects %}
+            <div class="project-item">
+                <div class="project-name">{{ project.name }}</div>
+                {% if project.description %}
+                <div class="project-description">{{ project.description }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <!-- Certifications -->
+        {% if certifications %}
+        <div class="section">
+            <div class="section-title">Certifications</div>
+            {% for cert in certifications %}
+            <div class="dynamic-item">
+                <strong>{{ cert.name }}</strong>
+                {% if cert.issuer %} - {{ cert.issuer }}{% endif %}
+                {% if cert.date %} ({{ cert.date }}){% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <!-- Dynamic Sections (Awards, Volunteering, etc.) -->
+        {% for section_title, section_data in extra_sections.items %}
+        <div class="section dynamic-section">
+            <div class="section-title">{{ section_title }}</div>
+            {% if section_data is iterable and section_data is not string %}
+                {% for item in section_data %}
+                <div class="dynamic-item">
+                    {% if item is mapping %}
+                        {% for key, value in item.items %}
+                        <strong>{{ key|title }}:</strong> {{ value }}<br>
+                        {% endfor %}
+                    {% else %}
+                        • {{ item }}
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="dynamic-item">{{ section_data }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</body>
+</html>

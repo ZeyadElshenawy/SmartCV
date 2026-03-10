@@ -1,0 +1,382 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="w-full max-w-[1920px] mx-auto px-4 py-8" 
+     x-data="kanbanBoard()"
+     x-init="initBoard()">
+    <!-- Single-column layout: top bar, then board, then AI recommended (all full width) -->
+    <div class="grid gap-8" style="grid-template-columns: 1fr;">
+        
+        <!-- Row 1: Profile + Header/Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-6 min-h-0">
+            <!-- Left Panel: Master Profile Summary -->
+            <div class="md:col-span-1 lg:col-span-1">
+            <div class="bg-white rounded-xl shadow-md p-4 border border-gray-100 sticky top-4 space-y-4">
+                <div class="text-center">
+                    <div class="w-14 h-14 bg-gradient-to-tr from-blue-500 to-indigo-600 rounded-full mx-auto flex items-center justify-center text-white text-xl font-bold uppercase mb-2">
+                        {{ profile.full_name|slice:":2"|default:user.email|slice:":2" }}
+                    </div>
+                    <h2 class="text-base font-semibold text-gray-800 truncate">{{ profile.full_name|default:user.email }}</h2>
+                    {% if not profile.full_name %}
+                    <a href="{% url 'upload_master_profile' %}" class="text-xs text-orange-500 font-medium hover:underline">&#9888; Complete your profile</a>
+                    {% else %}
+                    <p class="text-xs text-gray-500 truncate">{{ profile.location }}</p>
+                    {% endif %}
+                </div>
+                
+                <div class="space-y-3">
+                    <div>
+                        <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Top Skills</h4>
+                        <div class="flex flex-wrap gap-1.5">
+                            {% for skill in profile.skills|slice:":5" %}
+                            <span class="px-2 py-0.5 bg-gray-100 text-gray-600 text-[11px] rounded-md">
+                                {% if skill.name %}{{ skill.name }}{% else %}{{ skill }}{% endif %}
+                            </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                
+                <a href="{% url 'review_master_profile' %}" class="block w-full py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-center rounded-lg font-medium transition-colors text-xs">
+                    Edit Master Profile
+                </a>
+                <a href="{% url 'upload_master_profile' %}" class="block w-full py-1.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 text-center rounded-lg font-medium transition-colors text-xs">
+                    Re-upload CV
+                </a>
+                <a href="{% url 'resume_list' %}" class="block w-full py-1.5 bg-blue-50 border border-blue-100 hover:bg-blue-100 text-blue-700 text-center rounded-lg font-semibold transition-colors text-xs">
+                    My Tailored Resumes
+                </a>
+            </div>
+        </div>
+        
+            <!-- Center/Right: Compact Header Row: CTA + Stats -->
+            <div class="md:col-span-3 lg:col-span-4 space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
+                <!-- New Application CTA -->
+                <div class="lg:col-span-2">
+                    <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl shadow-md px-6 py-5 text-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <h1 class="text-2xl font-bold mb-1">New Application</h1>
+                            <p class="text-sm text-white/80">Tailor your resume for a new job description.</p>
+                        </div>
+                        <a href="{% url 'job_input_view' %}" class="inline-flex items-center justify-center px-6 py-2.5 bg-white text-blue-700 rounded-lg text-sm font-semibold shadow-sm hover:bg-blue-50 transition-colors">
+                            Start Now &rarr;
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="space-y-3">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3 flex items-center justify-between">
+                        <div>
+                            <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Total Applications</h4>
+                            <div class="text-2xl font-bold text-gray-900 mt-0.5">{{ total_applications }}</div>
+                        </div>
+                        <div class="p-2.5 bg-blue-50 text-blue-600 rounded-lg">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
+                        <div class="flex items-center justify-between mb-2">
+                            <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Top Skills</h4>
+                            <a href="{% url 'learning_path' %}" class="text-[11px] font-medium text-blue-600 hover:text-blue-800">
+                                AI Learning Path &rarr;
+                            </a>
+                        </div>
+                        <div class="flex flex-wrap gap-1.5">
+                            {% for skill, count in top_skills|slice:":4" %}
+                            <span class="px-2 py-0.5 bg-green-50 text-green-700 text-[11px] font-medium rounded-full flex items-center">
+                                {{ skill }}
+                                <span class="ml-1 bg-green-200 text-green-800 text-[10px] px-1 py-0.5 rounded-full">{{ count }}</span>
+                            </span>
+                            {% empty %}
+                            <span class="text-xs text-gray-500">No skills analyzed yet.</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 2: Application Tracking Board (Kanban) - full width, forces new row -->
+        <div class="w-full min-w-0 col-span-1" style="grid-column: 1 / -1;">
+            <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-xl font-bold text-gray-800 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                        Application Tracking Board
+                    </h3>
+                    <p class="hidden md:flex items-center text-xs text-gray-500 space-x-2">
+                        <span class="inline-flex items-center">
+                            <span class="w-2 h-2 rounded-full bg-gray-300 mr-1"></span> Saved
+                        </span>
+                        <span class="inline-flex items-center">
+                            <span class="w-2 h-2 rounded-full bg-blue-400 mr-1"></span> Applied
+                        </span>
+                        <span class="inline-flex items-center">
+                            <span class="w-2 h-2 rounded-full bg-amber-400 mr-1"></span> Interviewing
+                        </span>
+                        <span class="inline-flex items-center">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 mr-1"></span> Offer
+                        </span>
+                        <span class="inline-flex items-center">
+                            <span class="w-2 h-2 rounded-full bg-rose-400 mr-1"></span> Rejected
+                        </span>
+                    </p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-5 overflow-x-auto pb-4">
+                    {% for status, category_jobs in kanban_boards.items %}
+                    <div 
+                        class="relative bg-gradient-to-b from-gray-50 to-gray-100/70 rounded-xl p-3 min-w-[280px] border border-gray-200 flex flex-col h-full shadow-sm"
+                        :class="dragOverStatus === '{{ status }}' ? 'ring-2 ring-blue-400 ring-offset-2 ring-offset-gray-50' : ''"
+                        data-status="{{ status }}"
+                        @dragover.prevent="onDragOver('{{ status }}')"
+                        @dragleave="onDragLeave('{{ status }}')"
+                        @drop.prevent="onDrop('{{ status }}', $event)"
+                    >
+                        <div class="flex justify-between items-center mb-3 pb-2 border-b border-gray-200">
+                            <div class="flex items-center space-x-2">
+                                <span class="w-2 h-2 rounded-full 
+                                             {% if status == 'Saved' %}bg-gray-300
+                                             {% elif status == 'Applied' %}bg-blue-400
+                                             {% elif status == 'Interviewing' %}bg-amber-400
+                                             {% elif status == 'Offer' %}bg-emerald-400
+                                             {% elif status == 'Rejected' %}bg-rose-400
+                                             {% else %}bg-gray-300{% endif %}">
+                                </span>
+                                <h4 class="font-semibold text-gray-800 text-sm tracking-wide uppercase">{{ status }}</h4>
+                            </div>
+                            <span class="bg-white/80 border border-gray-200 text-gray-700 px-2.5 py-0.5 rounded-full text-[11px] font-semibold shadow-sm"
+                                  x-text="columnCounts['{{ status }}'] ?? {{ category_jobs|length }}">
+                                {{ category_jobs|length }}
+                            </span>
+                        </div>
+                        
+                        <div class="flex-1 space-y-3 min-h-[60px] max-h-[70vh] overflow-y-auto pr-1">
+                            {% for job in category_jobs %}
+                            <div 
+                                class="group bg-white/95 backdrop-blur-sm p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md hover:border-blue-300 transition-all cursor-move"
+                                draggable="true"
+                                @dragstart="onDragStart($event, '{{ job.id }}', '{{ status }}')"
+                                @dragend="onDragEnd()"
+                                data-job-id="{{ job.id }}"
+                            >
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="space-y-1">
+                                        <div class="font-semibold text-gray-900 text-sm leading-snug" title="{{ job.title }}">
+                                            {{ job.title }}
+                                        </div>
+                                        <div class="text-xs text-gray-600 leading-snug">
+                                            {{ job.company }}
+                                        </div>
+                                        {% if job.extracted_skills %}
+                                        <div class="flex flex-wrap gap-1 pt-1">
+                                            {% for skill in job.extracted_skills|slice:":3" %}
+                                            <span class="px-1.5 py-0.5 rounded-full bg-gray-100 text-[10px] text-gray-600">
+                                                {{ skill }}
+                                            </span>
+                                            {% endfor %}
+                                            {% if job.extracted_skills|length > 3 %}
+                                            <span class="text-[10px] text-gray-400">+{{ job.extracted_skills|length|add:-3 }}</span>
+                                            {% endif %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    <span class="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                                        {{ job.created_at|date:"M d" }}
+                                    </span>
+                                </div>
+                                <div class="flex justify-end items-center mt-3">
+                                    <div class="flex space-x-2">
+                                        {% if status == 'Offer' %}
+                                        <a href="{% url 'negotiate_salary' job.id %}" class="text-xs text-green-600 hover:text-green-800 font-bold" title="AI Salary Negotiator">
+                                            <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                        </a>
+                                        {% endif %}
+                                        <a href="{% url 'job_detail' job.id %}" class="text-[11px] text-blue-600 hover:text-blue-800 font-medium underline-offset-2 hover:underline">View &rarr;</a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            
+                            {% if not category_jobs %}
+                            <div class="flex flex-col items-center justify-center py-6 text-xs text-gray-400 border-2 border-dashed border-gray-200 rounded-lg bg-white/40">
+                                <svg class="w-4 h-4 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16M4 12h8m-8 5h16"></path></svg>
+                                <span>Drag jobs here</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    
+        <!-- Row 3: AI Recommended Jobs Feed - full width -->
+        <div class="w-full min-w-0 col-span-1" style="grid-column: 1 / -1;">
+            <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    AI Recommended Matches
+                </h3>
+                
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    {% if recommended_jobs %}
+                        <ul class="divide-y divide-gray-100">
+                            {% for rec in recommended_jobs %}
+                            <li class="p-5 hover:bg-gray-50 transition-colors flex justify-between items-center group">
+                                <div class="flex-1 mr-4">
+                                    <div class="flex mb-1 items-center">
+                                        <h4 class="text-lg font-bold text-gray-900 mr-3">{{ rec.title }}</h4>
+                                        <span class="bg-green-100 text-green-800 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-green-200">
+                                            {{ rec.match_score }}% Match
+                                        </span>
+                                    </div>
+                                    <div class="text-sm font-medium text-gray-600 mb-2">{{ rec.company }}</div>
+                                    <p class="text-xs text-gray-500 line-clamp-2">{{ rec.description }}</p>
+                                </div>
+                                <div class="flex gap-2">
+                                    <a href="{{ rec.url }}" target="_blank" class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 text-gray-700 transition">View Source</a>
+                                    <button class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition shadow-sm">Save & Generate CV</button>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="p-12 text-center">
+                            <div class="text-gray-300 mb-3 flex justify-center">
+                                <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            </div>
+                            <h4 class="text-lg font-medium text-gray-900 mb-1">Scanning for matches...</h4>
+                            <p class="text-sm text-gray-500">Our AI is searching the web for jobs that fit your profile. Check back later!</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function kanbanBoard() {
+        return {
+            dragJobId: null,
+            dragFromStatus: null,
+            dragOverStatus: null,
+            columnCounts: {},
+
+            initBoard() {
+                // Initialize counts from DOM
+                const columns = document.querySelectorAll('[data-status]');
+                columns.forEach(col => {
+                    const status = col.getAttribute('data-status');
+                    const cards = col.querySelectorAll('[data-job-id]');
+                    this.columnCounts[status] = cards.length;
+                });
+            },
+
+            onDragStart(event, jobId, fromStatus) {
+                this.dragJobId = jobId;
+                this.dragFromStatus = fromStatus;
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', jobId);
+            },
+
+            onDragEnd() {
+                this.dragJobId = null;
+                this.dragFromStatus = null;
+                this.dragOverStatus = null;
+            },
+
+            onDragOver(status) {
+                this.dragOverStatus = status;
+            },
+
+            onDragLeave(status) {
+                if (this.dragOverStatus === status) {
+                    this.dragOverStatus = null;
+                }
+            },
+
+            async onDrop(toStatus, event) {
+                if (!this.dragJobId || !this.dragFromStatus || this.dragFromStatus === toStatus) {
+                    this.dragOverStatus = null;
+                    return;
+                }
+
+                // Move card in the DOM optimistically
+                const columnEl = event.currentTarget;
+                const cardEl = document.querySelector(`[data-job-id="${this.dragJobId}"]`);
+                const listEl = columnEl.querySelector('.flex-1');
+
+                if (cardEl && listEl && cardEl.parentNode !== listEl) {
+                    listEl.appendChild(cardEl);
+                }
+
+                // Optimistic counts update
+                this.columnCounts[this.dragFromStatus] = (this.columnCounts[this.dragFromStatus] || 1) - 1;
+                this.columnCounts[toStatus] = (this.columnCounts[toStatus] || 0) + 1;
+
+                this.dragOverStatus = null;
+
+                try {
+                    const csrftoken = this.getCookie('csrftoken');
+                    const response = await fetch('{% url "update_job_status" %}', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrftoken,
+                        },
+                        body: new URLSearchParams({
+                            job_id: this.dragJobId,
+                            new_status: toStatus.toLowerCase(),
+                        }),
+                    });
+
+                    if (!response.ok) {
+                        // Revert counts on error
+                        this.columnCounts[this.dragFromStatus] += 1;
+                        this.columnCounts[toStatus] -= 1;
+
+                        // Move card back to original column
+                        const originalCol = document.querySelector(`[data-status="${this.dragFromStatus}"]`);
+                        if (originalCol) {
+                            const originalList = originalCol.querySelector('.flex-1');
+                            if (cardEl && originalList) {
+                                originalList.appendChild(cardEl);
+                            }
+                        }
+                    } 
+                } catch (e) {
+                    this.columnCounts[this.dragFromStatus] += 1;
+                    this.columnCounts[toStatus] -= 1;
+                    
+                    // Move card back to original column on exception
+                    const originalCol = document.querySelector(`[data-status="${this.dragFromStatus}"]`);
+                    if (originalCol) {
+                        const originalList = originalCol.querySelector('.flex-1');
+                        if (cardEl && originalList) {
+                            originalList.appendChild(cardEl);
+                        }
+                    }
+                } finally {
+                    this.onDragEnd();
+                }
+            },
+
+            getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            },
+        }
+    }
+</script>
+{% endblock %}
