@@ -1,28 +1,38 @@
 {% extends 'base.html' %}
 
-{% block content %}
-<div class="max-w-4xl mx-auto px-4 py-8">
-    <div class="flex justify-between items-center mb-6">
-        <div>
-            <h1 class="text-2xl font-bold text-gray-900">Your Cover Letter</h1>
-            <p class="text-gray-600">For {{ letter.job.title }} at {{ letter.job.company }}</p>
-        </div>
-        <div class="flex space-x-4">
-            <button onclick="copyToClipboard()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
-                Copy to Clipboard
-            </button>
-        </div>
-    </div>
+{% extends 'base.html' %}
 
-    <!-- Letter Content -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-gray-800 leading-relaxed max-w-3xl mx-auto whitespace-pre-wrap" id="cover-letter-text">
-Dear Hiring Manager,
+{% block content %}
+<div class="min-h-screen bg-rn-light py-12">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        <div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div>
+                <h1 class="text-3xl font-extrabold text-rn-navy tracking-tight mb-2">Your Cover Letter</h1>
+                <p class="text-gray-600 font-medium">For <strong class="text-gray-900">{{ letter.job.title }}</strong> at <strong class="text-gray-900">{{ letter.job.company }}</strong></p>
+            </div>
+            
+            <div class="flex gap-3">
+                <a href="{% url 'job_detail' letter.job.id %}" class="inline-flex items-center px-6 py-3 border-2 border-gray-300 text-gray-700 font-bold rounded-rn-pill hover:bg-white transition-colors bg-gray-50">
+                    Back to Job
+                </a>
+                <button onclick="copyToClipboard()" class="inline-flex items-center px-6 py-3 bg-rn-blue text-white font-bold rounded-rn-pill hover:bg-rn-blue-hover hover:-translate-y-0.5 transition-all shadow-md">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                    Copy to Clipboard
+                </button>
+            </div>
+        </div>
+
+        <!-- Letter Content -->
+        <div class="bg-white rounded-xl shadow-lg border border-gray-200 p-10 md:p-14 mb-12">
+            <div class="prose max-w-none text-gray-900 leading-relaxed font-sans text-[15px] whitespace-pre-wrap" id="cover-letter-text">Dear Hiring Manager,
 
 {{ letter.content }}
 
 Sincerely,
-{{ letter.profile.full_name }}
+{{ letter.profile.full_name }}</div>
+        </div>
+        
     </div>
 </div>
 
@@ -30,7 +40,8 @@ Sincerely,
 function copyToClipboard() {
     const text = document.getElementById('cover-letter-text').innerText;
     navigator.clipboard.writeText(text).then(() => {
-        alert("Copied to clipboard!");
+        // Simple temporary toast could go here, for now using alert mapping to a nicer styled one if wanted
+        alert("Cover letter copied to clipboard!");
     });
 }
 </script>
