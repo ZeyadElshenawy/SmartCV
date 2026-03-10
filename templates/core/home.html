@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="min-h-screen">
+    <!-- Hero Section -->
+    <div class="max-w-7xl mx-auto px-4 py-20">
+        <div class="text-center">
+            <h1 class="text-5xl font-bold text-gray-900 mb-6">
+                Land Your Dream Job with AI-Powered Resumes
+            </h1>
+            <p class="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+                Generate ATS-optimized, tailored resumes in under 60 seconds. 
+                Beat the bots and get noticed by recruiters.
+            </p>
+            <div class="flex justify-center space-x-4">
+                <a href="{% url 'register' %}"
+                   class="px-8 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors">
+                    Get Started Free
+                </a>
+                <a href="{% url 'login' %}"
+                   class="px-8 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors">
+                    Sign In
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Features -->
+    <div class="bg-gray-50 py-20">
+        <div class="max-w-7xl mx-auto px-4">
+            <h2 class="text-3xl font-bold text-center text-gray-900 mb-12">How It Works</h2>
+            <div class="grid md:grid-cols-4 gap-8">
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="text-2xl font-bold text-blue-600">1</span>
+                    </div>
+                    <h3 class="font-semibold text-gray-900 mb-2">Paste Job URL</h3>
+                    <p class="text-sm text-gray-600">Share the LinkedIn job posting URL</p>
+                </div>
+                
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="text-2xl font-bold text-blue-600">2</span>
+                    </div>
+                    <h3 class="font-semibold text-gray-900 mb-2">Add Your Profile</h3>
+                    <p class="text-sm text-gray-600">Upload CV or fill a quick form</p>
+                </div>
+                
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="text-2xl font-bold text-blue-600">3</span>
+                    </div>
+                    <h3 class="font-semibold text-gray-900 mb-2">See Gap Analysis</h3>
+                    <p class="text-sm text-gray-600">Understand your skill matches</p>
+                </div>
+                
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="text-2xl font-bold text-blue-600">4</span>
+                    </div>
+                    <h3 class="font-semibold text-gray-900 mb-2">Get Your Resume</h3>
+                    <p class="text-sm text-gray-600">Download ATS-optimized PDF</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

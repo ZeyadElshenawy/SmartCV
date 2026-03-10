@@ -1,0 +1,32 @@
+Traceback (most recent call last):
+  File "G:\New folder\SmartCV\test_pdf.py", line 25, in <module>
+    pisa.CreatePDF(html, dest=pdf)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Users\zeyad\AppData\Local\Programs\Python\Python313\Lib\site-packages\xhtml2pdf\document.py", line 139, in pisaDocument
+    context = pisaStory(
+        src,
+    ...<7 lines>...
+        xml_output=xml_output,
+    )
+  File "C:\Users\zeyad\AppData\Local\Programs\Python\Python313\Lib\site-packages\xhtml2pdf\document.py", line 75, in pisaStory
+    pisaParser(src, context, default_css, xhtml, encoding, xml_output)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\zeyad\AppData\Local\Programs\Python\Python313\Lib\site-packages\xhtml2pdf\parser.py", line 823, in pisaParser
+    context.parseCSS()
+    ~~~~~~~~~~~~~~~~^^
+  File "C:\Users\zeyad\AppData\Local\Programs\Python\Python313\Lib\site-packages\xhtml2pdf\context.py", line 690, in parseCSS
+    self.css = self.cssParser.parse(self.cssText)
+               ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "C:\Users\zeyad\AppData\Local\Programs\Python\Python313\Lib\site-packages\xhtml2pdf\w3c\cssParser.py", line 458, in parse
+    src, stylesheet = self._parseStylesheet(src)
+                      ~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\zeyad\AppData\Local\Programs\Python\Python313\Lib\site-packages\xhtml2pdf\w3c\cssParser.py", line 561, in _parseStylesheet
+    src, atResults = self._parseAtKeyword(src)
+                     ~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\zeyad\AppData\Local\Programs\Python\Python313\Lib\site-packages\xhtml2pdf\w3c\cssParser.py", line 683, in _parseAtKeyword
+    src, result = self._parseAtPage(src)
+                  ~~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\zeyad\AppData\Local\Programs\Python\Python313\Lib\site-packages\xhtml2pdf\w3c\cssParser.py", line 793, in _parseAtPage
+    stylesheetElements.extend(atResults)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+TypeError: 'NotImplementedType' object is not iterable

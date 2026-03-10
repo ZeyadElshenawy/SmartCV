@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SmartCV – AI-powered resume tailoring and career agent.">
+    <title>{% block title %}SmartCV{% endblock %}</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📄</text></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="h-full">
+    <!-- Navigation Header -->
+    {% if user.is_authenticated %}
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <a href="{% url 'dashboard' %}" class="text-xl font-bold text-blue-600">SmartCV</a>
+            <div class="flex items-center gap-4">
+                <span class="text-sm text-gray-600">{{ user.email }}</span>
+                <a href="{% url 'logout' %}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors">
+                    Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+    
+    {% block content %}{% endblock %}
+
+    <!-- Global Loading Overlay -->
+    <div id="loading-overlay" class="hidden fixed inset-0 bg-gray-900/70 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-2xl p-10 flex flex-col items-center gap-4 max-w-sm">
+            <svg class="animate-spin h-12 w-12 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <h2 class="text-xl font-bold text-gray-800">Processing...</h2>
+            <p class="text-gray-500 text-sm text-center" id="loading-msg">
+                Please wait.
+            </p>
+            <div class="w-full bg-gray-100 rounded-full h-1.5 mt-2">
+                <div class="bg-blue-500 h-1.5 rounded-full animate-pulse" style="width: 60%"></div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+    [x-cloak] { display: none !important; }
+    </style>
+
+    <script>
+    function showLoading(message) {
+        const overlay = document.getElementById('loading-overlay');
+        const msg = document.getElementById('loading-msg');
+        if (msg && message) msg.textContent = message;
+        overlay.classList.remove('hidden');
+    }
+    </script>
+</body>
+</html>

@@ -1,0 +1,202 @@
+--- Slide 1 ---
+FIELD OF COMPUTER SCIENCE
+SOFTWARE ENGINEERING PROGRAM
+CSE493 - GRADUATION PROJECT 1
+Project Title
+SmartCV : An AI-Powered Career Agent
+FALL 2025/2026
+Zeyad Ahmed Elsayed Elshenawy
+supervisors:
+Dr. Sami Abdelnabi
+Eng. Isameil Ahmed
+
+--- Slide 2 ---
+Problem Statement
+Solution Overview
+Introducing SmartCV
+Agenda
+Features
+Workflow (Deep Dive)
+User Experience
+Implementation Status
+
+--- Slide 3 ---
+Problem Statement
+The Problem
+•
+Time Consuming: Manually tailoring
+applications is exhausting.
+•
+75%
+ATS Rejection:
+of resumes are
+rejected by bots.
+•
+Keyword Mismatch:
+“Cloud Computing” vs
+“AWS EC2, S3, IAM” can lead to rejection.
+•
+Generic Resumes:
+Quantity over quality
+approach fails.
+
+--- Slide 4 ---
+AI-Powered Solution
+1. Understands You
+Parses & Vectorizes your
+history
+4. Optimizes 2. Understands Job
+Generates Tailored Career Agent Scrapes & Analyzes Job
+Resume Description
+3. Identifies Gap
+Semantic Matching
+
+--- Slide 5 ---
+Introducing
+SmartCV
+an intelligent platform that bridges the gap between
+candidate potential and job requirements using:
+Semantic Vector Search
+(Not just keyword matching)
+Generative AI
+(Refining Bullet Points )
+Conversational Interviewer
+(Fills gaps interactively)
+
+--- Slide 6 ---
+Features Overview
+CV Parsing Job Description Analysis
+Scrape URLs and understand key requirements.
+Extract structured data from PDF/DOCX using NLP.
+Gap Analysis Resume Builder
+Semantic matching + LLM insights to find missing skills. Generate perfectly formatted, tailored PDFs.
+
+--- Slide 7 ---
+System Workflow
+1. INGEST
+Upload CV / Manual Form
+2. TARGET
+Scrape URL / Text Parse
+3. MATCH
+Semantic / NLP
+4. OUTPUT
+Template → PDF
+
+--- Slide 8 ---
+Ingestion Logic
+2. TARGET
+3. MATCH
+4. OUTPUT
+Layer 4: Pydantic (Schema validation)
+Achieved Accuracy:
+0.28
+98%
+With Average s Per CV
+
+--- Slide 9 ---
+Ingestion Logic
+2. TARGET
+3. MATCH
+4. OUTPUT
+
+--- Slide 10 ---
+Job Analysis Logic
+1. INGEST
+100%
+success rate
+3. MATCH
+4. OUTPUT
+Benchmark:
+87%
+76%
+Precision (Quality) Recall (Completeness) on
+,
+test set.
+
+--- Slide 11 ---
+Job Analysis Logic
+1. INGEST
+3. MATCH
+4. OUTPUT
+
+--- Slide 12 ---
+Semantic Matching
+A Hybrid Approach:
+Vectors + Reasoning + Interaction
+1. INGEST
+2. TARGET
+4. OUTPUT
+Embed: Google Gemini (768-dim)
+Store: PostgreSQL + pgvector
+Calculate: Cosine Similarity
+
+--- Slide 13 ---
+LLM
+Discussion
+Asks conversational
+1. INGEST questions to fill gaps
+2. TARGET
+4. OUTPUT
+
+--- Slide 14 ---
+Fallback:
+NLP
+Keyword Matching
+1. INGEST
+Spacy
+2. TARGET
+Skill Taxonomy + RapidFuzzz
+Set Difference
+4. OUTPUT
+
+--- Slide 15 ---
+1. INGEST
+Choose Template Generation Review
+2. TARGET
+● Section Filtering ● Live preview before final
+→ →
+3. MATCH ● Content Generation generation
+● ATS-optimized Formatting ● Audit trail of all changes
+● PDF Render (WeasyPrint)
+
+--- Slide 16 ---
+User Experience
+Chatbot & Live Preview
+Dashboard
+Manage profiles & job applications. Fills information gaps conversationally.
+Audit Trail Scraping & Analyzing
+See resume before Review and edit every AI decision.
+generating.
+
+--- Slide 17 ---
+Implementation Status
+100% Complete 70% Complete Future Work
+• • • •
+CV Parser Resume Generator Polish PDF Templates
+• • • •
+Job Scraper PDF Export (Refining Cover Letter Gen
+• formats) •
+Gap Analysis Engine Browser Extension
+•
+•
+Conversational
+Chatbot
+
+--- Slide 18 ---
+Tech Stack Summary
+Component Technology
+Backend Django 4.2
+Database PostgreSQL + pgvector + JSONB
+CV Parsing pdfplumber, SpaCy, Cerebras
+Job Scraping BeautifulSoup, Requests
+Embeddings Google Gemini text-embedding-004 (768-dim)
+LLM Reasoning Cerebras gpt-oss-120b
+PDF Generation WeasyPrint
+
+--- Slide 19 ---
+SmartCV
+isn't just about resumes.
+TQHuAeNstKio YnOs?U
+It's about translating human potential
+into
+machine-readable advantages.

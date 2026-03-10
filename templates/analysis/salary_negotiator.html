@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+    <div class="mb-8">
+        <a href="{% url 'dashboard' %}" class="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center mb-4">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+            Back to Dashboard
+        </a>
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Salary Negotiator</h1>
+        <p class="text-gray-600">You received an offer for <span class="font-bold">{{ job.title }}</span> at <span class="font-bold">{{ job.company }}</span>! Let the AI help you negotiate the best compensation based on your unique skills.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        
+        <!-- Input Panel -->
+        <div class="md:col-span-1">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <form method="POST" onsubmit="showLoading('Generating negotiation script based on your skills... (this may take up to 60s if the AI is waking up)')">
+                    {% csrf_token %}
+                    <div class="mb-4">
+                        <label for="current_offer" class="block text-sm font-bold text-gray-700 mb-2">Current Offer ($)</label>
+                        <input type="text" id="current_offer" name="current_offer" placeholder="e.g., 90,000 + 10k bonus" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                    </div>
+                    <div class="mb-6">
+                        <label for="target_salary" class="block text-sm font-bold text-gray-700 mb-2">Target Salary ($)</label>
+                        <input type="text" id="target_salary" name="target_salary" placeholder="e.g., 105,000" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                    </div>
+                    <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg shadow hover:bg-blue-700 transition">
+                        Generate Script &rarr;
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Result Panel -->
+        <div class="md:col-span-2">
+            {% if script %}
+            <div class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+                <div class="bg-gray-50 border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+                    <h3 class="font-bold text-gray-800">Your Negotiation Script</h3>
+                    <button onclick="copyToClipboard()" class="text-sm bg-white border border-gray-300 px-3 py-1.5 rounded shadow-sm font-medium hover:bg-gray-50">Copy Text</button>
+                </div>
+                <div class="p-6">
+                    <pre class="font-sans text-gray-800 whitespace-pre-wrap leading-relaxed" id="script-text">{{ script }}</pre>
+                </div>
+            </div>
+            {% else %}
+            <div class="h-full border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center p-12 text-center text-gray-500 bg-gray-50">
+                <svg class="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <p>Enter your offer details to generate a persuasive, data-backed email script.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function copyToClipboard() {
+    const text = document.getElementById('script-text').innerText;
+    navigator.clipboard.writeText(text).then(() => {
+        alert("Script copied to clipboard!");
+    });
+}
+</script>
+{% endblock %}

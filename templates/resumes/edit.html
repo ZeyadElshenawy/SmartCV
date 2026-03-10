@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">Edit Your Tailored Resume</h1>
+        <p class="text-gray-600">Review and refine the AI-generated content before downloading your PDF.</p>
+    </div>
+
+    <form method="POST" action="{% url 'resume_edit' resume.id %}" class="bg-white rounded-lg shadow-sm border border-gray-200 p-8 space-y-8">
+        {% csrf_token %}
+
+        <!-- Professional Summary Section -->
+        <div>
+            <h2 class="text-xl font-bold text-gray-900 mb-4 border-b border-gray-200 pb-2">Professional Summary</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Professional Title</label>
+                    <input type="text" name="professional_title" value="{{ resume.content.professional_title|default:'' }}"
+                           class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Summary</label>
+                    <textarea name="professional_summary" rows="4" 
+                              class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">{{ resume.content.professional_summary|default:'' }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Skills Section -->
+        <div>
+            <h2 class="text-xl font-bold text-gray-900 mb-4 border-b border-gray-200 pb-2">Skills</h2>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Comma-separated skills list</label>
+                <textarea name="skills" rows="3" 
+                          class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">{% for skill in resume.content.skills %}{{ skill }}{% if not forloop.last %}, {% endif %}{% endfor %}</textarea>
+                <p class="text-sm text-gray-500 mt-1">Example: Python, Django, React, Project Management</p>
+            </div>
+        </div>
+
+        <!-- Experience Section -->
+        <div>
+            <div class="flex justify-between items-center mb-4 border-b border-gray-200 pb-2">
+                <h2 class="text-xl font-bold text-gray-900">Experience</h2>
+                <button type="button" onclick="addExperience()" class="text-sm bg-blue-50 text-blue-600 px-3 py-1 rounded hover:bg-blue-100">
+                    + Add Experience
+                </button>
+            </div>
+            
+            <div id="experience-container" class="space-y-6">
+                {% for exp in resume.content.experience %}
+                <div class="experience-entry relative border border-gray-200 p-4 rounded-md">
+                    <button type="button" onclick="this.parentElement.remove()" class="absolute top-2 right-2 text-gray-400 hover:text-red-500">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Job Title</label>
+                            <input type="text" name="exp_title[]" value="{{ exp.title }}" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Company</label>
+                            <input type="text" name="exp_company[]" value="{{ exp.company }}" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Duration (e.g. MM/YYYY - MM/YYYY)</label>
+                            <input type="text" name="exp_duration[]" value="{{ exp.duration }}" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Description & Achievements</label>
+                        <textarea name="exp_description[]" rows="3" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">{{ exp.description }}</textarea>
+                    </div>
+                </div>
+                {% empty %}
+                <!-- Empty state handled by JS if needed -->
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Education Section -->
+        <div>
+            <div class="flex justify-between items-center mb-4 border-b border-gray-200 pb-2">
+                <h2 class="text-xl font-bold text-gray-900">Education</h2>
+                <button type="button" onclick="addEducation()" class="text-sm bg-blue-50 text-blue-600 px-3 py-1 rounded hover:bg-blue-100">
+                    + Add Education
+                </button>
+            </div>
+            
+            <div id="education-container" class="space-y-4">
+                {% for edu in resume.content.education %}
+                <div class="education-entry relative border border-gray-200 p-4 rounded-md">
+                    <button type="button" onclick="this.parentElement.remove()" class="absolute top-2 right-2 text-gray-400 hover:text-red-500">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Degree</label>
+                            <input type="text" name="edu_degree[]" value="{{ edu.degree }}" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Institution</label>
+                            <input type="text" name="edu_institution[]" value="{{ edu.institution }}" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Year</label>
+                            <input type="text" name="edu_year[]" value="{{ edu.year }}" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <!-- Empty state handled by JS if needed -->
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+            <a href="{% url 'resume_preview' resume.id %}" class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
+                Cancel
+            </a>
+            <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+                Save Changes
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- JavaScript Templates for dynamic fields -->
+<template id="exp-template">
+    <div class="experience-entry relative border border-gray-200 p-4 rounded-md">
+        <button type="button" onclick="this.parentElement.remove()" class="absolute top-2 right-2 text-gray-400 hover:text-red-500">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+        <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Job Title</label>
+                <input type="text" name="exp_title[]" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Company</label>
+                <input type="text" name="exp_company[]" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">
+            </div>
+            <div class="col-span-2">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Duration</label>
+                <input type="text" name="exp_duration[]" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">
+            </div>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Description & Achievements</label>
+            <textarea name="exp_description[]" rows="3" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border"></textarea>
+        </div>
+    </div>
+</template>
+
+<template id="edu-template">
+    <div class="education-entry relative border border-gray-200 p-4 rounded-md">
+        <button type="button" onclick="this.parentElement.remove()" class="absolute top-2 right-2 text-gray-400 hover:text-red-500">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Degree</label>
+                <input type="text" name="edu_degree[]" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Institution</label>
+                <input type="text" name="edu_institution[]" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">
+            </div>
+            <div class="col-span-2">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Year</label>
+                <input type="text" name="edu_year[]" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">
+            </div>
+        </div>
+    </div>
+</template>
+
+<script>
+    function addExperience() {
+        const container = document.getElementById('experience-container');
+        const template = document.getElementById('exp-template');
+        container.appendChild(template.content.cloneNode(true));
+    }
+
+    function addEducation() {
+        const container = document.getElementById('education-container');
+        const template = document.getElementById('edu-template');
+        container.appendChild(template.content.cloneNode(true));
+    }
+</script>
+{% endblock %}
