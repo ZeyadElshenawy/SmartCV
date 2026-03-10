@@ -1,35 +1,67 @@
 {% extends 'base.html' %}
 
+{% extends 'base.html' %}
+
 {% block content %}
-<div class="max-w-3xl mx-auto px-4 py-8">
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-        <h1 class="text-2xl font-bold text-gray-900 mb-4">Generate Tailored Resume</h1>
-        <p class="text-gray-600 mb-6">We'll create an ATS-optimized resume tailored for {{ job.title }} at {{ job.company }}</p>
+<div class="min-h-screen bg-rn-light py-12 flex items-center justify-center">
+    <div class="max-w-2xl w-full mx-auto px-4 sm:px-6">
         
-        {% if error %}
-        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
-            {{ error }}
-        </div>
-        {% endif %}
-        
-        <form method="post" onsubmit="showLoading('Tailoring your resume to the job description... (this may take up to 60s if the AI is waking up)')">
-            {% csrf_token %}
+        <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden text-center">
             
-            <div class="bg-blue-50 border border-blue-200 p-4 rounded-lg mb-6">
-                <h3 class="font-semibold text-blue-900 mb-2">What we'll do:</h3>
-                <ul class="text-sm text-blue-800 space-y-1">
-                    <li>✓ Emphasize your matched skills</li>
-                    <li>✓ Optimize for ATS keywords</li>
-                    <li>✓ Tailor your experience descriptions</li>
-                    <li>✓ Ensure proper formatting</li>
-                </ul>
+            <div class="bg-rn-navy px-8 py-10 relative overflow-hidden">
+                <!-- Decorative background elements -->
+                <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none" style="background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 0); background-size: 20px 20px;"></div>
+                
+                <h1 class="text-3xl font-extrabold text-white mb-2 relative z-10">Tailor Resume</h1>
+                <p class="text-indigo-200 font-medium relative z-10">Optimizing for <span class="text-white font-bold">{{ job.title }}</span> at <span class="text-white font-bold">{{ job.company }}</span>.</p>
+            </div>
+
+            <div class="p-8 md:p-12 text-left">
+                {% if error %}
+                <div class="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-4 rounded mb-8 shadow-sm">
+                    <p class="font-bold">Error generating resume</p>
+                    <p class="text-sm">{{ error }}</p>
+                </div>
+                {% endif %}
+                
+                <div class="bg-blue-50/50 border border-blue-100 p-6 rounded-xl mb-8">
+                    <h3 class="font-bold text-rn-navy mb-4 text-lg flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-rn-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        What our AI will do:
+                    </h3>
+                    <ul class="text-gray-700 space-y-3 font-medium">
+                        <li class="flex items-start">
+                            <svg class="w-5 h-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            Re-write your professional summary to match the job
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-5 h-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            Embed key ATS keywords from the job description
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-5 h-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            Tailor your experience bullet points for maximum impact
+                        </li>
+                    </ul>
+                </div>
+                
+                <form method="post" onsubmit="showLoading('Tailoring your resume to the job description... (this may take up to 60s if the AI is waking up)')" class="text-center">
+                    {% csrf_token %}
+                    
+                    <button type="submit"
+                            class="inline-flex justify-center items-center w-full sm:w-auto px-12 py-4 bg-rn-gold text-rn-navy rounded-rn-pill font-bold shadow-md hover:bg-rn-gold-hover hover:-translate-y-0.5 transition-all duration-200 text-lg">
+                        Start Tailoring
+                        <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                    </button>
+                    
+                    <div class="mt-4">
+                         <a href="{% url 'job_detail' job.id %}" class="text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors">Cancel</a>
+                    </div>
+                </form>
             </div>
             
-            <button type="submit"
-                    class="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors">
-                Generate Resume with AI
-            </button>
-        </form>
+        </div>
+        
     </div>
 </div>
 {% endblock %}

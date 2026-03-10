@@ -1,83 +1,94 @@
 {% extends 'base.html' %}
 
+{% extends 'base.html' %}
+
 {% block content %}
-<div class="max-w-4xl mx-auto px-4 py-8">
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-        <h1 class="text-2xl font-bold text-gray-900 mb-2">{{ job.title }}</h1>
-        <p class="text-gray-600 mb-6">{{ job.company }}</p>
+<div class="min-h-screen bg-rn-light py-12">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        <div class="mb-8">
-            <h2 class="text-lg font-semibold text-gray-900 mb-4">Extracted Skills ({{ job.extracted_skills|length }})</h2>
-            <div class="flex flex-wrap gap-2">
-                {% for skill in job.extracted_skills %}
-                <span class="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm">
-                    {{ skill }}
-                </span>
-                {% empty %}
-                <p class="text-gray-500 italic">No skills extracted.</p>
-                {% endfor %}
-            </div>
-        </div>
-        
-        <div class="mb-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-2">Description</h3>
-            <div class="prose max-w-none text-gray-700 overflow-y-auto max-h-96 border p-4 rounded bg-gray-50">
-                {{ job.description|linebreaks }}
-            </div>
-        </div>
-
-        <div class="mt-6 space-y-4">
-            <!-- Application Status Controls (Kanban integration) -->
-            <form method="post" class="flex flex-wrap items-center gap-3">
-                {% csrf_token %}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <!-- Header section -->
+            <div class="px-8 py-8 border-b border-gray-100 bg-white flex flex-col md:flex-row md:items-start justify-between gap-6">
                 <div>
-                    <label for="application_status" class="block text-sm font-medium text-gray-700">
-                        Application Status
-                    </label>
-                    <select
-                        id="application_status"
-                        name="application_status"
-                        class="mt-1 block w-52 px-3 py-2 border border-gray-300 bg-white rounded-md text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                        {% for value, label in status_choices %}
-                        <option value="{{ value }}" {% if job.application_status == value %}selected{% endif %}>
-                            {{ label }}
-                        </option>
-                        {% endfor %}
-                    </select>
+                    <h1 class="text-3xl font-extrabold text-rn-navy tracking-tight mb-2">{{ job.title }}</h1>
+                    <p class="text-gray-500 font-bold text-lg flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                        {{ job.company }}
+                    </p>
                 </div>
-                <button
-                    type="submit"
-                    class="mt-6 inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg shadow-sm hover:bg-blue-700 transition-colors"
-                >
-                    Update Status
-                </button>
-            </form>
-            <p class="text-xs text-gray-500">
-                Changing the status updates which column this job appears in on your Application Tracking Board.
-            </p>
-
-            <div class="flex flex-wrap gap-4">
-            <a 
-                href="{% url 'profile_upload_cv' job.id %}"
-                class="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm"
-            >
-                Upload Your CV to Continue &rarr;
-            </a>
-            <a 
-                href="{% url 'generate_cover_letter' job.id %}"
-                class="inline-block bg-white border border-blue-600 text-blue-600 px-6 py-3 rounded-lg font-medium hover:bg-blue-50 transition-colors shadow-sm"
-            >
-                Generate Cover Letter
-            </a>
-            <a 
-                href="{% url 'generate_outreach' job.id %}"
-                class="inline-block bg-white border border-gray-300 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-50 transition-colors shadow-sm flex items-center"
-            >
-                <svg class="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
-                AI Outreach
-            </a>
+                
+                <!-- Status Control -->
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 min-w-[240px]">
+                    <form method="post" class="flex flex-col gap-3">
+                        {% csrf_token %}
+                        <label for="application_status" class="block text-xs font-bold text-gray-500 uppercase tracking-wider">
+                            Tracking Status
+                        </label>
+                        <select
+                            id="application_status"
+                            name="application_status"
+                            class="block w-full px-4 py-2 border border-gray-300 bg-white rounded-md text-sm font-semibold text-rn-navy shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-rn-blue transition-colors"
+                        >
+                            {% for value, label in status_choices %}
+                            <option value="{{ value }}" {% if job.application_status == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="w-full text-xs font-bold text-rn-blue hover:text-rn-blue-hover transition-colors text-right">
+                            Save Status
+                        </button>
+                    </form>
+                </div>
             </div>
+            
+            <div class="px-8 py-8">
+                <!-- Action Buttons -->
+                <div class="flex flex-col sm:flex-row flex-wrap gap-4 mb-10 pb-10 border-b border-gray-100">
+                    <a href="{% url 'profile_upload_cv' job.id %}"
+                       class="inline-flex items-center justify-center px-8 py-3.5 bg-rn-gold text-rn-navy rounded-rn-pill font-bold shadow-md hover:bg-rn-gold-hover hover:-translate-y-0.5 transition-all duration-200">
+                        Customize Resume
+                        <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                    </a>
+                    
+                    <a href="{% url 'generate_cover_letter' job.id %}"
+                       class="inline-flex items-center justify-center px-8 py-3.5 bg-white border-2 border-rn-blue text-rn-blue rounded-rn-pill font-bold shadow-sm hover:bg-blue-50 transition-colors duration-200">
+                        Write Cover Letter
+                    </a>
+                    
+                    <a href="{% url 'generate_outreach' job.id %}"
+                       class="inline-flex items-center justify-center px-8 py-3.5 bg-gray-100 border-2 border-transparent text-gray-700 rounded-rn-pill font-bold shadow-sm hover:bg-gray-200 hover:text-gray-900 transition-colors duration-200">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        Cold Email
+                    </a>
+                </div>
+                
+                <!-- Extracted Skills -->
+                <div class="mb-10">
+                    <h2 class="text-lg font-bold text-rn-navy mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-rn-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        Target Keywords ({{ job.extracted_skills|length }})
+                    </h2>
+                    <div class="flex flex-wrap gap-2">
+                        {% for skill in job.extracted_skills %}
+                        <span class="px-3.5 py-1.5 bg-blue-50 text-rn-blue font-semibold rounded-md border border-blue-100 text-sm">
+                            {{ skill }}
+                        </span>
+                        {% empty %}
+                        <p class="text-gray-500 italic font-medium">No skills extracted from this description.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <!-- Job Description -->
+                <div>
+                    <h3 class="text-lg font-bold text-rn-navy mb-4">Original Description</h3>
+                    <div class="prose max-w-none text-gray-700 overflow-y-auto max-h-96 border border-gray-200 p-6 rounded-lg bg-gray-50 leading-relaxed text-sm">
+                        {{ job.description|linebreaks }}
+                    </div>
+                </div>
+            </div>
+            
         </div>
     </div>
 </div>

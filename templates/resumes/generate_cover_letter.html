@@ -1,25 +1,45 @@
 {% extends 'base.html' %}
 
-{% block content %}
-<div class="max-w-3xl mx-auto px-4 py-12">
-    <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold text-gray-900 mb-4">Generate Cover Letter</h1>
-        <p class="text-gray-600">Let the AI write a highly personalized cover letter for <span class="font-semibold">{{ job.title }}</span> at <span class="font-semibold">{{ job.company }}</span>.</p>
-    </div>
+{% extends 'base.html' %}
 
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
-        <div class="mb-6 flex justify-center">
-            <svg class="w-16 h-16 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-        </div>
-        <h2 class="text-xl font-bold text-gray-900 mb-2">Ready to Impress?</h2>
-        <p class="text-gray-600 mb-8">This will take a few seconds while our AI correlates your profile with the job's requirements.</p>
+{% block content %}
+<div class="min-h-screen bg-rn-light py-12 flex items-center justify-center">
+    <div class="max-w-2xl w-full mx-auto px-4 sm:px-6">
         
-        <form method="POST" onsubmit="showLoading('Writing a personalized cover letter... (this may take up to 60s if the AI is waking up)')">
-            {% csrf_token %}
-            <button type="submit" class="w-full bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-700 transition">
-                Start Generating
-            </button>
-        </form>
+        <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden text-center">
+            
+            <div class="bg-rn-navy px-8 py-10 relative overflow-hidden">
+                <!-- Decorative background elements -->
+                <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none" style="background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 0); background-size: 20px 20px;"></div>
+                
+                <h1 class="text-3xl font-extrabold text-white mb-2 relative z-10">Generate Cover Letter</h1>
+                <p class="text-indigo-200 font-medium relative z-10">Tailored perfectly for <span class="text-white font-bold">{{ job.title }}</span> at <span class="text-white font-bold">{{ job.company }}</span>.</p>
+            </div>
+
+            <div class="p-8 md:p-12">
+                <div class="mb-8 flex justify-center">
+                    <div class="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center">
+                        <svg class="w-10 h-10 text-rn-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76"></path></svg>
+                    </div>
+                </div>
+                
+                <h2 class="text-xl font-bold text-gray-900 mb-2">Ready to Impress?</h2>
+                <p class="text-gray-500 font-medium mb-10 max-w-sm mx-auto">This takes a few seconds while our AI correlates your profile with the employer's exact needs.</p>
+                
+                <form method="POST" onsubmit="showLoading('Writing a personalized cover letter... (this may take up to 60s if the AI is waking up)')">
+                    {% csrf_token %}
+                    <button type="submit" class="inline-flex justify-center items-center w-full sm:w-auto px-12 py-4 bg-rn-gold text-rn-navy rounded-rn-pill font-bold shadow-md hover:bg-rn-gold-hover hover:-translate-y-0.5 transition-all duration-200 text-lg">
+                        Write My Cover Letter
+                        <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                    </button>
+                    <div class="mt-4">
+                         <a href="{% url 'job_detail' job.id %}" class="text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors">Cancel</a>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+        
     </div>
 </div>
 {% endblock %}
