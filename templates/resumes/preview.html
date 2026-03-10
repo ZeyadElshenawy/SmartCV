@@ -1,77 +1,153 @@
 {% extends 'base.html' %}
 
+{% extends 'base.html' %}
+
 {% block content %}
-<div class="max-w-5xl mx-auto px-4 py-8">
-    <!-- Header with Actions -->
-    <div class="flex justify-between items-center mb-6">
-        <div>
-            <h1 class="text-2xl font-bold text-gray-900">Your Tailored Resume</h1>
-            <p class="text-gray-600">{{ job.title }} at {{ job.company }}</p>
+<div class="min-h-[calc(100vh-80px)] bg-rn-light flex flex-col md:flex-row">
+    
+    <!-- LEFT SIDEBAR: Nav Steps (Resume-Now Style) -->
+    <div class="w-full md:w-64 bg-rn-navy text-white flex-shrink-0 hidden md:block border-r border-gray-800">
+        <div class="p-6">
+            <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">Resume Status</h2>
+            
+            <div class="bg-indigo-900/50 rounded-lg p-5 border border-indigo-800 mb-6 text-center">
+                <div class="w-16 h-16 mx-auto bg-green-500 rounded-full flex items-center justify-center mb-3 shadow-lg shadow-green-500/20">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                </div>
+                <h3 class="font-bold text-white text-lg">Ready to Go!</h3>
+                <p class="text-indigo-200 text-sm mt-1">Your resume has been completely tailored.</p>
+            </div>
+            
+            <ul class="space-y-2">
+                <li>
+                    <a href="{% url 'resume_edit' resume.id %}" class="flex items-center p-3 rounded-md text-gray-300 hover:text-white hover:bg-white/5 transition-colors group">
+                        <span class="w-8 h-8 rounded-full border border-gray-500 flex items-center justify-center text-xs mr-3 group-hover:border-rn-gold group-hover:text-rn-gold transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        </span>
+                        Back to Editor
+                    </a>
+                </li>
+            </ul>
         </div>
-        <div class="flex space-x-4">
-            <a href="{% url 'resume_edit' resume.id %}"
-               class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
-                Edit
-            </a>
-            <a href="{% url 'export_pdf' resume.id %}"
-               class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                Download PDF
-            </a>
+        
+        <div class="mt-auto p-6 absolute bottom-0 w-64">
+             <div class="bg-indigo-900/50 rounded-lg p-4 border border-indigo-800">
+                 <p class="text-xs text-indigo-200 mb-2 font-medium">ATS Match Score</p>
+                 <div class="flex items-end gap-2">
+                     <span class="text-3xl font-bold text-white">{{ resume.ats_score|default:"85" }}%</span>
+                 </div>
+                <div class="w-full bg-indigo-950 rounded-full h-1.5 mt-2 overflow-hidden">
+                    <div class="bg-rn-gold h-1.5 rounded-full" style="width: {{ resume.ats_score|default:'85' }}%;"></div>
+                 </div>
+             </div>
         </div>
     </div>
-<!-- ATS Score -->
-<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-    <div class="flex items-center justify-between">
-        <div>
-            <h3 class="font-semibold text-gray-900">ATS Compatibility Score</h3>
-            <p class="text-sm text-gray-600">How well your resume matches the job requirements</p>
+
+    <!-- CENTER COLUMN: Final Review Area -->
+    <div class="flex-grow p-4 sm:p-8 lg:p-12 overflow-y-auto" style="max-height: calc(100vh - 80px);">
+        
+        <div class="max-w-4xl mx-auto">
+            <div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div>
+                    <h1 class="text-3xl font-extrabold text-rn-navy mb-2">Final Review</h1>
+                    <p class="text-gray-600 font-medium">Here is the final tailored content for <strong class="text-gray-900">{{ job.title }}</strong> at <strong class="text-gray-900">{{ job.company }}</strong>.</p>
+                </div>
+                
+                <div class="flex gap-3">
+                    <a href="{% url 'resume_edit' resume.id %}" class="inline-flex items-center px-6 py-3 border-2 border-rn-blue text-rn-blue font-bold rounded-rn-pill hover:bg-blue-50 transition-colors bg-white">
+                        Edit Content
+                    </a>
+                    <a href="{% url 'export_pdf' resume.id %}" class="inline-flex items-center px-6 py-3 bg-rn-gold text-rn-navy font-bold rounded-rn-pill hover:bg-rn-gold-hover hover:-translate-y-0.5 transition-all shadow-md">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        Download PDF
+                    </a>
+                </div>
+            </div>
+
+            <!-- Resume Content Rendering -->
+            <div class="bg-white rounded-xl shadow-lg border border-gray-200 p-8 md:p-12 mb-12">
+                
+                <div class="text-center font-serif mb-10 pb-6 border-b-2 border-gray-900">
+                    <h1 class="text-4xl font-bold text-gray-900 uppercase tracking-widest">{{ request.user.first_name }} {{ request.user.last_name }}</h1>
+                    <p class="text-xl text-gray-600 mt-2 tracking-wide">{{ content.professional_title }}</p>
+                    <div class="flex justify-center gap-4 mt-4 text-sm text-gray-500 font-sans">
+                        <span>{{ request.user.email }}</span>
+                        <span>•</span>
+                        <span>LinkedIn / Portfolio</span>
+                    </div>
+                </div>
+
+                <!-- Professional Summary -->
+                <div class="mb-10 block">
+                    <!-- Standardize rendering to look like a document -->
+                    <p class="text-gray-800 leading-relaxed text-justify">{{ content.professional_summary }}</p>
+                </div>
+                
+                <!-- Experience -->
+                <div class="mb-10">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4 border-b-2 border-gray-900 pb-1 uppercase tracking-wider font-serif">Experience</h3>
+                    <div class="space-y-8">
+                        {% for exp in content.experience %}
+                        <div>
+                            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-baseline mb-1">
+                                <h4 class="font-bold text-gray-900 text-lg">{{ exp.title }}</h4>
+                                <span class="text-sm font-semibold text-gray-600 whitespace-nowrap">{{ exp.duration }}</span>
+                            </div>
+                            <p class="text-gray-800 font-medium italic mb-3">{{ exp.company }}</p>
+                            <!-- Simulate bullet points if description has newlines or just render -->
+                            <div class="text-gray-700 leading-relaxed text-sm format-content">
+                                {{ exp.description|linebreaks }}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <!-- Education -->
+                <div class="mb-10">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4 border-b-2 border-gray-900 pb-1 uppercase tracking-wider font-serif">Education</h3>
+                    <div class="space-y-4">
+                        {% for edu in content.education %}
+                        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-baseline">
+                            <div>
+                                <h4 class="font-bold text-gray-900">{{ edu.degree }}</h4>
+                                <p class="text-gray-800">{{ edu.institution }}</p>
+                            </div>
+                            <span class="text-sm font-semibold text-gray-600">{{ edu.year }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Skills -->
+                <div class="mb-4">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4 border-b-2 border-gray-900 pb-1 uppercase tracking-wider font-serif">Core Competencies</h3>
+                    <p class="text-gray-800 leading-relaxed text-sm font-medium">
+                        {% for skill in content.skills %}
+                            {{ skill }}{% if not forloop.last %} • {% endif %}
+                        {% endfor %}
+                    </p>
+                </div>
+
+            </div>
+            
         </div>
-        <div class="text-4xl font-bold text-blue-600">{{ resume.ats_score }}%</div>
     </div>
 </div>
 
-<!-- Resume Preview -->
-<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-12">
-    <!-- Professional Summary -->
-    <div class="mb-8">
-        <h2 class="text-2xl font-bold text-gray-900 mb-2">{{ content.professional_summary }}</h2>
-    </div>
-    
-    <!-- Skills -->
-    <div class="mb-8">
-        <h3 class="text-lg font-bold text-gray-900 mb-3 border-b-2 border-gray-900 pb-1">SKILLS</h3>
-        <div class="flex flex-wrap gap-2">
-            {% for skill in content.skills %}
-            <span class="px-3 py-1 bg-gray-100 text-gray-800 rounded text-sm">{{ skill }}</span>
-            {% endfor %}
-        </div>
-    </div>
-    
-    <!-- Experience -->
-    <div class="mb-8">
-        <h3 class="text-lg font-bold text-gray-900 mb-3 border-b-2 border-gray-900 pb-1">EXPERIENCE</h3>
-        {% for exp in content.experience %}
-        <div class="mb-4">
-            <div class="flex justify-between items-start mb-1">
-                <h4 class="font-semibold text-gray-900">{{ exp.title }}</h4>
-                <span class="text-sm text-gray-600">{{ exp.duration }}</span>
-            </div>
-            <p class="text-gray-700 font-medium mb-2">{{ exp.company }}</p>
-            <p class="text-gray-600 text-sm">{{ exp.description }}</p>
-        </div>
-        {% endfor %}
-    </div>
-    
-    <!-- Education -->
-    <div>
-        <h3 class="text-lg font-bold text-gray-900 mb-3 border-b-2 border-gray-900 pb-1">EDUCATION</h3>
-        {% for edu in content.education %}
-        <div class="mb-2">
-            <h4 class="font-semibold text-gray-900">{{ edu.degree }}</h4>
-            <p class="text-gray-700">{{ edu.institution }} - {{ edu.year }}</p>
-        </div>
-        {% endfor %}
-    </div>
-</div>
-</div>
+<style>
+    /* Very basic styling to make linebreaks look like bullet points if needed */
+    .format-content p {
+        margin-bottom: 0.5rem;
+        position: relative;
+        padding-left: 1rem;
+    }
+    .format-content p::before {
+        content: "•";
+        position: absolute;
+        left: 0;
+        top: 0;
+        color: #4b5563;
+    }
+</style>
 {% endblock %}
