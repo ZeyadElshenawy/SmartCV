@@ -1,118 +1,148 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto px-4 py-8" x-data="{ activeTab: 'url' }">
-    <div class="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-        <h1 class="text-3xl font-bold text-gray-900 mb-2">Add New Job Application</h1>
-        <p class="text-gray-600 mb-8">Paste a LinkedIn URL or enter the job details manually.</p>
+<div class="min-h-screen bg-rn-light py-12" x-data="{ activeTab: 'url' }">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        {% if error %}
-        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
-            {{ error }}
-        </div>
-        {% endif %}
-        
-        <!-- Tab Buttons -->
-        <div class="flex border-b border-gray-200 mb-6">
-            <button 
-                @click="activeTab = 'url'" 
-                :class="activeTab === 'url' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
-                class="py-2 px-4 border-b-2 font-medium transition-colors"
-            >
-                LinkedIn URL
-            </button>
-            <button 
-                @click="activeTab = 'text'" 
-                :class="activeTab === 'text' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
-                class="py-2 px-4 border-b-2 font-medium transition-colors"
-            >
-                Paste Job Description
-            </button>
-        </div>
-        
-        <!-- URL Input Tab -->
-        <div x-show="activeTab === 'url'" x-cloak>
-            <form method="post" class="space-y-6" onsubmit="showLoading('Scraping LinkedIn and extracting skills with AI... (this may take up to 60s if the AI is waking up)')">
-                {% csrf_token %}
-                <input type="hidden" name="input_method" value="url">
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        LinkedIn Job URL
-                    </label>
-                    <input 
-                        type="url" 
-                        name="job_url" 
-                        placeholder="https://www.linkedin.com/jobs/view/..." 
-                        required
-                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        <!-- Main Form Card -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <!-- Card Header -->
+            <div class="px-8 py-8 border-b border-gray-100 text-center bg-white">
+                <h1 class="text-3xl font-extrabold text-rn-navy tracking-tight mb-2">Analyze a Job Description</h1>
+                <p class="text-gray-500 font-medium">Link a LinkedIn job or paste the details to start your tailored resume.</p>
+            </div>
+            
+            {% if error %}
+            <div class="m-8 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-md flex items-center">
+                <svg class="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
+                {{ error }}
+            </div>
+            {% endif %}
+            
+            <div class="px-8 py-6">
+                <!-- Tab Buttons (Pill shaped toggle) -->
+                <div class="flex p-1 bg-gray-100 rounded-lg mb-8 max-w-sm mx-auto">
+                    <button 
+                        @click="activeTab = 'url'" 
+                        :class="activeTab === 'url' ? 'bg-white text-rn-blue shadow-sm font-bold' : 'text-gray-500 hover:text-gray-700 font-medium'"
+                        class="flex-1 py-2.5 px-4 rounded-md text-sm transition-all duration-200"
                     >
-                    <p class="text-sm text-gray-500 mt-2">We'll automatically extract the job title, company, and description.</p>
+                        LinkedIn URL
+                    </button>
+                    <button 
+                        @click="activeTab = 'text'" 
+                        :class="activeTab === 'text' ? 'bg-white text-rn-blue shadow-sm font-bold' : 'text-gray-500 hover:text-gray-700 font-medium'"
+                        class="flex-1 py-2.5 px-4 rounded-md text-sm transition-all duration-200"
+                    >
+                        Manual Entry
+                    </button>
                 </div>
                 
-                <button 
-                    type="submit"
-                    class="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-                >
-                    Scrape &amp; Analyze Fit
-                </button>
-            </form>
+                <!-- URL Input Tab -->
+                <div x-show="activeTab === 'url'" x-cloak>
+                    <form method="post" class="space-y-6 max-w-xl mx-auto" onsubmit="showLoading('Scraping LinkedIn and extracting skills with AI... (this may take up to 60s if the AI is waking up)')">
+                        {% csrf_token %}
+                        <input type="hidden" name="input_method" value="url">
+                        
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">
+                                LinkedIn Job URL <span class="text-red-500">*</span>
+                            </label>
+                            <input 
+                                type="url" 
+                                name="job_url" 
+                                placeholder="https://www.linkedin.com/jobs/view/..." 
+                                required
+                                class="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 text-gray-900 rounded-md focus:ring-2 focus:ring-blue-100 focus:border-rn-blue focus:bg-white transition-colors"
+                            >
+                            <p class="text-xs text-gray-500 mt-2 flex items-center font-medium">
+                                <svg class="w-4 h-4 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                We'll automatically extract the job title, company, and description.
+                            </p>
+                        </div>
+                        
+                        <div class="pt-4 text-center">
+                            <button 
+                                type="submit"
+                                class="inline-flex justify-center items-center px-10 py-4 bg-rn-gold text-gray-900 rounded-rn-pill font-bold shadow-md hover:bg-rn-gold-hover hover:-translate-y-0.5 transition-all duration-200 w-full sm:w-auto text-lg"
+                            >
+                                Next Step
+                                <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Text Input Tab -->
+                <div x-show="activeTab === 'text'" x-cloak>
+                    <form method="post" class="space-y-5" onsubmit="showLoading('Extracting skills and computing your match score... (this may take up to 60s if the AI is waking up)')">
+                        {% csrf_token %}
+                        <input type="hidden" name="input_method" value="text">
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">
+                                    Job Title <span class="text-red-500">*</span>
+                                </label>
+                                <input 
+                                    type="text" 
+                                    name="job_title" 
+                                    placeholder="e.g., Senior Software Engineer" 
+                                    required
+                                    class="w-full px-4 py-3 bg-gray-50 border border-gray-200 text-gray-900 rounded-md focus:ring-2 focus:ring-blue-100 focus:border-rn-blue focus:bg-white transition-colors"
+                                >
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">
+                                    Company <span class="text-red-500">*</span>
+                                </label>
+                                <input 
+                                    type="text" 
+                                    name="company" 
+                                    placeholder="e.g., Google" 
+                                    required
+                                    class="w-full px-4 py-3 bg-gray-50 border border-gray-200 text-gray-900 rounded-md focus:ring-2 focus:ring-blue-100 focus:border-rn-blue focus:bg-white transition-colors"
+                                >
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">
+                                Job Description <span class="text-red-500">*</span>
+                            </label>
+                            <textarea 
+                                name="job_description" 
+                                rows="8" 
+                                placeholder="Paste the full job description here..."
+                                required
+                                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 text-gray-900 rounded-md focus:ring-2 focus:ring-blue-100 focus:border-rn-blue focus:bg-white transition-colors resize-y"
+                            ></textarea>
+                        </div>
+                        
+                        <div class="pt-4 text-center flex justify-between items-center">
+                            <button type="button" @click="activeTab = 'url'" class="text-gray-500 hover:text-gray-800 font-medium transition-colors">
+                                &larr; Back
+                            </button>
+                            <button 
+                                type="submit"
+                                class="inline-flex justify-center items-center px-10 py-4 bg-rn-gold text-gray-900 rounded-rn-pill font-bold shadow-md hover:bg-rn-gold-hover hover:-translate-y-0.5 transition-all duration-200"
+                            >
+                                Analyze Job
+                                <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Secure Banner -->
+            <div class="bg-gray-50 px-8 py-4 border-t border-gray-100 flex items-center justify-center text-xs text-gray-500 font-medium">
+                <svg class="w-4 h-4 mr-1.5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path></svg>
+                Your data is secure and will never be shared.
+            </div>
         </div>
         
-        <!-- Text Input Tab -->
-        <div x-show="activeTab === 'text'" x-cloak>
-            <form method="post" class="space-y-6" onsubmit="showLoading('Extracting skills and computing your match score... (this may take up to 60s if the AI is waking up)')">
-                {% csrf_token %}
-                <input type="hidden" name="input_method" value="text">
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Job Title
-                    </label>
-                    <input 
-                        type="text" 
-                        name="job_title" 
-                        placeholder="e.g., Senior Software Engineer" 
-                        required
-                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Company
-                    </label>
-                    <input 
-                        type="text" 
-                        name="company" 
-                        placeholder="e.g., Google" 
-                        required
-                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Job Description
-                    </label>
-                    <textarea 
-                        name="job_description" 
-                        rows="10" 
-                        placeholder="Paste the full job description here..."
-                        required
-                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    ></textarea>
-                </div>
-                
-                <button 
-                    type="submit"
-                    class="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-                >
-                    Analyze Fit
-                </button>
-            </form>
-        </div>
     </div>
 </div>
-
 {% endblock %}
