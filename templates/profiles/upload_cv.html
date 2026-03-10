@@ -1,44 +1,71 @@
 {% extends 'base.html' %}
 
+{% extends 'base.html' %}
+
 {% block content %}
-<div class="max-w-2xl mx-auto px-4 py-8">
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-        {% if is_master %}
-        <h1 class="text-2xl font-bold text-gray-900 mb-2">Create Your Master Profile</h1>
-        <p class="text-gray-600 mb-6">Upload your resume to build your base profile. This will be used for all future applications.</p>
-        {% else %}
-        <h1 class="text-2xl font-bold text-gray-900 mb-6">Upload Your CV for this Job</h1>
-        {% endif %}
+<div class="min-h-screen bg-rn-light py-12">
+    <div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        {% if error %}
-        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
-            {{ error }}
-        </div>
-        {% endif %}
-        
-        <form method="post" enctype="multipart/form-data" class="space-y-6" onsubmit="showLoading('Extracting and validating CV sections with AI... (this may take up to 60s if the AI is waking up)')">
-            {% csrf_token %}
-            
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                    Select CV File (PDF or DOCX)
-                </label>
-                <input 
-                    type="file" 
-                    name="cv_file" 
-                    accept=".pdf,.docx"
-                    required
-                    class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                >
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <!-- Card Header -->
+            <div class="px-8 py-8 border-b border-gray-100 bg-white text-center">
+                {% if is_master %}
+                    <h1 class="text-3xl font-extrabold text-rn-navy tracking-tight mb-2">Upload Your Resume</h1>
+                    <p class="text-gray-500 font-medium">We'll extract your work history and skills to create a powerful master profile.</p>
+                {% else %}
+                    <h1 class="text-3xl font-extrabold text-rn-navy tracking-tight mb-2">Upload Your Resume</h1>
+                    <p class="text-gray-500 font-medium">We'll tailor your existing resume to fit this specific job description.</p>
+                {% endif %}
             </div>
             
-            <button 
-                type="submit"
-                class="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-            >
-                Parse CV
-            </button>
-        </form>
+            <!-- Error Banner -->
+            {% if error %}
+            <div class="m-8 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-md flex items-center">
+                <svg class="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
+                {{ error }}
+            </div>
+            {% endif %}
+            
+            <div class="px-8 py-8">
+                <form method="post" enctype="multipart/form-data" class="space-y-8 max-w-lg mx-auto" onsubmit="showLoading('Extracting and validating CV sections with AI... (this may take up to 60s if the AI is waking up)')">
+                    {% csrf_token %}
+                    
+                    <!-- File Upload Area -->
+                    <div class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:bg-gray-50 hover:border-rn-blue transition-colors cursor-pointer relative group">
+                        <input 
+                            type="file" 
+                            name="cv_file" 
+                            accept=".pdf,.docx"
+                            required
+                            class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        >
+                        <div class="w-16 h-16 bg-blue-50 text-rn-blue rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-900 mb-1">Click or drag file to upload</h3>
+                        <p class="text-sm text-gray-500 font-medium">Supported formats: PDF, DOCX (Max 5MB)</p>
+                    </div>
+                    
+                    <div class="text-center pt-2">
+                        <button 
+                            type="submit"
+                            class="inline-flex justify-center items-center px-10 py-4 bg-rn-gold text-gray-900 rounded-rn-pill font-bold shadow-md hover:bg-rn-gold-hover hover:-translate-y-0.5 transition-all duration-200 w-full"
+                        >
+                            Upload & Continue 
+                            <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Secure Footer -->
+            <div class="bg-gray-50 px-8 py-4 border-t border-gray-100 flex items-center justify-center text-xs text-gray-500 font-medium">
+                <svg class="w-4 h-4 mr-1.5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path></svg>
+                Your resume data is completely private and secure.
+            </div>
+            
+        </div>
+        
     </div>
 </div>
 {% endblock %}
