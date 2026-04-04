@@ -48,21 +48,8 @@ def _build_profile_form_context(profile):
     return {
         'profile': profile,
         'skills_json': json.dumps(profile.skills or []),
-        'experiences_json': json.dumps([
-            {
-                'title': e.get('position') or e.get('title', ''),
-                'company': e.get('company', ''),
-                'duration': e.get('duration') or f"{e.get('start_date', '')} - {e.get('end_date') or 'Present'}",
-                'description': e.get('description') or '\n'.join(e.get('responsibilities', []))
-            } for e in (profile.experiences or [])
-        ]),
-        'education_json': json.dumps([
-            {
-                'degree': e.get('degree', ''),
-                'institution': e.get('institution', ''),
-                'year': str(e.get('graduation_year') or e.get('graduation_date') or e.get('year', ''))
-            } for e in (profile.education or [])
-        ]),
+        'experiences_json': json.dumps(profile.experiences or []),
+        'education_json': json.dumps(profile.education or []),
         'projects_json': json.dumps(profile.projects or []),
         'certifications_json': json.dumps(profile.certifications or []),
         'extra_sections_json': json.dumps(extra_sections),
