@@ -30,6 +30,10 @@
                     
                     <!-- File Upload Area -->
                     <div id="dropzone_container" class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-8 text-center hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-rn-blue dark:hover:border-rn-blue transition-colors cursor-pointer relative group">
+                        <!-- Clear Selection Button (Appears when file is selected) -->
+                        <button type="button" id="clear_file_btn" onclick="clearFile(event)" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 hidden z-20 transition-all p-1.5 bg-white dark:bg-gray-800 rounded-full shadow hover:shadow-md border border-gray-200 dark:border-gray-600 cursor-pointer" title="Remove file">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
                         <input 
                             id="cv_file_input"
                             type="file" 
@@ -73,12 +77,21 @@
 </div>
 
 <script>
+function clearFile(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    const input = document.getElementById('cv_file_input');
+    input.value = ''; // Clear the file
+    updateFileName(input); // Reset UI
+}
+
 function updateFileName(input) {
     const title = document.getElementById('upload_title');
     const subtitle = document.getElementById('upload_subtitle');
     const uploadIcon = document.getElementById('upload_icon');
     const presentIcon = document.getElementById('file_present_icon');
     const container = document.getElementById('dropzone_container');
+    const clearBtn = document.getElementById('clear_file_btn');
 
     if (input.files && input.files.length > 0) {
         title.textContent = input.files[0].name;
@@ -87,6 +100,7 @@ function updateFileName(input) {
         subtitle.textContent = sizeKB + ' KB • Ready to upload';
         uploadIcon.classList.add('hidden');
         presentIcon.classList.remove('hidden');
+        clearBtn.classList.remove('hidden');
         container.classList.add('border-green-400', 'dark:border-green-500', 'bg-green-50', 'dark:bg-green-900/10');
     } else {
         title.textContent = "Click or drag file to upload";
@@ -94,6 +108,7 @@ function updateFileName(input) {
         subtitle.textContent = "Supported formats: PDF, DOCX (Max 5MB)";
         uploadIcon.classList.remove('hidden');
         presentIcon.classList.add('hidden');
+        clearBtn.classList.add('hidden');
         container.classList.remove('border-green-400', 'dark:border-green-500', 'bg-green-50', 'dark:bg-green-900/10');
     }
 }
