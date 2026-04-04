@@ -14,16 +14,15 @@ import sys
 
 USE_PYMUPDF = False
 try:
-    import pdfplumber
+    import fitz  # PyMuPDF
     PDF_AVAILABLE = True
+    USE_PYMUPDF = True
 except ImportError:
-    PDF_AVAILABLE = False
     try:
-        import fitz  # PyMuPDF
+        import pdfplumber
         PDF_AVAILABLE = True
-        USE_PYMUPDF = True
     except ImportError:
-        USE_PYMUPDF = False
+        PDF_AVAILABLE = False
 
 try:
     from docx import Document
@@ -31,18 +30,7 @@ try:
 except ImportError:
     DOCX_AVAILABLE = False
 
-try:
-    import spacy
-    SPACY_AVAILABLE = True
-except ImportError:
-    SPACY_AVAILABLE = False
-
-try:
-    import ollama
-    OLLAMA_AVAILABLE = True
-except ImportError:
-    OLLAMA_AVAILABLE = False
-    ollama = None
+from .llm_engine import get_llm_client, get_llm
 
 # Configure logging
 logging.basicConfig(
@@ -55,59 +43,17 @@ logger = logging.getLogger(__name__)
 class CVExtractor:
     """Main class for extracting and processing CV/resume data."""
     
-    def __init__(self, use_spacy: bool = True, use_ollama: bool = True, 
-                 ollama_model: str = "llama3.2:3b", ollama_host: str = None):
+    def __init__(self, use_llm: bool = True):
         """
         Initialize the CV extractor.
         """
-        self.use_spacy = use_spacy and SPACY_AVAILABLE
+        self.use_spacy = False
         self.nlp = None
         
-        if self.use_spacy:
-            try:
-                # Try to load English model, fallback to blank if not available
-                try:
-                    self.nlp = spacy.load("en_core_web_sm")
-                except OSError:
-                    from spacy.cli import download
-                    download("en_core_web_sm")
-                    self.nlp = spacy.load("en_core_web_sm")
-            except Exception as e:
-                logger.warning(f"Could not initialize spaCy: {e}")
-                self.nlp = None
-        
-        # Initialize Ollama
-        self.use_ollama = use_ollama
-        self.ollama_model = ollama_model
-        self.ollama_host = ollama_host
-        self.ollama_available = False
-        self.ollama_client = None
-        
-        if self.use_ollama:
-            try:
-                if not OLLAMA_AVAILABLE:
-                    # Just warn, don't raise if we want to fallback gracefully in constructor
-                    pass
-                else:
-                    # Set custom host if provided
-                    if ollama_host:
-                        import os
-                        os.environ['OLLAMA_HOST'] = ollama_host
-                    
-                    # Initialize Ollama client
-                    if ollama_host:
-                        self.ollama_client = ollama.Client(host=ollama_host)
-                    else:
-                        self.ollama_client = ollama.Client()
-                    
-                    # Test connection by listing models (timeout short)
-                    # self.ollama_client.list() 
-                    # Optimization: assume available if import worked, fail on call
-                    self.ollama_available = True
-            except Exception as e:
-                logger.warning(f"Ollama not available: {e}. Using regex-only extraction.")
-                self.ollama_available = False
-                self.ollama_client = None
+        # Initialize Cloud LLM
+        self.use_llm = use_llm
+        self.llm_client = get_llm_client()
+        self.llm_available = self.llm_client is not None
         
         # Common section headers with variations
         self.section_patterns = {
@@ -189,6 +135,12 @@ class CVExtractor:
                     for i, page in enumerate(pdf.pages, 1):
                         page_text = page.extract_text()
                         if page_text:
+                            # Append embedded links so the LLM and regexes can find them
+                            if hasattr(page, 'hyperlinks'):
+                                for link in page.hyperlinks:
+                                    uri = link.get('uri')
+                                    if uri and isinstance(uri, str) and 'http' in uri:
+                                        page_text += f"\n[Embedded Link: {uri}]"
                             text_parts.append(page_text)
             else:
                 doc = fitz.open(str(file_path))
@@ -196,6 +148,18 @@ class CVExtractor:
                     page = doc[page_num]
                     page_text = page.get_text()
                     if page_text:
+                        # Append embedded links
+                        for link in page.get_links():
+                            if link.get('kind') == fitz.LINK_URI:
+                                uri = link.get('uri')
+                                if uri and isinstance(uri, str) and 'http' in uri:
+                                    # Try to get the text of the link for better context
+                                    rect = link.get('from')
+                                    link_text = page.get_textbox(rect).strip() if rect else ""
+                                    if link_text:
+                                        page_text += f"\n[Embedded Link: '{link_text}' -> {uri}]"
+                                    else:
+                                        page_text += f"\n[Embedded Link: {uri}]"
                         text_parts.append(page_text)
                 doc.close()
             
@@ -231,6 +195,16 @@ class CVExtractor:
                     row_text = ' | '.join([cell.text.strip() for cell in row.cells if cell.text.strip()])
                     if row_text:
                         text_parts.append(row_text)
+            
+            # Extract URLs from hyperlinks in the document relationships
+            try:
+                for rel in doc.part.rels.values():
+                    if "hyperlink" in rel.reltype:
+                        if rel.target_ref and isinstance(rel.target_ref, str) and 'http' in rel.target_ref:
+                            if rel.target_ref not in "\n".join(text_parts):
+                                text_parts.append(f"\n[Embedded Link: {rel.target_ref}]")
+            except Exception as e:
+                logger.warning(f"Could not extract docx hyperlinks: {e}")
             
             raw_text = '\n\n'.join(text_parts)
             
@@ -688,7 +662,7 @@ class CVExtractor:
             'raw_text': text
         }
         
-        if use_llm_refinement and self.use_ollama and self.ollama_available:
+        if use_llm_refinement and self.use_llm and self.llm_available:
             try:
                 result = self._refine_data_with_llm(text, result)
             except Exception as e:
@@ -698,7 +672,7 @@ class CVExtractor:
 
     def _refine_data_with_llm(self, text: str, initial_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Use Ollama to refine the extracted data, specifically for skills and experience.
+        Use Cerebras Cloud LLM to refine the extracted data, specifically for skills and experience.
         """
         # Truncate text if too long for context window (rough estimate)
         MAX_CHARS = 12000 
@@ -715,30 +689,65 @@ class CVExtractor:
         
         Task:
         1. Fix any extracted fields that look wrong based on the Raw CV Text.
-        2. Categorize 'skills' into 'technical_skills', 'soft_skills', 'tools', 'frameworks' if possible.
+        2. Categorize 'skills' into 'technical_skills', 'tools', 'frameworks'. 
+           - CRITICAL: Remove ALL soft skills. Keep ONLY hard/technical skills explicitly listed.
            - IMPORTANT: Split combined skills, e.g. "Python, Java" -> ["Python", "Java"]. Separate skills inside parentheses.
         3. Ensure 'work_experience' has correct 'company', 'position', 'duration' (standardize dates to YYYY-MM if possible) and 'responsibilities'.
            - Remove artifacts like "Remote", "Hybrid" from the start of responsibility bullets.
            - Correctly identify Company Name vs Position if they were swapped or merged.
         4. Standardize 'education' degrees.
-        5. Return the COMPLETE corrected data structure as valid JSON.
+        5. CRITICAL: Extract missing arrays from the Raw text and add these keys if present:
+           - "languages": list of strings
+           - "volunteer_experience": list of objects
+           - "awards": list of objects
+           - "publications": list of objects
+           - "patents": list of objects
+        6. **URL EXTRACTION**: Pay close attention to `[Embedded Link: ...]` tags in the text. 
+           - Links are often embedded in icons (empty text), titles, or "View Project" buttons. 
+           - You MUST map these URLs into the `url` fields of the corresponding `projects` and `certifications` objects!
+        
+        === STRICT ANTI-HALLUCINATION RULE (CRITICAL) ===
+        - Never invent, add, or imply skills, keywords, achievements, metrics, job titles, or any other content not present in the original resume.
+        - Only rewrite and restructure what already exists.
+        
+        === REMOVE FROM EXTRACTED DATA ===
+        - Street/home address (city and country are fine)
+        - Objective statements
+        - Graduation year if the degree is more than 10 years old
+        - Work experience older than 15 years (20 years max for executive roles)
+        - High school experience
+        - GPA or university grades
+        - Headshot or photo references
+        - Salary expectations
+        
+        7. Return the COMPLETE corrected data structure as valid JSON.
         
         IMPORTANT: Return ONLY the JSON object. No markdown formatting, no explanations.
         """
         
         try:
             print(f"[INFO] Starting LLM Refinement for CV (Length: {len(context_text)} chars)...")
-            response = self.ollama_client.chat(
-                model=self.ollama_model, 
+            response = self.llm_client.chat.completions.create(
+                model=LLM_MODEL, 
                 messages=[{'role': 'user', 'content': prompt}],
-                format='json',
-                options={'temperature': 0}
+                temperature=0.0,
+                response_format={"type": "json_object"}
             )
             print("[INFO] LLM Refinement Completed.")
 
             
-            refined_json = response['message']['content']
-            refined_data = json.loads(refined_json)
+            refined_json = response.choices[0].message.content
+            
+            # Clean up markdown formatting
+            refined_json = refined_json.strip()
+            if refined_json.startswith("```json"):
+                refined_json = refined_json[7:]
+            if refined_json.startswith("```"):
+                refined_json = refined_json[3:]
+            if refined_json.endswith("```"):
+                refined_json = refined_json[:-3]
+            
+            refined_data = json.loads(refined_json.strip())
             
             # Merge/Validate: Ensure we don't lose key fields if LLM hallucinates emptiness
             # For now, trust LLM if valid JSON is returned, but fallback to initial for empty critical methods?
@@ -753,17 +762,18 @@ class CVExtractor:
             return refined_data
             
         except Exception as e:
-            logger.error(f"Ollama chat error: {e}")
+            logger.error(f"Cerebras chat error: {e}")
             return initial_data
 
 # Wrapper for existing app integration
 def parse_cv(file_path):
     """
     Wrapper function compatible with the existing view logic.
+    LLM refinement is handled downstream by llm_validator — 
+    skipping it here avoids redundant API calls and token waste.
     """
-    # Enable Ollama for better data structuring as requested
-    extractor = CVExtractor(use_spacy=True, use_ollama=True, ollama_model="llama3.1:8b")
-    data = extractor.parse(file_path, use_llm_refinement=True)
+    extractor = CVExtractor(use_llm=True)
+    data = extractor.parse(file_path, use_llm_refinement=False)
     
     # Flatten skills for view compatibility
     flat_skills = []
@@ -774,16 +784,21 @@ def parse_cv(file_path):
                     flat_skills.append({"name": skill, "proficiency": "Intermediate", "category": category})
             
     return {
-        'full_name': data['personal_information'].get('name'),
-        'email': data['personal_information'].get('email'),
-        'phone': data['personal_information'].get('phone'),
-        'location': data['personal_information'].get('address'),
-        'linkedin_url': data['personal_information'].get('linkedin'),
+        'full_name': data['personal_information'].get('name') if 'personal_information' in data else '',
+        'email': data['personal_information'].get('email') if 'personal_information' in data else '',
+        'phone': data['personal_information'].get('phone') if 'personal_information' in data else '',
+        'location': data['personal_information'].get('address') if 'personal_information' in data else '',
+        'linkedin_url': data['personal_information'].get('linkedin') if 'personal_information' in data else '',
         'skills': flat_skills,
         'experiences': data.get('work_experience', []),
         'education': data.get('education', []),
         'projects': data.get('projects', []),
         'certifications': data.get('certifications', []),
+        'languages': data.get('languages', []),
+        'volunteer_experience': data.get('volunteer_experience', []),
+        'awards': data.get('awards', []),
+        'publications': data.get('publications', []),
+        'patents': data.get('patents', []),
         'raw_text': data.get('raw_text', '')
     }
 

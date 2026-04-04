@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Resume - Danette Template</title>
+    <style>
+        @page {
+            size: a4 portrait;
+            margin: 2cm;
+        }
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            color: #333333;
+            font-size: 10pt;
+            line-height: 1.4;
+        }
+
+        /* Top Header Area */
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .name {
+            font-size: 24pt;
+            font-weight: bold;
+            color: #000000;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .professional-title {
+            font-size: 14pt;
+            color: #2563eb;
+            margin-bottom: 8px;
+        }
+        
+        .contact-info {
+            font-size: 9pt;
+            color: #555555;
+            margin-bottom: 10px;
+        }
+
+        /* Shared Section Styles */
+        .section {
+            margin-bottom: 16px;
+        }
+
+        .section-header {
+            border-top: 1px solid #111111;
+            padding-top: 6px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .section-title {
+            font-size: 14pt;
+            font-weight: bold;
+            font-family: 'Times New Roman', Times, serif;
+            color: #000000;
+        }
+
+        /* Summary */
+        .summary p {
+            font-size: 9.5pt;
+            line-height: 1.4;
+            text-align: left;
+        }
+
+        /* Items (Experience & Education) */
+        .item {
+            margin-bottom: 14px;
+        }
+
+        .item-company {
+            font-size: 12pt;
+            color: #2563eb;
+            font-weight: normal;
+        }
+
+        table.item-sub-header {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 2px;
+            margin-bottom: 4px;
+        }
+
+        td.item-title {
+            text-align: left;
+            font-weight: normal;
+            font-size: 10.5pt;
+            color: #111111;
+            padding: 0;
+            margin: 0;
+        }
+
+        td.item-date {
+            text-align: right;
+            font-size: 9.5pt;
+            color: #666666;
+            padding: 0;
+            margin: 0;
+        }
+
+        .item-description {
+            font-size: 9.5pt;
+            line-height: 1.4;
+            color: #333333;
+            margin-top: 2px;
+        }
+        
+        .item-description ul {
+            margin-top: 2px;
+            margin-bottom: 0px;
+            padding-left: 15px;
+        }
+        .item-description li {
+            margin-bottom: 2px;
+        }
+
+        /* Skills */
+        .skills-container {
+            font-size: 9.5pt;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        
+        .blue-label {
+            color: #2563eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="name">{{ profile.full_name|default:"Your Name" }}</div>
+        <div class="professional-title">{{ resume.professional_title|default:"Professional Resume" }}</div>
+        <div class="contact-info">
+            {{ profile.phone|default:"+1-555-555-5555" }} &nbsp;&bull;&nbsp; 
+            {{ profile.email|default:"user@example.com" }} 
+            {% if profile.linkedin_url %}&nbsp;&bull;&nbsp; {{ profile.linkedin_url }}{% endif %}
+            {% if profile.location %}&nbsp;&bull;&nbsp; {{ profile.location }}{% endif %}
+        </div>
+    </div>
+
+    {% if resume.professional_summary %}
+    <div class="section summary">
+        <div class="section-header">
+            <span class="section-title">Summary</span>
+        </div>
+        <p>{{ resume.professional_summary }}</p>
+    </div>
+    {% endif %}
+
+    {% if resume.experience %}
+    <div class="section">
+        <div class="section-header">
+            <span class="section-title">Experience</span>
+        </div>
+        {% for exp in resume.experience %}
+        <div class="item">
+            <div class="item-company">{{ exp.company }}</div>
+            <table class="item-sub-header">
+                <tr>
+                    <td class="item-title">{{ exp.title }}</td>
+                    <td class="item-date">{{ exp.duration }}</td>
+                </tr>
+            </table>
+            {% if exp.description %}
+            <div class="item-description">{{ exp.description|linebreaksbr }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if resume.education %}
+    <div class="section">
+        <div class="section-header">
+            <span class="section-title">Education</span>
+        </div>
+        {% for edu in resume.education %}
+        <div class="item" style="margin-bottom: 12px;">
+            <div class="item-company">{{ edu.institution }}</div>
+            <table class="item-sub-header">
+                <tr>
+                    <td class="item-title">{{ edu.degree }}</td>
+                    <td class="item-date">{{ edu.year }}</td>
+                </tr>
+            </table>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if resume.skills or resume.languages %}
+    <div class="section">
+        <div class="section-header">
+            <span class="section-title">Skills</span>
+        </div>
+        <div class="skills-container">
+            {% if resume.skills %}
+            <div><span class="blue-label">Technical Skills:</span> {{ resume.skills|join:" &nbsp;&bull;&nbsp; " }}</div>
+            {% endif %}
+            {% if resume.languages %}
+            <div><span class="blue-label">Languages:</span> {{ resume.languages|join:" &nbsp;&bull;&nbsp; " }}</div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if resume.projects %}
+    <div class="section">
+        <div class="section-header">
+            <span class="section-title">Projects</span>
+        </div>
+        {% for proj in resume.projects %}
+        <div class="item">
+            <div class="item-company" style="font-size: 11pt;">
+                {% if proj.url %}<a href="{{ proj.url }}" target="_blank" style="color: #000000; text-decoration: none;">{{ proj.name }}</a>{% else %}{{ proj.name }}{% endif %}
+            </div>
+            {% if proj.description %}
+            <div class="item-description">{{ proj.description|linebreaksbr }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if resume.certifications %}
+    <div class="section">
+        <div class="section-header">
+            <span class="section-title">Certifications</span>
+        </div>
+        <ul style="margin: 0; padding-left: 20px; font-size: 9.5pt; color: #333;">
+            {% for cert in resume.certifications %}
+            <li style="margin-bottom: 4px;"><strong>{% if cert.url %}<a href="{{ cert.url }}" target="_blank" style="color: #000000; text-decoration: none;">{{ cert.name }}</a>{% else %}{{ cert.name }}{% endif %}</strong>{% if cert.issuer %} - {{ cert.issuer }}{% endif %}{% if cert.date %} ({{ cert.date }}){% endif %}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+</body>
+</html>

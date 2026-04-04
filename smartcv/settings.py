@@ -90,9 +90,14 @@ WSGI_APPLICATION = 'smartcv.wsgi.application'
 DATABASES = {
     'default': dj_database_url.config(
         default=os.getenv('DATABASE_URL'),
-        conn_max_age=0
+        conn_max_age=0,
+        conn_health_checks=True,
     )
 }
+
+# Supabase PgBouncer (Transaction pooling on port 6543) requires disabling server-side cursors
+DATABASES['default']['DISABLE_SERVER_SIDE_CURSORS'] = True
+DATABASES['default']['OPTIONS'] = {'sslmode': 'require'}
 
 
 # Password validation

@@ -87,6 +87,7 @@ def resume_edit_view(request, resume_id):
         # Simple fields
         updated_content['professional_title'] = request.POST.get('professional_title', '')
         updated_content['professional_summary'] = request.POST.get('professional_summary', '')
+        updated_content['template_name'] = request.POST.get('template_name', 'standard')
         
         # Skills (comma separated)
         skills_raw = request.POST.get('skills', '')
@@ -124,11 +125,71 @@ def resume_edit_view(request, resume_id):
                 })
         updated_content['education'] = education_list
         
+        # Projects (arrays)
+        proj_names = request.POST.getlist('proj_name[]')
+        proj_desc = request.POST.getlist('proj_description[]')
+        proj_urls = request.POST.getlist('proj_url[]')
+        projects_list = []
+        for i in range(len(proj_names)):
+            if proj_names[i].strip():
+                projects_list.append({
+                    'name': proj_names[i],
+                    'description': proj_desc[i] if i < len(proj_desc) else '',
+                    'url': proj_urls[i] if i < len(proj_urls) else ''
+                })
+        updated_content['projects'] = projects_list
+
+        # Certifications (arrays)
+        cert_names = request.POST.getlist('cert_name[]')
+        cert_issuers = request.POST.getlist('cert_issuer[]')
+        cert_dates = request.POST.getlist('cert_date[]')
+        cert_urls = request.POST.getlist('cert_url[]')
+        cert_list = []
+        for i in range(len(cert_names)):
+            if cert_names[i].strip():
+                cert_list.append({
+                    'name': cert_names[i],
+                    'issuer': cert_issuers[i] if i < len(cert_issuers) else '',
+                    'date': cert_dates[i] if i < len(cert_dates) else '',
+                    'url': cert_urls[i] if i < len(cert_urls) else ''
+                })
+        updated_content['certifications'] = cert_list
+        
+        # Extended Items Helper
+        def extract_extended(prefix: str):
+            titles = request.POST.getlist(f'{prefix}_title[]')
+            orgs = request.POST.getlist(f'{prefix}_organization[]')
+            dates = request.POST.getlist(f'{prefix}_date[]')
+            descs = request.POST.getlist(f'{prefix}_description[]')
+            items = []
+            for i in range(len(titles)):
+                if titles[i].strip():
+                    items.append({
+                        'title': titles[i],
+                        'organization': orgs[i] if i < len(orgs) else '',
+                        'date': dates[i] if i < len(dates) else '',
+                        'description': descs[i] if i < len(descs) else ''
+                    })
+            return items
+
+        # Extended Lists
+        updated_content['volunteer_experience'] = extract_extended('vol')
+        updated_content['awards'] = extract_extended('awd')
+        updated_content['publications'] = extract_extended('pub')
+        updated_content['patents'] = extract_extended('pat')
+        
+        # Languages (comma separated simple list, or array of strings)
+        lang_raw = request.POST.get('languages', '')
+        if lang_raw:
+            updated_content['languages'] = [l.strip() for l in lang_raw.split(',') if l.strip()]
+        else:
+            updated_content['languages'] = []
+
         # Save to DB
         resume.content = updated_content
         resume.save()
         
-        return redirect('resume_preview', resume_id=resume.id)
+        return redirect(f"{request.path}?saved=true")
     
     return render(request, 'resumes/edit.html', {'resume': resume})
 
@@ -145,7 +206,8 @@ def export_pdf_view(request, resume_id):
     os.close(fd)
 
     try:
-        generate_pdf(resume.content, output_path)
+        template_name = resume.content.get('template_name', 'standard')
+        generate_pdf(resume, output_path, template_name)
         # Read into memory so we can delete the temp file safely
         with open(output_path, 'rb') as f:
             pdf_data = f.read()

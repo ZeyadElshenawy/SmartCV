@@ -11,8 +11,8 @@
         
         <!-- Sidebar: Missing Skills Summary -->
         <div class="lg:col-span-1">
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-6">
-                <h2 class="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2">Target Skills</h2>
+            <div class="bg-white rounded-xl shadow-md border border-gray-200 p-6 sticky top-6">
+                <h2 class="text-lg font-bold text-gray-900 mb-4 border-b border-gray-200 pb-2">Target Skills</h2>
                 
                 {% if skills_to_learn %}
                     <ul class="space-y-3">
@@ -50,7 +50,7 @@
         <div class="lg:col-span-2 space-y-6">
             {% if learning_path %}
                 {% for item in learning_path %}
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
                     <div class="bg-gradient-to-r from-slate-800 to-slate-700 px-6 py-4 text-white">
                         <h3 class="text-xl font-bold flex items-center">
                             <span class="bg-blue-500 w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 shadow-inner">{{ forloop.counter }}</span>
@@ -99,7 +99,7 @@
                 {% endfor %}
             {% else %}
                 <!-- Empty State / Welcome Screen -->
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center h-full flex flex-col items-center justify-center">
+                <div class="bg-white rounded-xl shadow-md border border-gray-200 p-12 text-center h-full flex flex-col items-center justify-center">
                     <img src="https://cdni.iconscout.com/illustration/premium/thumb/online-learning-4487771-3738435.png" alt="Learning Path" class="h-48 mb-6 opacity-80 mix-blend-multiply">
                     <h3 class="text-2xl font-bold text-gray-800 mb-3">Your AI Learning Coach</h3>
                     <p class="text-gray-500 max-w-md mx-auto mb-8">We've identified the skills you need to land the jobs you've been saving. Click generate to create a free, personalized curriculum tailored to your gap analysis.</p>

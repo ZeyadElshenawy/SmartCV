@@ -20,7 +20,7 @@ class Job(models.Model):
     description = models.TextField()
     raw_html = models.TextField(null=True, blank=True)
     extracted_skills = models.JSONField(default=list)
-    embedding = VectorField(dimensions=768, null=True, blank=True)
+    embedding = VectorField(dimensions=384, null=True, blank=True)
     application_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='saved')
     created_at = models.DateTimeField(auto_now_add=True)
     

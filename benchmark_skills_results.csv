@@ -1,6 +1,0 @@
-Role,Time_ms,Expected_Count,Extracted_Count,Matches,Precision,Recall,F1_Score
-Python Developer,34.93,9,8,5,62.5,55.6,58.8
-Data Scientist,28.75,9,10,8,80.0,88.9,84.2
-Frontend Developer,30.36,8,2,0,0.0,0.0,0.0
-DevOps Engineer,28.11,8,3,3,100.0,37.5,54.5
-Project Manager,39.16,8,4,1,25.0,12.5,16.7

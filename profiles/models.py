@@ -37,8 +37,8 @@ class UserProfile(models.Model):
     #            speaking_engagements, hobbies, honors, etc.
     data_content = models.JSONField(default=dict)
     
-    # Vector embedding for semantic search (Gemini uses 768 dimensions)
-    embedding = VectorField(dimensions=768, null=True, blank=True)
+    # Vector embedding for semantic search (Gemini uses 384 dimensions)
+    embedding = VectorField(dimensions=384, null=True, blank=True)
     
     # CV Upload
     uploaded_cv = models.FileField(upload_to='cvs/', null=True, blank=True)
@@ -92,3 +92,22 @@ class UserProfile(models.Model):
         indexes = [
             GinIndex(fields=['data_content'], name='profile_data_gin', opclasses=['jsonb_path_ops']),
         ]
+
+
+class JobProfileSnapshot(models.Model):
+    """Stores a per-job profile snapshot when user chooses to limit chatbot changes to a single application."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    profile = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='job_snapshots')
+    job = models.OneToOneField('jobs.Job', on_delete=models.CASCADE, related_name='profile_snapshot')
+    
+    # Snapshot of data_content at the moment the chatbot updated the profile for THIS job
+    data_content = models.JSONField(default=dict)
+    
+    # The pre-chatbot state — used to revert the master profile when user chose "this job only"
+    pre_chatbot_data = models.JSONField(default=dict)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'job_profile_snapshots'
+

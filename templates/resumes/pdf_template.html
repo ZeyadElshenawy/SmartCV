@@ -112,7 +112,13 @@
 </head>
 <body>
     <div class="header">
+        <div style="font-size: 22pt; font-weight: bold; margin-bottom: 4px; color: #111;">{{ profile.full_name|default:"Your Name" }}</div>
         <div class="professional-title">{{ resume.professional_title|default:"Professional Resume" }}</div>
+        <div style="font-size: 10pt; color: #555; margin-bottom: 8px;">
+            {{ profile.email }} | {{ profile.phone }}
+            {% if profile.linkedin_url %} | {{ profile.linkedin_url }}{% endif %}
+            {% if profile.location %} | {{ profile.location }}{% endif %}
+        </div>
     </div>
 
     {% if resume.professional_summary %}
@@ -167,6 +173,42 @@
             <div class="item-subtitle">{{ edu.institution }}</div>
         </div>
         {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if resume.projects %}
+    <div class="section">
+        <div class="section-title">Projects</div>
+        {% for proj in resume.projects %}
+        <div class="item">
+            <div class="item-title">
+                {% if proj.url %}<a href="{{ proj.url }}" target="_blank" style="color: #1e3a8a; text-decoration: none;">{{ proj.name }}</a>{% else %}{{ proj.name }}{% endif %}
+            </div>
+            {% if proj.description %}
+            <div class="item-description">{{ proj.description }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if resume.certifications %}
+    <div class="section">
+        <div class="section-title">Certifications</div>
+        <ul style="margin: 0; padding-left: 20px; font-size: 10pt; color: #333;">
+            {% for cert in resume.certifications %}
+            <li style="margin-bottom: 4px;"><strong>{% if cert.url %}<a href="{{ cert.url }}" target="_blank" style="color: #1e3a8a; text-decoration: none;">{{ cert.name }}</a>{% else %}{{ cert.name }}{% endif %}</strong>{% if cert.issuer %} - {{ cert.issuer }}{% endif %}{% if cert.date %} ({{ cert.date }}){% endif %}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if resume.languages %}
+    <div class="section" style="margin-top: 16px;">
+        <div class="section-title">Languages</div>
+        <div class="item-description">
+            {{ resume.languages|join:", " }}
+        </div>
     </div>
     {% endif %}
 </body>

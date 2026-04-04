@@ -1,6 +1,50 @@
 {% extends 'base.html' %}
 
 {% block content %}
+{% if is_computing %}
+<div class="min-h-screen bg-gray-50 py-12 flex items-center justify-center">
+    <div class="max-w-2xl w-full mx-auto px-4 sm:px-6 text-center" x-data="gapCalculator()">
+        <div class="bg-white rounded-xl shadow-lg border border-gray-200 p-12">
+            <svg class="animate-spin h-12 w-12 text-rn-blue mx-auto mb-6" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <h2 class="text-2xl font-bold text-rn-navy mb-2" x-text="statusMsg">Analyzing your fit with AI...</h2>
+            <p class="text-gray-500 font-medium">This usually takes about 10-20 seconds.</p>
+        </div>
+    </div>
+</div>
+<script>
+function gapCalculator() {
+    return {
+        statusMsg: 'Waking up the AI engine...',
+        init() {
+            setTimeout(() => { this.statusMsg = 'Computing match score...'; }, 4000);
+            setTimeout(() => { this.statusMsg = 'Identifying missing skills...'; }, 8000);
+            
+            fetch('/analysis/api/compute/{{ job.id }}/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                if(response.ok) {
+                    window.location.reload();
+                } else {
+                    this.statusMsg = 'Error computing gap analysis. Please try refreshing.';
+                }
+            })
+            .catch(error => {
+                this.statusMsg = 'Error computing gap analysis. Please try refreshing.';
+                console.error('Error:', error);
+            });
+        }
+    }
+}
+</script>
+{% else %}
 <div class="container mx-auto px-4 py-8">
     <!-- Header -->
     <div class="text-center mb-8">
@@ -91,26 +135,150 @@
         </div>
     </div>
     {% endif %}
-    
-    <!-- The CTA: Fix These Gaps -->
-    <div class="max-w-3xl mx-auto text-center space-y-4 md:space-y-0 md:space-x-4">
-        <a 
-            href="{% url 'profile_chatbot' job_id=job.id %}" 
-            class="inline-block px-12 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xl font-bold rounded-xl shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
-        >
-            Fix These Gaps with AI →
-        </a>
 
-        <a 
-            href="{% url 'generate_resume' job_id=job.id %}" 
-            class="inline-block px-12 py-4 bg-white border-2 border-gray-200 text-gray-700 text-xl font-bold rounded-xl shadow-sm hover:shadow-md hover:border-gray-300 transform hover:scale-105 transition-all duration-300"
+    <!-- Extracted Job Description (Collapsible) -->
+    <div class="max-w-3xl mx-auto mb-12" x-data="{ showJobDesc: false }">
+        <button 
+            @click="showJobDesc = !showJobDesc"
+            class="w-full text-left px-6 py-4 bg-white border border-gray-200 shadow-sm hover:bg-gray-50 rounded-lg transition-colors flex justify-between items-center"
         >
-            Generate Resume
-        </a>
+            <span class="font-bold text-rn-navy flex items-center">
+                <svg class="w-5 h-5 mr-2 text-rn-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                View Extracted Job Description
+            </span>
+            <svg 
+                class="w-5 h-5 text-gray-500 transform transition-transform" 
+                :class="showJobDesc ? 'rotate-180' : ''"
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+            >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+        </button>
         
-        <p class="text-sm text-gray-500 mt-4">
-            Improve your score with AI or generate your resume now.
-        </p>
+        <div x-show="showJobDesc" x-cloak class="mt-4 bg-white rounded-lg shadow-md border border-gray-200 p-6">
+            <h4 class="font-bold text-gray-900 mb-3 text-lg border-b border-gray-200 pb-2">Target Skills Extracted</h4>
+            <div class="flex flex-wrap gap-2 mb-6">
+                {% for skill in job.extracted_skills %}
+                <span class="px-3 py-1 bg-blue-50 text-rn-blue font-semibold rounded-md border border-blue-100 text-sm">
+                    {{ skill }}
+                </span>
+                {% endfor %}
+            </div>
+            
+            <h4 class="font-bold text-gray-900 mb-3 text-lg border-b border-gray-200 pb-2">Original Description</h4>
+            <div class="prose max-w-none text-gray-700 leading-relaxed text-sm whitespace-pre-wrap max-h-96 overflow-y-auto w-full break-words">
+                {{ job.description }}
+            </div>
+        </div>
+    </div>
+    
+    <!-- The CTA: Score-Aware Primary Action -->
+    <div class="max-w-3xl mx-auto text-center">
+        
+        <!-- Primary CTA (Score-Based) -->
+        {% if primary_action == 'generate_resume' %}
+        <div class="mb-6">
+            <p class="text-sm font-semibold text-green-600 mb-3 uppercase tracking-wider">✓ Strong Match — You're Ready</p>
+            <a 
+                href="{% url 'generate_resume' job_id=job.id %}" 
+                id="primary-cta-btn"
+                class="inline-block px-14 py-5 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xl font-bold rounded-xl shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
+            >
+                Generate Your Resume →
+            </a>
+        </div>
+        {% elif primary_action == 'chat_fill_gaps' %}
+        <div class="mb-6">
+            <p class="text-sm font-semibold text-yellow-600 mb-3 uppercase tracking-wider">⚡ Good Potential — Fill a Few Gaps</p>
+            <a 
+                href="{% url 'profile_chatbot' job_id=job.id %}" 
+                id="primary-cta-btn"
+                class="inline-block px-14 py-5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xl font-bold rounded-xl shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
+            >
+                Chat with AI to Fill Gaps →
+            </a>
+        </div>
+        {% else %}
+        <div class="mb-6">
+            <p class="text-sm font-semibold text-red-600 mb-3 uppercase tracking-wider">📚 Significant Gaps — Build Skills First</p>
+            <a 
+                href="{% url 'learning_path' job_id=job.id %}" 
+                id="primary-cta-btn"
+                class="inline-block px-14 py-5 bg-gradient-to-r from-purple-600 to-violet-600 text-white text-xl font-bold rounded-xl shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
+            >
+                Build Your Learning Path →
+            </a>
+        </div>
+        {% endif %}
+
+        <!-- More Actions (Collapsed) -->
+        <div x-data="{ showMore: false }" class="mt-6">
+            <button 
+                @click="showMore = !showMore"
+                class="text-sm text-gray-500 hover:text-gray-700 font-medium flex items-center mx-auto gap-1 transition-colors"
+            >
+                <span x-text="showMore ? 'Hide Options' : 'More Actions'"></span>
+                <svg 
+                    class="w-4 h-4 transform transition-transform" 
+                    :class="showMore ? 'rotate-180' : ''"
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                >
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+            
+            <div x-show="showMore" x-cloak x-transition class="mt-4 flex flex-wrap justify-center gap-3">
+                {% if primary_action != 'generate_resume' %}
+                <a 
+                    href="{% url 'generate_resume' job_id=job.id %}" 
+                    class="inline-flex items-center px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-xl shadow-sm hover:shadow-md hover:border-gray-300 transition-all text-sm"
+                >
+                    📄 Generate Resume
+                </a>
+                {% endif %}
+                
+                {% if primary_action != 'chat_fill_gaps' %}
+                <a 
+                    href="{% url 'profile_chatbot' job_id=job.id %}" 
+                    class="inline-flex items-center px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-xl shadow-sm hover:shadow-md hover:border-gray-300 transition-all text-sm"
+                >
+                    🤖 AI Gap Filler
+                </a>
+                {% endif %}
+
+                {% if primary_action != 'learning_path' %}
+                <a 
+                    href="{% url 'learning_path' job_id=job.id %}" 
+                    class="inline-flex items-center px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-xl shadow-sm hover:shadow-md hover:border-gray-300 transition-all text-sm"
+                >
+                    📚 Learning Path
+                </a>
+                {% endif %}
+
+                <a 
+                    href="{% url 'generate_cover_letter' job_id=job.id %}" 
+                    class="inline-flex items-center px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-xl shadow-sm hover:shadow-md hover:border-gray-300 transition-all text-sm"
+                >
+                    ✉️ Cover Letter
+                </a>
+                
+                <a 
+                    href="{% url 'generate_outreach' job_id=job.id %}" 
+                    class="inline-flex items-center px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-xl shadow-sm hover:shadow-md hover:border-gray-300 transition-all text-sm"
+                >
+                    📧 Outreach Campaign
+                </a>
+
+                <a 
+                    href="{% url 'negotiate_salary' job_id=job.id %}" 
+                    class="inline-flex items-center px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-xl shadow-sm hover:shadow-md hover:border-gray-300 transition-all text-sm"
+                >
+                    💰 Salary Negotiation
+                </a>
+            </div>
+        </div>
     </div>
     
     <!-- Detailed Breakdown (Collapsible) -->
@@ -164,4 +332,5 @@
 <style>
 [x-cloak] { display: none !important; }
 </style>
+{% endif %}
 {% endblock %}

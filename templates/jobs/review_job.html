@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 transition-colors">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        <!-- Progress Indicator -->
+        <div class="flex items-center justify-center mb-8 gap-3 text-sm font-medium">
+            <span class="flex items-center gap-1.5 text-green-600">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                Job Input
+            </span>
+            <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            <span class="flex items-center gap-1.5 text-rn-blue font-bold">
+                <span class="w-5 h-5 rounded-full bg-rn-blue text-white text-xs flex items-center justify-center">2</span>
+                Review & Confirm
+            </span>
+            <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            <span class="text-gray-400">Gap Analysis</span>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
+            <!-- Header -->
+            <div class="px-8 py-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-800">
+                <h1 class="text-2xl font-extrabold text-rn-navy dark:text-gray-100 mb-1">Review Extracted Job</h1>
+                <p class="text-gray-500 dark:text-gray-400 font-medium text-sm">Please verify the extracted data is correct before proceeding to gap analysis. Edit any incorrect fields below.</p>
+            </div>
+
+            {% if error %}
+            <div class="m-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-md flex items-center text-sm">
+                <svg class="w-5 h-5 mr-3 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
+                {{ error }}
+            </div>
+            {% endif %}
+
+            <form method="post" class="p-8 space-y-6">
+                {% csrf_token %}
+                
+                <!-- Job Title & Company -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label for="review-title" class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                            Job Title <span class="text-red-500">*</span>
+                        </label>
+                        <input 
+                            type="text" 
+                            id="review-title"
+                            name="title" 
+                            value="{{ job.title }}" 
+                            required
+                            class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-rn-blue transition-colors"
+                        >
+                    </div>
+                    <div>
+                        <label for="review-company" class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                            Company <span class="text-red-500">*</span>
+                        </label>
+                        <input 
+                            type="text" 
+                            id="review-company"
+                            name="company" 
+                            value="{{ job.company }}" 
+                            required
+                            class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-rn-blue transition-colors"
+                        >
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <div>
+                    <label for="review-description" class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                        Job Description <span class="text-red-500">*</span>
+                    </label>
+                    <textarea 
+                        id="review-description"
+                        name="description" 
+                        rows="10" 
+                        required
+                        class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-rn-blue transition-colors resize-y text-sm leading-relaxed"
+                    >{{ job.description }}</textarea>
+                </div>
+
+                <!-- Extracted Skills (read-only display) -->
+                {% if job.extracted_skills %}
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                        Extracted Skills
+                        <span class="text-xs font-normal text-gray-400 ml-1">(auto-detected from description)</span>
+                    </label>
+                    <div class="flex flex-wrap gap-2 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                        {% for skill in job.extracted_skills %}
+                        <span class="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-rn-blue dark:text-blue-300 font-semibold rounded-lg border border-blue-100 dark:border-blue-800 text-sm">
+                            {{ skill }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1.5">Skills will be re-extracted if you change the description.</p>
+                </div>
+                {% endif %}
+
+                {% if job.url %}
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Source URL</label>
+                    <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
+                        <a href="{{ job.url }}" target="_blank" class="text-rn-blue hover:underline truncate">{{ job.url }}</a>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Action Buttons -->
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <a href="{% url 'job_input_view' %}" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 font-medium transition-colors text-sm">
+                        ← Back to Job Input
+                    </a>
+                    <div class="flex gap-3">
+                        <button 
+                            type="submit"
+                            name="action"
+                            value="confirm"
+                            class="inline-flex items-center px-8 py-3.5 bg-rn-gold text-rn-navy font-bold rounded-rn-pill hover:bg-rn-gold-hover hover:-translate-y-0.5 transition-all shadow-md text-sm"
+                            onclick="showLoading('Running Gap Analysis...')"
+                        >
+                            Confirm & Analyze
+                            <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Security Banner -->
+        <div class="mt-4 text-center text-xs text-gray-400 font-medium flex items-center justify-center gap-1.5">
+            <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path></svg>
+            Your data is processed securely and never shared.
+        </div>
+    </div>
+</div>
+{% endblock %}

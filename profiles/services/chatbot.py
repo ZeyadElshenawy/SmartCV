@@ -56,6 +56,9 @@ Based on this conversation, extract the user's profile information in JSON forma
 {json.dumps(conversation_history)}
 
 Return JSON with keys: full_name, email, phone, location, skills (list of objects), experiences (list of objects), education (list of objects).
+
+=== STRICT ANTI-HALLUCINATION RULE (CRITICAL) ===
+- Never invent, add, or imply skills, keywords, achievements, metrics, job titles, or any other content not explicitly stated by the user in the conversation.
 """
     
     try:

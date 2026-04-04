@@ -68,6 +68,27 @@ document.getElementById('extract-btn').addEventListener('click', async () => {
 
 // Load saved key on open
 document.addEventListener('DOMContentLoaded', () => {
+    // Check if Django is authenticated via cookies
+    fetch('http://127.0.0.1:8000/profiles/api/current/')
+        .then(res => {
+            if (res.ok) return res.json();
+            throw new Error("Not logged in");
+        })
+        .then(data => {
+            const authDot = document.getElementById('auth-dot');
+            const authText = document.getElementById('auth-text');
+            authDot.classList.remove('dot-amber');
+            authDot.classList.add('dot-green');
+            authText.innerHTML = `Connected as <b>${data.full_name || data.email || 'User'}</b>`;
+        })
+        .catch(err => {
+            const authDot = document.getElementById('auth-dot');
+            const authText = document.getElementById('auth-text');
+            authDot.classList.remove('dot-amber');
+            authDot.classList.add('dot-red');
+            authText.innerHTML = `Login Required <a href="http://127.0.0.1:8000/accounts/login/" target="_blank" class="auth-link">Login Here</a>`;
+        });
+
     chrome.storage.local.get(['smartcv_key'], function (result) {
         if (result.smartcv_key) {
             document.getElementById('api-key').value = result.smartcv_key;
