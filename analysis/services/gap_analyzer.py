@@ -1,9 +1,9 @@
 import logging
 import json
-import os
 import numpy as np
 from pgvector.django import CosineDistance
-from profiles.services.llm_engine import get_llm_client, LLM_MODEL
+from profiles.services.llm_engine import get_structured_llm
+from profiles.services.schemas import GapAnalysisResult
 from profiles.services.embeddings import generate_vector_input, get_embedding
 from jobs.models import Job
 
@@ -12,14 +12,7 @@ logger = logging.getLogger(__name__)
 def compute_gap_analysis(profile, job):
     """
     Compare user profile with job requirements using semantic similarity (Embeddings)
-    and list specific skill gaps.
-    
-    Args:
-        profile: UserProfile instance
-        job: Job instance
-    
-    Returns:
-        dict with matched_skills, missing_skills, partial_skills, similarity_score
+    and list specific skill gaps via LangChain structured output.
     """
     # 1. Similarity Score using Embeddings (Cosine Similarity)
     similarity_score = 0.0
@@ -33,7 +26,6 @@ def compute_gap_analysis(profile, job):
             profile.save()
             
     if job.embedding is None:
-        # Create summary for job
         job_text = f"{job.title} at {job.company or ''}. {job.description}"
         emb = get_embedding(job_text)
         if emb:
@@ -42,26 +34,16 @@ def compute_gap_analysis(profile, job):
 
     # Calculate Distance/Similarity
     if profile.embedding is not None and job.embedding is not None:
-        # DB-side calculation using pgvector operator <=> (Cosine Distance)
-        # We need to query to get the distance.
         try:
-            # We can use the Job model to calculate distance to the profile embedding
-            # annotate distance
             job_with_dist = Job.objects.annotate(
                 distance=CosineDistance('embedding', profile.embedding)
             ).get(id=job.id)
             
-            # Cosine Distance = 1 - Cosine Similarity
-            # So Similarity = 1 - Distance
-            # Note: pgvector CosineDistance returns 1 - cosine_similarity
             similarity_score = 1.0 - job_with_dist.distance
-            
-            # Clamp to 0-1 just in case
             similarity_score = max(0.0, min(1.0, similarity_score))
             
         except Exception as e:
             logger.error("Error calculating vector distance: %s", e)
-            # Fallback to numpy if DB fails (e.g. SQLite local without pgvector)
             try:
                 p_vec = np.array(profile.embedding)
                 j_vec = np.array(job.embedding)
@@ -73,57 +55,35 @@ def compute_gap_analysis(profile, job):
                 logger.error("Numpy fallback for similarity also failed: %s", np_err)
                 similarity_score = 0.0
 
-    # 2. Hybrid LLM Gap Analysis
-    # Use Gemini to intelligently compare lists and identify standardized gaps
-    
-    # Prepare data for LLM
+    # 2. Hybrid LLM Gap Analysis via LangChain structured output
     job_skills = job.extracted_skills
     user_skills = profile.skills
     
     try:
-        client = get_llm_client()
-        if not client:
-            raise ValueError("LLM client unavailable")
+        prompt = f"""Compare the Candidate's Skills against the Job Requirements.
+        
+JOB REQUIREMENTS: {json.dumps(job_skills)}
+CANDIDATE SKILLS: {json.dumps(user_skills, default=str)}
 
-        prompt = f"""
-        Compare the Candidate's Skills against the Job Requirements.
-        
-        JOB REQUIREMENTS: {json.dumps(job_skills)}
-        CANDIDATE SKILLS: {json.dumps(user_skills, default=str)}
-        
-        Task:
-        1. Identify CRITICAL MISSING SKILLS (Hard technical skills the user clearly lacks).
-        2. Identify SOFT SKILL GAPS (e.g. Leadership, Communication if required and missing).
-        3. Identify MATCHED SKILLS (Skills the user has that matches requirements).
-        
-        Return valid JSON only:
-        {{
-            "critical_missing": ["skill1", "skill2"],
-            "soft_skill_gaps": ["gap1"],
-            "matched_skills": ["list of matched skills"]
-        }}
-        """
-        
-        response = client.chat.completions.create(
-            model=LLM_MODEL,
-            messages=[
-                {"role": "system", "content": "You are an expert HR AI. Output ONLY a valid JSON object with no markdown fences, no explanation."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.1,
-            max_tokens=512
-        )
-        
-        content = response.choices[0].message.content
-        gap_data = json.loads(content)
+Task:
+1. Identify CRITICAL MISSING SKILLS (Hard technical skills the user clearly lacks).
+2. Identify SOFT SKILL GAPS (e.g. Leadership, Communication if required and missing).
+3. Identify MATCHED SKILLS (Skills the user has that matches requirements).
+
+=== STRICT ANTI-HALLUCINATION RULE (CRITICAL) ===
+- Never invent, add, or imply skills not present in the provided lists.
+- Only report on what actually exists in the provided lists."""
+
+        structured_llm = get_structured_llm(GapAnalysisResult, temperature=0.1, max_tokens=512)
+        result = structured_llm.invoke(prompt)
         
         return {
-            'matched_skills': gap_data.get('matched_skills', []),
-            'missing_skills': gap_data.get('critical_missing', []),
+            'matched_skills': result.matched_skills,
+            'missing_skills': result.critical_missing,
             'partial_skills': [],
-            'soft_skill_gaps': gap_data.get('soft_skill_gaps', []),
-            'critical_missing_skills': gap_data.get('critical_missing', []),
-            'seniority_mismatch': gap_data.get('seniority_mismatch'),
+            'soft_skill_gaps': result.soft_skill_gaps,
+            'critical_missing_skills': result.critical_missing,
+            'seniority_mismatch': None,
             'similarity_score': round(similarity_score, 2)
         }
             
@@ -152,9 +112,9 @@ def compute_gap_analysis(profile, job):
     return {
         'matched_skills': matched_skills,
         'missing_skills': missing_skills,
-        'partial_skills': [],  # Not calculated in fallback
+        'partial_skills': [],
         'soft_skill_gaps': [],
-        'critical_missing_skills': missing_skills[:5],  # Top 5 as critical
+        'critical_missing_skills': missing_skills[:5],
         'seniority_mismatch': None,
         'similarity_score': round(similarity_score, 2)
     }

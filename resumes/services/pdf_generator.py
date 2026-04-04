@@ -3,8 +3,6 @@ PDF Generator Service
 Generates tailored PDFs from profile data_content JSON
 """
 import logging
-from django.template.loader import render_to_string
-from xhtml2pdf import pisa
 from io import BytesIO
 
 logger = logging.getLogger(__name__)
@@ -21,6 +19,9 @@ def generate_optimized_pdf(profile, job=None):
     Returns:
         BytesIO: PDF file buffer
     """
+    from django.template.loader import render_to_string
+    from xhtml2pdf import pisa
+    
     # Prepare context for template
     context = {
         'profile': profile,

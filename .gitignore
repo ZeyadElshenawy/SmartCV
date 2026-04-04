@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.sqlite3
+db.sqlite3
+.env
+.venv/
+env/
+venv/
+ENV/
+*.log
+media/
+test_cvs2/
+batch_results.json
+.vscode/
+.idea/

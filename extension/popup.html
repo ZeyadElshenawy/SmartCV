@@ -20,10 +20,32 @@
       width: 14px; height: 14px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right: 8px;
     }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    
+    .auth-status {
+      display: flex;
+      align-items: center;
+      margin-bottom: 16px;
+      font-size: 13px;
+    }
+    .auth-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+    .dot-amber { background-color: #f59e0b; }
+    .dot-red { background-color: #ef4444; }
+    .dot-green { background-color: #10b981; }
+    .auth-text { color: #4b5563; }
+    .auth-link { color: #2563eb; text-decoration: none; margin-left: 4px; }
   </style>
 </head>
 <body>
   <h2>SmartCV Agent</h2>
+  <div class="auth-status" id="auth-status">
+      <div class="auth-dot dot-amber" id="auth-dot"></div>
+      <span class="auth-text" id="auth-text">Checking connection...</span>
+  </div>
   <p>Found a job you like? Click below to extract details and save it directly to your SmartCV Kanban board.</p>
   
   <div>

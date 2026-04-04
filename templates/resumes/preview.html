@@ -1,9 +1,7 @@
 {% extends 'base.html' %}
 
-{% extends 'base.html' %}
-
 {% block content %}
-<div class="min-h-[calc(100vh-80px)] bg-rn-light flex flex-col md:flex-row">
+<div class="min-h-[calc(100vh-80px)] bg-gray-50 dark:bg-gray-900 flex flex-col md:flex-row transition-colors">
     
     <!-- LEFT SIDEBAR: Nav Steps (Resume-Now Style) -->
     <div class="w-full md:w-64 bg-rn-navy text-white flex-shrink-0 hidden md:block border-r border-gray-800">
@@ -40,100 +38,300 @@
                     <div class="bg-rn-gold h-1.5 rounded-full" style="width: {{ resume.ats_score|default:'85' }}%;"></div>
                  </div>
              </div>
+            
+            <!-- DEBUG: Raw JSON View -->
+            <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 mb-8">
+                <details>
+                    <summary class="cursor-pointer font-bold text-gray-700 dark:text-gray-300 hover:text-blue-600 outline-none">
+                        View Raw Extracted Data (JSON)
+                    </summary>
+                    <div class="mt-4 p-4 bg-gray-900 rounded-lg overflow-x-auto shadow-inner">
+                        <pre class="text-xs text-green-400 font-mono leading-relaxed" id="raw-json-display"></pre>
+                    </div>
+                </details>
+            </div>
+            
+            {{ content|json_script:"resume-json-data" }}
+            <script>
+                document.addEventListener('DOMContentLoaded', () => {
+                    try {
+                        const data = JSON.parse(document.getElementById('resume-json-data').textContent);
+                        document.getElementById('raw-json-display').textContent = JSON.stringify(data, null, 2);
+                    } catch(e) {
+                         document.getElementById('raw-json-display').textContent = "Unable to parse JSON.";
+                    }
+                });
+            </script>
         </div>
     </div>
 
     <!-- CENTER COLUMN: Final Review Area -->
-    <div class="flex-grow p-4 sm:p-8 lg:p-12 overflow-y-auto" style="max-height: calc(100vh - 80px);">
+    <div class="flex-grow p-4 sm:p-8 lg:p-12 overflow-y-auto" style="max-height: calc(100vh - 80px);" x-data="{ showNextStepsModal: false }">
         
         <div class="max-w-4xl mx-auto">
             <div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
-                    <h1 class="text-3xl font-extrabold text-rn-navy mb-2">Final Review</h1>
-                    <p class="text-gray-600 font-medium">Here is the final tailored content for <strong class="text-gray-900">{{ job.title }}</strong> at <strong class="text-gray-900">{{ job.company }}</strong>.</p>
+                    <h1 class="text-3xl font-extrabold text-rn-navy dark:text-gray-100 mb-2">Final Review</h1>
+                    <p class="text-gray-600 dark:text-gray-400 font-medium">Here is the final tailored content for <strong class="text-gray-900 dark:text-white">{{ job.title }}</strong> at <strong class="text-gray-900 dark:text-white">{{ job.company }}</strong>.</p>
                 </div>
                 
                 <div class="flex gap-3">
-                    <a href="{% url 'resume_edit' resume.id %}" class="inline-flex items-center px-6 py-3 border-2 border-rn-blue text-rn-blue font-bold rounded-rn-pill hover:bg-blue-50 transition-colors bg-white">
+                    <a href="{% url 'resume_edit' resume.id %}" class="inline-flex items-center px-6 py-3 border-2 border-rn-blue dark:border-gray-700 text-rn-blue dark:text-rn-gold font-bold rounded-rn-pill hover:bg-blue-50 dark:hover:bg-gray-750 transition-colors bg-white dark:bg-gray-800">
                         Edit Content
                     </a>
-                    <a href="{% url 'export_pdf' resume.id %}" class="inline-flex items-center px-6 py-3 bg-rn-gold text-rn-navy font-bold rounded-rn-pill hover:bg-rn-gold-hover hover:-translate-y-0.5 transition-all shadow-md">
+                    <a href="{% url 'export_pdf' resume.id %}" target="_blank" @click="setTimeout(() => showNextStepsModal = true, 800)" class="inline-flex items-center px-6 py-3 bg-rn-gold text-rn-navy font-bold rounded-rn-pill hover:bg-rn-gold-hover hover:-translate-y-0.5 transition-all shadow-md">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                         Download PDF
                     </a>
                 </div>
             </div>
 
+
+
             <!-- Resume Content Rendering -->
-            <div class="bg-white rounded-xl shadow-lg border border-gray-200 p-8 md:p-12 mb-12">
-                
-                <div class="text-center font-serif mb-10 pb-6 border-b-2 border-gray-900">
-                    <h1 class="text-4xl font-bold text-gray-900 uppercase tracking-widest">{{ request.user.first_name }} {{ request.user.last_name }}</h1>
-                    <p class="text-xl text-gray-600 mt-2 tracking-wide">{{ content.professional_title }}</p>
-                    <div class="flex justify-center gap-4 mt-4 text-sm text-gray-500 font-sans">
-                        <span>{{ request.user.email }}</span>
-                        <span>•</span>
-                        <span>LinkedIn / Portfolio</span>
-                    </div>
-                </div>
+            <div class="bg-white rounded-xl shadow-lg border border-gray-200 p-8 md:p-12 mb-12 transition-colors">
+                <style>
+                    .pdf-preview {
+                        font-family: 'Helvetica', 'Arial', sans-serif;
+                        color: #1a1a1a;
+                        font-size: 10.5pt;
+                    }
+                    .pdf-preview .p-header {
+                        text-align: center;
+                        margin-bottom: 24px;
+                        padding-bottom: 16px;
+                        border-bottom: 2px solid #2563eb;
+                    }
+                    .pdf-preview .p-professional-title {
+                        font-size: 22pt;
+                        font-weight: bold;
+                        color: #1e3a8a;
+                        margin-bottom: 8px;
+                        text-transform: uppercase;
+                        letter-spacing: 1px;
+                    }
+                    .pdf-preview .p-section {
+                        margin-bottom: 20px;
+                    }
+                    .pdf-preview .p-section-title {
+                        font-size: 13pt;
+                        font-weight: bold;
+                        color: #1e3a8a;
+                        text-transform: uppercase;
+                        border-bottom: 1px solid #cbd5e1;
+                        padding-bottom: 4px;
+                        margin-bottom: 12px;
+                        letter-spacing: 0.5px;
+                    }
+                    .pdf-preview .p-summary {
+                        font-size: 10.5pt;
+                        line-height: 1.5;
+                        text-align: justify;
+                    }
+                    .pdf-preview .p-item {
+                        margin-bottom: 16px;
+                    }
+                    .pdf-preview .p-item-header {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: flex-end;
+                    }
+                    .pdf-preview .p-item-title {
+                        text-align: left;
+                        font-weight: bold;
+                        font-size: 11.5pt;
+                        margin: 0;
+                    }
+                    .pdf-preview .p-item-date {
+                        text-align: right;
+                        font-size: 10pt;
+                        color: #475569;
+                        font-weight: bold;
+                        margin: 0;
+                    }
+                    .pdf-preview .p-item-subtitle {
+                        font-weight: bold;
+                        color: #2563eb;
+                        font-size: 10.5pt;
+                        margin-top: 2px;
+                        margin-bottom: 4px;
+                    }
+                    .pdf-preview .p-item-description {
+                        font-size: 10pt;
+                        line-height: 1.3;
+                        color: #333;
+                        margin-top: 4px;
+                        white-space: pre-wrap;
+                    }
+                </style>
 
-                <!-- Professional Summary -->
-                <div class="mb-10 block">
-                    <!-- Standardize rendering to look like a document -->
-                    <p class="text-gray-800 leading-relaxed text-justify">{{ content.professional_summary }}</p>
-                </div>
-                
-                <!-- Experience -->
-                <div class="mb-10">
-                    <h3 class="text-lg font-bold text-gray-900 mb-4 border-b-2 border-gray-900 pb-1 uppercase tracking-wider font-serif">Experience</h3>
-                    <div class="space-y-8">
-                        {% for exp in content.experience %}
-                        <div>
-                            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-baseline mb-1">
-                                <h4 class="font-bold text-gray-900 text-lg">{{ exp.title }}</h4>
-                                <span class="text-sm font-semibold text-gray-600 whitespace-nowrap">{{ exp.duration }}</span>
-                            </div>
-                            <p class="text-gray-800 font-medium italic mb-3">{{ exp.company }}</p>
-                            <!-- Simulate bullet points if description has newlines or just render -->
-                            <div class="text-gray-700 leading-relaxed text-sm format-content">
-                                {{ exp.description|linebreaks }}
-                            </div>
+                <div class="pdf-preview">
+                    <div class="p-header">
+                        <div style="font-size: 11pt; font-weight: bold; text-transform: uppercase; margin-bottom: 4px;">{{ request.user.first_name }} {{ request.user.last_name }}</div>
+                        <div id="preview-title" class="p-professional-title">{{ content.professional_title|default:"Professional Resume" }}</div>
+                    </div>
+                    
+                    {% if content.professional_summary %}
+                    <div class="p-section">
+                        <div class="p-section-title">Professional Summary</div>
+                        <div id="preview-summary" class="p-summary">{{ content.professional_summary }}</div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if content.skills %}
+                    <div class="p-section" id="preview-skills-section">
+                        <div class="p-section-title">Core Competencies</div>
+                        <div id="preview-skills" class="p-summary">
+                            {{ content.skills|join:", " }}
                         </div>
-                        {% endfor %}
                     </div>
-                </div>
-                
-                <!-- Education -->
-                <div class="mb-10">
-                    <h3 class="text-lg font-bold text-gray-900 mb-4 border-b-2 border-gray-900 pb-1 uppercase tracking-wider font-serif">Education</h3>
-                    <div class="space-y-4">
-                        {% for edu in content.education %}
-                        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-baseline">
-                            <div>
-                                <h4 class="font-bold text-gray-900">{{ edu.degree }}</h4>
-                                <p class="text-gray-800">{{ edu.institution }}</p>
+                    {% endif %}
+
+                    {% if content.experience %}
+                    <div class="p-section">
+                        <div class="p-section-title">Professional Experience</div>
+                        <div id="preview-experience">
+                            {% for exp in content.experience %}
+                            <div class="p-item">
+                                <div class="p-item-header">
+                                    <div class="p-item-title">{{ exp.title }}</div>
+                                    <div class="p-item-date">{{ exp.duration }}</div>
+                                </div>
+                                <div class="p-item-subtitle">{{ exp.company }}</div>
+                                <div class="p-item-description">{{ exp.description }}</div>
                             </div>
-                            <span class="text-sm font-semibold text-gray-600">{{ edu.year }}</span>
+                            {% endfor %}
                         </div>
-                        {% endfor %}
                     </div>
-                </div>
+                    {% endif %}
 
-                <!-- Skills -->
-                <div class="mb-4">
-                    <h3 class="text-lg font-bold text-gray-900 mb-4 border-b-2 border-gray-900 pb-1 uppercase tracking-wider font-serif">Core Competencies</h3>
-                    <p class="text-gray-800 leading-relaxed text-sm font-medium">
-                        {% for skill in content.skills %}
-                            {{ skill }}{% if not forloop.last %} • {% endif %}
-                        {% endfor %}
-                    </p>
-                </div>
+                    {% if content.education %}
+                    <div class="p-section">
+                        <div class="p-section-title">Education</div>
+                        <div id="preview-education">
+                            {% for edu in content.education %}
+                            <div class="p-item">
+                                <div class="p-item-header">
+                                    <div class="p-item-title">{{ edu.degree }}</div>
+                                    <div class="p-item-date">{{ edu.year }}</div>
+                                </div>
+                                <div class="p-item-subtitle">{{ edu.institution }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
 
+                    {% if content.projects %}
+                    <div class="p-section" id="preview-projects-section">
+                        <div class="p-section-title">Projects</div>
+                        <div id="preview-projects">
+                            {% for proj in content.projects %}
+                            <div class="p-item">
+                                <div class="p-item-title">
+                                    {% if proj.url %}<a href="{{ proj.url }}" target="_blank" style="color: #2563eb; text-decoration: none;">{{ proj.name }}</a>{% else %}{{ proj.name }}{% endif %}
+                                </div>
+                                <div class="p-item-description">{{ proj.description }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if content.certifications %}
+                    <div class="p-section" id="preview-certifications-section">
+                        <div class="p-section-title">Certifications</div>
+                        <ul id="preview-certifications" style="margin: 0; padding-left: 20px; font-size: 10pt; color: #333;">
+                            {% for cert in content.certifications %}
+                            <li style="margin-bottom: 4px;">
+                                <strong>{% if cert.url %}<a href="{{ cert.url }}" target="_blank" style="color: #2563eb; text-decoration: none;">{{ cert.name }}</a>{% else %}{{ cert.name }}{% endif %}</strong> 
+                                {% if cert.issuer %}- {{ cert.issuer }}{% endif %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    {% if content.languages %}
+                    <div class="p-section" id="preview-languages-section">
+                        <div class="p-section-title">Languages</div>
+                        <div id="preview-languages" class="p-summary">{{ content.languages|join:", " }}</div>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
             
         </div>
     </div>
+
+    <!-- Post-Download Next Steps Modal -->
+    <div x-show="showNextStepsModal" x-cloak 
+         class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/70 backdrop-blur-sm"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden relative"
+             x-transition:enter="transition ease-out duration-300 delay-100"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100">
+            
+            <!-- Close button -->
+            <button @click="showNextStepsModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            
+            <!-- Modal Header -->
+            <div class="px-8 pt-8 pb-4 text-center">
+                <div class="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Resume Downloaded!</h2>
+                <p class="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
+                    Good luck with your application to <strong class="text-gray-800 dark:text-gray-200">{{ job.company }}</strong>. 
+                    What would you like to do next?
+                </p>
+            </div>
+            
+            <!-- Options -->
+            <div class="px-8 pb-8 space-y-3">
+                <a 
+                    href="{% url 'job_detail' job.id %}" 
+                    class="w-full py-4 px-6 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg hover:scale-[1.02] transition-all duration-200 text-left flex items-start gap-4"
+                >
+                    <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <div>
+                        <div class="text-base">Update Application Status</div>
+                        <div class="text-xs text-white/70 font-normal mt-0.5">Mark this job as "Applied" on your Kanban board.</div>
+                    </div>
+                </a>
+                
+                <a 
+                    href="{% url 'generate_cover_letter' job_id=job.id %}" 
+                    class="w-full py-4 px-6 bg-white dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-bold rounded-xl shadow-sm hover:shadow-md hover:border-gray-300 dark:hover:border-gray-500 hover:scale-[1.02] transition-all duration-200 text-left flex items-start gap-4"
+                >
+                    <div class="w-10 h-10 bg-blue-50 dark:bg-gray-600 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                        <svg class="w-5 h-5 text-blue-500 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                    </div>
+                    <div>
+                        <div class="text-base">Generate Cover Letter</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400 font-normal mt-0.5">Use AI to write a tailored cover letter for this job.</div>
+                    </div>
+                </a>
+                
+                <div class="text-center pt-2">
+                    <button @click="showNextStepsModal = false" class="text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                        Continue reviewing resume
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
 
 <style>
     /* Very basic styling to make linebreaks look like bullet points if needed */

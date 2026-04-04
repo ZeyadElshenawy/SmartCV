@@ -69,8 +69,8 @@ def job_input_view(request):
             else:
                 raise ValueError("Invalid input method")
 
-            # Redirect to Gap Analysis (The Hook)
-            return redirect('gap_analysis', job_id=job.id)
+            # Redirect to Review step first (user confirms extracted data)
+            return redirect('review_extracted_job', job_id=job.id)
 
         except Exception as e:
             logger.exception("Job extraction failed: %s", e)
@@ -79,6 +79,41 @@ def job_input_view(request):
             })
     
     return render(request, 'jobs/input.html')
+
+@login_required
+def review_extracted_job(request, job_id):
+    """Review extracted job data before gap analysis — prevents bad scraper data poisoning the flow."""
+    job = get_object_or_404(Job, id=job_id, user=request.user)
+    
+    if request.method == 'POST':
+        # Update job with user-confirmed/edited data
+        new_title = request.POST.get('title', job.title).strip()
+        new_company = request.POST.get('company', job.company).strip()
+        new_description = request.POST.get('description', job.description).strip()
+        
+        # Check if description was changed — re-extract skills if so
+        description_changed = new_description != job.description
+        
+        job.title = new_title
+        job.company = new_company
+        job.description = new_description
+        
+        if description_changed:
+            try:
+                skills = extract_skills(new_description)
+                job.extracted_skills = list(skills)
+                logger.info("Re-extracted %d skills after description edit", len(job.extracted_skills))
+            except Exception as e:
+                logger.warning("Skill re-extraction failed: %s", e)
+        
+        job.save()
+        logger.info("Job %s confirmed by user: %s at %s", job.id, job.title, job.company)
+        
+        # Now proceed to Gap Analysis
+        return redirect('gap_analysis', job_id=job.id)
+    
+    return render(request, 'jobs/review_job.html', {'job': job})
+
 
 @login_required
 def job_detail_view(request, job_id):
@@ -94,6 +129,7 @@ def job_detail_view(request, job_id):
         return redirect('dashboard')
     
     return render(request, 'jobs/detail.html', {
+
         'job': job,
         'status_choices': Job.STATUS_CHOICES,
     })

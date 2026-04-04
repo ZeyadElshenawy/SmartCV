@@ -1,23 +1,18 @@
 import logging
-from profiles.services.llm_engine import get_llm_client, LLM_MODEL
+from profiles.services.llm_engine import get_llm
+from langchain_core.messages import HumanMessage
 
 logger = logging.getLogger(__name__)
 
 def generate_negotiation_script(profile, job, current_offer, target_salary):
     """
-    Generate a data-backed salary negotiation script using the LLM.
+    Generate a data-backed salary negotiation script using LangChain + Groq.
     """
-    client = get_llm_client()
-    
-    if not client:
-        logger.warning("LLM unavailable for salary negotiation")
-        return "Please configure the LLM API key to generate a negotiation script."
-        
     prompt = f"""You are an expert tech recruiter and salary negotiation coach. My user just received an offer and wants to negotiate for a higher salary.
 
 USER PROFILE:
 - Name: {profile.full_name}
-- Top Skills: {', '.join(profile.skills[:5])}
+- Top Skills: {', '.join([s.get('name', str(s)) if isinstance(s, dict) else str(s) for s in profile.skills[:5]])}
 - Experience Level: {len(profile.experiences)} past roles listed.
 
 JOB DETAILS:
@@ -30,19 +25,22 @@ THE OFFER:
 - Target Salary: {target_salary}
 
 Generate a professional, polite, and persuasive email script they can send to the recruiter to ask for the target salary.
-The argument should be firmly rooted in the specific skills they bring to the table (combining their profile with the job description) and market rate.
+The argument should be firmly rooted in the specific skills they bring to the table and market rate.
+
+=== LANGUAGE & STYLE RULES ===
+- Replace these words: Spearheaded -> Led, Leveraged -> Used/Applied, Utilized -> Used.
+- Remove completely: Dynamic, Innovative, Passionate, Results-driven.
+
+=== STRICT ANTI-HALLUCINATION RULE (CRITICAL) ===
+- Never invent, add, or imply skills, keywords, achievements, metrics, job titles, or any other content not present in the original USER PROFILE.
 
 Do NOT include placeholder addresses. Just start with "Hi [Recruiter Name]," and end with a professional sign off. Output ONLY the email script."""
 
     try:
-        response = client.chat.completions.create(
-            model=LLM_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            timeout=45,
-        )
+        llm = get_llm(temperature=0.7, max_tokens=2048)
+        result = llm.invoke([HumanMessage(content=prompt)])
         
-        content = response.choices[0].message.content.strip()
+        content = result.content.strip()
         logger.info(f"Generated negotiation script for job {job.id}")
         return content
         

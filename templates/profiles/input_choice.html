@@ -3,52 +3,52 @@
 {% block content %}
 <div class="max-w-4xl mx-auto px-4 py-8">
     <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold text-gray-900">Create Your Profile</h1>
-        <p class="mt-2 text-gray-600">Choose how you'd like to input your information</p>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">Create Your Profile</h1>
+        <p class="mt-2 text-gray-600 dark:text-gray-400">Choose how you'd like to input your information</p>
     </div>
     
     <div class="grid md:grid-cols-3 gap-6">
         <!-- Upload CV -->
         <a href="{% url 'profile_upload_cv' job.id %}" class="block group">
-            <div class="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-8 hover:border-blue-500 transition-colors">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border-2 border-gray-200 dark:border-gray-700 p-8 hover:border-blue-500 dark:hover:border-blue-500 transition-colors">
                 <div class="text-center">
-                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="w-16 h-16 bg-blue-100 dark:bg-gray-750 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors">
+                        <svg class="w-8 h-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                         </svg>
                     </div>
-                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Upload CV</h3>
-                    <p class="text-sm text-gray-600">Upload your existing resume (PDF/DOCX)</p>
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Upload CV</h3>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Upload your existing resume (PDF/DOCX)</p>
                 </div>
             </div>
         </a>
         
         <!-- Manual Form -->
         <a href="{% url 'profile_manual_form' job.id %}" class="block group">
-            <div class="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-8 hover:border-blue-500 transition-colors">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border-2 border-gray-200 dark:border-gray-700 p-8 hover:border-blue-500 dark:hover:border-blue-500 transition-colors">
                 <div class="text-center">
-                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="w-16 h-16 bg-blue-100 dark:bg-gray-750 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors">
+                        <svg class="w-8 h-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                         </svg>
                     </div>
-                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Fill Form</h3>
-                    <p class="text-sm text-gray-600">Enter your information manually</p>
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Fill Form</h3>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Enter your information manually</p>
                 </div>
             </div>
         </a>
         
         <!-- Chatbot -->
         <a href="{% url 'profile_chatbot' job.id %}" class="block group">
-            <div class="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-8 hover:border-blue-500 transition-colors">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border-2 border-gray-200 dark:border-gray-700 p-8 hover:border-blue-500 dark:hover:border-blue-500 transition-colors">
                 <div class="text-center">
-                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="w-16 h-16 bg-blue-100 dark:bg-gray-750 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors">
+                        <svg class="w-8 h-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
                         </svg>
                     </div>
-                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Chat with AI</h3>
-                    <p class="text-sm text-gray-600">Have a conversation with our AI assistant</p>
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Chat with AI</h3>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Have a conversation with our AI assistant</p>
                 </div>
             </div>
         </a>

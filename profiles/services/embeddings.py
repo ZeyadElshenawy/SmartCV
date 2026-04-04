@@ -4,49 +4,44 @@ from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
-try:
-    from huggingface_hub import InferenceClient
-except ImportError:
-    InferenceClient = None
+_model = None
+_model_initialized = False
 
-# HuggingFace Inference Client for feature-extraction (embeddings)
-# This uses the huggingface_hub InferenceClient which handles the correct routing
-EMBEDDING_MODEL = os.getenv("HF_EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5")
-
+def get_sentence_transformer():
+    global _model, _model_initialized
+    if not _model_initialized:
+        _model_initialized = True
+        try:
+            from sentence_transformers import SentenceTransformer
+            _model_name = os.getenv("HF_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+            _model = SentenceTransformer(_model_name)
+            logger.info(f"Loaded local embedding model: {_model_name}")
+        except ImportError:
+            _model = None
+            logger.warning("sentence_transformers not installed. Embeddings will be disabled.")
+        except Exception as e:
+            _model = None
+            logger.error(f"Error loading embedding model: {e}")
+    return _model
 
 def get_embedding(text: str) -> Optional[List[float]]:
     """
-    Generate a text embedding via the HuggingFace InferenceClient.
-    Falls back to None gracefully if unavailable — the gap analyzer
-    then relies on LLM skill comparison (which is the primary signal anyway).
+    Generate a text embedding via the local SentenceTransformer model.
+    This runs entirely on your local machine (using GPU if available), 
+    completely avoiding the slow Hugging Face remote API.
     """
     if not text or not text.strip():
         return None
 
-    api_key = os.getenv("HF_API_KEY")
-    if not api_key:
-        logger.warning("HF_API_KEY not set — embeddings disabled, using LLM-only gap analysis.")
-        return None
-
-    if InferenceClient is None:
-        logger.warning("huggingface_hub not installed — embeddings disabled. Run: pip install huggingface_hub")
+    model = get_sentence_transformer()
+    if model is None:
+        logger.warning("sentence_transformers not loaded — embeddings disabled.")
         return None
 
     try:
-        client = InferenceClient(token=api_key)
-        result = client.feature_extraction(text[:2000], model=EMBEDDING_MODEL)
-        # result is a numpy array or list — flatten if needed
-        if hasattr(result, 'tolist'):
-            flat = result.tolist()
-        else:
-            flat = list(result)
-
-        # Handle 2D output (token-level embeddings) by mean-pooling
-        if flat and isinstance(flat[0], list):
-            import numpy as np
-            flat = list(np.mean(flat, axis=0))
-
-        return [float(v) for v in flat]
+        # Encode returns a numpy array, we convert to list of floats
+        embedding = model.encode(text[:2000], normalize_embeddings=True)
+        return [float(v) for v in embedding]
 
     except Exception as e:
         logger.error("Failed to generate embedding: %s", e)

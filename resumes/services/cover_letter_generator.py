@@ -1,5 +1,6 @@
 import logging
-from profiles.services.llm_engine import get_llm_client, LLM_MODEL
+from profiles.services.llm_engine import get_llm
+from langchain_core.messages import HumanMessage
 
 logger = logging.getLogger(__name__)
 
@@ -19,14 +20,8 @@ def _get_skill_names(skills) -> list:
 
 def generate_cover_letter_content(profile, job):
     """
-    Generate a highly personalized cover letter linking the user's profile to the job description.
+    Generate a highly personalized cover letter using LangChain + Groq.
     """
-    client = get_llm_client()
-    
-    if not client:
-        logger.warning("LLM unavailable for cover letter generation")
-        return "Please configure the LLM API key to generate a tailored cover letter."
-        
     prompt = f"""You are an expert career agent and copywriter. Write a highly tailored, professional cover letter for the following user and job.
 
 JOB DETAILS:
@@ -46,19 +41,22 @@ RULES for the Cover Letter:
 3. Body paragraph: Connect a maximum of two past experiences/skills directly to solving the core problem identified in the job description. Do not just list skills. Give concrete examples.
 4. Closing paragraph: Express enthusiasm for the value they can bring to {job.company or 'the team'}, and include a professional call to action.
 5. Tone: Confident, professional, clear, and concise. No fluff or generic buzzwords.
-6. Do not include placeholder addresses at the top (like [Company Address]). Just start with "Dear Hiring Manager," or "Dear [Company Name] Team,".
+6. Do not include placeholder addresses at the top. Just start with "Dear Hiring Manager,".
+
+=== LANGUAGE & STYLE RULES ===
+- Replace these words: Spearheaded -> Led, Leveraged -> Used/Applied, Utilized -> Used, Synergized -> Collaborated, Streamlined -> Simplified/Improved, Robust -> Strong, Demonstrated -> Showed/Proved, Facilitated -> Helped/Enabled.
+- Remove completely: Dynamic, Innovative, Passionate, Results-driven.
+
+=== STRICT ANTI-HALLUCINATION RULE (CRITICAL) ===
+- Never invent, add, or imply skills, keywords, achievements, metrics, job titles, or any other content not present in the original resume/profile.
 
 Output ONLY the text of the cover letter, nothing else."""
 
     try:
-        response = client.chat.completions.create(
-            model=LLM_MODEL,  # Or whichever default model the engine uses
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            timeout=45,
-        )
+        llm = get_llm(temperature=0.7, max_tokens=2048)
+        result = llm.invoke([HumanMessage(content=prompt)])
         
-        content = response.choices[0].message.content.strip()
+        content = result.content.strip()
         logger.info(f"Generated cover letter for job {job.id}")
         return content
         
