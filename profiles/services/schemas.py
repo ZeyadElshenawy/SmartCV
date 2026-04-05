@@ -105,7 +105,7 @@ class ResumeSchema(BaseModel):
 
 class GapAnalysisResult(BaseModel):
     """Output schema for gap_analyzer.py"""
-    critical_missing: List[str] = Field(default_factory=list, description="Hard technical skills the user clearly lacks")
+    critical_missing_skills: List[str] = Field(default_factory=list, description="Hard technical skills the user clearly lacks")
     soft_skill_gaps: List[str] = Field(default_factory=list, description="Soft skills gaps if required and missing")
     matched_skills: List[str] = Field(default_factory=list, description="Skills the user has that match requirements")
 

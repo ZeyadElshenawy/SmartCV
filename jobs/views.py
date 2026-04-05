@@ -6,10 +6,31 @@ from django.contrib.auth import get_user_model
 from .models import Job
 from .services.linkedin_scraper import scrape_linkedin_job
 from .services.skill_extractor import extract_skills
+from django_q.tasks import async_task
 import json
 import logging
 
 logger = logging.getLogger(__name__)
+
+def _bust_job_embedding(job):
+    """
+    Nullifies vector embeddings on the job to force a fresh re-generation
+    on the next Gap Analysis. Call this whenever job requirements change!
+    """
+    updated = False
+    if job.embedding is not None:
+        job.embedding = None
+        updated = True
+        
+    # Phase 1 Multi-Vector compatibility
+    if getattr(job, 'embedding_skills', None) is not None:
+        job.embedding_skills = None
+    if getattr(job, 'embedding_experience', None) is not None:
+        job.embedding_experience = None
+    if getattr(job, 'embedding_education', None) is not None:
+        job.embedding_education = None
+        
+    return updated
 
 @login_required
 def job_input_view(request):
@@ -99,6 +120,7 @@ def review_extracted_job(request, job_id):
         job.description = new_description
         
         if description_changed:
+            _bust_job_embedding(job)
             try:
                 skills = extract_skills(new_description)
                 job.extracted_skills = list(skills)
@@ -108,6 +130,9 @@ def review_extracted_job(request, job_id):
         
         job.save()
         logger.info("Job %s confirmed by user: %s at %s", job.id, job.title, job.company)
+        
+        if description_changed:
+            async_task('analysis.tasks.generate_job_embeddings', job.id)
         
         # Now proceed to Gap Analysis
         return redirect('gap_analysis', job_id=job.id)
