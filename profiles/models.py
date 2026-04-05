@@ -37,8 +37,13 @@ class UserProfile(models.Model):
     #            speaking_engagements, hobbies, honors, etc.
     data_content = models.JSONField(default=dict)
     
-    # Vector embedding for semantic search (Gemini uses 384 dimensions)
+    # Vector embedding for semantic search (all-MiniLM-L6-v2 uses 384 dimensions)
     embedding = VectorField(dimensions=384, null=True, blank=True)
+    
+    # Multi-Vector Architecture (Phase 1)
+    embedding_skills = VectorField(dimensions=384, null=True, blank=True)
+    embedding_experience = VectorField(dimensions=384, null=True, blank=True)
+    embedding_education = VectorField(dimensions=384, null=True, blank=True)
     
     # CV Upload
     uploaded_cv = models.FileField(upload_to='cvs/', null=True, blank=True)

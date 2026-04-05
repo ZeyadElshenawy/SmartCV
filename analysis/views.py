@@ -22,7 +22,7 @@ def gap_analysis_view(request, job_id):
 
     # Try to load cached analysis first to avoid redundant LLM calls on every visit
     force_recompute = request.GET.get('refresh') == '1'
-    existing = GapAnalysis.objects.filter(job=job).first()
+    existing = GapAnalysis.objects.filter(job=job, user=request.user).first()
 
     if existing and not force_recompute:
         # Use cached result — no LLM call needed
@@ -94,6 +94,7 @@ def compute_gap_api(request, job_id):
     # Save to database
     GapAnalysis.objects.update_or_create(
         job=job,
+        user=request.user,
         defaults={
             'matched_skills': analysis_results['matched_skills'],
             'missing_skills': analysis_results['missing_skills'],
