@@ -70,7 +70,9 @@ Task:
 2. Identify SOFT SKILL GAPS (e.g. Leadership, Communication if required and missing).
 3. Identify MATCHED SKILLS (Skills the user has that matches requirements).
 
-=== STRICT ANTI-HALLUCINATION RULE (CRITICAL) ===
+=== VERY IMPORTANT OUTPUT RULES ===
+- DO NOT OUTPUT ANY PREAMBLE OR EXPLANATION TEXT (e.g., do not say "To solve this task..."). 
+- IMMEDIATELY call the provided function to return the JSON layout.
 - Never invent, add, or imply skills not present in the provided lists.
 - Only report on what actually exists in the provided lists."""
 
