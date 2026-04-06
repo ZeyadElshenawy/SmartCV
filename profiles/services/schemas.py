@@ -108,6 +108,7 @@ class GapAnalysisResult(BaseModel):
     critical_missing_skills: List[str] = Field(default_factory=list, description="Hard technical skills the user clearly lacks")
     soft_skill_gaps: List[str] = Field(default_factory=list, description="Soft skills gaps if required and missing")
     matched_skills: List[str] = Field(default_factory=list, description="Skills the user has that match requirements")
+    similarity_score: float = Field(default=0.5, description="Overall match score from 0.0 to 1.0 based on skills, experience relevance, and seniority fit")
 
 class SkillListResult(BaseModel):
     """Output schema for skill_extractor.py"""
