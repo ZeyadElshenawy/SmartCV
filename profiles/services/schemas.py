@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, model_validator
 from typing import List, Optional, Any, Dict, Union
 from pydantic import ConfigDict
 
@@ -156,8 +156,16 @@ class ResumeExperience(BaseModel):
 
 class ResumeProject(BaseModel):
     name: str = ""
-    description: str = ""
+    description: Union[str, List[str]] = ""
     url: str = ""
+
+    @model_validator(mode='before')
+    @classmethod
+    def normalize_description(cls, values):
+        desc = values.get('description', '')
+        if isinstance(desc, list):
+            values['description'] = '\n'.join(str(item) for item in desc)
+        return values
 
 class ResumeCertification(BaseModel):
     name: str = ""
