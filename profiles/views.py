@@ -57,12 +57,6 @@ def _build_profile_form_context(profile):
         'full_json': json.dumps(profile.data_content, indent=2, default=str),
     }
 
-def _bust_profile_embeddings(profile):
-    """Clear all vector embeddings so they get regenerated on next match."""
-    profile.embedding = None
-    profile.embedding_skills = None
-    profile.embedding_experience = None
-    profile.embedding_education = None
 
 @login_required
 def profile_input_choice(request, job_id):
@@ -125,9 +119,7 @@ def profile_upload_cv(request, job_id):
             profile.projects = validated_data.get('projects', [])
             profile.certifications = validated_data.get('certifications', [])
             
-            _bust_profile_embeddings(profile)
             profile.save()
-            async_task('analysis.tasks.generate_profile_embeddings', profile.id)
             logger.info(f"✓ Profile saved - Core fields + complete raw_cv_data")
             
             # Step 6: Always redirect to chatbot for job-aware conversation
@@ -194,9 +186,7 @@ def profile_manual_form(request, job_id):
         except json.JSONDecodeError as e:
             logger.error("JSON Decode Error in form save: %s", e)
 
-        _bust_profile_embeddings(profile)
         profile.save()
-        async_task('analysis.tasks.generate_profile_embeddings', profile.id)
         return redirect('gap_analysis', job_id=job_id)
 
     context = _build_profile_form_context(profile)
@@ -320,9 +310,7 @@ def upload_master_profile(request):
             profile.projects = validated_data.get('projects', [])
             profile.certifications = validated_data.get('certifications', [])
 
-            _bust_profile_embeddings(profile)
             profile.save()
-            async_task('analysis.tasks.generate_profile_embeddings', profile.id)
             return redirect('review_master_profile')
 
         except Exception as e:
@@ -375,9 +363,7 @@ def review_master_profile(request):
         except json.JSONDecodeError as e:
             logger.error("JSON Error: %s", e)
 
-        _bust_profile_embeddings(profile)
         profile.save()
-        async_task('analysis.tasks.generate_profile_embeddings', profile.id)
         return redirect('dashboard')
 
     context = _build_profile_form_context(profile)
@@ -514,9 +500,7 @@ def chatbot_complete(request, job_id):
             profile.experiences = profile_data.get('experiences', [])
             profile.education = profile_data.get('education', [])
             
-            _bust_profile_embeddings(profile)
             profile.save()
-            async_task('analysis.tasks.generate_profile_embeddings', profile.id)
             
             return JsonResponse({'success': True, 'redirect_url': f'/analysis/gap/{job_id}/'})
         except Exception as e:

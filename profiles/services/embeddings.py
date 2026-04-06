@@ -1,54 +1,27 @@
-import os
 import logging
-from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
-# Pre-load local model at application start to prevent 30-second delay per worker
-try:
-    from sentence_transformers import SentenceTransformer
-    _model_name = os.getenv("HF_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-    _model = SentenceTransformer(_model_name)
-    logger.info(f"Pre-loaded local embedding model: {_model_name}")
-except ImportError:
-    _model = None
-    logger.warning("sentence_transformers not installed. Embeddings will be disabled.")
-except Exception as e:
-    _model = None
-    logger.error(f"Error loading embedding model: {e}")
+# ---------------------------------------------------------------------------
+# Embeddings have been fully removed.
+# All similarity scoring is now handled by the LLM in gap_analyzer.py.
+# This module is kept as a thin stub so existing imports don't break.
+# ---------------------------------------------------------------------------
 
-def get_sentence_transformer():
-    global _model
-    return _model
-
-def get_embedding(text: str) -> Optional[List[float]]:
-    """
-    Generate a text embedding via the local SentenceTransformer model.
-    This runs entirely on your local machine (using GPU if available), 
-    completely avoiding the slow Hugging Face remote API.
-    """
-    if not text or not text.strip():
-        return None
-
-    model = get_sentence_transformer()
-    if model is None:
-        logger.warning("sentence_transformers not loaded — embeddings disabled.")
-        return None
-
-    try:
-        # Encode returns a numpy array, we convert to list of floats
-        embedding = model.encode(text[:2000], normalize_embeddings=True)
-        return [float(v) for v in embedding]
-
-    except Exception as e:
-        logger.error("Failed to generate embedding: %s", e)
-        return None
+def get_embedding(text):
+    """Stub — always returns None. Embeddings are no longer used."""
+    return None
 
 
 def generate_vector_input(profile_data: dict) -> str:
     """
-    Creates a weighted embedding string for high-quality semantic matching.
+    Build a plain-text summary of the profile for LLM context.
+    No longer used for vector embeddings, but kept for any code that
+    needs a textual representation of the user's profile.
     """
+    if not profile_data:
+        return ""
+
     parts = []
 
     summary = profile_data.get('normalized_summary') or profile_data.get('summary')
@@ -65,17 +38,6 @@ def generate_vector_input(profile_data: dict) -> str:
     if skills:
         skill_names = [s.get('name') if isinstance(s, dict) else str(s) for s in skills if s]
         parts.append(f"Top Skills: {', '.join(skill_names[:15])}")
-
-    achievements = []
-    projects = profile_data.get('projects') or []
-    for p in projects[:3]:
-        if p: achievements.append(f"Project: {p.get('name')} - {p.get('description', '')[:100]}")
-    for exp in experiences[:3]:
-        if exp:
-            desc = exp.get('description', '')
-            if desc: achievements.append(f"Work: {desc[:200]}")
-    if achievements:
-        parts.append("Achievements: " + " | ".join(achievements))
 
     education = profile_data.get('education') or []
     if education:

@@ -131,9 +131,6 @@ def review_extracted_job(request, job_id):
         job.save()
         logger.info("Job %s confirmed by user: %s at %s", job.id, job.title, job.company)
         
-        if description_changed:
-            async_task('analysis.tasks.generate_job_embeddings', job.id)
-        
         # Now proceed to Gap Analysis
         return redirect('gap_analysis', job_id=job.id)
     
