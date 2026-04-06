@@ -9,7 +9,7 @@ from .services.chatbot import chat_with_user, extract_profile_from_conversation
 from .services.llm_validator import validate_and_map_cv_data, get_missing_fields
 from .services.interviewer import process_chat_turn
 from .services.outreach_generator import generate_outreach_campaign
-from django_q.tasks import async_task
+
 from jobs.models import Job, RecommendedJob
 import json
 import logging
