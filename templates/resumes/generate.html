@@ -21,7 +21,67 @@
                     <p class="text-sm">{{ error }}</p>
                 </div>
                 {% endif %}
-                
+
+                {% if generating %}
+                <!-- ===== POLLING STATE: task is running in background ===== -->
+                <div id="generating-state" class="text-center py-8">
+                    <svg class="animate-spin h-12 w-12 text-rn-blue mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <h3 class="text-xl font-bold text-rn-navy mb-2">Tailoring your resume…</h3>
+                    <p class="text-gray-500 text-sm mb-6">Our AI is rewriting your professional summary, embedding ATS keywords, and optimising bullet points. This typically takes 10–30 seconds.</p>
+
+                    <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                        <div id="progress-bar" class="bg-rn-blue h-2 rounded-full transition-all duration-700" style="width: 5%"></div>
+                    </div>
+                    <p id="progress-label" class="text-xs text-gray-400 mt-2">Starting…</p>
+                </div>
+
+                <script>
+                (function() {
+                    const JOB_ID = "{{ job.id }}";
+                    const bar = document.getElementById('progress-bar');
+                    const label = document.getElementById('progress-label');
+                    let pct = 5;
+
+                    // Smoothly grow the bar while waiting
+                    const grow = setInterval(() => {
+                        if (pct < 90) { pct += 2; bar.style.width = pct + '%'; }
+                    }, 800);
+
+                    const poll = setInterval(async () => {
+                        try {
+                            const res = await fetch(`/resumes/api/resume-status/${JOB_ID}/`);
+                            const data = await res.json();
+                            if (data.status === 'completed' && data.resume_id) {
+                                clearInterval(poll);
+                                clearInterval(grow);
+                                bar.style.width = '100%';
+                                label.textContent = 'Done! Redirecting…';
+                                window.location.href = `/resumes/preview/${data.resume_id}/`;
+                            }
+                        } catch (e) {
+                            console.error('Poll error', e);
+                        }
+                    }, 2500);
+
+                    // Safety timeout — stop polling after 120s and show a manual retry
+                    setTimeout(() => {
+                        clearInterval(poll);
+                        clearInterval(grow);
+                        label.textContent = 'This is taking longer than expected.';
+                        const retry = document.createElement('a');
+                        retry.href = window.location.href;
+                        retry.className = 'inline-block mt-4 px-6 py-2 bg-rn-gold text-rn-navy rounded-rn-pill font-bold';
+                        retry.textContent = 'Retry';
+                        document.getElementById('generating-state').appendChild(retry);
+                    }, 120000);
+                })();
+                </script>
+
+                {% else %}
+                <!-- ===== INITIAL STATE: show the form ===== -->
                 <div class="bg-blue-50/50 border border-blue-100 p-6 rounded-xl mb-8">
                     <h3 class="font-bold text-rn-navy mb-4 text-lg flex items-center">
                         <svg class="w-5 h-5 mr-2 text-rn-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
@@ -43,7 +103,7 @@
                     </ul>
                 </div>
                 
-                <form method="post" onsubmit="showLoading('Tailoring your resume to the job description... (this may take up to 60s if the AI is waking up)')" class="text-center">
+                <form method="post" class="text-center">
                     {% csrf_token %}
                     
                     <button type="submit"
@@ -56,6 +116,7 @@
                          <a href="{% url 'job_detail' job.id %}" class="text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors">Cancel</a>
                     </div>
                 </form>
+                {% endif %}
             </div>
             
         </div>

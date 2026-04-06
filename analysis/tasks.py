@@ -24,12 +24,12 @@ def generate_profile_embeddings(profile_id):
             
         experiences = profile.experiences
         if experiences:
-            exp_text = " ".join([f"{e.get('title')} at {e.get('company')} - {e.get('description', '')}" for e in experiences])
+            exp_text = " ".join([f"{e.get('title')} at {e.get('company')} - {e.get('description', '')}" for e in experiences if e])
             profile.embedding_experience = get_embedding(exp_text)
             
         education = profile.education
         if education:
-            edu_text = " ".join([f"{e.get('degree')} in {e.get('field')} from {e.get('institution')}" for e in education])
+            edu_text = " ".join([f"{e.get('degree')} in {e.get('field')} from {e.get('institution')}" for e in education if e])
             profile.embedding_education = get_embedding(edu_text)
             
         # Update specific fields to avoid overwriting other parallel saves
@@ -61,3 +61,31 @@ def generate_job_embeddings(job_id):
         logger.error(f"Cannot generate embeddings: Job {job_id} does not exist.")
     except Exception as e:
         logger.error(f"Failed to generate embeddings for job {job_id}: {e}")
+
+def compute_gap_analysis_task(job_id, user_id):
+    """
+    Background task to compute full gap analysis, utilizing LLM and vector search,
+    saving the result to the GapAnalysis model asynchronously.
+    """
+    try:
+        from analysis.services.gap_analyzer import compute_gap_analysis
+        from analysis.models import GapAnalysis
+        
+        job = Job.objects.get(id=job_id, user_id=user_id)
+        profile = UserProfile.objects.get(user_id=user_id)
+        
+        analysis_results = compute_gap_analysis(profile, job)
+        
+        GapAnalysis.objects.update_or_create(
+            job=job,
+            user_id=user_id,
+            defaults={
+                'matched_skills': analysis_results['matched_skills'],
+                'missing_skills': analysis_results['missing_skills'],
+                'partial_skills': analysis_results['partial_skills'],
+                'similarity_score': analysis_results['similarity_score']
+            }
+        )
+        logger.info(f"Successfully computed gap analysis for job {job_id}")
+    except Exception as e:
+        logger.error(f"Failed to compute gap analysis in background for job {job_id}: {e}")

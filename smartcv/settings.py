@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'analysis',
     'resumes',
     'core',
+    'django_q',
 ]
 
 MIDDLEWARE = [
@@ -191,4 +192,13 @@ LOGGING = {
             'propagate': False,
         },
     },
+}
+
+# Django-Q2 Configure Background Worker Cluster
+Q_CLUSTER = {
+    'name': 'smartcv',
+    'workers': 4,
+    'timeout': 90,
+    'retry': 120,
+    'orm': 'default',
 }

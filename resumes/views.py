@@ -1,6 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse, FileResponse, Http404
+from django.http import HttpResponse, FileResponse, Http404, JsonResponse
+from django.views.decorators.http import require_GET
+from django_q.tasks import async_task
 from jobs.models import Job
 from profiles.models import UserProfile
 from analysis.models import GapAnalysis
@@ -18,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 @login_required
 def generate_resume_view(request, job_id):
-    """Generate tailored resume"""
+    """Generate tailored resume — enqueues a background task on POST."""
     job = get_object_or_404(Job, id=job_id, user=request.user)
     
     # Needs a gap analysis first
@@ -31,27 +33,53 @@ def generate_resume_view(request, job_id):
         return redirect('upload_master_profile')
 
     if request.method == 'POST':
-        # Generate resume content using AI
-        try:
-            resume_content = generate_resume_content(profile, job, gap_analysis)
-            ats_score = calculate_ats_score(resume_content, job.extracted_skills)
-            
-            # Save to database
-            resume = GeneratedResume.objects.create(
-                gap_analysis=gap_analysis,
-                content=resume_content,
-                ats_score=ats_score
-            )
-            
-            return redirect('resume_preview', resume_id=resume.id)
-            
-        except Exception as e:
-            return render(request, 'resumes/generate.html', {
-                'job': job,
-                'error': f'Failed to generate resume: {str(e)}'
-            })
+        # Record the moment before enqueue so the polling endpoint can ignore old resumes
+        from django.utils import timezone
+        request.session[f'resume_gen_start_{job_id}'] = timezone.now().isoformat()
+
+        # Enqueue the heavy LLM work as a background task
+        async_task(
+            'resumes.tasks.generate_resume_task',
+            str(job_id),
+            request.user.id,
+        )
+        logger.info("Enqueued resume generation task for job %s", job_id)
+        # Render the same page — JS will start polling for completion
+        return render(request, 'resumes/generate.html', {
+            'job': job,
+            'generating': True,
+        })
     
     return render(request, 'resumes/generate.html', {'job': job})
+
+
+@login_required
+@require_GET
+def check_resume_status_api(request, job_id):
+    """Polling endpoint: has a NEW resume been generated for this job since the task started?"""
+    job = get_object_or_404(Job, id=job_id, user=request.user)
+    try:
+        qs = GeneratedResume.objects.filter(gap_analysis__job=job)
+
+        # Only consider resumes created after the task was enqueued
+        start_iso = request.session.get(f'resume_gen_start_{job_id}')
+        if start_iso:
+            from django.utils.dateparse import parse_datetime
+            start_dt = parse_datetime(start_iso)
+            if start_dt:
+                qs = qs.filter(created_at__gte=start_dt)
+
+        resume = qs.order_by('-created_at').first()
+        if resume:
+            # Clean up session key
+            request.session.pop(f'resume_gen_start_{job_id}', None)
+            return JsonResponse({
+                'status': 'completed',
+                'resume_id': str(resume.id),
+            })
+    except Exception as e:
+        logger.error("Error checking resume status: %s", e)
+    return JsonResponse({'status': 'computing'})
 
 @login_required
 def resume_preview_view(request, resume_id):

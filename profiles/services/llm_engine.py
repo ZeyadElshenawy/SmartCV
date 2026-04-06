@@ -25,6 +25,8 @@ def get_llm(temperature: float = 0.3, max_tokens: int = 4096) -> ChatGroq:
         api_key=GROQ_API_KEY,
         temperature=temperature,
         max_tokens=max_tokens,
+        max_retries=1,
+        timeout=20,
     )
 
 
@@ -39,6 +41,8 @@ def get_structured_llm(pydantic_schema, temperature: float = 0.1, max_tokens: in
         api_key=GROQ_API_KEY,
         temperature=temperature,
         max_tokens=max_tokens,
+        max_retries=1,
+        timeout=20,
     )
     return llm.with_structured_output(pydantic_schema)
 
