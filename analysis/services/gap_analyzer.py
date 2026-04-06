@@ -11,110 +11,206 @@ def _enrich_skill_payload(skills):
     for s in skills:
         if isinstance(s, dict):
             name = s.get('name', 'Unknown Skill')
-            years = s.get('years', 'Unknown')
+            years = s.get('years', '')
             prof = s.get('proficiency', '')
-            enriched.append(f"{name} - {years} years ({prof})".strip(" ()"))
+            parts = [name]
+            if years:
+                parts.append(f"{years} years")
+            if prof:
+                parts.append(f"({prof})")
+            enriched.append(" - ".join(parts).strip(" -"))
         else:
             enriched.append(str(s))
     return enriched
 
-def _format_experience_and_projects(profile):
-    context = []
+
+def _build_full_candidate_context(profile):
+    """
+    Build a comprehensive candidate context string that includes
+    skills, experience highlights, project details, AND certifications.
+    This ensures the LLM sees the FULL picture for accurate matching.
+    """
+    sections = []
+
+    # --- Skills ---
+    if profile.skills:
+        skill_names = []
+        for s in profile.skills:
+            if isinstance(s, dict):
+                skill_names.append(s.get('name', ''))
+            else:
+                skill_names.append(str(s))
+        sections.append("CANDIDATE SKILLS: " + ", ".join(skill_names))
+
+    # --- Experience ---
     if profile.experiences:
-        context.append("EXPERIENCE HIGHLIGHTS:")
-        for exp in profile.experiences[:3]:
+        lines = ["WORK EXPERIENCE:"]
+        for exp in (profile.experiences or [])[:5]:
+            if not exp:
+                continue
             title = exp.get('title', '')
-            hl = exp.get('highlights', [])
-            if title and hl:
-                context.append(f"- {title}: " + "; ".join(hl[:2]))
-                
+            company = exp.get('company', '')
+            desc = exp.get('description', '')
+            highlights = exp.get('highlights', [])
+
+            line = f"- {title} at {company}"
+            if desc:
+                line += f": {desc[:300]}"
+            if highlights:
+                hl_text = "; ".join(str(h) for h in highlights[:4])
+                line += f" | Highlights: {hl_text}"
+            lines.append(line)
+        sections.append("\n".join(lines))
+
+    # --- Projects ---
     if profile.projects:
-        context.append("PROJECT HIGHLIGHTS:")
-        for proj in profile.projects[:3]:
+        lines = ["PROJECTS:"]
+        for proj in (profile.projects or [])[:5]:
+            if not proj:
+                continue
             name = proj.get('name', '')
             desc = proj.get('description', '')
-            hl = proj.get('highlights', [])
-            summary = desc or ("; ".join(hl[:2]) if hl else "")
-            if name and summary:
-                context.append(f"- {name}: {summary}")
-                
-    return "\n".join(context)
+            highlights = proj.get('highlights', [])
+            techs = proj.get('technologies', [])
+
+            line = f"- {name}"
+            if desc:
+                line += f": {desc[:200]}"
+            if highlights:
+                hl_text = "; ".join(str(h) for h in highlights[:3])
+                line += f" | {hl_text}"
+            if techs:
+                line += f" [Technologies: {', '.join(techs)}]"
+            lines.append(line)
+        sections.append("\n".join(lines))
+
+    # --- Certifications ---
+    if profile.certifications:
+        lines = ["CERTIFICATIONS & TRAINING:"]
+        for cert in (profile.certifications or [])[:10]:
+            if not cert:
+                continue
+            if isinstance(cert, dict):
+                name = cert.get('name', '')
+                issuer = cert.get('issuer', '')
+                line = f"- {name}"
+                if issuer:
+                    line += f" ({issuer})"
+                lines.append(line)
+            else:
+                lines.append(f"- {cert}")
+        sections.append("\n".join(lines))
+
+    # --- Education ---
+    if profile.education:
+        lines = ["EDUCATION:"]
+        for edu in (profile.education or [])[:3]:
+            if not edu:
+                continue
+            degree = edu.get('degree', '')
+            field = edu.get('field', '')
+            institution = edu.get('institution', '')
+            lines.append(f"- {degree} in {field} from {institution}")
+        sections.append("\n".join(lines))
+
+    return "\n\n".join(sections)
+
 
 def compute_gap_analysis(profile, job):
     """
     Pure-LLM gap analysis. No local embeddings required.
     The LLM evaluates skill matches, gaps, and returns a similarity score directly.
     """
-    job_skills = job.extracted_skills
-    user_skills = _enrich_skill_payload(profile.skills or [])
-    applied_context = _format_experience_and_projects(profile)
-    
+    job_skills = job.extracted_skills or []
+    candidate_context = _build_full_candidate_context(profile)
+
     try:
-        prompt = f"""Compare the Candidate's Profile against the Job Requirements.
-        
-JOB REQUIREMENTS: {json.dumps(job_skills)}
-CANDIDATE SKILLS: {json.dumps(user_skills, default=str)}
+        prompt = f"""You are an expert technical recruiter. Compare the candidate's FULL profile against the job requirements.
 
-CANDIDATE APPLIED EXPERIENCE & PROJECTS:
-{applied_context}
+JOB TITLE: {job.title}
+JOB COMPANY: {job.company or 'Unknown'}
+JOB REQUIRED SKILLS: {json.dumps(job_skills)}
 
-Task:
-1. Identify CRITICAL MISSING SKILLS (Hard technical skills the user clearly lacks).
-2. Identify SOFT SKILL GAPS (e.g. Leadership, Communication if required and missing).
-3. Identify MATCHED SKILLS (Skills the user has that match requirements).
-4. Provide a SIMILARITY SCORE from 0.0 to 1.0 representing overall job fit.
-   - Consider: skill coverage, experience relevance, seniority alignment.
-   - 0.0 = no match at all, 1.0 = perfect candidate.
+{candidate_context}
 
-=== VERY IMPORTANT OUTPUT RULES ===
-- DO NOT OUTPUT ANY PREAMBLE OR EXPLANATION TEXT.
-- IMMEDIATELY call the provided function to return the JSON layout.
-- You must consider the candidate's applied experience when determining if they have a skill, even if it's not explicitly in the CANDIDATE SKILLS list.
-- STRICT DIRECTIONAL MATCHING: Allow specific tools to satisfy broader category requirements. If the job requires a broad category (e.g., 'Data Visualization' or 'SQL'), specific tools natively belonging to that category in the candidate's profile (e.g., 'Matplotlib', 'Power BI' or 'MySQL') firmly count as a MATCH. However, if the job requires a specific tool (e.g., 'React'), a broad category in the candidate profile (e.g., 'Frontend') DOES NOT MATCH."""
+=== YOUR TASK ===
+1. Identify MATCHED SKILLS — skills the candidate demonstrably has (from skills list, experience, projects, OR certifications).
+2. Identify CRITICAL MISSING SKILLS — hard technical skills the candidate clearly lacks.
+3. Identify SOFT SKILL GAPS — soft skills required but missing.
+4. Provide a similarity_score from 0.0 to 1.0 representing overall job fit.
 
-        structured_llm = get_structured_llm(GapAnalysisResult, temperature=0.1, max_tokens=512)
+=== CRITICAL MATCHING RULES ===
+
+RULE 1 — HOLISTIC EVIDENCE:
+A skill is MATCHED if the candidate demonstrates it ANYWHERE in their profile:
+- Explicitly listed in CANDIDATE SKILLS
+- Demonstrated in WORK EXPERIENCE highlights or descriptions
+- Used in PROJECT highlights or technologies
+- Covered by a CERTIFICATION or training course
+- Is a foundational prerequisite of skills they already have (e.g., someone with "Regression" and "Classification" has implicit knowledge of "Statistics" and "Probabilities")
+
+RULE 2 — DIRECTIONAL SPECIFICITY (very important):
+- If the job requires a BROAD category (e.g., "SQL", "Data Visualization", "Cloud"), and the candidate has a SPECIFIC tool in that category (e.g., "MySQL"/"PostgreSQL" for SQL, "Matplotlib"/"Power BI" for Data Visualization, "Azure" for Cloud), that is a MATCH.
+- If the job requires a SPECIFIC tool (e.g., "Tableau"), a broad category (e.g., "Data Visualization") alone is NOT a match.
+
+RULE 3 — NO DUPLICATES:
+- Each required skill must appear in EXACTLY ONE list: either matched_skills OR critical_missing_skills. Never both.
+- Use the EXACT spelling from the JOB REQUIRED SKILLS list for consistency.
+
+RULE 4 — CASE-INSENSITIVE:
+- "PySpark" and "Pyspark" and "pyspark" are the SAME skill. Do not list them separately.
+
+=== OUTPUT ===
+Return ONLY the structured JSON via the provided function. No preamble."""
+
+        structured_llm = get_structured_llm(GapAnalysisResult, temperature=0.1, max_tokens=600)
         result = structured_llm.invoke(prompt)
-        
+
         # Clamp similarity score to valid range
         score = max(0.0, min(1.0, result.similarity_score))
-        
+
+        # Deduplicate: ensure no skill appears in both matched and missing
+        matched_set = {s.lower().strip() for s in result.matched_skills}
+        deduped_missing = [s for s in result.critical_missing_skills if s.lower().strip() not in matched_set]
+
         return {
             'matched_skills': result.matched_skills,
-            'missing_skills': result.critical_missing_skills,
+            'missing_skills': deduped_missing,
             'partial_skills': [],
             'soft_skill_gaps': result.soft_skill_gaps,
-            'critical_missing_skills': result.critical_missing_skills,
+            'critical_missing_skills': deduped_missing,
             'seniority_mismatch': None,
             'similarity_score': round(score, 2),
             'analysis_method': 'llm'
         }
-            
+
     except Exception as e:
         logger.error(f"LLM Gap Analysis failed: {e}. Falling back to set difference.")
 
-    # Fallback to Set Difference and Fuzzy Match
+    # ---- Fallback: fuzzy set matching (no LLM) ----
     user_skills_list = []
     for s in profile.skills or []:
         if isinstance(s, dict):
             name = s.get('name', '')
-            if name: user_skills_list.append(name.lower().strip())
+            if name:
+                user_skills_list.append(name.lower().strip())
         elif isinstance(s, str):
             user_skills_list.append(s.lower().strip())
-    
+
     matched_skills = []
     missing_skills = []
-    
-    for js in job.extracted_skills:
+
+    for js in job_skills:
         js_clean = js.lower().strip()
-        matches = difflib.get_close_matches(js_clean, user_skills_list, n=1, cutoff=0.85)
+        matches = difflib.get_close_matches(js_clean, user_skills_list, n=1, cutoff=0.8)
         if matches:
             matched_skills.append(js)
         else:
             missing_skills.append(js)
-    
-    total = max(len(job.extracted_skills), 1)
+
+    total = max(len(job_skills), 1)
     fallback_score = round(len(matched_skills) / total, 2)
-            
+
     return {
         'matched_skills': matched_skills,
         'missing_skills': missing_skills,
