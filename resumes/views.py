@@ -1,8 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, FileResponse, Http404, JsonResponse
-from django.views.decorators.http import require_GET
-from django_q.tasks import async_task
+from django.views.decorators.http import require_GET, require_POST
 from jobs.models import Job
 from profiles.models import UserProfile
 from analysis.models import GapAnalysis

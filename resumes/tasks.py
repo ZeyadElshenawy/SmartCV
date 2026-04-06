@@ -1,4 +1,4 @@
-from django_q.tasks import async_task
+
 from .models import GeneratedResume
 from jobs.models import Job
 from profiles.models import UserProfile

@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from .models import Job
 from .services.linkedin_scraper import scrape_linkedin_job
 from .services.skill_extractor import extract_skills
-from django_q.tasks import async_task
+
 import json
 import logging
 
