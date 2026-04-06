@@ -169,9 +169,30 @@ Return ONLY the structured JSON via the provided function. No preamble."""
         # Clamp similarity score to valid range
         score = max(0.0, min(1.0, result.similarity_score))
 
-        # Deduplicate: ensure no skill appears in both matched and missing
+        # ---- Phase 2: Programmatic Reconciliation ----
+        # Ensure every job skill is accounted for in exactly one list.
         matched_set = {s.lower().strip() for s in result.matched_skills}
+        missing_set = {s.lower().strip() for s in result.critical_missing_skills}
+
+        # Deduplicate: remove anything that's in both
         deduped_missing = [s for s in result.critical_missing_skills if s.lower().strip() not in matched_set]
+        missing_set = {s.lower().strip() for s in deduped_missing}
+
+        # Reconcile: find skills the LLM forgot to categorize
+        all_accounted = matched_set | missing_set
+        for job_skill in job_skills:
+            js_lower = job_skill.lower().strip()
+            if js_lower in all_accounted:
+                continue
+            # Fuzzy check: did the LLM match it under a slightly different name?
+            close = difflib.get_close_matches(js_lower, matched_set, n=1, cutoff=0.85)
+            if close:
+                # LLM matched it with a variant spelling — count as matched
+                logger.debug("Reconciled '%s' as matched (fuzzy: '%s')", job_skill, close[0])
+                continue
+            # Not accounted for anywhere — conservatively add to missing
+            logger.info("Reconciled unaccounted skill '%s' → missing", job_skill)
+            deduped_missing.append(job_skill)
 
         return {
             'matched_skills': result.matched_skills,
