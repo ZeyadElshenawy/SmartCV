@@ -53,16 +53,33 @@ def gap_analysis_view(request, job_id):
         else:
             primary_action = 'learning_path'
 
+        # Compute frontend layout percentages
+        score = gap_analysis.similarity_score
+        circumference = 364.4
+        
+        # Pydantic schema mappings mapped via Phase 4 logic
+        critical_missing_list = analysis_results.get('critical_missing_skills', getattr(gap_analysis, 'missing_skills', []))
+        soft_skill_list = analysis_results.get('soft_skill_gaps', getattr(gap_analysis, 'soft_skill_gaps', []))
+        
+        total_required = max(len(job.extracted_skills), 1)
+        
         context = {
             'job': job,
             'profile': profile,
-            'analysis': gap_analysis,
+            'gap': gap_analysis,
             'match_percentage': match_percentage,
             'red_flags': red_flags,
             'soft_gaps': soft_gaps,
             'primary_action': primary_action,
             'can_refresh': True,
             'is_computing': False,
+            
+            # New Gauge Layout Logic
+            'gauge_fill': round(score * circumference, 1),
+            'gauge_color': "#639922" if score >= 0.8 else "#BA7517" if score >= 0.5 else "#E24B4A",
+            'matched_pct': round(len(gap_analysis.matched_skills) / total_required * 100),
+            'missing_pct': round(len(critical_missing_list) / total_required * 100),
+            'soft_pct': round(len(soft_skill_list) / total_required * 100),
         }
     
         return render(request, 'analysis/gap_analysis.html', context)
@@ -77,7 +94,7 @@ def gap_analysis_view(request, job_id):
 
 @login_required
 def compute_gap_api(request, job_id):
-    """API endpoint to run the gap analysis asynchronously"""
+    """API endpoint to trigger the gap analysis background task"""
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
         
@@ -88,22 +105,35 @@ def compute_gap_api(request, job_id):
     except UserProfile.DoesNotExist:
         return JsonResponse({'error': 'Profile not found'}, status=404)
         
-    # First time (or force refresh) — compute the analysis
-    analysis_results = compute_gap_analysis(profile, job)
-
-    # Save to database
-    GapAnalysis.objects.update_or_create(
-        job=job,
-        user=request.user,
-        defaults={
-            'matched_skills': analysis_results['matched_skills'],
-            'missing_skills': analysis_results['missing_skills'],
-            'partial_skills': analysis_results['partial_skills'],
-            'similarity_score': analysis_results['similarity_score']
-        }
-    )
+    # Enqueue background task
+    from django_q.tasks import async_task
+    async_task('analysis.tasks.compute_gap_analysis_task', job.id, request.user.id)
     
-    return JsonResponse({'success': True})
+    return JsonResponse({'success': True, 'message': 'Task enqueued'})
+
+@login_required
+def check_gap_status_api(request, job_id):
+    """Check if the gap analysis background task has finished or failed."""
+    job = get_object_or_404(Job, id=job_id, user=request.user)
+    
+    # If the result exists in the database, the background task completed successfully
+    exists = GapAnalysis.objects.filter(job=job, user=request.user).exists()
+    if exists:
+        return JsonResponse({'status': 'completed'})
+
+    # Check if the task failed by inspecting django-q task history
+    try:
+        from django_q.models import Failure
+        failed = Failure.objects.filter(
+            func='analysis.tasks.compute_gap_analysis_task',
+            args__contains=str(job_id),
+        ).exists()
+        if failed:
+            return JsonResponse({'status': 'failed', 'error': 'Background task failed. Please retry.'})
+    except Exception:
+        pass  # Table might not exist yet
+
+    return JsonResponse({'status': 'computing'})
 
 @login_required
 def generate_learning_path_view(request, job_id=None):

@@ -3,6 +3,7 @@ from . import views
 
 urlpatterns = [
     path('generate/<uuid:job_id>/', views.generate_resume_view, name='generate_resume'),
+    path('api/resume-status/<uuid:job_id>/', views.check_resume_status_api, name='check_resume_status'),
     path('preview/<uuid:resume_id>/', views.resume_preview_view, name='resume_preview'),
     path('edit/<uuid:resume_id>/', views.resume_edit_view, name='resume_edit'),
     path('export/<uuid:resume_id>/', views.export_pdf_view, name='export_pdf'),

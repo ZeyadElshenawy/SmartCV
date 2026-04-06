@@ -9,7 +9,6 @@ from .services.chatbot import chat_with_user, extract_profile_from_conversation
 from .services.llm_validator import validate_and_map_cv_data, get_missing_fields
 from .services.interviewer import process_chat_turn
 from .services.outreach_generator import generate_outreach_campaign
-from analysis.services.gap_analyzer import compute_gap_analysis
 from django_q.tasks import async_task
 from jobs.models import Job, RecommendedJob
 import json
@@ -255,13 +254,12 @@ def chatbot_api(request):
             gap_score = None
             if result.get('profile_updated'):
                 try:
-                    profile = UserProfile.objects.get(user=request.user)
-                    job = Job.objects.get(id=job_id)
-                    
-                    analysis_results = compute_gap_analysis(profile, job)
-                    gap_score = int(analysis_results['similarity_score'] * 100)
+                    # Trigger the analysis in the background so it's ready for the next page,
+                    # without deadlocking the Chatbot conversation.
+                    async_task('analysis.tasks.compute_gap_analysis_task', job_id, request.user.id)
+                    gap_score = None  # UI will just keep previous score or ignore
                 except Exception as e:
-                    logger.error(f"Failed to recalculate gap score: {e}")
+                    logger.error(f"Failed to queue gap score update: {e}")
                     
             if result.get('is_complete'):
                 return JsonResponse({

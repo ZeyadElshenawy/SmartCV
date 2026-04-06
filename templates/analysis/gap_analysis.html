@@ -1,336 +1,315 @@
 {% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Gap Analysis | SmartCV{% endblock %}
 
 {% block content %}
 {% if is_computing %}
-<div class="min-h-screen bg-gray-50 py-12 flex items-center justify-center">
-    <div class="max-w-2xl w-full mx-auto px-4 sm:px-6 text-center" x-data="gapCalculator()">
-        <div class="bg-white rounded-xl shadow-lg border border-gray-200 p-12">
-            <svg class="animate-spin h-12 w-12 text-rn-blue mx-auto mb-6" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <h2 class="text-2xl font-bold text-rn-navy mb-2" x-text="statusMsg">Analyzing your fit with AI...</h2>
-            <p class="text-gray-500 font-medium">This usually takes about 10-20 seconds.</p>
+<div id="computing-state" class="flex flex-col items-center justify-center min-h-[60vh]">
+    <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-600 mb-6"></div>
+    <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Analyzing your fit...</h2>
+    <p class="text-gray-500 dark:text-gray-400 mb-6">Comparing your profile against "{{ job.title }}"</p>
+    <div class="w-64">
+        <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+            <div id="gap-progress" class="bg-blue-600 h-2 rounded-full transition-all duration-700" style="width: 5%"></div>
         </div>
+        <p id="gap-label" class="text-xs text-gray-400 mt-2 text-center">Starting analysis…</p>
     </div>
 </div>
+
 <script>
-function gapCalculator() {
-    return {
-        statusMsg: 'Waking up the AI engine...',
-        init() {
-            setTimeout(() => { this.statusMsg = 'Computing match score...'; }, 4000);
-            setTimeout(() => { this.statusMsg = 'Identifying missing skills...'; }, 8000);
-            
-            fetch('/analysis/api/compute/{{ job.id }}/', {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': '{{ csrf_token }}',
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => {
-                if(response.ok) {
-                    window.location.reload();
-                } else {
-                    this.statusMsg = 'Error computing gap analysis. Please try refreshing.';
-                }
-            })
-            .catch(error => {
-                this.statusMsg = 'Error computing gap analysis. Please try refreshing.';
-                console.error('Error:', error);
-            });
+(function() {
+    const bar = document.getElementById('gap-progress');
+    const label = document.getElementById('gap-label');
+    let pct = 5;
+    let pollCount = 0;
+    const maxPolls = 45;  // 45 × 2s = 90s timeout
+
+    // Smoothly grow the bar while waiting
+    const grow = setInterval(() => {
+        if (pct < 90) { pct += 2; bar.style.width = pct + '%'; }
+    }, 1000);
+
+    // Enqueue the task
+    console.log("Triggering gap analysis compute via API...");
+    fetch('{% url "compute_gap_api" job.id %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
         }
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('API failed');
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            console.log("Task enqueued. Polling for completion...");
+            label.textContent = 'Processing skills & embeddings…';
+
+            const pollInterval = setInterval(() => {
+                pollCount++;
+                if (pollCount > maxPolls) {
+                    clearInterval(pollInterval);
+                    clearInterval(grow);
+                    showRetry('Analysis is taking longer than expected.');
+                    return;
+                }
+
+                fetch('{% url "check_gap_status" job.id %}')
+                .then(res => res.json())
+                .then(statusData => {
+                    if (statusData.status === 'completed') {
+                        clearInterval(pollInterval);
+                        clearInterval(grow);
+                        bar.style.width = '100%';
+                        label.textContent = 'Done! Loading results…';
+                        window.location.reload();
+                    } else if (statusData.status === 'failed') {
+                        clearInterval(pollInterval);
+                        clearInterval(grow);
+                        showRetry(statusData.error || 'Analysis failed.');
+                    }
+                })
+                .catch(err => console.error("Polling error:", err));
+            }, 2000);
+        } else {
+            clearInterval(grow);
+            showRetry("Gap Analysis failed: " + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        clearInterval(grow);
+        showRetry("Failed to start analysis. Check your connection.");
+    });
+
+    function showRetry(message) {
+        const container = document.getElementById('computing-state');
+        container.innerHTML = `
+            <svg class="w-16 h-16 text-red-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+            </svg>
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-2">${message}</h2>
+            <a href="${window.location.href}"
+               class="mt-4 inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors">
+                Retry Analysis
+            </a>
+        `;
     }
-}
+})();
 </script>
 {% else %}
-<div class="container mx-auto px-4 py-8">
-    <!-- Header -->
-    <div class="text-center mb-8">
-        <h1 class="text-4xl font-bold text-gray-900 mb-2">Gap Analysis Report</h1>
-        <p class="text-gray-600">{{ job.title }} at {{ job.company }}</p>
-    </div>
+<div x-data="{ openDesc: false }" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     
-    <!-- The Hook: Match Score Gauge -->
-    <div class="max-w-3xl mx-auto mb-12">
-        <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-3xl shadow-2xl p-12 border border-blue-100">
-            <div class="text-center mb-8">
-                <h2 class="text-2xl font-bold text-gray-800 mb-4">Your Match Score</h2>
+    <!-- Header Row -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+        <div>
+            <h1 class="text-3xl font-extrabold text-rn-navy dark:text-white">Gap analysis report</h1>
+            <p class="text-lg text-gray-500 mt-1">{{ job.title }} &mdash; {{ job.company|default:"Unknown Company" }}</p>
+        </div>
+        
+        <div class="mt-4 md:mt-0">
+            {% if gap.similarity_score >= 0.8 %}
+                <span class="inline-flex items-center px-4 py-2 rounded-rn-pill bg-rn-success text-green-800 font-bold shadow-sm">
+                    Strong match
+                </span>
+            {% elif gap.similarity_score >= 0.5 %}
+                <span class="inline-flex items-center px-4 py-2 rounded-rn-pill bg-rn-gold text-amber-900 font-bold shadow-sm">
+                    Good potential
+                </span>
+            {% else %}
+                <span class="inline-flex items-center px-4 py-2 rounded-rn-pill bg-red-100 text-red-800 font-bold shadow-sm">
+                    Low match
+                </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Method bar -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg p-3 mb-8 border border-gray-200 dark:border-gray-700 text-sm shadow-sm flex items-center">
+        {% if gap.analysis_method == 'fallback' %}
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-500 mr-2 flex-shrink-0"></span>
+            <span class="text-gray-600 dark:text-gray-300">Analysis via fuzzy fallback (difflib) &middot; LLM unavailable during this run</span>
+        {% else %}
+            <span class="w-2.5 h-2.5 rounded-full bg-green-500 mr-2 flex-shrink-0"></span>
+            <span class="text-gray-600 dark:text-gray-300">Analysis via {{ gap.analysis_method|default:"LLM"|upper }} structured extraction &middot; Similarity via weighted multi-vector cosine (skills 50%, experience 35%, education 15%)</span>
+        {% endif %}
+    </div>
+
+    <!-- Top Grid (2 Cols) -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+        
+        <!-- Score Gauge Card -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 flex flex-col items-center justify-center">
+            <h2 class="w-full text-left text-lg font-bold text-rn-navy dark:text-white mb-6">Overall Match Score</h2>
+            <div class="relative w-48 h-48 flex items-center justify-center">
+                <!-- SVG gauge -->
+                <svg class="w-full h-full transform -rotate-90" viewBox="0 0 140 140">
+                    <circle cx="70" cy="70" r="58" fill="none" stroke="currentColor" stroke-width="12" class="text-gray-100 dark:text-gray-700" />
+                    <circle cx="70" cy="70" r="58" fill="none" class="transition-all duration-1000 ease-out" 
+                            stroke="{{ gauge_color }}" stroke-width="12" stroke-linecap="round" 
+                            stroke-dasharray="{{ gauge_fill }}, 364.4" />
+                </svg>
+                <div class="absolute flex flex-col items-center">
+                    <span class="text-4xl font-extrabold text-gray-900 dark:text-white">{{ gap.similarity_score|floatformat:2|default:"0.00"|slice:"2:"|default:"0" }}%</span>
+                </div>
+            </div>
+            <div class="mt-6 text-center font-semibold text-gray-600 dark:text-gray-300">
+                {% if gap.similarity_score >= 0.8 %}
+                    Strong match
+                {% elif gap.similarity_score >= 0.5 %}
+                    Good potential
+                {% else %}
+                    Low match
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Score breakdown card -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
+            <h2 class="text-lg font-bold text-rn-navy dark:text-white mb-6">Extraction Breakdown</h2>
+            <div class="grid grid-cols-2 gap-4">
                 
-                <!-- Circular Gauge -->
-                <div class="relative inline-block">
-                    <svg class="transform -rotate-90" width="200" height="200">
-                        <!-- Background Circle -->
-                        <circle cx="100" cy="100" r="80" stroke="#e5e7eb" stroke-width="20" fill="none"></circle>
-                        <!-- Progress Circle -->
-                        <circle 
-                            cx="100" 
-                            cy="100" 
-                            r="80" 
-                            stroke="{% if match_percentage >= 70 %}#10b981{% elif match_percentage >= 50 %}#f59e0b{% else %}#ef4444{% endif %}" 
-                            stroke-width="20" 
-                            fill="none"
-                            stroke-dasharray="{{ match_percentage|floatformat:0 }} 100"
-                            stroke-linecap="round"
-                            style="stroke-dasharray: calc({{ match_percentage }} * 5.02); stroke-dashoffset: 0; transition: stroke-dasharray 1s ease-out;"
-                        ></circle>
-                    </svg>
-                    <div class="absolute inset-0 flex items-center justify-center">
-                        <div class="text-center">
-                            <div class="text-5xl font-bold {% if match_percentage >= 70 %}text-green-600{% elif match_percentage >= 50 %}text-yellow-600{% else %}text-red-600{% endif %}">
-                                {{ match_percentage }}%
-                            </div>
-                            <div class="text-sm text-gray-500 mt-1">Match</div>
-                        </div>
+                <!-- Tile: Total Required -->
+                <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                    <div class="text-sm text-gray-500 dark:text-gray-400 font-medium">Total required</div>
+                    <div class="text-2xl font-bold text-gray-900 dark:text-white">{{ job.extracted_skills|length }}</div>
+                    <div class="w-full bg-gray-200 rounded-full h-1 mt-2"><div class="bg-gray-400 h-1 rounded-full" style="width: 100%"></div></div>
+                </div>
+
+                <!-- Tile: Matched -->
+                <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                    <div class="text-sm text-gray-500 dark:text-gray-400 font-medium">Matched skills</div>
+                    <div class="text-2xl font-bold text-green-600 dark:text-green-400">{{ gap.matched_skills|length }}</div>
+                    <div class="w-full bg-gray-200 rounded-full h-1 mt-2">
+                        <div class="bg-green-500 h-1 rounded-full" style="width: {{ matched_pct }}%"></div>
                     </div>
                 </div>
-                
-                <p class="text-gray-600 mt-6">
-                    {% if match_percentage >= 70 %}
-                        <span class="text-green-600 font-semibold">Strong match!</span> You have most of the required skills.
-                    {% elif match_percentage >= 50 %}
-                        <span class="text-yellow-600 font-semibold">Good potential.</span> A few gaps to address.
-                    {% else %}
-                        <span class="text-red-600 font-semibold">Significant gaps.</span> Let's work on improving your profile.
-                    {% endif %}
-                </p>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Red Flags Section -->
-    {% if red_flags %}
-    <div class="max-w-3xl mx-auto mb-8">
-        <div class="bg-white rounded-2xl shadow-xl p-8 border-l-4 border-red-500">
-            <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
-                <svg class="w-6 h-6 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                Critical Missing Skills
-            </h3>
-            <ul class="space-y-2">
-                {% for skill in red_flags %}
-                <li class="flex items-center text-gray-700">
-                    <span class="w-2 h-2 bg-red-500 rounded-full mr-3"></span>
-                    {{ skill }}
-                </li>
-                {% endfor %}
-            </ul>
-        </div>
-    </div>
-    {% endif %}
-    
-    <!-- Soft Gaps Section -->
-    {% if soft_gaps %}
-    <div class="max-w-3xl mx-auto mb-8">
-        <div class="bg-white rounded-2xl shadow-xl p-8 border-l-4 border-yellow-500">
-            <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
-                <svg class="w-6 h-6 text-yellow-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                Soft Skill Gaps
-            </h3>
-            <ul class="space-y-2">
-                {% for gap in soft_gaps %}
-                <li class="text-gray-700">{{ gap }}</li>
-                {% endfor %}
-            </ul>
-        </div>
-    </div>
-    {% endif %}
 
-    <!-- Extracted Job Description (Collapsible) -->
-    <div class="max-w-3xl mx-auto mb-12" x-data="{ showJobDesc: false }">
-        <button 
-            @click="showJobDesc = !showJobDesc"
-            class="w-full text-left px-6 py-4 bg-white border border-gray-200 shadow-sm hover:bg-gray-50 rounded-lg transition-colors flex justify-between items-center"
-        >
-            <span class="font-bold text-rn-navy flex items-center">
-                <svg class="w-5 h-5 mr-2 text-rn-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                View Extracted Job Description
-            </span>
-            <svg 
-                class="w-5 h-5 text-gray-500 transform transition-transform" 
-                :class="showJobDesc ? 'rotate-180' : ''"
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-            >
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-            </svg>
-        </button>
-        
-        <div x-show="showJobDesc" x-cloak class="mt-4 bg-white rounded-lg shadow-md border border-gray-200 p-6">
-            <h4 class="font-bold text-gray-900 mb-3 text-lg border-b border-gray-200 pb-2">Target Skills Extracted</h4>
-            <div class="flex flex-wrap gap-2 mb-6">
-                {% for skill in job.extracted_skills %}
-                <span class="px-3 py-1 bg-blue-50 text-rn-blue font-semibold rounded-md border border-blue-100 text-sm">
-                    {{ skill }}
-                </span>
-                {% endfor %}
-            </div>
-            
-            <h4 class="font-bold text-gray-900 mb-3 text-lg border-b border-gray-200 pb-2">Original Description</h4>
-            <div class="prose max-w-none text-gray-700 leading-relaxed text-sm whitespace-pre-wrap max-h-96 overflow-y-auto w-full break-words">
-                {{ job.description }}
-            </div>
-        </div>
-    </div>
-    
-    <!-- The CTA: Score-Aware Primary Action -->
-    <div class="max-w-3xl mx-auto text-center">
-        
-        <!-- Primary CTA (Score-Based) -->
-        {% if primary_action == 'generate_resume' %}
-        <div class="mb-6">
-            <p class="text-sm font-semibold text-green-600 mb-3 uppercase tracking-wider">✓ Strong Match — You're Ready</p>
-            <a 
-                href="{% url 'generate_resume' job_id=job.id %}" 
-                id="primary-cta-btn"
-                class="inline-block px-14 py-5 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xl font-bold rounded-xl shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
-            >
-                Generate Your Resume →
-            </a>
-        </div>
-        {% elif primary_action == 'chat_fill_gaps' %}
-        <div class="mb-6">
-            <p class="text-sm font-semibold text-yellow-600 mb-3 uppercase tracking-wider">⚡ Good Potential — Fill a Few Gaps</p>
-            <a 
-                href="{% url 'profile_chatbot' job_id=job.id %}" 
-                id="primary-cta-btn"
-                class="inline-block px-14 py-5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xl font-bold rounded-xl shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
-            >
-                Chat with AI to Fill Gaps →
-            </a>
-        </div>
-        {% else %}
-        <div class="mb-6">
-            <p class="text-sm font-semibold text-red-600 mb-3 uppercase tracking-wider">📚 Significant Gaps — Build Skills First</p>
-            <a 
-                href="{% url 'learning_path' job_id=job.id %}" 
-                id="primary-cta-btn"
-                class="inline-block px-14 py-5 bg-gradient-to-r from-purple-600 to-violet-600 text-white text-xl font-bold rounded-xl shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
-            >
-                Build Your Learning Path →
-            </a>
-        </div>
-        {% endif %}
-
-        <!-- More Actions (Collapsed) -->
-        <div x-data="{ showMore: false }" class="mt-6">
-            <button 
-                @click="showMore = !showMore"
-                class="text-sm text-gray-500 hover:text-gray-700 font-medium flex items-center mx-auto gap-1 transition-colors"
-            >
-                <span x-text="showMore ? 'Hide Options' : 'More Actions'"></span>
-                <svg 
-                    class="w-4 h-4 transform transition-transform" 
-                    :class="showMore ? 'rotate-180' : ''"
-                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                >
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                </svg>
-            </button>
-            
-            <div x-show="showMore" x-cloak x-transition class="mt-4 flex flex-wrap justify-center gap-3">
-                {% if primary_action != 'generate_resume' %}
-                <a 
-                    href="{% url 'generate_resume' job_id=job.id %}" 
-                    class="inline-flex items-center px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-xl shadow-sm hover:shadow-md hover:border-gray-300 transition-all text-sm"
-                >
-                    📄 Generate Resume
-                </a>
-                {% endif %}
-                
-                {% if primary_action != 'chat_fill_gaps' %}
-                <a 
-                    href="{% url 'profile_chatbot' job_id=job.id %}" 
-                    class="inline-flex items-center px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-xl shadow-sm hover:shadow-md hover:border-gray-300 transition-all text-sm"
-                >
-                    🤖 AI Gap Filler
-                </a>
-                {% endif %}
-
-                {% if primary_action != 'learning_path' %}
-                <a 
-                    href="{% url 'learning_path' job_id=job.id %}" 
-                    class="inline-flex items-center px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-xl shadow-sm hover:shadow-md hover:border-gray-300 transition-all text-sm"
-                >
-                    📚 Learning Path
-                </a>
-                {% endif %}
-
-                <a 
-                    href="{% url 'generate_cover_letter' job_id=job.id %}" 
-                    class="inline-flex items-center px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-xl shadow-sm hover:shadow-md hover:border-gray-300 transition-all text-sm"
-                >
-                    ✉️ Cover Letter
-                </a>
-                
-                <a 
-                    href="{% url 'generate_outreach' job_id=job.id %}" 
-                    class="inline-flex items-center px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-xl shadow-sm hover:shadow-md hover:border-gray-300 transition-all text-sm"
-                >
-                    📧 Outreach Campaign
-                </a>
-
-                <a 
-                    href="{% url 'negotiate_salary' job_id=job.id %}" 
-                    class="inline-flex items-center px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-xl shadow-sm hover:shadow-md hover:border-gray-300 transition-all text-sm"
-                >
-                    💰 Salary Negotiation
-                </a>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Detailed Breakdown (Collapsible) -->
-    <div class="max-w-3xl mx-auto mt-12" x-data="{ showDetails: false }">
-        <button 
-            @click="showDetails = !showDetails"
-            class="w-full text-left px-6 py-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors flex justify-between items-center"
-        >
-            <span class="font-medium text-gray-700">View Detailed Breakdown</span>
-            <svg 
-                class="w-5 h-5 text-gray-500 transform transition-transform" 
-                :class="showDetails ? 'rotate-180' : ''"
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-            >
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-            </svg>
-        </button>
-        
-        <div x-show="showDetails" x-cloak class="mt-4 bg-white rounded-lg shadow p-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Matched Skills -->
-                <div>
-                    <h4 class="font-bold text-green-600 mb-3">✓ Matched Skills</h4>
-                    <ul class="space-y-1 text-sm">
-                        {% for skill in analysis.matched_skills %}
-                        <li class="text-gray-700">{{ skill }}</li>
-                        {% empty %}
-                        <li class="text-gray-400 italic">None</li>
-                        {% endfor %}
-                    </ul>
+                <!-- Tile: Critical Missing -->
+                <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                    <div class="text-sm text-gray-500 dark:text-gray-400 font-medium">Critical missing</div>
+                    <div class="text-2xl font-bold text-red-600 dark:text-red-400">{{ gap.missing_skills|length }}</div>
+                    <div class="w-full bg-gray-200 rounded-full h-1 mt-2">
+                        <div class="bg-red-500 h-1 rounded-full" style="width: {{ missing_pct }}%"></div>
+                    </div>
                 </div>
-                
-                <!-- Missing Skills -->
-                <div>
-                    <h4 class="font-bold text-red-600 mb-3">✗ Missing Skills</h4>
-                    <ul class="space-y-1 text-sm">
-                        {% for skill in analysis.missing_skills %}
-                        <li class="text-gray-700">{{ skill }}</li>
-                        {% empty %}
-                        <li class="text-gray-400 italic">None</li>
-                        {% endfor %}
-                    </ul>
+
+                <!-- Tile: Soft Gaps -->
+                <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                    <div class="text-sm text-gray-500 dark:text-gray-400 font-medium">Soft skill gaps</div>
+                    <div class="text-2xl font-bold text-amber-600 dark:text-amber-400">{{ gap.soft_skill_gaps|length }}</div>
+                    <div class="w-full bg-gray-200 rounded-full h-1 mt-2">
+                        <div class="bg-amber-500 h-1 rounded-full" style="width: {{ soft_pct }}%"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-600">
+                <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Analysis method</span>
+                <div class="flex flex-wrap gap-2 mt-2">
+                    <span class="px-2 py-1 bg-rn-light text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded text-xs">{{ gap.analysis_method|default:"LLM"|upper }}</span>
+                    <span class="px-2 py-1 bg-rn-light text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded text-xs">pgvector cosine distance</span>
+                    <span class="px-2 py-1 bg-rn-light text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded text-xs">384-dim embeddings</span>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Three-column Row -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        
+        <!-- Matched -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-green-200 dark:border-green-900 overflow-hidden">
+            <div class="bg-green-50 dark:bg-green-900/30 px-6 py-4 border-b border-green-100 dark:border-green-800 flex justify-between items-center">
+                <h3 class="font-bold text-green-900 dark:text-green-300">Matched skills</h3>
+                <span class="bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-100 text-xs font-bold px-2 py-1 rounded-rn-pill">{{ gap.matched_skills|length }}</span>
+            </div>
+            <div class="p-6">
+                <div class="flex flex-col gap-2">
+                    {% for skill in gap.matched_skills %}
+                        <span class="inline-flex items-center px-3 py-1.5 bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/50 dark:border-green-800 dark:text-green-300 text-sm font-medium rounded">
+                            <span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-2"></span>
+                            {% if skill.name %}{{ skill.name }}{% else %}{{ skill }}{% endif %}
+                        </span>
+                    {% empty %}
+                        <p class="text-sm text-gray-400 italic">No exact matches found.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Missing -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-red-200 dark:border-red-900 overflow-hidden">
+            <div class="bg-red-50 dark:bg-red-900/30 px-6 py-4 border-b border-red-100 dark:border-red-800 flex justify-between items-center">
+                <h3 class="font-bold text-red-900 dark:text-red-300">Critical missing</h3>
+                <span class="bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-100 text-xs font-bold px-2 py-1 rounded-rn-pill">{{ gap.missing_skills|length }}</span>
+            </div>
+            <div class="p-6">
+                <div class="flex flex-col gap-2">
+                    {% for skill in gap.missing_skills %}
+                        <span class="inline-flex items-center px-3 py-1.5 bg-red-50 text-red-700 border border-red-200 dark:bg-red-900/50 dark:border-red-800 dark:text-red-300 text-sm font-medium rounded">
+                            <span class="w-1.5 h-1.5 rounded-full bg-red-500 mr-2"></span>
+                            {% if skill.name %}{{ skill.name }}{% else %}{{ skill }}{% endif %}
+                        </span>
+                    {% empty %}
+                        <p class="text-sm text-gray-400 italic">No critical gaps identified.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Soft Skills -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-amber-200 dark:border-amber-900 overflow-hidden">
+            <div class="bg-amber-50 dark:bg-amber-900/30 px-6 py-4 border-b border-amber-100 dark:border-amber-800 flex justify-between items-center">
+                <h3 class="font-bold text-amber-900 dark:text-amber-300">Soft skill gaps</h3>
+                <span class="bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-100 text-xs font-bold px-2 py-1 rounded-rn-pill">{{ gap.soft_skill_gaps|length }}</span>
+            </div>
+            <div class="p-6">
+                <div class="flex flex-col gap-2">
+                    {% for skill in gap.soft_skill_gaps %}
+                        <span class="inline-flex items-center px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/50 dark:border-amber-800 dark:text-amber-300 text-sm font-medium rounded">
+                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-2"></span>
+                            {% if skill.name %}{{ skill.name }}{% else %}{{ skill }}{% endif %}
+                        </span>
+                    {% empty %}
+                        <p class="text-sm text-gray-400 italic">No soft skill gaps identified.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Alpine JS Toggle Accordion for Job Description -->
+    <div class="mb-12 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+        <button @click="openDesc = !openDesc" class="w-full px-6 py-4 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors focus:outline-none">
+            <span class="font-bold text-lg text-rn-navy dark:text-white">View extracted job description</span>
+            <svg :class="openDesc ? 'transform rotate-180' : ''" class="w-5 h-5 text-gray-500 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+        </button>
+        <div x-show="openDesc" x-collapse x-cloak class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 prose dark:prose-invert max-w-none">
+            {{ job.description|linebreaks }}
+        </div>
+    </div>
+
+    <!-- Actions Row (3 Buttons) -->
+    <div class="flex flex-col sm:flex-row shadow-sm rounded-xl overflow-hidden mb-12 border border-gray-200 dark:border-gray-700 divide-y sm:divide-y-0 sm:divide-x divide-gray-200 dark:divide-gray-700">
+        
+        <a href="{% url 'learning_path' job.id %}" class="flex-1 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-center py-4 px-6 transition-colors group">
+            <span class="block text-rn-navy dark:text-white font-bold group-hover:text-rn-blue dark:group-hover:text-rn-gold">Build learning path</span>
+        </a>
+        
+        <a href="{% url 'profile_chatbot' job.id %}" class="flex-1 {% if gap.similarity_score >= 0.5 and gap.similarity_score < 0.8 %}bg-rn-blue hover:bg-rn-blue-hover text-white{% else %}bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-rn-navy dark:text-white group hover:text-rn-blue dark:group-hover:text-rn-gold{% endif %} text-center py-4 px-6 transition-colors">
+            <span class="block font-bold">Chat to fill gaps</span>
+        </a>
+        
+        <a href="{% url 'generate_resume' job.id %}" class="flex-1 {% if gap.similarity_score >= 0.8 %}bg-rn-blue hover:bg-rn-blue-hover text-white{% else %}bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-rn-navy dark:text-white group hover:text-rn-blue dark:group-hover:text-rn-gold{% endif %} text-center py-4 px-6 transition-colors">
+            <span class="block font-bold">Generate resume</span>
+        </a>
+        
+    </div>
+
 </div>
-
-<style>
-[x-cloak] { display: none !important; }
-</style>
 {% endif %}
 {% endblock %}
