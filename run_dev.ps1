@@ -2,8 +2,7 @@
 
 Write-Host "Cleaning up dangling background processes..." -ForegroundColor Yellow
 
-# Kill ALL old Python processes that could be ghost servers or Q workers
-# This prevents zombie Q clusters from accumulating across restarts
+# Kill ALL old Python processes that could be ghost servers
 $pythonProcesses = Get-Process -Name python -ErrorAction SilentlyContinue
 if ($pythonProcesses) {
     $pythonProcesses | Stop-Process -Force -ErrorAction SilentlyContinue
@@ -13,27 +12,18 @@ if ($pythonProcesses) {
     Write-Host "=> No ghost Python processes found." -ForegroundColor Green
 }
 
-# Also free port 8000 explicitly (in case non-python process holds it)
+# Also free port 8000 explicitly
 $portProcesses = Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique
 if ($portProcesses) {
     Stop-Process -Id $portProcesses -Force -ErrorAction SilentlyContinue 
     Write-Host "=> Freed port 8000." -ForegroundColor Green
 }
 
-# The true cause of the "System Check" freeze:
-# Django's default StatReloader takes several minutes to check the modification timestamps of every single file on Windows.
+# Fix Windows Reloader freeze
 Write-Host "Ensuring 'watchdog' is installed to fix Windows Reloader freeze..." -ForegroundColor Yellow
 pip install watchdog > $null 2>&1
 
-# Clear any stuck tasks from the queue before starting fresh
-Write-Host "Clearing stale task queue..." -ForegroundColor Yellow
-python manage.py shell -c "from django_q.models import OrmQ; deleted = OrmQ.objects.all().delete(); print(f'Cleared {deleted[0]} stale tasks')" 2>$null
-
-# Start the Django-Q2 background worker as a background job
-Write-Host "Starting Q-Cluster background worker (4 workers)..." -ForegroundColor Cyan
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd 'g:\New folder\SmartCV'; python manage.py qcluster" -WindowStyle Minimized
-
-# Launch browser when the server boots and port 8000 is ready
+# Launch browser when the server boots
 Start-Job -ScriptBlock {
     $retryCount = 0
     $maxRetries = 30

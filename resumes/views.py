@@ -33,18 +33,8 @@ def generate_resume_view(request, job_id):
         return redirect('upload_master_profile')
 
     if request.method == 'POST':
-        # Record the moment before enqueue so the polling endpoint can ignore old resumes
-        from django.utils import timezone
-        request.session[f'resume_gen_start_{job_id}'] = timezone.now().isoformat()
-
-        # Enqueue the heavy LLM work as a background task
-        async_task(
-            'resumes.tasks.generate_resume_task',
-            str(job_id),
-            request.user.id,
-        )
-        logger.info("Enqueued resume generation task for job %s", job_id)
-        # Render the same page — JS will start polling for completion
+        # Instantly render the "Generating..." state to provide immediate feedback.
+        # The frontend JS will then trigger the actual sync computation via API.
         return render(request, 'resumes/generate.html', {
             'job': job,
             'generating': True,
@@ -52,34 +42,38 @@ def generate_resume_view(request, job_id):
     
     return render(request, 'resumes/generate.html', {'job': job})
 
+@login_required
+@require_POST
+def trigger_resume_generation_api(request, job_id):
+    """Sync API endpoint called by the frontend loader to perform the actual LLM work."""
+    from .tasks import generate_resume_task
+    try:
+        # Perform the actual work synchronously
+        generate_resume_task(str(job_id), request.user.id)
+        
+        # Find the newly created resume to return its ID
+        from .models import GeneratedResume
+        resume = GeneratedResume.objects.filter(gap_analysis__job_id=job_id).order_by('-created_at').first()
+        
+        return JsonResponse({
+            'success': True, 
+            'resume_id': str(resume.id) if resume else None
+        })
+    except Exception as e:
+        logger.error(f"Sync resume generation failed: {e}")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
 
 @login_required
 @require_GET
 def check_resume_status_api(request, job_id):
-    """Polling endpoint: has a NEW resume been generated for this job since the task started?"""
-    job = get_object_or_404(Job, id=job_id, user=request.user)
-    try:
-        qs = GeneratedResume.objects.filter(gap_analysis__job=job)
-
-        # Only consider resumes created after the task was enqueued
-        start_iso = request.session.get(f'resume_gen_start_{job_id}')
-        if start_iso:
-            from django.utils.dateparse import parse_datetime
-            start_dt = parse_datetime(start_iso)
-            if start_dt:
-                qs = qs.filter(created_at__gte=start_dt)
-
-        resume = qs.order_by('-created_at').first()
-        if resume:
-            # Clean up session key
-            request.session.pop(f'resume_gen_start_{job_id}', None)
-            return JsonResponse({
-                'status': 'completed',
-                'resume_id': str(resume.id),
-            })
-    except Exception as e:
-        logger.error("Error checking resume status: %s", e)
-    return JsonResponse({'status': 'computing'})
+    """Legacy polling endpoint — the work is now done via the POST trigger API directly."""
+    # Find latest resume for this job
+    from .models import GeneratedResume
+    resume = GeneratedResume.objects.filter(gap_analysis__job_id=job_id).order_by('-created_at').first()
+    if resume:
+        return JsonResponse({'status': 'completed', 'resume_id': str(resume.id)})
+    return JsonResponse({'status': 'waiting'})
 
 @login_required
 def resume_preview_view(request, resume_id):

@@ -105,35 +105,16 @@ def compute_gap_api(request, job_id):
     except UserProfile.DoesNotExist:
         return JsonResponse({'error': 'Profile not found'}, status=404)
         
-    # Enqueue background task
-    from django_q.tasks import async_task
-    async_task('analysis.tasks.compute_gap_analysis_task', job.id, request.user.id)
+    # Direct synchronous computation
+    from .tasks import compute_gap_analysis_task
+    compute_gap_analysis_task(job.id, request.user.id)
     
-    return JsonResponse({'success': True, 'message': 'Task enqueued'})
+    return JsonResponse({'success': True, 'message': 'Analysis complete'})
 
 @login_required
 def check_gap_status_api(request, job_id):
-    """Check if the gap analysis background task has finished or failed."""
-    job = get_object_or_404(Job, id=job_id, user=request.user)
-    
-    # If the result exists in the database, the background task completed successfully
-    exists = GapAnalysis.objects.filter(job=job, user=request.user).exists()
-    if exists:
-        return JsonResponse({'status': 'completed'})
-
-    # Check if the task failed by inspecting django-q task history
-    try:
-        from django_q.models import Failure
-        failed = Failure.objects.filter(
-            func='analysis.tasks.compute_gap_analysis_task',
-            args__contains=str(job_id),
-        ).exists()
-        if failed:
-            return JsonResponse({'status': 'failed', 'error': 'Background task failed. Please retry.'})
-    except Exception:
-        pass  # Table might not exist yet
-
-    return JsonResponse({'status': 'computing'})
+    """Legacy polling endpoint — now always returns completed because analysis is sync."""
+    return JsonResponse({'status': 'completed'})
 
 @login_required
 def generate_learning_path_view(request, job_id=None):
