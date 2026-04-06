@@ -22,15 +22,13 @@
     const bar = document.getElementById('gap-progress');
     const label = document.getElementById('gap-label');
     let pct = 5;
-    let pollCount = 0;
-    const maxPolls = 45;  // 45 × 2s = 90s timeout
 
     // Smoothly grow the bar while waiting
     const grow = setInterval(() => {
         if (pct < 90) { pct += 2; bar.style.width = pct + '%'; }
     }, 1000);
 
-    // Enqueue the task
+    // Trigger the actual synchronous work via API
     console.log("Triggering gap analysis compute via API...");
     fetch('{% url "compute_gap_api" job.id %}', {
         method: 'POST',
@@ -45,57 +43,37 @@
     })
     .then(data => {
         if (data.success) {
-            console.log("Task enqueued. Polling for completion...");
-            label.textContent = 'Processing skills & embeddings…';
-
-            const pollInterval = setInterval(() => {
-                pollCount++;
-                if (pollCount > maxPolls) {
-                    clearInterval(pollInterval);
-                    clearInterval(grow);
-                    showRetry('Analysis is taking longer than expected.');
-                    return;
-                }
-
-                fetch('{% url "check_gap_status" job.id %}')
-                .then(res => res.json())
-                .then(statusData => {
-                    if (statusData.status === 'completed') {
-                        clearInterval(pollInterval);
-                        clearInterval(grow);
-                        bar.style.width = '100%';
-                        label.textContent = 'Done! Loading results…';
-                        window.location.reload();
-                    } else if (statusData.status === 'failed') {
-                        clearInterval(pollInterval);
-                        clearInterval(grow);
-                        showRetry(statusData.error || 'Analysis failed.');
-                    }
-                })
-                .catch(err => console.error("Polling error:", err));
-            }, 2000);
-        } else {
+            console.log("Analysis complete. Refreshing...");
             clearInterval(grow);
-            showRetry("Gap Analysis failed: " + (data.error || 'Unknown error'));
+            bar.style.width = '100%';
+            label.textContent = 'Analysis complete. Refreshing…';
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
+        } else {
+            throw new Error(data.error || 'Unknown error');
         }
     })
-    .catch(error => {
-        console.error('Error:', error);
+    .catch(err => {
+        console.error('Compute error:', err);
         clearInterval(grow);
-        showRetry("Failed to start analysis. Check your connection.");
+        showRetry('Error: ' + err.message);
     });
 
     function showRetry(message) {
         const container = document.getElementById('computing-state');
+        if (!container) return;
         container.innerHTML = `
-            <svg class="w-16 h-16 text-red-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-16 h-16 text-red-400 mb-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/>
             </svg>
-            <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-2">${message}</h2>
-            <a href="${window.location.href}"
-               class="mt-4 inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors">
-                Retry Analysis
-            </a>
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-2 text-center">${message}</h2>
+            <div class="text-center">
+                <a href="${window.location.href}"
+                   class="mt-4 inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors">
+                    Retry Analysis
+                </a>
+            </div>
         `;
     }
 })();

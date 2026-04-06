@@ -50,33 +50,41 @@
                         if (pct < 90) { pct += 2; bar.style.width = pct + '%'; }
                     }, 800);
 
-                    const poll = setInterval(async () => {
-                        try {
-                            const res = await fetch(`/resumes/api/resume-status/${JOB_ID}/`);
-                            const data = await res.json();
-                            if (data.status === 'completed' && data.resume_id) {
-                                clearInterval(poll);
-                                clearInterval(grow);
-                                bar.style.width = '100%';
-                                label.textContent = 'Done! Redirecting…';
-                                window.location.href = `/resumes/preview/${data.resume_id}/`;
-                            }
-                        } catch (e) {
-                            console.error('Poll error', e);
+                    // Trigger the actual synchronous work via API
+                    console.log("Triggering resume generation...");
+                    fetch(`{% url 'trigger_resume_api' job.id %}`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}',
+                            'Content-Type': 'application/json'
                         }
-                    }, 2500);
-
-                    // Safety timeout — stop polling after 120s and show a manual retry
-                    setTimeout(() => {
-                        clearInterval(poll);
+                    })
+                    .then(response => {
+                        if (!response.ok) throw new Error('Generation failed');
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.success && data.resume_id) {
+                            clearInterval(grow);
+                            bar.style.width = '100%';
+                            label.textContent = 'Done! Redirecting…';
+                            setTimeout(() => {
+                                window.location.href = `/resumes/preview/${data.resume_id}/`;
+                            }, 500);
+                        } else {
+                            throw new Error(data.error || 'Unknown error');
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Generation error:', err);
                         clearInterval(grow);
-                        label.textContent = 'This is taking longer than expected.';
+                        label.textContent = 'Error: ' + err.message;
                         const retry = document.createElement('a');
                         retry.href = window.location.href;
                         retry.className = 'inline-block mt-4 px-6 py-2 bg-rn-gold text-rn-navy rounded-rn-pill font-bold';
                         retry.textContent = 'Retry';
                         document.getElementById('generating-state').appendChild(retry);
-                    }, 120000);
+                    });
                 })();
                 </script>
 

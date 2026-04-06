@@ -244,12 +244,12 @@ def chatbot_api(request):
             gap_score = None
             if result.get('profile_updated'):
                 try:
-                    # Trigger the analysis in the background so it's ready for the next page,
-                    # without deadlocking the Chatbot conversation.
-                    async_task('analysis.tasks.compute_gap_analysis_task', job_id, request.user.id)
-                    gap_score = None  # UI will just keep previous score or ignore
+                    # Direct synchronous computation
+                    from analysis.tasks import compute_gap_analysis_task
+                    compute_gap_analysis_task(job_id, request.user.id)
+                    gap_score = None  # UI will refresh profile and score normally
                 except Exception as e:
-                    logger.error(f"Failed to queue gap score update: {e}")
+                    logger.error(f"Failed to update gap analysis: {e}")
                     
             if result.get('is_complete'):
                 return JsonResponse({
