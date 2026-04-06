@@ -2,6 +2,7 @@ import logging
 import json
 import re
 import os
+import difflib
 from typing import Dict, Any, Tuple, Optional, List
 from django.conf import settings
 from profiles.models import UserProfile
@@ -12,19 +13,73 @@ logger = logging.getLogger(__name__)
 # Conversation state tracking
 _conversation_state = {}
 
-# Dynamic question templates for variety
-QUESTION_TEMPLATES = [
-    "Tell me about your experience with {skill}.",
-    "Have you worked with {skill}? If so, in what capacity?",
-    "I see this role needs {skill}. How have you used it in past projects?",
-    "What's your comfort level with {skill}?",
-    "Can you describe a project where you used {skill}?",
-    "How much experience do you have with {skill}?",
-    "Walk me through your {skill} background.",
-    "This position requires {skill} - do you have that experience?",
-    "{skill} is a key requirement. What have you built with it?",
-    "Share your experience working with {skill}.",
-]
+# Standardized proficiency levels
+VALID_PROFICIENCIES = ['Beginner', 'Intermediate', 'Advanced', 'Expert']
+
+def _normalize_proficiency(raw: str) -> str:
+    """Normalize freeform proficiency text to a standard level."""
+    if not raw:
+        return 'Intermediate'
+    low = raw.lower().strip()
+    # Direct match
+    for level in VALID_PROFICIENCIES:
+        if level.lower() == low:
+            return level
+    # Fuzzy / typo handling
+    beginner_words = {'beginer', 'biggener', 'beginner', 'begginer', 'novice', 'basic', 'starter', 'entry', 'new', 'learning', 'familiar'}
+    intermediate_words = {'intermediate', 'mid', 'moderate', 'average', 'decent', 'competent', 'working'}
+    advanced_words = {'advanced', 'senior', 'strong', 'proficient', 'experienced', 'solid'}
+    expert_words = {'expert', 'master', 'guru', 'specialist', 'authority'}
+    
+    for word in beginner_words:
+        if word in low:
+            return 'Beginner'
+    for word in advanced_words:
+        if word in low:
+            return 'Advanced'
+    for word in expert_words:
+        if word in low:
+            return 'Expert'
+    for word in intermediate_words:
+        if word in low:
+            return 'Intermediate'
+    
+    return 'Intermediate'  # safe default
+
+
+def _normalize_skill_name(name: str) -> str:
+    """Capitalize skill names consistently."""
+    if not name:
+        return name
+    # Known canonical forms
+    CANONICAL = {
+        'pyspark': 'PySpark', 'pytorch': 'PyTorch', 'tensorflow': 'TensorFlow',
+        'javascript': 'JavaScript', 'typescript': 'TypeScript', 'postgresql': 'PostgreSQL',
+        'mysql': 'MySQL', 'mongodb': 'MongoDB', 'graphql': 'GraphQL',
+        'nodejs': 'Node.js', 'node.js': 'Node.js', 'reactjs': 'React',
+        'vuejs': 'Vue.js', 'vue.js': 'Vue.js', 'nextjs': 'Next.js',
+        'css': 'CSS', 'html': 'HTML', 'sql': 'SQL', 'api': 'API',
+        'aws': 'AWS', 'gcp': 'GCP', 'ci/cd': 'CI/CD', 'devops': 'DevOps',
+        'numpy': 'NumPy', 'pandas': 'Pandas', 'scikit-learn': 'scikit-learn',
+        'keras': 'Keras', 'opencv': 'OpenCV', 'docker': 'Docker',
+        'kubernetes': 'Kubernetes', 'git': 'Git', 'linux': 'Linux',
+        'power bi': 'Power BI', 'powerbi': 'Power BI',
+        'matplotlib': 'Matplotlib', 'seaborn': 'Seaborn',
+        'nlp': 'NLP', 'cnn': 'CNN', 'cnns': 'CNNs', 'rnn': 'RNN', 'rnns': 'RNNs',
+        'llm': 'LLM', 'langchain': 'LangChain', 'fastapi': 'FastAPI',
+        'flask': 'Flask', 'django': 'Django', 'spark': 'Spark',
+        'databricks': 'Databricks', 'airflow': 'Airflow',
+        'dax': 'DAX', 'excel': 'Excel', 'tableau': 'Tableau',
+        'machine learning': 'Machine Learning', 'deep learning': 'Deep Learning',
+        'data science': 'Data Science', 'data engineering': 'Data Engineering',
+        'computer vision': 'Computer Vision', 'natural language processing': 'NLP',
+    }
+    low = name.lower().strip()
+    if low in CANONICAL:
+        return CANONICAL[low]
+    # Default: title case
+    return name.strip()
+
 
 def compare_cv_with_job(cv_skills: List, job_skills: List) -> Dict[str, List]:
     """Smart comparison of CV skills with job requirements."""
@@ -34,8 +89,6 @@ def compare_cv_with_job(cv_skills: List, job_skills: List) -> Dict[str, List]:
             cv_skill_names.add(skill.get('name', '').lower().strip())
         else:
             cv_skill_names.add(str(skill).lower().strip())
-    
-    job_skill_names = {s.lower().strip() for s in job_skills}
     
     exact_matches = []
     missing = []
@@ -50,69 +103,6 @@ def compare_cv_with_job(cv_skills: List, job_skills: List) -> Dict[str, List]:
         'exact_matches': exact_matches,
         'missing': missing
     }
-
-
-def extract_mentioned_skills(text: str, potential_skills: List[str]) -> List[str]:
-    text_lower = text.lower()
-    mentioned = []
-    for skill in potential_skills:
-        skill_lower = skill.lower()
-        if re.search(r'\b' + re.escape(skill_lower) + r'\b', text_lower):
-            mentioned.append(skill)
-    return mentioned
-
-
-def validate_response_quality(response: str) -> Tuple[bool, str]:
-    """Validate if response is substantive and appropriate."""
-    response = response.strip()
-    
-    if len(response) < 3:
-        return False, "That's too brief. Can you please provide more details?"
-    
-    if len(response.replace(' ', '').replace('.', '').replace(',', '')) < 5:
-        return False, "Please provide a meaningful response."
-        
-    non_answers = {'no', 'nope', 'nah', 'idk', 'dont know', "don't know", 
-                  'nothing', 'none', 'haha', 'lol', 'gg', 'ok', 'yes', 'yeah'}
-    if response.lower() in non_answers:
-        return False, "I need a bit more detail. Can you elaborate?"
-    
-    # LLM Guardrail (Pre-flight) using structured output
-    try:
-        from .llm_engine import get_structured_llm
-        from .schemas import GuardrailResult
-        
-        guard_prompt = f"""Analyze this interview response.
-Response: "{response}"
-
-Check for:
-1. Gibberish (e.g. "asdf", "jkl", "akjDJLK")
-2. Profanity/Abuse
-3. Dismissive/Non-answers
-Is this response:
-1. Valid english (or reasonable text)?
-2. Meaningful?
-3. NOT nonsense/spam (like "asdf" or "jkl")?
-
-Determine if the response is valid and provide a short reason if not."""
-        
-        structured_llm = get_structured_llm(GuardrailResult, temperature=0.1, max_tokens=120)
-        result = structured_llm.invoke(guard_prompt)
-        
-        if not result.valid:
-            return False, f"I didn't quite catch that. {result.reason or 'Could you clarify?'}"
-    except Exception as e:
-        logger.warning(f"Guardrail check failed: {e}")
-        pass
-        
-    no_experience_patterns = [
-        "don't have", "do not have", "no experience", 
-        "never worked", "never used", "not familiar"
-    ]
-    if any(pattern in response.lower() for pattern in no_experience_patterns):
-        return True, "understood_as_no_experience"
-    
-    return True, "valid"
 
 
 def process_chat_turn(user_id: int, job_id: str, user_reply: str, conversation_history: List[Dict]) -> Dict[str, Any]:
@@ -150,23 +140,26 @@ def process_chat_turn(user_id: int, job_id: str, user_reply: str, conversation_h
                  'is_complete': False
              }
              
-    # Prepare skills to probe
+    # Prepare skills to probe — CASE-INSENSITIVE filtering
     comparison = compare_cv_with_job(profile.skills or [], job.extracted_skills or [])
-    all_excluded = set(state['covered_skills'] + state['mentioned_skills'] + comparison['exact_matches'])
-    skills_to_probe = [s for s in comparison['missing'] if s not in all_excluded]
+    covered_lower = {s.lower().strip() for s in state['covered_skills']}
+    mentioned_lower = {s.lower().strip() for s in state['mentioned_skills']}
+    matched_lower = {s.lower().strip() for s in comparison['exact_matches']}
+    all_excluded_lower = covered_lower | mentioned_lower | matched_lower
+    
+    skills_to_probe = [s for s in comparison['missing'] if s.lower().strip() not in all_excluded_lower]
     
     max_turns = 10
     if state['turn_count'] > max_turns or not skills_to_probe:
         completion_msg = "Excellent! You have all the key skills for this role." if not skills_to_probe else "Thanks for sharing! Your profile looks good!"
-        if state['turn_count'] > max_turns or not skills_to_probe:
-             return {
-                  'needs_clarification': False,
-                  'extracted_skills': [],
-                  'profile_updated': False,
-                  'next_question': completion_msg,
-                  'next_topic': 'completion',
-                  'is_complete': True
-             }
+        return {
+             'needs_clarification': False,
+             'extracted_skills': [],
+             'profile_updated': False,
+             'next_question': completion_msg,
+             'next_topic': 'completion',
+             'is_complete': True
+        }
 
     try:
         from .llm_engine import get_structured_llm
@@ -175,10 +168,10 @@ def process_chat_turn(user_id: int, job_id: str, user_reply: str, conversation_h
         # Context for prompt
         current_skills = profile.skills or []
         skills_in_cv = ', '.join(comparison['exact_matches'])
-        skills_mentioned = ', '.join(state['mentioned_skills'])
+        skills_covered = ', '.join(state['covered_skills'])
         skills_missing = ', '.join(skills_to_probe[:5])
         
-        history_text = "\\n".join([
+        history_text = "\n".join([
             f"{msg['role'].capitalize()}: {msg['content']}"
             for msg in (conversation_history[-6:] if conversation_history else [])
         ])
@@ -188,20 +181,21 @@ Job: {job.title} at {job.company}
 Required Skills: {', '.join(job.extracted_skills or [])}
 
 Current Profile Skills: {json.dumps(current_skills, default=str)}
-Skills already covered: {skills_in_cv}, {skills_mentioned}
-Skills to ask about next: {skills_missing}
+Skills already in CV: {skills_in_cv}
+Skills already discussed (DO NOT ask about these again): {skills_covered}
+Skills to ask about next (pick ONE from this list): {skills_missing}
 
 Recent Conversation:
 {history_text}
 
 User just replied: "{user_reply}"
 
-=== STRICT ANTI-HALLUCINATION RULE (CRITICAL) ===
-- Never invent, add, or imply skills, experiences, or claims that the user did not actually state in their reply or profile.
-
-Your task:
-1. Analyze the user's reply (if any). Extract skills, evaluate quality. Is it a valid answer to the previous question?
-2. Generate the NEXT conversational question to ask the user, picking ONE skill from the "Skills to ask about next" list."""
+=== RULES ===
+1. ANTI-HALLUCINATION: Never invent skills the user didn't mention.
+2. ACCEPT ALL VALID ANSWERS: If the user describes ANY level of experience with a skill (even "I took a course" or "I'm a beginner"), that is VALID. Set is_valid=true and quality_score >= 3.
+3. EXTRACT ACCURATELY: If the user mentions a skill with a proficiency level (beginner, intermediate, etc.), extract it with that level.
+4. MOVE ON: Always pick a DIFFERENT skill from "Skills to ask about next" for the next question. NEVER re-ask about a skill that was already discussed.
+5. NORMALIZE: Use proper casing for skill names (e.g., "PySpark" not "pyspark")."""
 
         structured_llm = get_structured_llm(ChatTurnResult, temperature=0.3, max_tokens=600)
         data = structured_llm.invoke(system_prompt)
@@ -219,18 +213,31 @@ Your task:
                  'is_complete': False
              }
              
-        # Process skills
-        skills_to_add = [s.model_dump() for s in reply_analysis.skills_to_add]
+        # Process skills — with normalization
+        skills_to_add = []
+        for s in reply_analysis.skills_to_add:
+            skill_dict = s.model_dump()
+            skill_dict['name'] = _normalize_skill_name(skill_dict.get('name', ''))
+            skill_dict['proficiency'] = _normalize_proficiency(skill_dict.get('proficiency', ''))
+            if skill_dict.get('years') and not isinstance(skill_dict['years'], (int, float)):
+                try:
+                    skill_dict['years'] = float(str(skill_dict['years']).replace('+', '').strip())
+                except (ValueError, TypeError):
+                    skill_dict['years'] = None
+            skills_to_add.append(skill_dict)
+        
         quality_score = reply_analysis.quality_score
         all_mentioned = reply_analysis.all_technologies_mentioned
         
         if all_mentioned:
             for tech in all_mentioned:
-                if tech not in state['mentioned_skills'] and tech not in state['covered_skills']:
+                tech_lower = tech.lower().strip()
+                if tech_lower not in covered_lower and tech_lower not in mentioned_lower:
                     state['mentioned_skills'].append(tech)
                     
+        # Save skills: lowered threshold from 5 to 2 so "I took a course" answers get saved
         profile_updated = False
-        if quality_score >= 5 and skills_to_add:
+        if quality_score >= 2 and skills_to_add:
             current_skill_names = {s.get('name', '').lower() for s in current_skills if isinstance(s, dict)}
             for skill in skills_to_add:
                 s_name = skill.get('name', '').strip()
@@ -238,18 +245,32 @@ Your task:
                     current_skills.append({
                         'name': s_name,
                         'proficiency': skill.get('proficiency', 'Intermediate'),
-                        'years': skill.get('years', '')
+                        'years': skill.get('years', None)
                     })
                     profile_updated = True
+                    current_skill_names.add(s_name.lower())
                     
             if profile_updated:
                  profile.skills = current_skills
                  profile.save()
                  
+        # Mark the topic as covered so we NEVER ask about it again
         next_topic = next_gen.topic_skill or 'general'
-        if next_topic and next_topic not in state['covered_skills']:
-             state['covered_skills'].append(next_topic)
-             
+        if next_topic:
+            topic_lower = next_topic.lower().strip()
+            if topic_lower not in covered_lower:
+                state['covered_skills'].append(next_topic)
+                covered_lower.add(topic_lower)
+        
+        # Also mark whatever skill was being discussed (from user's reply context)
+        # by checking what the previous question was about
+        if user_reply and skills_to_add:
+            for s in skills_to_add:
+                sn = s.get('name', '').lower().strip()
+                if sn and sn not in covered_lower:
+                    state['covered_skills'].append(s.get('name', ''))
+                    covered_lower.add(sn)
+              
         return {
             'needs_clarification': False,
             'extracted_skills': skills_to_add,
