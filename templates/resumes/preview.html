@@ -92,82 +92,91 @@
             <div class="bg-white rounded-xl shadow-lg border border-gray-200 p-8 md:p-12 mb-12 transition-colors">
                 <style>
                     .pdf-preview {
-                        font-family: 'Helvetica', 'Arial', sans-serif;
-                        color: #1a1a1a;
-                        font-size: 10.5pt;
+                        font-family: Arial, Helvetica, sans-serif;
+                        color: #000;
+                        font-size: 10pt;
+                        line-height: 1.3;
+                        background: white;
+                        border-radius: 4px;
                     }
                     .pdf-preview .p-header {
                         text-align: center;
-                        margin-bottom: 24px;
-                        padding-bottom: 16px;
-                        border-bottom: 2px solid #2563eb;
-                    }
-                    .pdf-preview .p-professional-title {
-                        font-size: 22pt;
-                        font-weight: bold;
-                        color: #1e3a8a;
-                        margin-bottom: 8px;
-                        text-transform: uppercase;
-                        letter-spacing: 1px;
-                    }
-                    .pdf-preview .p-section {
                         margin-bottom: 20px;
                     }
-                    .pdf-preview .p-section-title {
-                        font-size: 13pt;
+                    .pdf-preview .p-name {
+                        font-size: 20pt;
                         font-weight: bold;
-                        color: #1e3a8a;
                         text-transform: uppercase;
-                        border-bottom: 1px solid #cbd5e1;
-                        padding-bottom: 4px;
-                        margin-bottom: 12px;
-                        letter-spacing: 0.5px;
+                        margin-bottom: 4px;
+                    }
+                    .pdf-preview .p-professional-title {
+                        font-size: 13pt;
+                        color: #000;
+                        margin-bottom: 8px;
+                    }
+                    .pdf-preview .p-section {
+                        margin-bottom: 16px;
+                    }
+                    .pdf-preview .p-section-title {
+                        font-size: 11.5pt;
+                        font-weight: bold;
+                        text-transform: uppercase;
+                        border-bottom: 1px solid #000;
+                        padding-bottom: 3px;
+                        margin-bottom: 10px;
                     }
                     .pdf-preview .p-summary {
-                        font-size: 10.5pt;
+                        font-size: 10pt;
                         line-height: 1.5;
                         text-align: justify;
+                        margin: 0;
                     }
                     .pdf-preview .p-item {
-                        margin-bottom: 16px;
+                        margin-bottom: 12px;
                     }
                     .pdf-preview .p-item-header {
                         display: flex;
                         justify-content: space-between;
                         align-items: flex-end;
+                        margin-bottom: 2px;
                     }
                     .pdf-preview .p-item-title {
                         text-align: left;
                         font-weight: bold;
-                        font-size: 11.5pt;
+                        font-size: 10pt;
                         margin: 0;
+                        text-transform: uppercase;
                     }
                     .pdf-preview .p-item-date {
                         text-align: right;
                         font-size: 10pt;
-                        color: #475569;
-                        font-weight: bold;
+                        font-weight: normal;
                         margin: 0;
                     }
                     .pdf-preview .p-item-subtitle {
                         font-weight: bold;
-                        color: #2563eb;
-                        font-size: 10.5pt;
-                        margin-top: 2px;
+                        font-style: italic;
+                        font-size: 10pt;
                         margin-bottom: 4px;
                     }
                     .pdf-preview .p-item-description {
+                        margin: 0;
+                        padding-left: 20px;
                         font-size: 10pt;
-                        line-height: 1.3;
-                        color: #333;
-                        margin-top: 4px;
-                        white-space: pre-wrap;
+                    }
+                    .pdf-preview .p-item-description li {
+                        margin-bottom: 4px;
+                        list-style-type: disc;
+                    }
+                    .pdf-preview a {
+                        color: #1a0dab;
+                        text-decoration: underline;
                     }
                 </style>
 
                 <div class="pdf-preview">
                     <div class="p-header">
-                        <div style="font-size: 11pt; font-weight: bold; text-transform: uppercase; margin-bottom: 4px;">{{ request.user.first_name }} {{ request.user.last_name }}</div>
+                        <div class="p-name">{{ request.user.first_name }} {{ request.user.last_name }}</div>
                         <div id="preview-title" class="p-professional-title">{{ content.professional_title|default:"Professional Resume" }}</div>
                     </div>
                     
@@ -180,9 +189,9 @@
                     
                     {% if content.skills %}
                     <div class="p-section" id="preview-skills-section">
-                        <div class="p-section-title">Core Competencies</div>
+                        <div class="p-section-title">Skills</div>
                         <div id="preview-skills" class="p-summary">
-                            {{ content.skills|join:", " }}
+                            <strong>Core Competencies:</strong> {{ content.skills|join:", " }}
                         </div>
                     </div>
                     {% endif %}
@@ -198,7 +207,13 @@
                                     <div class="p-item-date">{{ exp.duration }}</div>
                                 </div>
                                 <div class="p-item-subtitle">{{ exp.company }}</div>
-                                <div class="p-item-description">{{ exp.description }}</div>
+                                {% if exp.description %}
+                                <ul class="p-item-description">
+                                    {% for point in exp.description %}
+                                    <li>{{ point }}</li>
+                                    {% endfor %}
+                                </ul>
+                                {% endif %}
                             </div>
                             {% endfor %}
                         </div>
@@ -212,7 +227,7 @@
                             {% for edu in content.education %}
                             <div class="p-item">
                                 <div class="p-item-header">
-                                    <div class="p-item-title">{{ edu.degree }}</div>
+                                    <div class="p-item-title">{{ edu.degree }}{% if edu.field %} in {{ edu.field }}{% endif %}</div>
                                     <div class="p-item-date">{{ edu.year }}</div>
                                 </div>
                                 <div class="p-item-subtitle">{{ edu.institution }}</div>
@@ -228,10 +243,16 @@
                         <div id="preview-projects">
                             {% for proj in content.projects %}
                             <div class="p-item">
-                                <div class="p-item-title">
-                                    {% if proj.url %}<a href="{{ proj.url }}" target="_blank" style="color: #2563eb; text-decoration: none;">{{ proj.name }}</a>{% else %}{{ proj.name }}{% endif %}
+                                <div class="p-item-title" style="margin-bottom: 4px; text-transform: none;">
+                                    {% if proj.url %}<a href="{{ proj.url }}" target="_blank">{{ proj.name }}</a>{% else %}{{ proj.name }}{% endif %}
                                 </div>
-                                <div class="p-item-description">{{ proj.description }}</div>
+                                {% if proj.description %}
+                                <ul class="p-item-description">
+                                    {% for point in proj.description %}
+                                    <li>{{ point }}</li>
+                                    {% endfor %}
+                                </ul>
+                                {% endif %}
                             </div>
                             {% endfor %}
                         </div>
@@ -241,10 +262,10 @@
                     {% if content.certifications %}
                     <div class="p-section" id="preview-certifications-section">
                         <div class="p-section-title">Certifications</div>
-                        <ul id="preview-certifications" style="margin: 0; padding-left: 20px; font-size: 10pt; color: #333;">
+                        <ul id="preview-certifications" style="margin: 0; padding-left: 20px; font-size: 10pt; color: #000;">
                             {% for cert in content.certifications %}
-                            <li style="margin-bottom: 4px;">
-                                <strong>{% if cert.url %}<a href="{{ cert.url }}" target="_blank" style="color: #2563eb; text-decoration: none;">{{ cert.name }}</a>{% else %}{{ cert.name }}{% endif %}</strong> 
+                            <li style="margin-bottom: 4px; list-style-type: disc;">
+                                <strong>{% if cert.url %}<a href="{{ cert.url }}" target="_blank">{{ cert.name }}</a>{% else %}{{ cert.name }}{% endif %}</strong> 
                                 {% if cert.issuer %}- {{ cert.issuer }}{% endif %}
                             </li>
                             {% endfor %}

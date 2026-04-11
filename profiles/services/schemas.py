@@ -158,19 +158,27 @@ class ResumeExperience(BaseModel):
     title: str = ""
     company: str = ""
     duration: str = ""
-    description: str = ""
+    description: Union[str, List[str]] = Field(default_factory=list)
+
+    @model_validator(mode='before')
+    @classmethod
+    def normalize_description(cls, values):
+        desc = values.get('description', [])
+        if isinstance(desc, str):
+            values['description'] = [d.strip() for d in desc.split('\n') if d.strip()]
+        return values
 
 class ResumeProject(BaseModel):
     name: str = ""
-    description: Union[str, List[str]] = ""
+    description: Union[str, List[str]] = Field(default_factory=list)
     url: str = ""
 
     @model_validator(mode='before')
     @classmethod
     def normalize_description(cls, values):
-        desc = values.get('description', '')
-        if isinstance(desc, list):
-            values['description'] = '\n'.join(str(item) for item in desc)
+        desc = values.get('description', [])
+        if isinstance(desc, str):
+            values['description'] = [d.strip() for d in desc.split('\n') if d.strip()]
         return values
 
 class ResumeCertification(BaseModel):
