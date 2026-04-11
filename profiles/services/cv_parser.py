@@ -136,11 +136,20 @@ class CVExtractor:
                         page_text = page.extract_text()
                         if page_text:
                             # Append embedded links so the LLM and regexes can find them
-                            if hasattr(page, 'hyperlinks'):
+                            # Try hyperlinks attribute first, then fall back to annots
+                            links_found = []
+                            if hasattr(page, 'hyperlinks') and page.hyperlinks:
                                 for link in page.hyperlinks:
                                     uri = link.get('uri')
                                     if uri and isinstance(uri, str) and 'http' in uri:
-                                        page_text += f"\n[Embedded Link: {uri}]"
+                                        links_found.append(uri)
+                            elif hasattr(page, 'annots') and page.annots:
+                                for annot in page.annots:
+                                    uri = annot.get('uri')
+                                    if uri and isinstance(uri, str) and 'http' in uri:
+                                        links_found.append(uri)
+                            for uri in links_found:
+                                page_text += f"\n[Embedded Link: {uri}]"
                             text_parts.append(page_text)
             else:
                 doc = fitz.open(str(file_path))
@@ -153,10 +162,23 @@ class CVExtractor:
                             if link.get('kind') == fitz.LINK_URI:
                                 uri = link.get('uri')
                                 if uri and isinstance(uri, str) and 'http' in uri:
+                                    # Fix malformed URIs like "github:%20https://..." -> "https://..."
+                                    if ':%20http' in uri:
+                                        uri = uri.split(':%20', 1)[1]
+                                    elif ':http' in uri and not uri.startswith('http'):
+                                        uri = 'http' + uri.split(':http', 1)[1]
                                     # Try to get the text of the link for better context
                                     rect = link.get('from')
                                     link_text = page.get_textbox(rect).strip() if rect else ""
+                                    # Clean up letter-spaced text in link labels
                                     if link_text:
+                                        link_text = re.sub(r'[ \t]+', ' ', link_text)
+                                        # Collapse letter-spaced fragments (e.g. "K a g g l e" -> "Kaggle")
+                                        link_text = re.sub(
+                                            r'\b([A-Za-z]) (?=[A-Za-z] |[A-Za-z]\b)',
+                                            r'\1',
+                                            link_text
+                                        )
                                         page_text += f"\n[Embedded Link: '{link_text}' -> {uri}]"
                                     else:
                                         page_text += f"\n[Embedded Link: {uri}]"
@@ -229,9 +251,35 @@ class CVExtractor:
     def _sanitize_text(self, text: str) -> str:
         """
         Stage 1: Noise Reduction
+        - Repair letter-spaced words from PDF kerning artifacts
         - Remove header/footer artifacts (e.g., "Page 1 of 3", "confidential")
         - Collapse multiple newlines to save token costs
         """
+        # --- Fix letter-spaced words (PDF kerning artifact) ---
+        # PDFs with wide letter-spacing produce "B ACH ELOR" or "IN FR OM ATION".
+        # Use a known-word replacement table for common terms found in CVs.
+        letter_spaced_fixes = {
+            r'B\s*ACH\s*ELOR': 'BACHELOR',
+            r'M\s*AST\s*ER': 'MASTER',
+            r'IN\s*FR\s*OM\s*ATION': 'INFORMATION',
+            r'TECH\s*N\s*OL\s*O\s*G\s*Y': 'TECHNOLOGY',
+            r'COM\s*PUTER': 'COMPUTER',
+            r'SCIEN\s*CE': 'SCIENCE',
+            r'DIG\s*ITAL': 'DIGITAL',
+            r'PION\s*E\s*E\s*R\s*S': 'PIONEERS',
+            r'IN\s*ITIATIVE': 'INITIATIVE',
+            r'COUR\s*SER\s*A': 'COURSERA',
+            r'DATA\s*CAM\s*P': 'DATACAMP',
+            r'ENG\s*IN\s*EER': 'ENGINEER',
+            r'MAN\s*AGE\s*MENT': 'MANAGEMENT',
+            r'CERT\s*IF\s*IC\s*AT': 'CERTIFICAT',
+            r'PROF\s*ESS\s*ION\s*AL': 'PROFESSIONAL',
+            r'EXP\s*ER\s*IENCE': 'EXPERIENCE',
+            r'ED\s*UC\s*ATION': 'EDUCATION',
+        }
+        for pattern, replacement in letter_spaced_fixes.items():
+            text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+
         # Remove common header/footer patterns
         noise_patterns = [
             r'Page \d+ of \d+',
@@ -240,16 +288,16 @@ class CVExtractor:
             r'Curriculum Vitae',
             r'\d+/\d+/\d{4}',  # Standalone dates in headers
         ]
-        
+
         for pattern in noise_patterns:
             text = re.sub(pattern, '', text, flags=re.IGNORECASE)
-        
+
         # Collapse multiple newlines (3+ -> 2)
         text = re.sub(r'\n{3,}', '\n\n', text)
-        
+
         # Remove excessive whitespace
         text = re.sub(r'[ \t]+', ' ', text)
-        
+
         return text.strip()
     
     def fuzzy_match(self, text: str, patterns: List[str], threshold: float = 0.6) -> bool:
@@ -311,15 +359,33 @@ class CVExtractor:
             if len(digits.replace('+', '')) >= 10:
                 info['phone'] = phone
         
-        urls = self.url_pattern.findall(text)
-        for url in urls:
+        # Extract URLs from [Embedded Link: ...] tags (most reliable for PDFs)
+        embedded_link_pattern = re.compile(r"\[Embedded Link: '([^']*?)' -> (https?://[^\]]+)\]")
+        embedded_links = embedded_link_pattern.findall(text)
+
+        for label, url in embedded_links:
             url_lower = url.lower()
+            label_lower = label.lower().strip('| ').strip()
             if 'linkedin.com' in url_lower:
                 info['linkedin'] = url
             elif 'github.com' in url_lower:
                 info['github'] = url
-            elif 'portfolio' in url_lower or url not in [info.get('linkedin'), info.get('github')]:
+            elif 'kaggle' in url_lower or 'kaggle' in label_lower:
+                info['kaggle'] = url
+            elif 'portfolio' in label_lower or 'portfolio' in url_lower:
                 info['portfolio'] = url
+
+        # Fallback: scan raw text URLs (for cases without embedded link tags)
+        if not info.get('linkedin') or not info.get('github'):
+            urls = self.url_pattern.findall(text)
+            for url in urls:
+                url_lower = url.lower()
+                if 'linkedin.com' in url_lower and not info.get('linkedin'):
+                    info['linkedin'] = url
+                elif 'github.com' in url_lower and not info.get('github'):
+                    info['github'] = url
+                elif 'kaggle.com' in url_lower and not info.get('kaggle'):
+                    info['kaggle'] = url
         
         lines = text.split('\n')
         if lines:
@@ -524,9 +590,10 @@ class CVExtractor:
         edu = {'institution': None, 'degree': None, 'field_of_study': None, 'graduation_date': None}
         
         # Improved Date pattern for "[2024]" or "2024"
+        # Use the LAST date found — date ranges list start first, graduation last
         dates = self.date_pattern.findall(entry)
-        if dates: 
-            edu['graduation_date'] = dates[0]
+        if dates:
+            edu['graduation_date'] = dates[-1]
         else:
             # Fallback for simple Year
             year_match = re.search(r'\b(?:20|19)\d{2}\b', entry)
@@ -781,14 +848,24 @@ def parse_cv(file_path):
         for category, skills in data['skills'].items():
             if isinstance(skills, list):
                 for skill in skills:
-                    flat_skills.append({"name": skill, "proficiency": "Intermediate", "category": category})
+                    flat_skills.append({"name": skill, "proficiency": None, "category": category})
             
+    personal_info = data.get('personal_information', {})
+
+    # Collect other profile URLs (Kaggle, etc.)
+    other_urls = []
+    if personal_info.get('kaggle'):
+        other_urls.append(personal_info['kaggle'])
+
     return {
-        'full_name': data['personal_information'].get('name') if 'personal_information' in data else '',
-        'email': data['personal_information'].get('email') if 'personal_information' in data else '',
-        'phone': data['personal_information'].get('phone') if 'personal_information' in data else '',
-        'location': data['personal_information'].get('address') if 'personal_information' in data else '',
-        'linkedin_url': data['personal_information'].get('linkedin') if 'personal_information' in data else '',
+        'full_name': personal_info.get('name', ''),
+        'email': personal_info.get('email', ''),
+        'phone': personal_info.get('phone', ''),
+        'location': personal_info.get('address', ''),
+        'linkedin_url': personal_info.get('linkedin', ''),
+        'github_url': personal_info.get('github', ''),
+        'portfolio_url': personal_info.get('portfolio', ''),
+        'other_urls': other_urls,
         'skills': flat_skills,
         'experiences': data.get('work_experience', []),
         'education': data.get('education', []),

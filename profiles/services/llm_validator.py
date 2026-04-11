@@ -12,12 +12,18 @@ VALIDATION_SYSTEM_PROMPT = """You are a CV/Resume Data Extraction Expert.
 Your task is to extract a complete structured profile from the provided CV text and parsed data.
 
 CRITICAL INSTRUCTIONS:
-1. Extract standard fields: full_name, email, phone, location, linkedin_url, github_url, skills, experiences, education, projects, certifications.
+1. Extract standard fields: full_name, email, phone, location, linkedin_url, github_url, portfolio_url, skills, experiences, education, projects, certifications.
 2. **DYNAMIC FIELDS (The Core Logic)**: If you encounter sections that do NOT fit standard categories, create NEW top-level keys for them in snake_case format.
 3. Normalize all data (dates in YYYY-MM format, full URLs).
 4. Infer proficiency for skills if context is available.
-5. **URL EXTRACTION**: Pay close attention to `[Embedded Link: ...]` tags in the text. Map these URLs into the `url` fields of the corresponding `projects` and `certifications` objects!
-6. Do NOT omit any information found in the CV.
+5. **URL EXTRACTION (CRITICAL)**: Pay close attention to `[Embedded Link: ...]` tags in the text.
+   - Map certification/course URLs into the `url` field of the matching `certifications` object.
+   - Map project URLs into the `url` field of the matching `projects` object.
+   - Map portfolio links to `portfolio_url` (look for text like "My portfolio", "Portfolio", or personal website links).
+   - Map Kaggle, Twitter, or other profile URLs to `other_urls`.
+   - Links are often attached to text labels (e.g., `[Embedded Link: 'LinkedIn' -> https://...]`) — use the label to identify what the link belongs to.
+   - Do NOT discard any embedded links. Every `[Embedded Link: ...]` tag must be mapped somewhere.
+6. Do NOT omit any information found in the CV. Extract ALL certifications, courses, and items — do not truncate lists.
 7. Generate a 'normalized_summary' field: A concise paragraph combining Years of Experience, Top 3 Skills, and Most Recent Role Title.
 
 STRICT NORMALIZATION RULES (APPLY THESE FIRST):
@@ -37,6 +43,7 @@ STRICT NORMALIZATION RULES (APPLY THESE FIRST):
 - "Languages" → "languages"
 - "Military Service" → "military_experience" (list of objects with: branch, rank, dates, description)
 - "Patents" → "patents" (list of objects with: title, patent_number, date, description)
+- "Courses & Certifications" → split into `certifications` for completed credentials and `courses` for standalone courses. Include ALL items from EVERY issuer (e.g., DataCamp, Coursera, DEPI, etc.) — do not stop after the first few.
 
 GENERAL RULES:
 - ALL dynamic keys MUST be in snake_case (lowercase with underscores).
@@ -51,6 +58,30 @@ GENERAL RULES:
 === SCHEMA MAPPING RULES (CRITICAL) ===
 - For Work Experience and Projects: If the text contains bullet points or lists of achievements, you MUST put them in the `highlights` array field.
 - Do NOT put arrays or bullet points into the `description` field. The `description` field should be used ONLY for a single short paragraph summarizing the role. If there is no summary paragraph, leave `description` null and put everything in `highlights`.
+- For Experience: ALWAYS extract both `start_date` AND `end_date`. If the role is ongoing, set `end_date` to "Present". If specific end dates are not stated but the role clearly ended, infer "Present" only if it is the most recent role.
+- For Projects: Extract `technologies` as a list of specific tools, frameworks, and languages used (e.g., ["PySpark", "Microsoft Fabric", "TensorFlow"]). Parse these from the project description bullets even if not in a dedicated "Technologies" line.
+- For Projects: Extract `highlights` as key accomplishments or features, separate from the `description` bullets.
+
+=== EDUCATION DATE RULES (CRITICAL) ===
+- The `graduation_year` field means the END date (graduation or expected graduation), NOT the start date.
+- If the CV shows a date range like "October 2022 – June 2026", `graduation_year` MUST be "June 2026" (the end/graduation date).
+- Never put the enrollment/start date in `graduation_year`.
+- Include the month if available (e.g., "June 2026" not just "2026").
+
+=== SKILL PROFICIENCY INFERENCE ===
+- Do NOT default all skills to "Intermediate". Infer proficiency from context:
+  - "Expert" or "Advanced": Skills used professionally in multiple roles, or skills with certifications/deep projects.
+  - "Intermediate": Skills used in one role or academic projects with meaningful output.
+  - "Beginner": Skills only mentioned in coursework or briefly listed without evidence of practical use.
+- If no context is available to infer proficiency, set proficiency to null rather than guessing.
+
+=== LANGUAGE EXTRACTION ===
+- ALWAYS extract languages spoken by the candidate. Look for a dedicated "Languages" section, or infer from context (e.g., location, university language, CV language).
+- Format as strings with proficiency: e.g., "Arabic (Native)", "English (Fluent)".
+
+=== TYPO CORRECTION ===
+- Fix obvious typos in job titles and section headers (e.g., "INFROMATION" → "INFORMATION").
+- Do NOT change company names, proper nouns, or technical terms unless clearly misspelled.
 
 === REMOVE FROM EXTRACTED DATA ===
 - Street/home address (extract city and country only)
@@ -79,27 +110,33 @@ def validate_and_map_cv_data(parsed_data: Dict[str, Any], raw_cv_text: str) -> D
     """
     try:
         logger.info("Preparing LLM validation. Raw text length: %d", len(raw_cv_text))
-        
+
         schema_definition = json.dumps(ResumeSchema.model_json_schema(), indent=2)
-        
+
+        # Build a slim hint from parsed_data — drop raw_text (already sent separately)
+        # and empty values to reduce noise.
+        hint_data = {k: v for k, v in parsed_data.items()
+                     if k != 'raw_text' and v}
+
         prompt = f"""
 {VALIDATION_SYSTEM_PROMPT}
 
-Please extract the full profile from this CV information.
+Please extract the COMPLETE profile from this CV information.
 
-TARGET JSON SCHEMA:
+TARGET JSON SCHEMA (use EXACT field names — e.g. `title` not `position`, `graduation_year` not `graduation_date`, `field` not `field_of_study`):
 {schema_definition}
 
-PARSED DATA (Use as hint/baseline):
-{json.dumps(parsed_data, indent=2)}
+PARSED DATA (Use as hint/baseline — may have errors):
+{json.dumps(hint_data, indent=2)}
 
-RAW CV TEXT (Primary Source):
+RAW CV TEXT (Primary Source — this is authoritative):
 {raw_cv_text[:100000]}
 
-Return the structured profile matching the TARGET JSON SCHEMA precisely.
+IMPORTANT: Do NOT truncate any list. Include every certification, course, project, and experience found in the text.
+Use EXACT field names from the schema above.
 """
         
-        structured_llm = get_structured_llm(ResumeSchema, temperature=0.1, max_tokens=8000)
+        structured_llm = get_structured_llm(ResumeSchema, temperature=0.1, max_tokens=8192)
         result = structured_llm.invoke(prompt)
         
         # result is already a validated ResumeSchema instance
