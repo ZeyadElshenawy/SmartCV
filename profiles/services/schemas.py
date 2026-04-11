@@ -114,6 +114,11 @@ class SkillListResult(BaseModel):
     """Output schema for skill_extractor.py"""
     skills: List[str] = Field(default_factory=list, description="List of extracted skill names")
 
+class ExtractedExperienceBullet(BaseModel):
+    """A generated resume bullet based on the user's conversational reply."""
+    company_or_project_name: str = Field(description="The name of the company or project this bullet applies to (must match an existing one if possible, or 'General')")
+    bullet_point: str = Field(description="A concise, STAR-format bullet point (max 120 chars) summarizing the achievement or skill application.")
+
 class ChatReplyAnalysis(BaseModel):
     """Sub-schema for interviewer.py — analysis of user's reply"""
     is_valid: bool = True
@@ -121,10 +126,11 @@ class ChatReplyAnalysis(BaseModel):
     clarification_prompt: str = Field(default="", description="Ask for more details if is_valid is false")
     skills_to_add: List[Skill] = Field(default_factory=list)
     all_technologies_mentioned: List[str] = Field(default_factory=list)
+    new_experience_bullets: List[ExtractedExperienceBullet] = Field(default_factory=list, description="Extract a formal resume bullet ONLY if the user described an actionable achievement. Max 1 item.")
 
 class ChatNextQuestion(BaseModel):
     """Sub-schema for interviewer.py — next question generation"""
-    question: str = Field(default="Tell me about your background.", description="Next conversational question, max 30 words")
+    question: str = Field(default="Tell me about your background.", description="Next conversational message. Include a brief acknowledgment of the user's answer, then naturally ask about the next skill. 2-4 sentences, max 60 words. Use **bold** for skill names.")
     topic_skill: str = Field(default="general", description="The skill being asked about")
 
 class ChatTurnResult(BaseModel):

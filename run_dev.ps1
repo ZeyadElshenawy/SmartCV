@@ -39,4 +39,4 @@ Start-Job -ScriptBlock {
 } | Out-Null
 
 Write-Host "Starting Primary Web Server..." -ForegroundColor Green
-python manage.py runserver 127.0.0.1:8000 --noreload
+python manage.py runserver 127.0.0.1:8000

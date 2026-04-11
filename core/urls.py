@@ -1,7 +1,9 @@
 from django.urls import path
+from django.views.generic import RedirectView
 from . import views
 
 urlpatterns = [
     path('', views.home_view, name='home'),
-    path('dashboard/', views.dashboard_view, name='dashboard'),
+    # Legacy route — redirect to the canonical profiles dashboard
+    path('dashboard/', RedirectView.as_view(pattern_name='dashboard', permanent=False), name='core_dashboard'),
 ]

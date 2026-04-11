@@ -157,6 +157,19 @@ def job_detail_view(request, job_id):
     })
 
 
+@login_required
+def job_delete_view(request, job_id):
+    """Delete a job and all related data (gap analyses, resumes, cover letters)."""
+    job = get_object_or_404(Job, id=job_id, user=request.user)
+    
+    if request.method == 'POST':
+        job.delete()
+        return redirect('dashboard')
+    
+    # GET requests redirect back (safety — delete should only happen via POST)
+    return redirect('job_detail', job_id=job_id)
+
+
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 
