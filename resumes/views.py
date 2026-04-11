@@ -74,6 +74,22 @@ def check_resume_status_api(request, job_id):
         return JsonResponse({'status': 'completed', 'resume_id': str(resume.id)})
     return JsonResponse({'status': 'waiting'})
 
+def _normalize_legacy_resume_content(resume):
+    """Backwards compatibility check for older resumes generated before the schema upgraded descriptions to Lists"""
+    modified = False
+    content = resume.content
+    
+    for section in ['experience', 'projects']:
+        if section in content:
+            for item in content[section]:
+                if isinstance(item.get('description'), str):
+                    item['description'] = [d.strip() for d in item['description'].split('\n') if d.strip()]
+                    modified = True
+                    
+    if modified:
+        resume.content = content
+        resume.save()
+
 @login_required
 def resume_preview_view(request, resume_id):
     """Preview generated resume with edit capabilities"""
@@ -83,6 +99,8 @@ def resume_preview_view(request, resume_id):
     # Check ownership
     if job.user != request.user:
         return redirect('dashboard')
+        
+    _normalize_legacy_resume_content(resume)
     
     context = {
         'resume': resume,
@@ -123,11 +141,12 @@ def resume_edit_view(request, resume_id):
         experience_list = []
         for i in range(len(exp_titles)):
             if exp_titles[i].strip() or exp_companies[i].strip():
+                raw_desc = exp_descriptions[i] if i < len(exp_descriptions) else ''
                 experience_list.append({
                     'title': exp_titles[i],
                     'company': exp_companies[i],
                     'duration': exp_durations[i] if i < len(exp_durations) else '',
-                    'description': exp_descriptions[i] if i < len(exp_descriptions) else ''
+                    'description': [d.strip() for d in raw_desc.split('\n') if d.strip()]
                 })
         updated_content['experience'] = experience_list
         
@@ -153,9 +172,10 @@ def resume_edit_view(request, resume_id):
         projects_list = []
         for i in range(len(proj_names)):
             if proj_names[i].strip():
+                raw_desc = proj_desc[i] if i < len(proj_desc) else ''
                 projects_list.append({
                     'name': proj_names[i],
-                    'description': proj_desc[i] if i < len(proj_desc) else '',
+                    'description': [d.strip() for d in raw_desc.split('\n') if d.strip()],
                     'url': proj_urls[i] if i < len(proj_urls) else ''
                 })
         updated_content['projects'] = projects_list
@@ -185,11 +205,12 @@ def resume_edit_view(request, resume_id):
             items = []
             for i in range(len(titles)):
                 if titles[i].strip():
+                    raw_desc = descs[i] if i < len(descs) else ''
                     items.append({
                         'title': titles[i],
                         'organization': orgs[i] if i < len(orgs) else '',
                         'date': dates[i] if i < len(dates) else '',
-                        'description': descs[i] if i < len(descs) else ''
+                        'description': [d.strip() for d in raw_desc.split('\n') if d.strip()]
                     })
             return items
 
@@ -212,6 +233,22 @@ def resume_edit_view(request, resume_id):
         
         return redirect(f"{request.path}?saved=true")
     
+    # ---- GET REQUEST HANDLING ----
+    _normalize_legacy_resume_content(resume)
+    
+    # Create a deep copy for the form so we can convert lists to newline-separated strings
+    import copy
+    form_content = copy.deepcopy(resume.content)
+    
+    for section in ['experience', 'projects', 'volunteer_experience', 'awards', 'publications', 'patents']:
+        if section in form_content:
+            for item in form_content[section]:
+                if isinstance(item.get('description'), list):
+                    item['description'] = '\n'.join(item['description'])
+                    
+    # Overlay the modified content back onto the resume object specifically for the template
+    resume.content = form_content
+                    
     return render(request, 'resumes/edit.html', {'resume': resume})
 
 @login_required
@@ -222,6 +259,8 @@ def export_pdf_view(request, resume_id):
     # Authorization check
     if resume.gap_analysis.job.user != request.user:
         raise Http404
+        
+    _normalize_legacy_resume_content(resume)
 
     fd, output_path = tempfile.mkstemp(suffix='.pdf')
     os.close(fd)

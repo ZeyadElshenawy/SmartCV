@@ -465,7 +465,7 @@ function careerAgent() {
 
                 if (data.complete) {
                     this.showScopeModal = true;
-                    this.completionRedirectUrl = data.redirect_url || `/profiles/form/${JOB_ID}/`;
+                    this.completionRedirectUrl = data.redirect_url || `/resumes/generate/${JOB_ID}/?auto=true`;
                 }
 
             } catch (error) {
@@ -528,7 +528,7 @@ function careerAgent() {
         },
 
         skipToReview() {
-            window.location.href = `/profiles/form/${JOB_ID}/`;
+            window.location.href = `/resumes/generate/${JOB_ID}/?auto=true`;
         },
 
         async keepForAllJobs() {

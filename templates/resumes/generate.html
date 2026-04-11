@@ -69,7 +69,7 @@
                             bar.style.width = '100%';
                             label.textContent = 'Done! Redirecting…';
                             setTimeout(() => {
-                                window.location.href = `/resumes/preview/${data.resume_id}/`;
+                                window.location.href = `/resumes/edit/${data.resume_id}/`;
                             }, 500);
                         } else {
                             throw new Error(data.error || 'Unknown error');
@@ -124,6 +124,20 @@
                          <a href="{% url 'job_detail' job.id %}" class="text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors">Cancel</a>
                     </div>
                 </form>
+                
+                <script>
+                    document.addEventListener('DOMContentLoaded', () => {
+                        const params = new URLSearchParams(window.location.search);
+                        if (params.get('auto') === 'true') {
+                            // Visually indicate auto-start
+                            const btn = document.querySelector('form button[type="submit"]');
+                            if (btn) btn.innerHTML = 'Starting Automatically... <svg class="animate-spin w-5 h-5 ml-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
+                            
+                            // Submit instantly
+                            document.querySelector('form').submit();
+                        }
+                    });
+                </script>
                 {% endif %}
             </div>
             
