@@ -155,19 +155,7 @@ def process_chat_turn(user_id: int, job_id: str, user_reply: str, conversation_h
     state = _conversation_state[state_key]
     state['turn_count'] += 1
     
-    # 1. Quick pre-checks
-    if user_reply:
-         user_reply = user_reply.strip()
-         if len(user_reply) < 3 or user_reply.lower() in {'no', 'nope', 'nah', 'idk', "don't know", 'nothing', 'none', 'haha', 'lol', 'ok', 'yes', 'yeah'}:
-             # Context-aware nudge instead of generic "elaborate"
-             nudge = _get_contextual_nudge(user_reply, skills_to_probe=[], job=None)
-             return {
-                 'needs_clarification': True,
-                 'clarification_prompt': nudge,
-                 'extracted_skills': [],
-                 'profile_updated': False,
-                 'is_complete': False
-             }
+    # Removed manual string intercept code so the LLM manages flow state organically
              
     # Prepare skills to probe — CASE-INSENSITIVE filtering
     comparison = compare_cv_with_job(profile.skills or [], job.extracted_skills or [])
@@ -289,7 +277,7 @@ User just said: "{user_reply or '(No reply yet — generate your opening message
 1. ANALYZE the user's reply:
    - Extract EVERY skill/technology/tool mentioned (Git, Docker, DVC, CI/CD, Version Control, etc.) — don't miss any
    - Accept all levels of experience — even "I took a course" or "I've seen it" counts
-   - Set is_valid=true and quality_score >= 3 for any substantive answer
+   - Set is_valid=true for ANY clear user intent, including "No", "I don't know", or explicitly wanting to SKIP. ONLY set is_valid=false if the input is absolute gibberish.
    - EXPERIENCE BULLET EXTRACTION (Action vs Exposure Threshold): If (and ONLY if) the user describes a quantifiable or hands-on achievement (e.g. "I used X to build Y"), extract 1 formal STAR-method resume bullet point into 'new_experience_bullets'. If they just say "Yes I used it" or "I saw a tutorial", DO NOT extract a bullet.
 
 2. Generate your next message (the "question" field):

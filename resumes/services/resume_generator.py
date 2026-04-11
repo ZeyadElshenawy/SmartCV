@@ -71,7 +71,10 @@ MATCHED SKILLS (high priority): {', '.join(gap_analysis.matched_skills if hasatt
 2. Mirror those themes in the title, summary, and bullet point headings.
 3. CRITICAL: ONLY mirror themes genuinely supported by existing experience.
 
-Make it PROFESSIONAL and ATS-OPTIMIZED."""
+Make it PROFESSIONAL and ATS-OPTIMIZED.
+
+=== CRITICAL JSON REQUIREMENT ===
+You MUST output your response by calling the provided tool/function with a valid JSON payload matching the schema. DO NOT output conversational text directly."""
 
     try:
         structured_llm = get_structured_llm(ResumeContentResult, temperature=0.7, max_tokens=4000)
