@@ -26,6 +26,10 @@ def generate_resume_content(profile, job, gap_analysis):
     
     filtered_cv = raw_cv_data
     
+    # Build a slim version of CV data to save tokens — drop raw_text and empty fields
+    slim_cv = {k: v for k, v in filtered_cv.items()
+               if k != 'raw_text' and v and k not in ('normalized_summary', 'objective')}
+
     prompt = f"""You are an EXPERT resume optimization strategist. Create a PROFESSIONAL, ATS-optimized resume tailored for this job.
 
 JOB DETAILS:
@@ -34,10 +38,20 @@ JOB DETAILS:
 - Required Skills: {', '.join(job.extracted_skills or [])}
 - Job Description: {job.description[:1000]}
 
-COMPLETE CV DATA (relevant sections only):
-{json.dumps(filtered_cv, indent=2)}
+COMPLETE CV DATA:
+{json.dumps(slim_cv, indent=2)}
 
 MATCHED SKILLS (high priority): {', '.join(gap_analysis.matched_skills if hasattr(gap_analysis, 'matched_skills') else [])}
+
+=== FIELD MAPPING (CRITICAL — the CV data uses different field names than the output schema) ===
+- CV `experiences[].highlights` array → output `experience[].description` array (rewrite each bullet)
+- CV `experiences[].start_date` / `end_date` → output `experience[].duration` (combine as "Aug 2025 - Present")
+- CV `experiences[].title` → output `experience[].title`
+- CV `education[].graduation_year` → output `education[].year`
+- CV `education[].degree` + `field` → output `education[].degree` (combine as "Bachelor of Computer Science")
+- CV `certifications[].url` → output `certifications[].url` (PRESERVE all certification URLs exactly)
+- CV `projects[].description` or `highlights` → output `projects[].description` array (rewrite as bullets)
+- Include ALL certifications from the CV data — do NOT truncate or omit any.
 
 === STRICT ANTI-HALLUCINATION RULE (CRITICAL) ===
 - Never invent, add, or imply skills, keywords, achievements, metrics, job titles, or any other content not present in the original resume.
@@ -71,13 +85,10 @@ MATCHED SKILLS (high priority): {', '.join(gap_analysis.matched_skills if hasatt
 2. Mirror those themes in the title, summary, and bullet point headings.
 3. CRITICAL: ONLY mirror themes genuinely supported by existing experience.
 
-Make it PROFESSIONAL and ATS-OPTIMIZED.
-
-=== CRITICAL JSON REQUIREMENT ===
-You MUST output your response by calling the provided tool/function with a valid JSON payload matching the schema. DO NOT output conversational text directly."""
+Make it PROFESSIONAL and ATS-OPTIMIZED."""
 
     try:
-        structured_llm = get_structured_llm(ResumeContentResult, temperature=0.7, max_tokens=4000)
+        structured_llm = get_structured_llm(ResumeContentResult, temperature=0.7, max_tokens=8192)
         result = structured_llm.invoke(prompt)
         
         resume_content = result.model_dump()
