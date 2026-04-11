@@ -105,6 +105,33 @@ def compare_cv_with_job(cv_skills: List, job_skills: List) -> Dict[str, List]:
     }
 
 
+def _get_contextual_nudge(user_reply: str, skills_to_probe: list, job=None) -> str:
+    """Generate a warm, varied nudge when the user gives a minimal answer."""
+    import random
+    low = (user_reply or '').lower().strip()
+    
+    if low in {'no', 'nope', 'nah', 'none', 'nothing'}:
+        nudges = [
+            "No worries! Even a little exposure counts — have you seen it used in a project or a tutorial?",
+            "That's totally fine! Let's see if there's something else that's more your wheelhouse.",
+            "Got it — not every skill is a fit. Let's explore some others that might be closer to your experience.",
+        ]
+    elif low in {'yes', 'yeah', 'yep', 'ok'}:
+        nudges = [
+            "Awesome! Could you tell me a bit more — like what you've built with it or how long you've used it?",
+            "Great to hear! Give me a quick example of how you've used it — even something small counts.",
+            "Nice! What level would you put yourself at — beginner, intermediate, or pretty experienced?",
+        ]
+    else:
+        nudges = [
+            "Could you add a bit more detail? Even one sentence about your experience level would help a lot.",
+            "I want to make sure I capture this accurately — could you elaborate just a little?",
+            "Tell me a bit more — what's your comfort level with this? Any projects or courses come to mind?",
+        ]
+    
+    return random.choice(nudges)
+
+
 def process_chat_turn(user_id: int, job_id: str, user_reply: str, conversation_history: List[Dict]) -> Dict[str, Any]:
     """
     Process an entire chat turn in a single LLM call using LangChain structured output.
@@ -132,9 +159,11 @@ def process_chat_turn(user_id: int, job_id: str, user_reply: str, conversation_h
     if user_reply:
          user_reply = user_reply.strip()
          if len(user_reply) < 3 or user_reply.lower() in {'no', 'nope', 'nah', 'idk', "don't know", 'nothing', 'none', 'haha', 'lol', 'ok', 'yes', 'yeah'}:
+             # Context-aware nudge instead of generic "elaborate"
+             nudge = _get_contextual_nudge(user_reply, skills_to_probe=[], job=None)
              return {
                  'needs_clarification': True,
-                 'clarification_prompt': 'Could you please elaborate on that?',
+                 'clarification_prompt': nudge,
                  'extracted_skills': [],
                  'profile_updated': False,
                  'is_complete': False
@@ -151,7 +180,13 @@ def process_chat_turn(user_id: int, job_id: str, user_reply: str, conversation_h
     
     max_turns = 10
     if state['turn_count'] > max_turns or not skills_to_probe:
-        completion_msg = "Excellent! You have all the key skills for this role." if not skills_to_probe else "Thanks for sharing! Your profile looks good!"
+        # Rich, personalized completion message
+        user_name = (profile.data_content or {}).get('full_name', '').split()[0] if (profile.data_content or {}).get('full_name') else ''
+        skill_count = len(profile.skills or [])
+        if not skills_to_probe:
+            completion_msg = f"{'Great work, ' + user_name + '! ' if user_name else 'Great work! '}Your profile now covers all the key skills for **{job.title}**. You have **{skill_count} skills** on record — that's a strong foundation. Let's move on to generating your tailored resume!"
+        else:
+            completion_msg = f"{'Thanks, ' + user_name + '! ' if user_name else 'Thanks! '}We've covered a lot of ground. Your profile is looking solid with **{skill_count} skills** for the **{job.title}** role. Ready to put it all together!"
         return {
              'needs_clarification': False,
              'extracted_skills': [],
@@ -167,37 +202,117 @@ def process_chat_turn(user_id: int, job_id: str, user_reply: str, conversation_h
 
         # Context for prompt
         current_skills = profile.skills or []
+        data_content = profile.data_content or {}
+        user_name = data_content.get('full_name', '').split()[0] if data_content.get('full_name') else 'there'
+        
         skills_in_cv = ', '.join(comparison['exact_matches'])
         skills_covered = ', '.join(state['covered_skills'])
         skills_missing = ', '.join(skills_to_probe[:5])
+        
+        # Build rich user context from profile data
+        experiences_summary = ''
+        raw_experiences = data_content.get('experiences', [])
+        if raw_experiences:
+            exp_lines = []
+            for exp in raw_experiences[:3]:
+                title = exp.get('title', exp.get('role', ''))
+                company = exp.get('company', '')
+                highlights = exp.get('highlights', [])[:2]
+                line = f"  - {title} at {company}"
+                if highlights:
+                    line += f" (highlights: {'; '.join(highlights)})"
+                exp_lines.append(line)
+            experiences_summary = '\n'.join(exp_lines)
+        
+        education_summary = ''
+        raw_education = data_content.get('education', [])
+        if raw_education:
+            edu_lines = [f"  - {e.get('degree', '')} from {e.get('institution', '')}" for e in raw_education[:2]]
+            education_summary = '\n'.join(edu_lines)
+        
+        projects_summary = ''
+        raw_projects = data_content.get('projects', [])
+        if raw_projects:
+            proj_lines = [f"  - {p.get('name', p.get('title', ''))}" for p in raw_projects[:3]]
+            projects_summary = '\n'.join(proj_lines)
         
         history_text = "\n".join([
             f"{msg['role'].capitalize()}: {msg['content']}"
             for msg in (conversation_history[-6:] if conversation_history else [])
         ])
 
-        system_prompt = f"""You are an expert technical interviewer processing a conversation turn.
-Job: {job.title} at {job.company}
-Required Skills: {', '.join(job.extracted_skills or [])}
+        system_prompt = f"""You are **SmartCV Career Agent** — a warm, perceptive career coach having a genuine conversation with {user_name}.
 
-Current Profile Skills: {json.dumps(current_skills, default=str)}
-Skills already in CV: {skills_in_cv}
-Skills already discussed (DO NOT ask about these again): {skills_covered}
-Skills to ask about next (pick ONE from this list): {skills_missing}
+== YOUR VOICE ==
+- You sound like a real human mentor, not a chatbot. Each message MUST feel structurally DIFFERENT from the last.
+- NEVER start two messages the same way. Vary your openings — use the user's name sometimes, start with an observation sometimes, start with a reaction sometimes.
+- NEVER use the pattern "You've worked with X. Have you also explored Y?" more than once in a conversation. If you already used it, try completely different phrasings like:
+  * "That connects nicely to [skill] — any experience there?"
+  * "Speaking of [related topic], how comfortable are you with [skill]?"
+  * "One thing that often pairs with [previous skill] is [new skill]. Have you gotten your hands on that?"
+  * "I'm curious about [skill] — does it come up in your day-to-day work?"
+  * A casual observation + question combo
+- Keep messages 2-4 sentences. Sound like you're genuinely thinking about their career, not reading from a checklist.
 
-Recent Conversation:
-{history_text}
+== CRITICAL: HANDLING SHORT ANSWERS ==
+When the user says just "yes" or "yes I have" or "yeah":
+- Do NOT immediately move to the next skill. This is your chance to learn more!
+- Ask a follow-up about DEPTH: "Nice — what have you used it for?" or "Cool, at what scale?" or "How long have you been working with it?"
+- Only move to a new skill AFTER you've gotten at least one substantive detail about the current one.
 
-User just replied: "{user_reply}"
+When the user says "no" or "not really":
+- Don't dwell. Briefly acknowledge ("No worries!") and pivot to the next skill with energy.
 
-=== RULES ===
-1. ANTI-HALLUCINATION: Never invent skills the user didn't mention.
-2. ACCEPT ALL VALID ANSWERS: If the user describes ANY level of experience with a skill (even "I took a course" or "I'm a beginner"), that is VALID. Set is_valid=true and quality_score >= 3.
-3. EXTRACT ACCURATELY: If the user mentions a skill with a proficiency level (beginner, intermediate, etc.), extract it with that level.
-4. MOVE ON: Always pick a DIFFERENT skill from "Skills to ask about next" for the next question. NEVER re-ask about a skill that was already discussed.
-5. NORMALIZE: Use proper casing for skill names (e.g., "PySpark" not "pyspark")."""
+== CRITICAL: EXTRACT ALL SKILLS MENTIONED ==
+If the user mentions ANY technology/tool/skill ANYWHERE in their reply — even buried in a long answer about something else (e.g., mentioning "Git", "DVC", "Docker", "Version Control", "CI/CD") — you MUST extract it in skills_to_add.
+Don't just extract the main topic being discussed — scan the ENTIRE reply for every technology name.
 
-        structured_llm = get_structured_llm(ChatTurnResult, temperature=0.3, max_tokens=600)
+== CONTEXT: THE USER ==
+Name: {data_content.get('full_name', 'Unknown')}
+Target Job: **{job.title}** at **{job.company or 'a company'}**
+
+Skills already on profile ({len(current_skills)}): {skills_in_cv or 'None yet'}
+{f'Work Experience:\\n{experiences_summary}' if experiences_summary else 'Work Experience: Not provided yet'}
+{f'Education:\\n{education_summary}' if education_summary else ''}
+{f'Projects:\\n{projects_summary}' if projects_summary else ''}
+
+== SKILL GAP STATUS ==
+Skills the job requires that are MISSING from their profile: {skills_missing}
+Skills already discussed (DO NOT ask about these again): {skills_covered or 'None yet — this is the opening message'}
+
+== CONVERSATION SO FAR ==
+{history_text or '(This is the start of the conversation)'}
+
+User just said: "{user_reply or '(No reply yet — generate your opening message)'}"
+
+== INSTRUCTIONS ==
+1. ANALYZE the user's reply:
+   - Extract EVERY skill/technology/tool mentioned (Git, Docker, DVC, CI/CD, Version Control, etc.) — don't miss any
+   - Accept all levels of experience — even "I took a course" or "I've seen it" counts
+   - Set is_valid=true and quality_score >= 3 for any substantive answer
+   - EXPERIENCE BULLET EXTRACTION (Action vs Exposure Threshold): If (and ONLY if) the user describes a quantifiable or hands-on achievement (e.g. "I used X to build Y"), extract 1 formal STAR-method resume bullet point into 'new_experience_bullets'. If they just say "Yes I used it" or "I saw a tutorial", DO NOT extract a bullet.
+
+2. Generate your next message (the "question" field):
+   - OPENING MESSAGE (no user reply yet): Greet by name. Mention one specific thing from their profile ("I noticed your work on [project name]" or "Your experience at [company] caught my eye"). Then ask about the first missing skill, connecting it to their background.
+   - AFTER A SHORT "YES": Don't move on yet! Ask for a specific detail — how they used it, what project, what level.
+   - AFTER A DETAILED ANSWER: React to something SPECIFIC they said (not generic "that's great"). Then transition naturally to the next missing skill.
+   - AFTER A SKIP/NO: Quick empathetic pivot to next missing skill.
+   - ANTI-REPETITION: If you previously referenced a specific project or job (e.g., "END-TO-END DATA PIPELINE" or "Almansour"), DO NOT use it as the opening hook again. Find a different project, or just ask the question directly.
+
+3. BANNED PHRASES & BEHAVIORS (never do these):
+   - "Let's move on to..."
+   - "Let's explore that further"
+   - "Have you also explored..."
+   - "I've noted that..."
+   - Repeating the same question format (e.g., "how do you currently handle X in your projects?")
+   - Starting with "You've [done X]." for the third+ time
+   - "That's great to hear about your experience with..."
+
+4. Use **bold** for skill names.
+
+5. CRITICAL JSON REQUIREMENT: You MUST output your response by calling the provided tool/function with a valid JSON payload matching the schema. DO NOT output conversational text directly."""
+
+        structured_llm = get_structured_llm(ChatTurnResult, temperature=0.5, max_tokens=800)
         data = structured_llm.invoke(system_prompt)
         
         reply_analysis = data.reply_analysis
@@ -252,7 +367,55 @@ User just replied: "{user_reply}"
                     
             if profile_updated:
                  profile.skills = current_skills
-                 profile.save()
+
+        # Process new experience bullets
+        new_bullets = getattr(reply_analysis, 'new_experience_bullets', [])
+        if new_bullets:
+            import re
+            def simplify_name(name):
+                return re.sub(r'[^a-z0-9]', '', str(name).lower())
+            
+            exps = getattr(profile, 'experiences', [])
+            projs = getattr(profile, 'projects', [])
+            
+            for eb in new_bullets:
+                target_name = simplify_name(eb.company_or_project_name)
+                best_match = None
+                
+                # Check experiences first
+                for exp in exps:
+                    co_name = simplify_name(exp.get('company', ''))
+                    role_name = simplify_name(exp.get('role', exp.get('title', '')))
+                    if (target_name and co_name and (target_name in co_name or co_name in target_name)) or \
+                       (target_name and role_name and target_name in role_name):
+                        best_match = exp
+                        break
+                        
+                # Check projects if no experience match
+                if not best_match:
+                    for proj in projs:
+                        p_name = simplify_name(proj.get('name', proj.get('title', '')))
+                        if target_name and p_name and (target_name in p_name or p_name in target_name):
+                            best_match = proj
+                            break
+                            
+                # Fallback to the first active experience if general or unmatched (but don't force it)
+                if not best_match and target_name == 'general' and exps:
+                    best_match = exps[0]
+                    
+                if best_match:
+                    if 'highlights' not in best_match:
+                        best_match['highlights'] = []
+                    if eb.bullet_point not in best_match['highlights']:
+                        best_match['highlights'].append(eb.bullet_point)
+                        profile_updated = True
+                        
+            if profile_updated:
+                 profile.data_content['experiences'] = exps
+                 profile.data_content['projects'] = projs
+        
+        if profile_updated:
+             profile.save()
                  
         # Mark the topic as covered so we NEVER ask about it again
         next_topic = next_gen.topic_skill or 'general'
@@ -275,7 +438,7 @@ User just replied: "{user_reply}"
             'needs_clarification': False,
             'extracted_skills': skills_to_add,
             'profile_updated': profile_updated,
-            'next_question': next_gen.question or "What else can you tell me about your background?",
+            'next_question': next_gen.question or f"I'd love to hear more about your experience, {user_name}. What tools or technologies do you use most often?",
             'next_topic': next_topic,
             'is_complete': False
         }
@@ -286,7 +449,7 @@ User just replied: "{user_reply}"
             'needs_clarification': False,
             'extracted_skills': [],
             'profile_updated': False,
-            'next_question': "Tell me about your background.",
+            'next_question': f"Hi{' ' + user_name if user_name != 'there' else ''}! I'm your SmartCV Career Agent. I've looked through your profile for the **{job.title}** role — tell me a bit about your recent work experience and what tools you use day-to-day.",
             'next_topic': "general",
             'is_complete': False
         }

@@ -2,8 +2,6 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('input-choice/<uuid:job_id>/', views.profile_input_choice, name='profile_input'),
-    
     # Job-Specific Flows
     path('upload/<uuid:job_id>/', views.profile_upload_cv, name='profile_upload_cv'),
     path('form/<uuid:job_id>/', views.profile_manual_form, name='profile_manual_form'),

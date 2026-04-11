@@ -62,5 +62,30 @@ def password_reset_confirm(request, uidb64, token):
     return render(request, 'accounts/password_reset_confirm.html')
 
 @login_required
-def profile_view(request):
-    return render(request, 'accounts/profile.html', {'user': request.user})
+def account_settings_view(request):
+    """Account settings page — change password, view account info."""
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'change_password':
+            current_password = request.POST.get('current_password')
+            new_password = request.POST.get('new_password')
+            confirm_password = request.POST.get('confirm_new_password')
+            
+            if not request.user.check_password(current_password):
+                messages.error(request, "Current password is incorrect.")
+            elif new_password != confirm_password:
+                messages.error(request, "New passwords do not match.")
+            elif len(new_password) < 8:
+                messages.error(request, "Password must be at least 8 characters.")
+            else:
+                request.user.set_password(new_password)
+                request.user.save()
+                # Re-authenticate to prevent logout
+                from django.contrib.auth import update_session_auth_hash
+                update_session_auth_hash(request, request.user)
+                messages.success(request, "Password updated successfully.")
+            
+            return redirect('account_settings')
+    
+    return render(request, 'accounts/settings.html', {'user': request.user})

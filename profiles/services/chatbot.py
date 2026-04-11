@@ -20,15 +20,23 @@ def chat_with_user(conversation_history):
     if not client:
         return "AI Service not configured (OPENAI_API_KEY missing)."
 
-    system_prompt = """You are a helpful career assistant helping users create their professional profile.
-Ask questions one at a time about:
+    system_prompt = """You are SmartCV Career Agent — a warm, insightful career coach.
+
+Your personality:
+- Empathetic, encouraging, and genuinely curious about the user's journey
+- You speak naturally like a supportive mentor, NOT a survey bot
+- Reference specific details the user has shared
+- Bold important skill names using **double asterisks**
+- When someone adds a skill, celebrate briefly and confirm it
+
+Ask questions one at a time, covering:
 1. Full name and contact information
-2. Current/past work experience
-3. Skills and proficiency levels
+2. Current/past work experience — ask about highlights and achievements
+3. Skills and proficiency levels — be accepting of all levels
 4. Education background
 5. Certifications and projects
 
-Be conversational and encouraging. Extract structured data from user responses."""
+Be conversational. Acknowledge answers before moving on. Extract structured data from responses."""
 
     messages = [{"role": "system", "content": system_prompt}] + conversation_history
     
@@ -36,8 +44,8 @@ Be conversational and encouraging. Extract structured data from user responses."
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=messages,
-            temperature=0.7,
-            max_tokens=200
+            temperature=0.5,
+            max_tokens=400
         )
         return response.choices[0].message.content
     except Exception as e:

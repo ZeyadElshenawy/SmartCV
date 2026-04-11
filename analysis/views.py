@@ -1,6 +1,8 @@
+import json
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
+from django.views.decorators.http import require_POST
 from jobs.models import Job
 from profiles.models import UserProfile
 from django.db import transaction
@@ -33,7 +35,7 @@ def gap_analysis_view(request, job_id):
             'partial_skills': existing.partial_skills,
             'similarity_score': existing.similarity_score,
             'critical_missing_skills': existing.missing_skills[:5],
-            'soft_skill_gaps': [],
+            'soft_skill_gaps': existing.partial_skills,  # drag-drop saves soft gaps to partial_skills
         }
         
         # Prepare "The Hook" context
@@ -57,10 +59,18 @@ def gap_analysis_view(request, job_id):
         score = gap_analysis.similarity_score
         circumference = 364.4
         
-        # Pydantic schema mappings mapped via Phase 4 logic
+        # Pydantic schema mappings
         critical_missing_list = analysis_results.get('critical_missing_skills', getattr(gap_analysis, 'missing_skills', []))
         soft_skill_list = analysis_results.get('soft_skill_gaps', getattr(gap_analysis, 'soft_skill_gaps', []))
-        
+
+        # Normalize skills to plain strings for JSON serialization
+        def to_str_list(lst):
+            return [s['name'] if isinstance(s, dict) and 'name' in s else str(s) for s in lst]
+
+        matched_str = to_str_list(gap_analysis.matched_skills)
+        missing_str = to_str_list(gap_analysis.missing_skills)
+        soft_str = to_str_list(soft_skill_list)
+
         total_required = max(len(job.extracted_skills), 1)
         
         context = {
@@ -80,6 +90,11 @@ def gap_analysis_view(request, job_id):
             'matched_pct': round(len(gap_analysis.matched_skills) / total_required * 100),
             'missing_pct': round(len(critical_missing_list) / total_required * 100),
             'soft_pct': round(len(soft_skill_list) / total_required * 100),
+
+            # JSON data for drag-and-drop Alpine component
+            'matched_skills_json': json.dumps(matched_str),
+            'missing_skills_json': json.dumps(missing_str),
+            'soft_skills_json': json.dumps(soft_str),
         }
     
         return render(request, 'analysis/gap_analysis.html', context)
@@ -110,6 +125,40 @@ def compute_gap_api(request, job_id):
     compute_gap_analysis_task(job.id, request.user.id)
     
     return JsonResponse({'success': True, 'message': 'Analysis complete'})
+
+@login_required
+@require_POST
+def update_gap_skills(request, job_id):
+    """API endpoint to persist user skill reclassifications from drag-and-drop."""
+    job = get_object_or_404(Job, id=job_id, user=request.user)
+    gap = GapAnalysis.objects.filter(job=job, user=request.user).first()
+    if not gap:
+        return JsonResponse({'error': 'No gap analysis found'}, status=404)
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+    matched = data.get('matched_skills')
+    missing = data.get('missing_skills')
+    soft = data.get('soft_skill_gaps')
+
+    if matched is None or missing is None or soft is None:
+        return JsonResponse({'error': 'All three skill lists are required'}, status=400)
+
+    gap.matched_skills = matched
+    gap.missing_skills = missing
+    # soft_skill_gaps not stored on model — we fold them into partial_skills for persistence
+    gap.partial_skills = soft
+    gap.save(update_fields=['matched_skills', 'missing_skills', 'partial_skills'])
+
+    return JsonResponse({
+        'success': True,
+        'matched_count': len(matched),
+        'missing_count': len(missing),
+        'soft_count': len(soft),
+    })
 
 @login_required
 def check_gap_status_api(request, job_id):
