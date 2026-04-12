@@ -4,7 +4,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.contrib.auth import get_user_model
 from .models import Job
-from .services.linkedin_scraper import scrape_linkedin_job
+from .services.scrapers import scrape_job
+from .services.scrapers.base import ScrapeError
 from .services.skill_extractor import extract_skills
 
 import json
@@ -43,9 +44,14 @@ def job_input_view(request):
                 url = request.POST.get('job_url')
                 logger.info("Starting job extraction for URL: %s", url)
 
-                # Scrape job from LinkedIn
-                job_data = scrape_linkedin_job(url)
-                logger.info("Job scraped: %s", job_data.get('title', 'Unknown'))
+                # Dispatch to the appropriate scraper by URL host
+                # (LinkedIn, Greenhouse, Lever, or generic JSON-LD fallback).
+                job_data = scrape_job(url)
+                logger.info(
+                    "Job scraped from %s: %s",
+                    job_data.get('source', '?'),
+                    job_data.get('title', 'Unknown'),
+                )
 
                 # Extract skills
                 skills = extract_skills(job_data['description'])
@@ -58,7 +64,7 @@ def job_input_view(request):
                     title=job_data['title'],
                     company=job_data['company'],
                     description=job_data['description'],
-                    raw_html=job_data['raw_html'],
+                    raw_html=job_data.get('raw_html', ''),
                     extracted_skills=list(skills)
                 )
                 logger.info("Job saved with ID: %s", job.id)
@@ -93,6 +99,10 @@ def job_input_view(request):
             # Redirect to Review step first (user confirms extracted data)
             return redirect('review_extracted_job', job_id=job.id)
 
+        except ScrapeError as e:
+            # User-facing scrape failures with helpful messages
+            logger.warning("Scrape failed for URL input: %s", e)
+            return render(request, 'jobs/input.html', {'error': str(e)})
         except Exception as e:
             logger.exception("Job extraction failed: %s", e)
             return render(request, 'jobs/input.html', {
