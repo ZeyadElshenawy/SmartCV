@@ -1,11 +1,137 @@
 import json
 import logging
 import re
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from profiles.services.llm_engine import get_structured_llm, get_llm
 from profiles.services.schemas import ResumeContentResult
 
 logger = logging.getLogger(__name__)
+
+
+# --- Domain detection ---------------------------------------------------------
+# Keyword-based classifier. Cheap, deterministic, no LLM call. If nothing
+# matches we fall back to 'general' and the prompt stays neutral.
+
+_DOMAIN_KEYWORDS = {
+    'software_engineering': [
+        'software engineer', 'software developer', 'backend', 'back-end',
+        'frontend', 'front-end', 'fullstack', 'full-stack', 'full stack',
+        'web developer', 'mobile developer', 'ios developer', 'android developer',
+        'devops', 'sre', 'site reliability', 'platform engineer',
+        'systems engineer', 'embedded', 'game developer',
+    ],
+    'data': [
+        'data scientist', 'data engineer', 'data analyst', 'machine learning',
+        'ml engineer', 'ai engineer', 'ai/ml', 'analytics engineer',
+        'business intelligence', 'bi analyst', 'bi developer',
+        'research scientist', 'quantitative', 'statistician',
+    ],
+    'design': [
+        'ux designer', 'ui designer', 'ux/ui', 'product designer',
+        'graphic designer', 'visual designer', 'interaction designer',
+        'motion designer', 'brand designer', 'web designer',
+    ],
+    'product': [
+        'product manager', 'product owner', 'program manager',
+        'technical program manager', 'tpm', 'chief of staff',
+    ],
+    'marketing': [
+        'marketing manager', 'growth marketer', 'content marketing',
+        'seo specialist', 'seo manager', 'digital marketing', 'marketing analyst',
+        'brand manager', 'social media manager', 'performance marketing',
+    ],
+    'sales': [
+        'account executive', 'sales development', 'sdr', 'bdr',
+        'account manager', 'sales manager', 'customer success',
+        'solutions consultant', 'sales engineer',
+    ],
+    'finance': [
+        'financial analyst', 'investment banking', 'controller', 'cfo',
+        'accountant', 'auditor', 'treasurer', 'financial planner',
+        'equity research', 'portfolio manager',
+    ],
+}
+
+_DOMAIN_PROMPTS = {
+    'software_engineering': (
+        "=== DOMAIN EMPHASIS: SOFTWARE ENGINEERING ===\n"
+        "- Lead bullets with shipped systems, scale, and tech stack.\n"
+        "- Highlight: languages/frameworks used, scale metrics (QPS, users, rows, uptime),\n"
+        "  latency/perf improvements, system design decisions, test/deploy pipelines.\n"
+        "- Prefer concrete verbs: Built, Implemented, Shipped, Deployed, Refactored, Optimized, Debugged.\n"
+        "- Skills section: name the exact tools (Python 3, PostgreSQL, Kubernetes, Redis, AWS Lambda)."
+    ),
+    'data': (
+        "=== DOMAIN EMPHASIS: DATA / ML ===\n"
+        "- Lead bullets with business impact first, method second.\n"
+        "  Example: 'Cut churn 12% by building a retention model in PyTorch trained on 2M events.'\n"
+        "- Name models, libraries, and datasets explicitly (XGBoost, scikit-learn, TensorFlow, pandas, Snowflake, dbt).\n"
+        "- Preferred verbs: Modelled, Predicted, Forecasted, Validated, Deployed, Instrumented, Analyzed.\n"
+        "- Keep statistical rigor: 'AUC 0.87 on held-out set' beats 'accurate model'.\n"
+        "- If the role is analyst-track, emphasize dashboards, SQL, stakeholder storytelling."
+    ),
+    'design': (
+        "=== DOMAIN EMPHASIS: DESIGN ===\n"
+        "- Lead bullets with user outcomes, not deliverables.\n"
+        "  Example: 'Redesigned onboarding; activation rose 24% across 3 release cycles.'\n"
+        "- Mention process: research method (user interviews, A/B tests, usability studies), design artifacts (wireframes, prototypes, design systems).\n"
+        "- Name tools (Figma, Sketch, Adobe XD, Framer, Principle) and collaboration context (worked with PM + 4 engineers).\n"
+        "- Preferred verbs: Designed, Prototyped, Researched, Iterated, Shipped, Partnered, Defined.\n"
+        "- Consider adding a 'Portfolio' link in the header if the candidate has one."
+    ),
+    'product': (
+        "=== DOMAIN EMPHASIS: PRODUCT MANAGEMENT ===\n"
+        "- Lead bullets with metrics moved and strategic scope.\n"
+        "  Example: 'Owned checkout rewrite; conversion +8%, cart abandonment -15% in 2 quarters.'\n"
+        "- Every bullet should answer: what did you ship, who benefited, what was the measurable outcome.\n"
+        "- Preferred verbs: Led, Owned, Launched, Prioritized, Aligned, Discovered, Defined.\n"
+        "- Signal cross-functional leadership (partnered with engineering/design/sales) without buzzwords.\n"
+        "- Skills section: frameworks (JTBD, OKRs, RICE), tools (Amplitude, Mixpanel, Figma, Jira), domain depth."
+    ),
+    'marketing': (
+        "=== DOMAIN EMPHASIS: MARKETING ===\n"
+        "- Lead with the channel, the outcome, and the budget or reach.\n"
+        "  Example: 'Ran paid search on $200K monthly spend; CPA dropped 30%, CAC < $42 for Q3.'\n"
+        "- Quantify: impressions, conversions, CAC/LTV, channel mix, campaign ROI.\n"
+        "- Name platforms (Google Ads, LinkedIn Ads, HubSpot, Marketo, Ahrefs, GA4).\n"
+        "- Preferred verbs: Launched, Ran, Grew, Scaled, Tested, Converted, Attributed."
+    ),
+    'sales': (
+        "=== DOMAIN EMPHASIS: SALES ===\n"
+        "- Lead every bullet with a number: quota attainment, deal size, cycle length, pipeline coverage.\n"
+        "  Example: 'Closed $1.4M ARR in year 1, 132% of quota, average deal size $85K.'\n"
+        "- Quantify: quota %, ACV/ARR, win rate, ramp time, accounts managed.\n"
+        "- Name tools (Salesforce, Outreach, Gong, LinkedIn Sales Navigator) and methodology (MEDDPICC, Sandler, Challenger).\n"
+        "- Preferred verbs: Closed, Opened, Prospected, Negotiated, Expanded, Retained."
+    ),
+    'finance': (
+        "=== DOMAIN EMPHASIS: FINANCE ===\n"
+        "- Specify the models, deal sizes, and frameworks.\n"
+        "  Example: 'Built 3-statement model for $120M acquisition; identified $8M in synergies.'\n"
+        "- Quantify: AUM, deal size, P&L owned, forecast accuracy, audit scope.\n"
+        "- Name tools (Excel with advanced formulas/VBA, SAP, NetSuite, Bloomberg, Capital IQ, Tableau) and frameworks (DCF, LBO, IFRS, GAAP).\n"
+        "- Preferred verbs: Modelled, Forecasted, Analyzed, Audited, Reconciled, Advised, Valued."
+    ),
+}
+
+
+def _detect_job_domain(job) -> str:
+    """Return a domain key based on job title + description. 'general' if no clear match."""
+    haystack = (f"{getattr(job, 'title', '')} {getattr(job, 'description', '')[:500]}").lower()
+    if not haystack.strip():
+        return 'general'
+    # Score each domain by keyword hits and pick the winner
+    best, best_score = 'general', 0
+    for domain, keywords in _DOMAIN_KEYWORDS.items():
+        score = sum(1 for kw in keywords if kw in haystack)
+        if score > best_score:
+            best, best_score = domain, score
+    return best
+
+
+def _domain_prompt_section(domain: str) -> str:
+    """Return the domain-specific prompt addendum, or empty string for 'general'."""
+    return _DOMAIN_PROMPTS.get(domain, '')
 
 
 def generate_resume_content(profile, job, gap_analysis):
@@ -29,6 +155,10 @@ def generate_resume_content(profile, job, gap_analysis):
     # Build a slim version of CV data to save tokens — drop raw_text and empty fields
     slim_cv = {k: v for k, v in filtered_cv.items()
                if k != 'raw_text' and v and k not in ('normalized_summary', 'objective')}
+
+    domain = _detect_job_domain(job)
+    domain_section = _domain_prompt_section(domain)
+    logger.info(f"Resume generation: detected domain='{domain}' for job '{job.title}'")
 
     prompt = f"""You are an EXPERT resume optimization strategist. Create a PROFESSIONAL, ATS-optimized resume tailored for this job.
 
@@ -105,6 +235,8 @@ MATCHED SKILLS (high priority): {', '.join(gap_analysis.matched_skills if hasatt
 1. Identify 3 key themes from the job posting.
 2. Mirror those themes in the title, summary, and bullet point headings.
 3. CRITICAL: ONLY mirror themes genuinely supported by existing experience.
+
+{domain_section}
 
 Make it PROFESSIONAL and ATS-OPTIMIZED."""
 
