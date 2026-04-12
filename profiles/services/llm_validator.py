@@ -75,13 +75,22 @@ GENERAL RULES:
   - "Beginner": Skills only mentioned in coursework or briefly listed without evidence of practical use.
 - If no context is available to infer proficiency, set proficiency to null rather than guessing.
 
-=== LANGUAGE EXTRACTION ===
-- ALWAYS extract languages spoken by the candidate. Look for a dedicated "Languages" section, or infer from context (e.g., location, university language, CV language).
-- Format as strings with proficiency: e.g., "Arabic (Native)", "English (Fluent)".
+=== LANGUAGE EXTRACTION (CRITICAL) ===
+- The `languages` field is for HUMAN/SPOKEN languages ONLY (e.g., Arabic, English, French, Spanish).
+- PROGRAMMING languages (Python, Java, C++, JavaScript, SQL, HTML/CSS, bash, assembly, etc.) MUST go in the `skills` field, NEVER in `languages`.
+- If a CV section labeled "Languages" contains programming languages, those are skills — do not copy them into `languages`.
+- If no spoken languages are explicitly listed, you may infer from context (location, university language, CV language) OR leave the list empty — do not fill it with programming languages.
+- Format spoken languages as strings with proficiency: e.g., "Arabic (Native)", "English (Fluent)".
 
 === TYPO CORRECTION ===
 - Fix obvious typos in job titles and section headers (e.g., "INFROMATION" → "INFORMATION").
 - Do NOT change company names, proper nouns, or technical terms unless clearly misspelled.
+
+=== EXPERIENCE VS TRAINING CLASSIFICATION ===
+- `experiences` is for paid jobs, internships, and formal employment. NOT for courses, bootcamps, diplomas, or training programs.
+- Training programs, diplomas, and course enrollments (e.g., "SOC analyst diploma", "Training in CyberSecurity at ICTHub") should be placed in `certifications` or `courses`, not `experiences`.
+- Student status entries like "Undergraduate Student at University X" should go in `education` (as the degree entry), not `experiences`.
+- If unsure, prefer `courses` over `experiences` for any entry that describes learning rather than work output.
 
 === REMOVE FROM EXTRACTED DATA ===
 - Street/home address (extract city and country only)
