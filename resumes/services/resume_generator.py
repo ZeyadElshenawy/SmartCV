@@ -90,20 +90,122 @@ Make it PROFESSIONAL and ATS-OPTIMIZED."""
     try:
         structured_llm = get_structured_llm(ResumeContentResult, temperature=0.7, max_tokens=8192)
         result = structured_llm.invoke(prompt)
-        
+
         resume_content = result.model_dump()
-        logger.info(f"✓ Generated PROFESSIONAL tailored resume with sections: {list(resume_content.keys())}")
+        # Guarantee data integrity — fill in anything the LLM left empty or
+        # mis-mapped from the profile. The LLM is good at rewriting but often
+        # drops sections or uses wrong field names (e.g. graduation_year vs year).
+        resume_content = _ensure_profile_data_preserved(resume_content, raw_cv_data)
+        logger.info(f"✓ Generated tailored resume with sections: {list(resume_content.keys())}")
         return resume_content
-        
+
     except Exception as e:
         logger.exception(f"Resume generation error: {e}")
-        return {
+        fallback = {
             "professional_title": job.title,
             "professional_summary": f"Experienced professional seeking {job.title} position at {job.company}.",
             "skills": job.extracted_skills[:10] if job.extracted_skills else [],
-            "experience": filtered_cv.get('experiences', [])[:3] if filtered_cv else [],
-            "education": filtered_cv.get('education', []) if filtered_cv else []
+            "experience": [],
+            "education": [],
+            "projects": [],
+            "certifications": [],
+            "languages": [],
         }
+        return _ensure_profile_data_preserved(fallback, raw_cv_data)
+
+
+def _ensure_profile_data_preserved(resume_content: dict, profile_data: dict) -> dict:
+    """
+    Map profile fields to resume schema as a guaranteed fallback.
+
+    The LLM is supposed to restructure profile data into ResumeContentResult,
+    but it sometimes returns empty sections or keeps profile field names
+    (e.g. `graduation_year` instead of `year`, `highlights` instead of
+    `description`). This function fills the gaps so the edit page always
+    renders populated fields.
+    """
+    if not profile_data:
+        return resume_content
+
+    # --- Experience ---
+    if not resume_content.get('experience') and profile_data.get('experiences'):
+        resume_content['experience'] = []
+        for exp in profile_data['experiences']:
+            start = exp.get('start_date') or ''
+            end = exp.get('end_date') or ''
+            duration = f"{start} - {end}".strip(' -') if (start or end) else ''
+            description = exp.get('highlights') or exp.get('achievements') or exp.get('description') or []
+            if isinstance(description, str):
+                description = [line.strip() for line in description.split('\n') if line.strip()]
+            resume_content['experience'].append({
+                'title': exp.get('title', ''),
+                'company': exp.get('company', ''),
+                'duration': duration,
+                'description': description,
+            })
+
+    # --- Education ---
+    if profile_data.get('education'):
+        existing_edu = resume_content.get('education') or []
+        # If LLM returned education but left `year` blank, patch from profile
+        for i, edu in enumerate(existing_edu):
+            if not edu.get('year') and i < len(profile_data['education']):
+                src = profile_data['education'][i]
+                edu['year'] = src.get('graduation_year') or src.get('year') or ''
+                if not edu.get('degree') and src.get('field'):
+                    edu['degree'] = f"{src.get('degree', '')} of {src['field']}".strip(' of')
+        # If LLM returned nothing, rebuild from profile
+        if not existing_edu:
+            existing_edu = []
+            for edu in profile_data['education']:
+                degree = edu.get('degree', '')
+                field = edu.get('field', '')
+                full_degree = f"{degree} of {field}".strip(' of') if field else degree
+                existing_edu.append({
+                    'degree': full_degree,
+                    'institution': edu.get('institution', ''),
+                    'year': edu.get('graduation_year') or edu.get('year') or '',
+                })
+        resume_content['education'] = existing_edu
+
+    # --- Projects ---
+    if not resume_content.get('projects') and profile_data.get('projects'):
+        resume_content['projects'] = []
+        for proj in profile_data['projects']:
+            description = proj.get('description') or proj.get('highlights') or []
+            if isinstance(description, str):
+                description = [line.strip() for line in description.split('\n') if line.strip()]
+            resume_content['projects'].append({
+                'name': proj.get('name', ''),
+                'description': description,
+                'url': proj.get('url') or '',
+            })
+
+    # --- Certifications ---
+    if not resume_content.get('certifications') and profile_data.get('certifications'):
+        resume_content['certifications'] = []
+        for cert in profile_data['certifications']:
+            resume_content['certifications'].append({
+                'name': cert.get('name', ''),
+                'issuer': cert.get('issuer') or '',
+                'date': cert.get('date') or '',
+                'url': cert.get('url') or '',
+            })
+
+    # --- Languages (spoken only) ---
+    if not resume_content.get('languages') and profile_data.get('languages'):
+        langs = profile_data['languages']
+        if isinstance(langs, list):
+            resume_content['languages'] = [l if isinstance(l, str) else l.get('name', '') for l in langs]
+
+    # --- Skills ---
+    if not resume_content.get('skills') and profile_data.get('skills'):
+        resume_content['skills'] = [
+            s.get('name', '') if isinstance(s, dict) else str(s)
+            for s in profile_data['skills']
+        ]
+
+    return resume_content
 
 
 def calculate_ats_score(resume_content, job_skills):
