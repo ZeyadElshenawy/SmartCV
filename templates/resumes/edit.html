@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div x-data="{ showSaveToast: new URLSearchParams(window.location.search).get('saved') === 'true' }" x-init="if (showSaveToast) setTimeout(() => showSaveToast = false, 3000)">
+<div x-data="resumeEditor()" x-init="init()">
     <!-- Save Success Toast -->
     <div x-show="showSaveToast" x-cloak
          x-transition:enter="transition ease-out duration-300"
@@ -16,123 +16,127 @@
     </div>
 
 <div class="min-h-[calc(100vh-80px)] bg-gray-50 dark:bg-gray-900 flex flex-col md:flex-row transition-colors">
-    
-    <!-- LEFT SIDEBAR: Nav Steps (Resume-Now Style) -->
-    <div class="w-full md:w-64 bg-rn-navy text-white flex-shrink-0 hidden md:block border-r border-gray-800">
-        <div class="p-6">
+
+    <!-- LEFT SIDEBAR: Section Nav -->
+    <div class="w-full md:w-64 bg-rn-navy text-white flex-shrink-0 hidden md:flex flex-col border-r border-gray-800">
+        <div class="p-6 flex-1">
             <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">Resume Sections</h2>
-            
-            <ul class="space-y-2">
+
+            <ul class="space-y-1">
                 <li>
-                    <a href="#" class="flex items-center p-3 rounded-md bg-white/10 dark:bg-gray-800 text-white font-bold border-l-4 border-rn-gold">
-                        <span class="w-6 h-6 rounded-full bg-rn-gold text-rn-navy dark:text-gray-900 flex items-center justify-center text-xs mr-3">1</span>
-                        Heading
-                    </a>
-                </li>
-                <li>
-                    <a href="#section-summary" class="flex items-center p-3 rounded-md text-gray-300 hover:text-white hover:bg-white/5 transition-colors">
-                        <span class="w-6 h-6 rounded-full border border-gray-500 flex items-center justify-center text-xs mr-3">2</span>
+                    <a href="#section-summary" class="flex items-center p-3 rounded-md transition-colors"
+                       :class="activeSection === 'summary' ? 'bg-white/10 text-white font-bold border-l-4 border-rn-gold' : 'text-gray-300 hover:text-white hover:bg-white/5'">
+                        <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs mr-3"
+                              :class="activeSection === 'summary' ? 'bg-rn-gold text-rn-navy' : 'border border-gray-500'">1</span>
                         Summary
                     </a>
                 </li>
                 <li>
-                    <a href="#section-experience" class="flex items-center p-3 rounded-md text-gray-300 hover:text-white hover:bg-white/5 transition-colors">
-                        <span class="w-6 h-6 rounded-full border border-gray-500 flex items-center justify-center text-xs mr-3">3</span>
-                        Experience
-                    </a>
-                </li>
-                <li>
-                    <a href="#section-education" class="flex items-center p-3 rounded-md text-gray-300 hover:text-white hover:bg-white/5 transition-colors">
-                        <span class="w-6 h-6 rounded-full border border-gray-500 flex items-center justify-center text-xs mr-3">4</span>
-                        Education
-                    </a>
-                </li>
-                <li>
-                    <a href="#section-skills" class="flex items-center p-3 rounded-md text-gray-300 hover:text-white hover:bg-white/5 transition-colors">
-                        <span class="w-6 h-6 rounded-full border border-gray-500 flex items-center justify-center text-xs mr-3">5</span>
+                    <a href="#section-skills" class="flex items-center p-3 rounded-md transition-colors"
+                       :class="activeSection === 'skills' ? 'bg-white/10 text-white font-bold border-l-4 border-rn-gold' : 'text-gray-300 hover:text-white hover:bg-white/5'">
+                        <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs mr-3"
+                              :class="activeSection === 'skills' ? 'bg-rn-gold text-rn-navy' : 'border border-gray-500'">2</span>
                         Skills
                     </a>
                 </li>
                 <li>
-                    <a href="#section-languages" class="flex items-center p-3 rounded-md text-gray-300 hover:text-white hover:bg-white/5 transition-colors">
-                        <span class="w-6 h-6 rounded-full border border-gray-500 flex items-center justify-center text-xs mr-3">6</span>
-                        Languages
+                    <a href="#section-experience" class="flex items-center p-3 rounded-md transition-colors"
+                       :class="activeSection === 'experience' ? 'bg-white/10 text-white font-bold border-l-4 border-rn-gold' : 'text-gray-300 hover:text-white hover:bg-white/5'">
+                        <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs mr-3"
+                              :class="activeSection === 'experience' ? 'bg-rn-gold text-rn-navy' : 'border border-gray-500'">3</span>
+                        Experience
                     </a>
                 </li>
                 <li>
-                    <a href="#section-projects" class="flex items-center p-3 rounded-md text-gray-300 hover:text-white hover:bg-white/5 transition-colors">
-                        <span class="w-6 h-6 rounded-full border border-gray-500 flex items-center justify-center text-xs mr-3">7</span>
+                    <a href="#section-education" class="flex items-center p-3 rounded-md transition-colors"
+                       :class="activeSection === 'education' ? 'bg-white/10 text-white font-bold border-l-4 border-rn-gold' : 'text-gray-300 hover:text-white hover:bg-white/5'">
+                        <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs mr-3"
+                              :class="activeSection === 'education' ? 'bg-rn-gold text-rn-navy' : 'border border-gray-500'">4</span>
+                        Education
+                    </a>
+                </li>
+                <li>
+                    <a href="#section-projects" class="flex items-center p-3 rounded-md transition-colors"
+                       :class="activeSection === 'projects' ? 'bg-white/10 text-white font-bold border-l-4 border-rn-gold' : 'text-gray-300 hover:text-white hover:bg-white/5'">
+                        <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs mr-3"
+                              :class="activeSection === 'projects' ? 'bg-rn-gold text-rn-navy' : 'border border-gray-500'">5</span>
                         Projects
                     </a>
                 </li>
                 <li>
-                    <a href="#section-certifications" class="flex items-center p-3 rounded-md text-gray-300 hover:text-white hover:bg-white/5 transition-colors">
-                        <span class="w-6 h-6 rounded-full border border-gray-500 flex items-center justify-center text-xs mr-3">8</span>
+                    <a href="#section-certifications" class="flex items-center p-3 rounded-md transition-colors"
+                       :class="activeSection === 'certifications' ? 'bg-white/10 text-white font-bold border-l-4 border-rn-gold' : 'text-gray-300 hover:text-white hover:bg-white/5'">
+                        <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs mr-3"
+                              :class="activeSection === 'certifications' ? 'bg-rn-gold text-rn-navy' : 'border border-gray-500'">6</span>
                         Certifications
+                    </a>
+                </li>
+                <li>
+                    <a href="#section-languages" class="flex items-center p-3 rounded-md transition-colors"
+                       :class="activeSection === 'languages' ? 'bg-white/10 text-white font-bold border-l-4 border-rn-gold' : 'text-gray-300 hover:text-white hover:bg-white/5'">
+                        <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs mr-3"
+                              :class="activeSection === 'languages' ? 'bg-rn-gold text-rn-navy' : 'border border-gray-500'">7</span>
+                        Languages
                     </a>
                 </li>
             </ul>
         </div>
-        
-        <div class="mt-auto p-6 absolute bottom-0 w-64">
+
+        <div class="p-6">
              <div class="bg-indigo-900/50 rounded-lg p-4 border border-indigo-800">
                  <p class="text-xs text-indigo-200 mb-2 font-medium">ATS Match Score</p>
                  <div class="flex items-end gap-2">
-                     <span class="text-3xl font-bold text-white">{{ resume.ats_score|default:"85" }}%</span>
+                     <span class="text-3xl font-bold text-white">{{ resume.ats_score|floatformat:0 }}%</span>
                  </div>
                  <div class="w-full bg-indigo-950 rounded-full h-1.5 mt-2">
-                    <div class="bg-rn-gold h-1.5 rounded-full" style="width: {{ resume.ats_score|default:'85' }}%;"></div>
+                    <div class="bg-rn-gold h-1.5 rounded-full" style="width: {{ resume.ats_score|floatformat:0 }}%;"></div>
                  </div>
              </div>
         </div>
     </div>
 
     <!-- CENTER COLUMN: Editor Area -->
-    <div class="flex-grow p-4 sm:p-8 lg:p-12 overflow-y-auto" style="max-height: calc(100vh - 80px);">
-        
+    <div id="editor-scroll" class="flex-grow p-4 sm:p-8 lg:p-12 overflow-y-auto" style="max-height: calc(100vh - 80px);">
+
         <div class="max-w-3xl mx-auto">
             <div class="mb-8">
-                <h1 class="text-3xl font-extrabold text-rn-navy dark:text-gray-100 mb-2">Review your resume details</h1>
-                <p class="text-gray-600 dark:text-gray-400 font-medium">We've tailored this based on your profile and the target job. Make any final edits here.</p>
-                <div class="mt-2 flex items-center gap-2 text-xs font-medium text-gray-400">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    Last saved: {{ resume.updated_at|date:"M d, Y h:i A" }}
-                </div>
+                <h1 class="text-3xl font-extrabold text-rn-navy dark:text-gray-100 mb-2">Edit your resume</h1>
+                <p class="text-gray-600 dark:text-gray-400 font-medium">Tailored for <strong class="text-gray-900 dark:text-white">{{ resume.gap_analysis.job.title }}</strong> at <strong class="text-gray-900 dark:text-white">{{ resume.gap_analysis.job.company }}</strong>.</p>
             </div>
 
-
-
-            <form method="POST" id="resume-edit-form" action="{% url 'resume_edit' resume.id %}" class="space-y-8 pb-32">
+            <form method="POST" id="resume-edit-form" action="{% url 'resume_edit' resume.id %}" class="space-y-8 pb-28" @input="updateLivePreview()">
                 {% csrf_token %}
 
-                <!-- Template Selection Area -->
+                <!-- Template Selection -->
                 <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-6 dark:bg-indigo-900/30 dark:border-indigo-800">
                     <h2 class="text-lg font-bold text-rn-navy dark:text-gray-200 flex items-center gap-2 mb-4">
                         <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"></path></svg>
                         Choose Resume Template
                     </h2>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <label class="relative flex flex-col items-center justify-center p-4 border-2 cursor-pointer bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:border-rn-blue dark:hover:border-rn-gold transition-colors {% if resume.content.template_name == 'standard' or not resume.content.template_name %}border-rn-blue ring-1 ring-rn-blue dark:border-rn-gold dark:ring-rn-gold{% else %}border-gray-200 dark:border-gray-700{% endif %}">
-                            <input type="radio" name="template_name" value="standard" class="hidden" {% if resume.content.template_name == 'standard' or not resume.content.template_name %}checked{% endif %} onchange="updateTemplateSelection(this)">
-                            <div class="font-bold text-rn-navy dark:text-gray-200">Standard</div>
-                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Classic & Clean</div>
+                    <div class="grid grid-cols-3 gap-4">
+                        {% with current_template=resume.content.template_name|default:"standard" %}
+                        <label class="relative flex flex-col items-center justify-center p-4 border-2 cursor-pointer bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:border-rn-blue dark:hover:border-rn-gold transition-colors {% if current_template == 'standard' %}border-rn-blue ring-1 ring-rn-blue dark:border-rn-gold dark:ring-rn-gold{% else %}border-gray-200 dark:border-gray-700{% endif %}">
+                            <input type="radio" name="template_name" value="standard" class="hidden" {% if current_template == 'standard' %}checked{% endif %} onchange="updateTemplateSelection(this)">
+                            <div class="font-bold text-rn-navy dark:text-gray-200 text-sm">Standard</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Classic</div>
                         </label>
-                        <label class="relative flex flex-col items-center justify-center p-4 border-2 cursor-pointer bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:border-rn-blue dark:hover:border-rn-gold transition-colors {% if resume.content.template_name == 'danette' %}border-rn-blue ring-1 ring-rn-blue dark:border-rn-gold dark:ring-rn-gold{% else %}border-gray-200 dark:border-gray-700{% endif %}">
-                            <input type="radio" name="template_name" value="danette" class="hidden" {% if resume.content.template_name == 'danette' %}checked{% endif %} onchange="updateTemplateSelection(this)">
-                            <div class="font-bold text-rn-navy dark:text-gray-200">Danette</div>
-                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Double Lined</div>
+                        <label class="relative flex flex-col items-center justify-center p-4 border-2 cursor-pointer bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:border-rn-blue dark:hover:border-rn-gold transition-colors {% if current_template == 'danette' %}border-rn-blue ring-1 ring-rn-blue dark:border-rn-gold dark:ring-rn-gold{% else %}border-gray-200 dark:border-gray-700{% endif %}">
+                            <input type="radio" name="template_name" value="danette" class="hidden" {% if current_template == 'danette' %}checked{% endif %} onchange="updateTemplateSelection(this)">
+                            <div class="font-bold text-rn-navy dark:text-gray-200 text-sm">Danette</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Formal</div>
                         </label>
-                        <label class="relative flex flex-col items-center justify-center p-4 border-2 cursor-pointer bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:border-rn-blue dark:hover:border-rn-gold transition-colors {% if resume.content.template_name == 'zeyad' %}border-rn-blue ring-1 ring-rn-blue dark:border-rn-gold dark:ring-rn-gold{% else %}border-gray-200 dark:border-gray-700{% endif %}">
-                            <input type="radio" name="template_name" value="zeyad" class="hidden" {% if resume.content.template_name == 'zeyad' %}checked{% endif %} onchange="updateTemplateSelection(this)">
-                            <div class="font-bold text-rn-navy dark:text-gray-200">Zeyad</div>
-                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Modern & Compact</div>
+                        <label class="relative flex flex-col items-center justify-center p-4 border-2 cursor-pointer bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:border-rn-blue dark:hover:border-rn-gold transition-colors {% if current_template == 'zeyad' %}border-rn-blue ring-1 ring-rn-blue dark:border-rn-gold dark:ring-rn-gold{% else %}border-gray-200 dark:border-gray-700{% endif %}">
+                            <input type="radio" name="template_name" value="zeyad" class="hidden" {% if current_template == 'zeyad' %}checked{% endif %} onchange="updateTemplateSelection(this)">
+                            <div class="font-bold text-rn-navy dark:text-gray-200 text-sm">Zeyad</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Modern</div>
                         </label>
+                        {% endwith %}
                     </div>
                 </div>
 
-                <!-- Professional Summary Section -->
+                <!-- Professional Summary -->
                 <div id="section-summary" class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
-                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-750 flex justify-between items-center">
+                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700">
                         <h2 class="text-lg font-bold text-rn-navy dark:text-gray-200 flex items-center gap-2">
                             <svg class="w-5 h-5 text-rn-blue dark:text-rn-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                             Professional Summary
@@ -142,270 +146,245 @@
                         <div>
                             <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Target Job Title</label>
                             <input type="text" name="professional_title" value="{{ resume.content.professional_title|default:'' }}"
-                                   class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 md:focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 transition-colors">
+                                   class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 transition-colors">
                         </div>
                         <div>
                             <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Summary Paragraph</label>
-                            <textarea name="professional_summary" rows="5" 
-                                      class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 transition-colors lead-relaxed">{{ resume.content.professional_summary|default:'' }}</textarea>
+                            <textarea name="professional_summary" rows="5"
+                                      class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 transition-colors leading-relaxed">{{ resume.content.professional_summary|default:'' }}</textarea>
                         </div>
                     </div>
                 </div>
 
-                <!-- Skills Section -->
+                <!-- Skills -->
                 <div id="section-skills" class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
-                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-750">
+                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700">
                         <h2 class="text-lg font-bold text-rn-navy dark:text-gray-200 flex items-center gap-2">
                             <svg class="w-5 h-5 text-rn-blue dark:text-rn-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
                             Core Skills (ATS Keywords)
                         </h2>
                     </div>
                     <div class="p-6 md:p-8">
-                        <textarea name="skills" rows="4" 
-                                  class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 transition-colors font-mono text-sm leading-relaxed">{% for skill in resume.content.skills %}{{ skill }}{% if not forloop.last %}, {% endif %}{% endfor %}</textarea>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium">Separate skills with commas. These are extracted directly from the job description.</p>
+                        <textarea name="skills" rows="4"
+                                  class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 transition-colors font-mono text-sm leading-relaxed">{% for skill in resume.content.skills %}{{ skill }}{% if not forloop.last %}, {% endif %}{% endfor %}</textarea>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium">Separate skills with commas.</p>
                     </div>
                 </div>
 
-                <!-- Languages Section -->
-                <div id="section-languages" class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
-                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-750">
-                        <h2 class="text-lg font-bold text-rn-navy dark:text-gray-200 flex items-center gap-2">
-                            <svg class="w-5 h-5 text-rn-blue dark:text-rn-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path></svg>
-                            Languages
-                        </h2>
-                    </div>
-                    <div class="p-6 md:p-8">
-                        <textarea name="languages" rows="2" 
-                                  class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 transition-colors font-mono text-sm leading-relaxed">{% for lang in resume.content.languages %}{{ lang }}{% if not forloop.last %}, {% endif %}{% endfor %}</textarea>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium">Separate languages with commas (e.g., English (Native), Spanish (Fluent)).</p>
-                    </div>
-                </div>
-
-                <!-- Experience Section -->
+                <!-- Experience -->
                 <div id="section-experience" class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
-                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-750 flex justify-between items-center">
+                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700">
                         <h2 class="text-lg font-bold text-rn-navy dark:text-gray-200 flex items-center gap-2">
                             <svg class="w-5 h-5 text-rn-blue dark:text-rn-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                            Work History
+                            Work Experience
                         </h2>
                     </div>
-                    
-                    <div id="experience-container" class="p-6 md:p-8 space-y-8">
+
+                    <div id="experience-container" class="p-6 md:p-8 space-y-6">
                         {% for exp in resume.content.experience %}
                         <div class="experience-entry relative border border-gray-200 dark:border-gray-700 p-6 rounded-lg bg-white dark:bg-gray-800 shadow-sm hover:border-blue-200 dark:hover:border-blue-500 transition-colors group">
-                            <button type="button" onclick="this.parentElement.remove()" class="absolute -top-3 -right-3 w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-colors shadow-sm opacity-0 group-hover:opacity-100">
+                            <button type="button" onclick="this.parentElement.remove(); updateLivePreview();" aria-label="Remove entry" class="absolute -top-3 -right-3 w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-colors shadow-sm opacity-0 group-hover:opacity-100">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                             </button>
-                            
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
                                 <div>
                                     <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Job Title</label>
-                                    <input type="text" name="exp_title[]" value="{{ exp.title }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm font-semibold text-rn-navy dark:text-gray-100">
+                                    <input type="text" name="exp_title[]" value="{{ exp.title }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm font-semibold text-rn-navy dark:text-gray-100">
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Company</label>
-                                    <input type="text" name="exp_company[]" value="{{ exp.company }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
+                                    <input type="text" name="exp_company[]" value="{{ exp.company }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
                                 </div>
                                 <div class="md:col-span-2">
                                     <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Dates</label>
-                                    <input type="text" name="exp_duration[]" value="{{ exp.duration }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
+                                    <input type="text" name="exp_duration[]" value="{{ exp.duration }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
                                 </div>
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Bullet Points & Achievements</label>
-                                <textarea name="exp_description[]" rows="5" class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white leading-relaxed">{{ exp.description }}</textarea>
+                                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Bullet Points (one per line)</label>
+                                <textarea name="exp_description[]" rows="5" class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white leading-relaxed">{{ exp.description }}</textarea>
                             </div>
                         </div>
                         {% endfor %}
                     </div>
-                    
-                    <div class="px-6 md:px-8 pb-8 pt-2">
-                        <button type="button" onclick="addExperience()" class="inline-flex items-center text-sm font-bold text-rn-blue dark:text-rn-gold hover:text-rn-blue-hover transition-colors">
+
+                    <div class="px-6 md:px-8 pb-6 pt-2">
+                        <button type="button" onclick="addExperience(); updateLivePreview();" class="inline-flex items-center text-sm font-bold text-rn-blue dark:text-rn-gold hover:text-rn-blue-hover transition-colors">
                             <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
                             Add another position
                         </button>
                     </div>
                 </div>
 
-                <!-- Education Section -->
+                <!-- Education -->
                 <div id="section-education" class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
-                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-750 flex justify-between items-center">
+                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700">
                         <h2 class="text-lg font-bold text-rn-navy dark:text-gray-200 flex items-center gap-2">
-                            <svg class="w-5 h-5 text-rn-blue dark:text-rn-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222"></path></svg>
+                            <svg class="w-5 h-5 text-rn-blue dark:text-rn-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222"></path></svg>
                             Education
                         </h2>
                     </div>
-                    
+
                     <div id="education-container" class="p-6 md:p-8 space-y-6">
                         {% for edu in resume.content.education %}
                         <div class="education-entry relative border border-gray-200 dark:border-gray-700 p-6 rounded-lg bg-white dark:bg-gray-800 shadow-sm hover:border-blue-200 dark:hover:border-blue-500 transition-colors group">
-                            <button type="button" onclick="this.parentElement.remove()" class="absolute -top-3 -right-3 w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-colors shadow-sm opacity-0 group-hover:opacity-100">
+                            <button type="button" onclick="this.parentElement.remove(); updateLivePreview();" aria-label="Remove entry" class="absolute -top-3 -right-3 w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-colors shadow-sm opacity-0 group-hover:opacity-100">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                             </button>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                                 <div class="md:col-span-2">
                                     <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Degree</label>
-                                    <input type="text" name="edu_degree[]" value="{{ edu.degree }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm font-semibold text-rn-navy dark:text-gray-100">
+                                    <input type="text" name="edu_degree[]" value="{{ edu.degree }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm font-semibold text-rn-navy dark:text-gray-100">
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Institution</label>
-                                    <input type="text" name="edu_institution[]" value="{{ edu.institution }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
+                                    <input type="text" name="edu_institution[]" value="{{ edu.institution }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Graduation Year</label>
-                                    <input type="text" name="edu_year[]" value="{{ edu.year }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
+                                    <input type="text" name="edu_year[]" value="{{ edu.year }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
                                 </div>
                             </div>
                         </div>
                         {% endfor %}
                     </div>
-                    
-                    <div class="px-6 md:px-8 pb-8 pt-2">
-                        <button type="button" onclick="addEducation()" class="inline-flex items-center text-sm font-bold text-rn-blue dark:text-rn-gold hover:text-rn-blue-hover transition-colors">
+
+                    <div class="px-6 md:px-8 pb-6 pt-2">
+                        <button type="button" onclick="addEducation(); updateLivePreview();" class="inline-flex items-center text-sm font-bold text-rn-blue dark:text-rn-gold hover:text-rn-blue-hover transition-colors">
                             <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
                             Add another degree
                         </button>
                     </div>
                 </div>
 
-                <!-- Projects Section -->
+                <!-- Projects -->
                 <div id="section-projects" class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
-                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-750 flex justify-between items-center">
+                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700">
                         <h2 class="text-lg font-bold text-rn-navy dark:text-gray-200 flex items-center gap-2">
                             <svg class="w-5 h-5 text-rn-blue dark:text-rn-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
                             Projects
                         </h2>
                     </div>
-                    
+
                     <div id="projects-container" class="p-6 md:p-8 space-y-6">
                         {% for proj in resume.content.projects %}
                         <div class="project-entry relative border border-gray-200 dark:border-gray-700 p-6 rounded-lg bg-white dark:bg-gray-800 shadow-sm hover:border-blue-200 dark:hover:border-blue-500 transition-colors group">
-                            <button type="button" onclick="this.parentElement.remove()" class="absolute -top-3 -right-3 w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-colors shadow-sm opacity-0 group-hover:opacity-100">
+                            <button type="button" onclick="this.parentElement.remove(); updateLivePreview();" aria-label="Remove entry" class="absolute -top-3 -right-3 w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-colors shadow-sm opacity-0 group-hover:opacity-100">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                             </button>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                                 <div>
                                     <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Project Name</label>
-                                    <input type="text" name="proj_name[]" value="{{ proj.name }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm font-semibold text-rn-navy dark:text-gray-100">
+                                    <input type="text" name="proj_name[]" value="{{ proj.name }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm font-semibold text-rn-navy dark:text-gray-100">
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Project URL</label>
-                                    <input type="url" name="proj_url[]" value="{{ proj.url|default:'' }}" placeholder="https://" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm text-rn-navy dark:text-gray-100">
+                                    <input type="url" name="proj_url[]" value="{{ proj.url|default:'' }}" placeholder="https://" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-gray-100">
                                 </div>
                                 <div class="md:col-span-2">
-                                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Project Description</label>
-                                    <textarea name="proj_description[]" rows="3" class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white leading-relaxed">{{ proj.description }}</textarea>
+                                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Description (one bullet per line)</label>
+                                    <textarea name="proj_description[]" rows="3" class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white leading-relaxed">{{ proj.description }}</textarea>
                                 </div>
                             </div>
                         </div>
                         {% endfor %}
                     </div>
-                    
-                    <div class="px-6 md:px-8 pb-8 pt-2">
-                        <button type="button" onclick="addProject()" class="inline-flex items-center text-sm font-bold text-rn-blue dark:text-rn-gold hover:text-rn-blue-hover transition-colors">
+
+                    <div class="px-6 md:px-8 pb-6 pt-2">
+                        <button type="button" onclick="addProject(); updateLivePreview();" class="inline-flex items-center text-sm font-bold text-rn-blue dark:text-rn-gold hover:text-rn-blue-hover transition-colors">
                             <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
                             Add another project
                         </button>
                     </div>
                 </div>
 
-                <!-- Certifications Section -->
+                <!-- Certifications -->
                 <div id="section-certifications" class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
-                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-750 flex justify-between items-center">
+                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700">
                         <h2 class="text-lg font-bold text-rn-navy dark:text-gray-200 flex items-center gap-2">
                             <svg class="w-5 h-5 text-rn-blue dark:text-rn-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                             Certifications
                         </h2>
                     </div>
-                    
+
                     <div id="certifications-container" class="p-6 md:p-8 space-y-6">
                         {% for cert in resume.content.certifications %}
                         <div class="cert-entry relative border border-gray-200 dark:border-gray-700 p-6 rounded-lg bg-white dark:bg-gray-800 shadow-sm hover:border-blue-200 dark:hover:border-blue-500 transition-colors group">
-                            <button type="button" onclick="this.parentElement.remove()" class="absolute -top-3 -right-3 w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-colors shadow-sm opacity-0 group-hover:opacity-100">
+                            <button type="button" onclick="this.parentElement.remove(); updateLivePreview();" aria-label="Remove entry" class="absolute -top-3 -right-3 w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-colors shadow-sm opacity-0 group-hover:opacity-100">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                             </button>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                                 <div class="md:col-span-2">
                                     <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Certification Name</label>
-                                    <input type="text" name="cert_name[]" value="{{ cert.name }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm font-semibold text-rn-navy dark:text-gray-100">
+                                    <input type="text" name="cert_name[]" value="{{ cert.name }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm font-semibold text-rn-navy dark:text-gray-100">
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Issuing Organization</label>
-                                    <input type="text" name="cert_issuer[]" value="{{ cert.issuer }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
+                                    <input type="text" name="cert_issuer[]" value="{{ cert.issuer }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Date / Year</label>
-                                    <input type="text" name="cert_date[]" value="{{ cert.date }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
+                                    <input type="text" name="cert_date[]" value="{{ cert.date }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
                                 </div>
                                 <div class="md:col-span-2">
                                     <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Certification URL</label>
-                                    <input type="url" name="cert_url[]" value="{{ cert.url|default:'' }}" placeholder="https://" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
+                                    <input type="url" name="cert_url[]" value="{{ cert.url|default:'' }}" placeholder="https://" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
                                 </div>
                             </div>
                         </div>
                         {% endfor %}
                     </div>
-                    
-                    <div class="px-6 md:px-8 pb-8 pt-2">
-                        <button type="button" onclick="addCertification()" class="inline-flex items-center text-sm font-bold text-rn-blue dark:text-rn-gold hover:text-rn-blue-hover transition-colors">
+
+                    <div class="px-6 md:px-8 pb-6 pt-2">
+                        <button type="button" onclick="addCertification(); updateLivePreview();" class="inline-flex items-center text-sm font-bold text-rn-blue dark:text-rn-gold hover:text-rn-blue-hover transition-colors">
                             <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
                             Add another certification
                         </button>
                     </div>
                 </div>
 
-                <!-- DEBUG: Raw JSON View -->
-            <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 mt-8 mb-8">
-                <details>
-                    <summary class="cursor-pointer font-bold text-gray-700 dark:text-gray-300 hover:text-blue-600 outline-none">
-                        View Raw Extracted Data (JSON)
-                    </summary>
-                    <div class="mt-4 p-4 bg-gray-900 rounded-lg overflow-x-auto shadow-inner">
-                        <pre class="text-xs text-green-400 font-mono leading-relaxed" id="raw-json-display"></pre>
+                <!-- Languages -->
+                <div id="section-languages" class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
+                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700">
+                        <h2 class="text-lg font-bold text-rn-navy dark:text-gray-200 flex items-center gap-2">
+                            <svg class="w-5 h-5 text-rn-blue dark:text-rn-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path></svg>
+                            Languages
+                        </h2>
                     </div>
-                </details>
-            </div>
-            
-            {{ resume.content|json_script:"resume-json-data" }}
-            <script>
-                document.addEventListener('DOMContentLoaded', () => {
-                    try {
-                        const data = JSON.parse(document.getElementById('resume-json-data').textContent);
-                        document.getElementById('raw-json-display').textContent = JSON.stringify(data, null, 2);
-                    } catch(e) {
-                         document.getElementById('raw-json-display').textContent = "Unable to parse JSON.";
-                    }
-                });
-            </script>
+                    <div class="p-6 md:p-8">
+                        <textarea name="languages" rows="2"
+                                  class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 transition-colors font-mono text-sm leading-relaxed">{% for lang in resume.content.languages %}{{ lang }}{% if not forloop.last %}, {% endif %}{% endfor %}</textarea>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium">Separate with commas (e.g., English (Native), Spanish (Fluent)).</p>
+                    </div>
+                </div>
 
             <!-- Sticky Bottom Action Bar -->
-            <div class="fixed bottom-0 md:left-64 right-0 lg:right-1/3 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 sm:p-6 flex flex-col sm:flex-row justify-between items-center sm:gap-4 z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] transition-colors">
-                    <a href="{% url 'dashboard' %}" class="text-rn-blue dark:text-gray-300 font-bold hover:underline dark:hover:text-white mb-4 sm:mb-0 transition-colors">
-                        &larr; Back to Dashboard
+            <div class="fixed bottom-0 left-0 md:left-64 right-0 lg:right-[33.333%] bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-center gap-3 z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] transition-colors">
+                    <a href="{% url 'resume_preview' resume.id %}" class="text-gray-500 dark:text-gray-400 font-semibold hover:text-rn-blue dark:hover:text-white transition-colors text-sm">
+                        &larr; Back to Preview
                     </a>
-                    <div class="flex flex-col sm:flex-row w-full sm:w-auto gap-3">
-                        <button type="submit" class="w-full sm:w-auto px-8 py-3.5 bg-rn-gold hover:bg-rn-gold-hover text-gray-900 rounded-rn-pill font-bold shadow-md hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center">
+                    <div class="flex w-full sm:w-auto gap-3">
+                        <button type="submit" class="flex-1 sm:flex-none px-8 py-3 bg-rn-blue hover:bg-rn-blue-hover text-white rounded-rn-pill font-bold shadow-md hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center text-sm">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                             Save Changes
-                            <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                         </button>
-                        <a href="{% url 'resume_preview' resume.id %}" class="w-full sm:w-auto px-8 py-3.5 bg-rn-navy text-white hover:bg-rn-blue rounded-rn-pill font-bold shadow-md hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center text-center">
-                            Preview & Download
-                            <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                        <a href="{% url 'export_pdf' resume.id %}" target="_blank" class="flex-1 sm:flex-none px-8 py-3 bg-rn-gold hover:bg-rn-gold-hover text-gray-900 rounded-rn-pill font-bold shadow-md hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center text-sm">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            Download PDF
                         </a>
                     </div>
                 </div>
             </form>
         </div>
     </div>
-    
-    <!-- RIGHT SIDEBAR: Live Preview (Resume-Now Style) -->
-    <div class="w-1/3 bg-gray-500 flex-shrink-0 hidden lg:flex flex-col border-l border-gray-300 relative">
-        <div class="absolute inset-0 overflow-y-auto p-8">
-            <h3 class="text-center text-sm font-bold text-gray-200 uppercase tracking-widest mb-4 drop-shadow-md">Live PDF Preview</h3>
-            
+
+    <!-- RIGHT SIDEBAR: Live Preview -->
+    <div class="w-1/3 bg-gray-100 dark:bg-gray-800 flex-shrink-0 hidden lg:flex flex-col border-l border-gray-200 dark:border-gray-700 relative">
+        <div class="absolute inset-0 overflow-y-auto p-6">
+            <h3 class="text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4">Live Preview</h3>
+
             <!-- A4 Document Mockup -->
-            <div class="mx-auto w-full max-w-[500px] aspect-[1/1.414] bg-white shadow-2xl rounded-sm p-4 text-left transform origin-top hover:scale-105 transition-transform duration-300 select-none overflow-y-auto" style="overflow-x: hidden;">
+            <div class="mx-auto w-full max-w-[480px] aspect-[1/1.414] bg-white shadow-xl rounded-sm p-5 text-left select-none overflow-y-auto border border-gray-200" style="overflow-x: hidden;">
                 <style>
                     .pdf-preview {
                         font-family: 'Helvetica', 'Arial', sans-serif;
@@ -416,86 +395,48 @@
                         text-align: center;
                         margin-bottom: 12px;
                         padding-bottom: 8px;
-                        border-bottom: 1px solid #2563eb;
+                        border-bottom: 1.5px solid #2563eb;
                     }
                     .pdf-preview .p-professional-title {
-                        font-size: 14pt;
+                        font-size: 13pt;
                         font-weight: bold;
                         color: #1e3a8a;
                         margin-bottom: 4px;
                         text-transform: uppercase;
                         letter-spacing: 0.5px;
                     }
-                    .pdf-preview .p-section {
-                        margin-bottom: 12px;
-                    }
+                    .pdf-preview .p-section { margin-bottom: 10px; }
                     .pdf-preview .p-section-title {
-                        font-size: 9.5pt;
+                        font-size: 9pt;
                         font-weight: bold;
                         color: #1e3a8a;
                         text-transform: uppercase;
                         border-bottom: 1px solid #cbd5e1;
                         padding-bottom: 2px;
-                        margin-bottom: 6px;
+                        margin-bottom: 5px;
                     }
-                    .pdf-preview .p-summary {
-                        font-size: 7.5pt;
-                        line-height: 1.4;
-                        text-align: justify;
-                    }
-                    .pdf-preview .p-item {
-                        margin-bottom: 8px;
-                    }
-                    .pdf-preview .p-item-header {
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: flex-end;
-                    }
-                    .pdf-preview .p-item-title {
-                        text-align: left;
-                        font-weight: bold;
-                        font-size: 8.5pt;
-                        margin: 0;
-                    }
-                    .pdf-preview .p-item-date {
-                        text-align: right;
-                        font-size: 7pt;
-                        color: #475569;
-                        font-weight: bold;
-                        margin: 0;
-                    }
-                    .pdf-preview .p-item-subtitle {
-                        font-weight: bold;
-                        color: #2563eb;
-                        font-size: 7.5pt;
-                        margin-top: 1px;
-                        margin-bottom: 2px;
-                    }
-                    .pdf-preview .p-item-description {
-                        font-size: 7pt;
-                        line-height: 1.3;
-                        color: #333;
-                        margin-top: 2px;
-                        white-space: pre-wrap;
-                    }
+                    .pdf-preview .p-summary { font-size: 7pt; line-height: 1.4; text-align: justify; }
+                    .pdf-preview .p-item { margin-bottom: 6px; }
+                    .pdf-preview .p-item-header { display: flex; justify-content: space-between; align-items: flex-end; }
+                    .pdf-preview .p-item-title { font-weight: bold; font-size: 8pt; }
+                    .pdf-preview .p-item-date { font-size: 6.5pt; color: #475569; font-weight: bold; }
+                    .pdf-preview .p-item-subtitle { font-weight: bold; color: #2563eb; font-size: 7pt; margin-top: 1px; margin-bottom: 2px; }
+                    .pdf-preview .p-item-description { font-size: 6.5pt; line-height: 1.3; color: #333; white-space: pre-wrap; }
                 </style>
 
                 <div class="pdf-preview">
                     <div class="p-header">
-                        <div style="font-size: 9pt; font-weight: bold; text-transform: uppercase; margin-bottom: 3px;">{{ request.user.first_name }} {{ request.user.last_name }}</div>
-                        <div id="preview-title" class="p-professional-title">{{ resume.content.professional_title|default:"Professional Resume" }}</div>
+                        <div id="preview-title" class="p-professional-title">{{ resume.content.professional_title }}</div>
                     </div>
-                    
+
                     <div class="p-section">
                         <div class="p-section-title">Professional Summary</div>
                         <div id="preview-summary" class="p-summary">{{ resume.content.professional_summary }}</div>
                     </div>
-                    
+
                     <div class="p-section" id="preview-skills-section" style="{% if not resume.content.skills %}display:none;{% endif %}">
                         <div class="p-section-title">Core Competencies</div>
-                        <div id="preview-skills" class="p-summary">
-                            {{ resume.content.skills|join:", " }}
-                        </div>
+                        <div id="preview-skills" class="p-summary">{{ resume.content.skills|join:", " }}</div>
                     </div>
 
                     <div class="p-section">
@@ -534,7 +475,7 @@
                         <div id="preview-projects">
                             {% for proj in resume.content.projects %}
                             <div class="p-item">
-                                <div class="p-item-title">{% if proj.url %}<a href="{{ proj.url }}" target="_blank" style="color: #2563eb; text-decoration: none;">{{ proj.name }}</a>{% else %}{{ proj.name }}{% endif %}</div>
+                                <div class="p-item-title">{{ proj.name }}</div>
                                 <div class="p-item-description">{{ proj.description }}</div>
                             </div>
                             {% endfor %}
@@ -543,12 +484,9 @@
 
                     <div class="p-section" id="preview-certifications-section" style="{% if not resume.content.certifications %}display:none;{% endif %}">
                         <div class="p-section-title">Certifications</div>
-                        <ul id="preview-certifications" style="margin: 0; padding-left: 15px; font-size: 7.5pt; color: #333;">
+                        <ul id="preview-certifications" style="margin: 0; padding-left: 14px; font-size: 7pt; color: #333;">
                             {% for cert in resume.content.certifications %}
-                            <li style="margin-bottom: 2px;">
-                                <strong>{% if cert.url %}<a href="{{ cert.url }}" target="_blank" style="color: #2563eb; text-decoration: none;">{{ cert.name }}</a>{% else %}{{ cert.name }}{% endif %}</strong> 
-                                {% if cert.issuer %}- {{ cert.issuer }}{% endif %}
-                            </li>
+                            <li style="margin-bottom: 2px;"><strong>{{ cert.name }}</strong>{% if cert.issuer %} - {{ cert.issuer }}{% endif %}</li>
                             {% endfor %}
                         </ul>
                     </div>
@@ -559,13 +497,108 @@
                     </div>
                 </div>
             </div>
-            
         </div>
     </div>
         </div>
     </div>
 </div>
-</div>
+
+<!-- JavaScript Templates for dynamic fields -->
+<template id="exp-template">
+    <div class="experience-entry relative border border-gray-200 dark:border-gray-700 p-6 rounded-lg bg-white dark:bg-gray-800 shadow-sm hover:border-blue-200 dark:hover:border-blue-500 transition-colors group">
+        <button type="button" onclick="this.parentElement.remove(); updateLivePreview();" aria-label="Remove entry" class="absolute -top-3 -right-3 w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-colors shadow-sm opacity-0 group-hover:opacity-100">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+            <div>
+                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Job Title</label>
+                <input type="text" name="exp_title[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm font-semibold text-rn-navy dark:text-gray-100">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Company</label>
+                <input type="text" name="exp_company[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Dates</label>
+                <input type="text" name="exp_duration[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
+            </div>
+        </div>
+        <div>
+            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Bullet Points (one per line)</label>
+            <textarea name="exp_description[]" rows="5" class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white leading-relaxed"></textarea>
+        </div>
+    </div>
+</template>
+
+<template id="edu-template">
+    <div class="education-entry relative border border-gray-200 dark:border-gray-700 p-6 rounded-lg bg-white dark:bg-gray-800 shadow-sm hover:border-blue-200 dark:hover:border-blue-500 transition-colors group">
+        <button type="button" onclick="this.parentElement.remove(); updateLivePreview();" aria-label="Remove entry" class="absolute -top-3 -right-3 w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-colors shadow-sm opacity-0 group-hover:opacity-100">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="md:col-span-2">
+                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Degree</label>
+                <input type="text" name="edu_degree[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm font-semibold text-rn-navy dark:text-gray-100">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Institution</label>
+                <input type="text" name="edu_institution[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Graduation Year</label>
+                <input type="text" name="edu_year[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
+            </div>
+        </div>
+    </div>
+</template>
+
+<template id="proj-template">
+    <div class="project-entry relative border border-gray-200 dark:border-gray-700 p-6 rounded-lg bg-white dark:bg-gray-800 shadow-sm hover:border-blue-200 dark:hover:border-blue-500 transition-colors group">
+        <button type="button" onclick="this.parentElement.remove(); updateLivePreview();" aria-label="Remove entry" class="absolute -top-3 -right-3 w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-colors shadow-sm opacity-0 group-hover:opacity-100">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Project Name</label>
+                <input type="text" name="proj_name[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm font-semibold text-rn-navy dark:text-gray-100">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Project URL</label>
+                <input type="url" name="proj_url[]" placeholder="https://" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-gray-100">
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Description (one bullet per line)</label>
+                <textarea name="proj_description[]" rows="3" class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white leading-relaxed"></textarea>
+            </div>
+        </div>
+    </div>
+</template>
+
+<template id="cert-template">
+    <div class="cert-entry relative border border-gray-200 dark:border-gray-700 p-6 rounded-lg bg-white dark:bg-gray-800 shadow-sm hover:border-blue-200 dark:hover:border-blue-500 transition-colors group">
+        <button type="button" onclick="this.parentElement.remove(); updateLivePreview();" aria-label="Remove entry" class="absolute -top-3 -right-3 w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-colors shadow-sm opacity-0 group-hover:opacity-100">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="md:col-span-2">
+                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Certification Name</label>
+                <input type="text" name="cert_name[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm font-semibold text-rn-navy dark:text-gray-100">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Issuing Organization</label>
+                <input type="text" name="cert_issuer[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Date / Year</label>
+                <input type="text" name="cert_date[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Certification URL</label>
+                <input type="url" name="cert_url[]" placeholder="https://" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
+            </div>
+        </div>
+    </div>
+</template>
 
 <script>
     function escapeHtml(unsafe) {
@@ -574,228 +607,115 @@
     }
 
     function updateLivePreview() {
-        // Update Title & Summary
-        document.getElementById('preview-title').innerText = document.querySelector('input[name="professional_title"]')?.value || 'Professional Resume';
-        let summary = document.querySelector('textarea[name="professional_summary"]')?.value || '';
-        document.getElementById('preview-summary').innerText = summary;
+        document.getElementById('preview-title').innerText = document.querySelector('input[name="professional_title"]')?.value || '';
+        document.getElementById('preview-summary').innerText = document.querySelector('textarea[name="professional_summary"]')?.value || '';
 
-        // Update Experience
+        // Skills
+        const skillsVal = document.querySelector('textarea[name="skills"]')?.value || '';
+        document.getElementById('preview-skills').innerText = skillsVal;
+        document.getElementById('preview-skills-section').style.display = skillsVal.trim() ? 'block' : 'none';
+
+        // Experience
         let expHtml = '';
         const expTitles = document.querySelectorAll('input[name="exp_title[]"]');
         const expComps = document.querySelectorAll('input[name="exp_company[]"]');
         const expDates = document.querySelectorAll('input[name="exp_duration[]"]');
         const expDescs = document.querySelectorAll('textarea[name="exp_description[]"]');
-        
         for(let i=0; i<expTitles.length; i++) {
-            let desc = expDescs[i] ? expDescs[i].value : '';
-            expHtml += `<div class="p-item">
-                <div class="p-item-header">
-                    <div class="p-item-title">${escapeHtml(expTitles[i].value)}</div>
-                    <div class="p-item-date">${escapeHtml(expDates[i]?expDates[i].value:'')}</div>
-                </div>
-                <div class="p-item-subtitle">${escapeHtml(expComps[i]?expComps[i].value:'')}</div>
-                <div class="p-item-description">${escapeHtml(desc)}</div>
-            </div>`;
+            expHtml += `<div class="p-item"><div class="p-item-header"><div class="p-item-title">${escapeHtml(expTitles[i].value)}</div><div class="p-item-date">${escapeHtml(expDates[i]?.value||'')}</div></div><div class="p-item-subtitle">${escapeHtml(expComps[i]?.value||'')}</div><div class="p-item-description">${escapeHtml(expDescs[i]?.value||'')}</div></div>`;
         }
         document.getElementById('preview-experience').innerHTML = expHtml;
 
-        // Update Education
+        // Education
         let eduHtml = '';
-        const eduDegrees = document.querySelectorAll('input[name="edu_degree[]"]');
-        const eduInsts = document.querySelectorAll('input[name="edu_institution[]"]');
-        const eduYears = document.querySelectorAll('input[name="edu_year[]"]');
-        
-        for(let i=0; i<eduDegrees.length; i++) {
-            eduHtml += `<div class="p-item">
-                <div class="p-item-header">
-                    <div class="p-item-title">${escapeHtml(eduDegrees[i].value)}</div>
-                    <div class="p-item-date">${escapeHtml(eduYears[i]?eduYears[i].value:'')}</div>
-                </div>
-                <div class="p-item-subtitle">${escapeHtml(eduInsts[i]?eduInsts[i].value:'')}</div>
-            </div>`;
+        const eduDeg = document.querySelectorAll('input[name="edu_degree[]"]');
+        const eduInst = document.querySelectorAll('input[name="edu_institution[]"]');
+        const eduYr = document.querySelectorAll('input[name="edu_year[]"]');
+        for(let i=0; i<eduDeg.length; i++) {
+            eduHtml += `<div class="p-item"><div class="p-item-header"><div class="p-item-title">${escapeHtml(eduDeg[i].value)}</div><div class="p-item-date">${escapeHtml(eduYr[i]?.value||'')}</div></div><div class="p-item-subtitle">${escapeHtml(eduInst[i]?.value||'')}</div></div>`;
         }
         document.getElementById('preview-education').innerHTML = eduHtml;
 
-        // Update Projects
+        // Projects
         let projHtml = '';
         const projNames = document.querySelectorAll('input[name="proj_name[]"]');
         const projDescs = document.querySelectorAll('textarea[name="proj_description[]"]');
-        const projUrls = document.querySelectorAll('input[name="proj_url[]"]');
-        
         for(let i=0; i<projNames.length; i++) {
-            let desc = projDescs[i] ? projDescs[i].value : '';
-            let url = projUrls[i] ? projUrls[i].value.trim() : '';
-            let titleH = escapeHtml(projNames[i].value);
-            if (url) {
-                titleH = `<a href="${escapeHtml(url)}" target="_blank" style="color: #2563eb; text-decoration: none;">${titleH}</a>`;
-            }
-            projHtml += `<div class="p-item">
-                <div class="p-item-title">${titleH}</div>
-                <div class="p-item-description">${escapeHtml(desc)}</div>
-            </div>`;
+            projHtml += `<div class="p-item"><div class="p-item-title">${escapeHtml(projNames[i].value)}</div><div class="p-item-description">${escapeHtml(projDescs[i]?.value||'')}</div></div>`;
         }
         document.getElementById('preview-projects').innerHTML = projHtml;
         document.getElementById('preview-projects-section').style.display = projNames.length > 0 ? 'block' : 'none';
 
-        // Update Certifications
+        // Certifications
         let certHtml = '';
         const certNames = document.querySelectorAll('input[name="cert_name[]"]');
         const certIssuers = document.querySelectorAll('input[name="cert_issuer[]"]');
-        const certUrls = document.querySelectorAll('input[name="cert_url[]"]');
-        
         for(let i=0; i<certNames.length; i++) {
-            let url = certUrls[i] ? certUrls[i].value.trim() : '';
-            let valH = escapeHtml(certNames[i].value);
-            if (url) {
-                valH = `<a href="${escapeHtml(url)}" target="_blank" style="color: #2563eb; text-decoration: none;">${valH}</a>`;
-            }
-            certHtml += `<li style="margin-bottom: 2px;"><strong>${valH}</strong> ${certIssuers[i] && certIssuers[i].value ? '- ' + escapeHtml(certIssuers[i].value) : ''}</li>`;
+            certHtml += `<li style="margin-bottom: 2px;"><strong>${escapeHtml(certNames[i].value)}</strong>${certIssuers[i]?.value ? ' - ' + escapeHtml(certIssuers[i].value) : ''}</li>`;
         }
         document.getElementById('preview-certifications').innerHTML = certHtml;
         document.getElementById('preview-certifications-section').style.display = certNames.length > 0 ? 'block' : 'none';
 
-        // Update Languages
-        const langValue = document.querySelector('textarea[name="languages"]')?.value || '';
-        document.getElementById('preview-languages').innerText = langValue;
-        document.getElementById('preview-languages-section').style.display = langValue.trim() ? 'block' : 'none';
+        // Languages
+        const langVal = document.querySelector('textarea[name="languages"]')?.value || '';
+        document.getElementById('preview-languages').innerText = langVal;
+        document.getElementById('preview-languages-section').style.display = langVal.trim() ? 'block' : 'none';
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-        document.querySelector('form').addEventListener('input', updateLivePreview);
-    });
-</script>
-
-<!-- JavaScript Templates for dynamic fields -->
-<template id="exp-template">
-    <div class="experience-entry relative border border-gray-200 dark:border-gray-700 p-6 rounded-lg bg-white dark:bg-gray-800 shadow-sm hover:border-blue-200 dark:hover:border-blue-500 transition-colors group">
-        <button type="button" onclick="this.parentElement.remove()" class="absolute -top-3 -right-3 w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-colors shadow-sm opacity-0 group-hover:opacity-100">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-        </button>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-            <div>
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Job Title</label>
-                <input type="text" name="exp_title[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm font-semibold text-rn-navy dark:text-gray-100">
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Company</label>
-                <input type="text" name="exp_company[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
-            </div>
-            <div class="md:col-span-2">
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Dates</label>
-                <input type="text" name="exp_duration[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
-            </div>
-        </div>
-        <div>
-            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Description & Achievements</label>
-            <textarea name="exp_description[]" rows="5" class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white leading-relaxed"></textarea>
-        </div>
-    </div>
-</template>
-
-<template id="edu-template">
-    <div class="education-entry relative border border-gray-200 dark:border-gray-700 p-6 rounded-lg bg-white dark:bg-gray-800 shadow-sm hover:border-blue-200 dark:hover:border-blue-500 transition-colors group">
-        <button type="button" onclick="this.parentElement.remove()" class="absolute -top-3 -right-3 w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-colors shadow-sm opacity-0 group-hover:opacity-100">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-        </button>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div class="md:col-span-2">
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Degree</label>
-                <input type="text" name="edu_degree[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm font-semibold text-rn-navy dark:text-gray-100">
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Institution</label>
-                <input type="text" name="edu_institution[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Graduation Year</label>
-                <input type="text" name="edu_year[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
-            </div>
-        </div>
-    </div>
-</template>
-
-<template id="proj-template">
-    <div class="project-entry relative border border-gray-200 dark:border-gray-700 p-6 rounded-lg bg-white dark:bg-gray-800 shadow-sm hover:border-blue-200 dark:hover:border-blue-500 transition-colors group">
-        <button type="button" onclick="this.parentElement.remove()" class="absolute -top-3 -right-3 w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-colors shadow-sm opacity-0 group-hover:opacity-100">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-        </button>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Project Name</label>
-                <input type="text" name="proj_name[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm font-semibold text-rn-navy dark:text-gray-100">
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Project URL</label>
-                <input type="url" name="proj_url[]" placeholder="https://" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm text-rn-navy dark:text-gray-100">
-            </div>
-            <div class="md:col-span-2">
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Project Description</label>
-                <textarea name="proj_description[]" rows="3" class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white leading-relaxed"></textarea>
-            </div>
-        </div>
-    </div>
-</template>
-
-<template id="cert-template">
-    <div class="cert-entry relative border border-gray-200 dark:border-gray-700 p-6 rounded-lg bg-white dark:bg-gray-800 shadow-sm hover:border-blue-200 dark:hover:border-blue-500 transition-colors group">
-        <button type="button" onclick="this.parentElement.remove()" class="absolute -top-3 -right-3 w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-colors shadow-sm opacity-0 group-hover:opacity-100">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-        </button>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div class="md:col-span-2">
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Certification Name</label>
-                <input type="text" name="cert_name[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm font-semibold text-rn-navy dark:text-gray-100">
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Issuing Organization</label>
-                <input type="text" name="cert_issuer[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Date / Year</label>
-                <input type="text" name="cert_date[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
-            </div>
-            <div class="md:col-span-2">
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Certification URL</label>
-                <input type="url" name="cert_url[]" placeholder="https://" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
-            </div>
-        </div>
-    </div>
-</template>
-
-<script>
     function addExperience() {
-        const container = document.getElementById('experience-container');
-        const template = document.getElementById('exp-template');
-        container.appendChild(template.content.cloneNode(true));
+        document.getElementById('experience-container').appendChild(document.getElementById('exp-template').content.cloneNode(true));
     }
-
     function addEducation() {
-        const container = document.getElementById('education-container');
-        const template = document.getElementById('edu-template');
-        container.appendChild(template.content.cloneNode(true));
+        document.getElementById('education-container').appendChild(document.getElementById('edu-template').content.cloneNode(true));
     }
-
     function addProject() {
-        const container = document.getElementById('projects-container');
-        const template = document.getElementById('proj-template');
-        container.appendChild(template.content.cloneNode(true));
+        document.getElementById('projects-container').appendChild(document.getElementById('proj-template').content.cloneNode(true));
     }
-
     function addCertification() {
-        const container = document.getElementById('certifications-container');
-        const template = document.getElementById('cert-template');
-        container.appendChild(template.content.cloneNode(true));
+        document.getElementById('certifications-container').appendChild(document.getElementById('cert-template').content.cloneNode(true));
     }
 
     function updateTemplateSelection(radioNode) {
-        // Reset all borders
-        const labels = document.querySelectorAll('input[name="template_name"]').forEach(inp => {
+        document.querySelectorAll('input[name="template_name"]').forEach(inp => {
             const label = inp.parentElement;
             label.className = "relative flex flex-col items-center justify-center p-4 border-2 cursor-pointer bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:border-rn-blue dark:hover:border-rn-gold transition-colors border-gray-200 dark:border-gray-700";
         });
-        // Highlight active
         radioNode.parentElement.classList.remove('border-gray-200', 'dark:border-gray-700');
         radioNode.parentElement.classList.add('border-rn-blue', 'ring-1', 'ring-rn-blue', 'dark:border-rn-gold', 'dark:ring-rn-gold');
+    }
+
+    function resumeEditor() {
+        return {
+            showSaveToast: new URLSearchParams(window.location.search).get('saved') === 'true',
+            activeSection: 'summary',
+            sections: ['summary', 'skills', 'experience', 'education', 'projects', 'certifications', 'languages'],
+
+            init() {
+                if (this.showSaveToast) setTimeout(() => this.showSaveToast = false, 3000);
+
+                // Track scroll position to highlight active sidebar section
+                const scrollEl = document.getElementById('editor-scroll');
+                if (scrollEl) {
+                    scrollEl.addEventListener('scroll', () => this.onScroll(scrollEl));
+                }
+            },
+
+            onScroll(scrollEl) {
+                const offset = scrollEl.scrollTop + 120;
+                for (let i = this.sections.length - 1; i >= 0; i--) {
+                    const el = document.getElementById('section-' + this.sections[i]);
+                    if (el && el.offsetTop <= offset) {
+                        this.activeSection = this.sections[i];
+                        return;
+                    }
+                }
+                this.activeSection = 'summary';
+            },
+
+            updateLivePreview() {
+                updateLivePreview();
+            }
+        }
     }
 </script>
 {% endblock %}

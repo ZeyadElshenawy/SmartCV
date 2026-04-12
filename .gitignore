@@ -11,6 +11,14 @@ ENV/
 *.log
 media/
 test_cvs2/
+test cvs2/
 batch_results.json
 .vscode/
 .idea/
+.claude/
+
+# Personal / test artifacts
+screenshots/
+image.png
+*.pdf
+!resumes/templates/**/*.pdf
