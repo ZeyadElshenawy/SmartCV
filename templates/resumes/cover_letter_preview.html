@@ -22,7 +22,7 @@
         </div>
 
         <!-- Letter Content -->
-        <div class="bg-white rounded-xl shadow-lg border border-gray-200 p-10 md:p-14 mb-12">
+        <div class="bg-white rounded-xl shadow-lg border border-gray-200 p-10 md:p-14 mb-8">
             <div class="prose max-w-none text-gray-900 leading-relaxed font-sans text-[15px] whitespace-pre-wrap" id="cover-letter-text">Dear Hiring Manager,
 
 {{ letter.content }}
@@ -30,7 +30,23 @@
 Sincerely,
 {{ letter.profile.full_name }}</div>
         </div>
-        
+
+        <!-- Next Steps -->
+        <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-6 mb-12">
+            <h3 class="text-sm font-bold text-indigo-900 uppercase tracking-wider mb-3">What's next?</h3>
+            <div class="flex flex-col sm:flex-row gap-3">
+                <a href="{% url 'generate_resume' letter.job.id %}" class="flex-1 inline-flex items-center justify-center px-5 py-3 bg-rn-blue text-white font-bold rounded-rn-pill hover:bg-rn-blue-hover transition-colors text-sm">
+                    Generate tailored resume
+                </a>
+                <a href="{% url 'job_detail' letter.job.id %}" class="flex-1 inline-flex items-center justify-center px-5 py-3 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-rn-pill hover:bg-gray-50 transition-colors text-sm">
+                    Back to job
+                </a>
+                <a href="{% url 'resume_list' %}" class="flex-1 inline-flex items-center justify-center px-5 py-3 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-rn-pill hover:bg-gray-50 transition-colors text-sm">
+                    All my resumes
+                </a>
+            </div>
+        </div>
+
     </div>
 </div>
 

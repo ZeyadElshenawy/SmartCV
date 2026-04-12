@@ -3,6 +3,10 @@
 {% block content %}
 <div class="max-w-5xl mx-auto px-4 py-8">
     <div class="mb-8">
+        <a href="{% url 'dashboard' %}" class="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center mb-4">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+            Back to Dashboard
+        </a>
         <h1 class="text-3xl font-bold text-gray-900 mb-2">Personalized Learning Path</h1>
         <p class="text-gray-600 border-l-4 border-blue-500 pl-4 py-1">Based on the jobs you've applied to, our AI has identified the most critical skills you are currently missing and generated a custom curriculum to help you succeed.</p>
     </div>
@@ -40,7 +44,11 @@
                         <div class="text-gray-400 mb-2">
                             <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         </div>
-                        <p class="text-sm text-gray-500">You aren't missing any critical skills across your applications!</p>
+                        <p class="text-sm text-gray-500 mb-4">You aren't missing any critical skills across your applications!</p>
+                        <a href="{% url 'dashboard' %}" class="inline-flex items-center text-sm font-semibold text-blue-600 hover:text-blue-800">
+                            Back to dashboard
+                            <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                        </a>
                     </div>
                 {% endif %}
             </div>

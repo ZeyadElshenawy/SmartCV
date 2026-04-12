@@ -96,7 +96,7 @@ def job_input_view(request):
         except Exception as e:
             logger.exception("Job extraction failed: %s", e)
             return render(request, 'jobs/input.html', {
-                'error': f"Failed to process job: {str(e)}"
+                'error': "Failed to process job. Please check the URL or try pasting the description manually."
             })
     
     return render(request, 'jobs/input.html')
@@ -141,7 +141,7 @@ def review_extracted_job(request, job_id):
 def job_detail_view(request, job_id):
     """Display job details and extracted skills, allow status updates"""
     job = get_object_or_404(Job, id=job_id, user=request.user)
-    
+
     if request.method == 'POST':
         new_status = request.POST.get('application_status')
         valid_statuses = {choice[0] for choice in Job.STATUS_CHOICES}
@@ -149,11 +149,26 @@ def job_detail_view(request, job_id):
             job.application_status = new_status
             job.save()
         return redirect('dashboard')
-    
-    return render(request, 'jobs/detail.html', {
 
+    # Context flags so the template can show the right CTAs:
+    # - "Upload CV" if user has no profile
+    # - "Generate Resume" if profile exists but no resume for this job
+    # - "View Resume" if a resume already exists for this job
+    from profiles.models import UserProfile
+    from resumes.models import GeneratedResume
+
+    has_profile = UserProfile.objects.filter(
+        user=request.user, full_name__isnull=False
+    ).exclude(full_name='').exists()
+    existing_resume = GeneratedResume.objects.filter(
+        gap_analysis__job=job
+    ).order_by('-created_at').first()
+
+    return render(request, 'jobs/detail.html', {
         'job': job,
         'status_choices': Job.STATUS_CHOICES,
+        'has_profile': has_profile,
+        'existing_resume': existing_resume,
     })
 
 
@@ -208,7 +223,8 @@ def save_job_extension_view(request):
         })
         
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=400)
+        logger.exception("Extension save-job failed: %s", e)
+        return JsonResponse({'error': 'Failed to save job.'}, status=400)
 
 
 @login_required
