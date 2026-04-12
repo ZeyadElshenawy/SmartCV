@@ -60,7 +60,7 @@ def trigger_resume_generation_api(request, job_id):
         })
     except Exception as e:
         logger.error(f"Sync resume generation failed: {e}")
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+        return JsonResponse({'success': False, 'error': 'Resume generation failed. Please try again.'}, status=500)
 
 
 @login_required
@@ -69,7 +69,7 @@ def check_resume_status_api(request, job_id):
     """Legacy polling endpoint — the work is now done via the POST trigger API directly."""
     # Find latest resume for this job
     from .models import GeneratedResume
-    resume = GeneratedResume.objects.filter(gap_analysis__job_id=job_id).order_by('-created_at').first()
+    resume = GeneratedResume.objects.filter(gap_analysis__job_id=job_id, gap_analysis__user=request.user).order_by('-created_at').first()
     if resume:
         return JsonResponse({'status': 'completed', 'resume_id': str(resume.id)})
     return JsonResponse({'status': 'waiting'})
@@ -78,14 +78,18 @@ def _normalize_legacy_resume_content(resume):
     """Backwards compatibility check for older resumes generated before the schema upgraded descriptions to Lists"""
     modified = False
     content = resume.content
-    
+
     for section in ['experience', 'projects']:
         if section in content:
             for item in content[section]:
-                if isinstance(item.get('description'), str):
-                    item['description'] = [d.strip() for d in item['description'].split('\n') if d.strip()]
+                desc = item.get('description')
+                if desc is None:
+                    item['description'] = []
                     modified = True
-                    
+                elif isinstance(desc, str):
+                    item['description'] = [d.strip() for d in desc.split('\n') if d.strip()]
+                    modified = True
+
     if modified:
         resume.content = content
         resume.save()
@@ -235,20 +239,54 @@ def resume_edit_view(request, resume_id):
     
     # ---- GET REQUEST HANDLING ----
     _normalize_legacy_resume_content(resume)
-    
+
+    # Auto-regenerate content if the profile was updated after this resume was
+    # created. Triggered when the user re-uploads their CV — the stored
+    # content is a stale snapshot of the old profile and the edit page would
+    # otherwise show outdated data.
+    # Skip when ?refresh=0 so users can bypass regeneration if they want.
+    try:
+        profile = UserProfile.objects.get(user=request.user)
+        should_refresh = (
+            request.GET.get('refresh') != '0'
+            and profile.updated_at
+            and resume.created_at
+            and profile.updated_at > resume.created_at
+        )
+        if should_refresh or request.GET.get('refresh') == '1':
+            gap_analysis = resume.gap_analysis
+            job = gap_analysis.job
+            new_content = generate_resume_content(profile, job, gap_analysis)
+            new_score = calculate_ats_score(new_content, job.extracted_skills)
+            # Preserve user's template choice across regeneration
+            if resume.content.get('template_name'):
+                new_content['template_name'] = resume.content['template_name']
+            resume.content = new_content
+            resume.ats_score = new_score
+            resume.save()
+            logger.info(f"Auto-regenerated resume {resume.id} from updated profile")
+    except UserProfile.DoesNotExist:
+        pass
+    except Exception as e:
+        logger.exception(f"Failed to auto-regenerate resume {resume.id}: {e}")
+        # Non-fatal — fall through and render with existing content
+
     # Create a deep copy for the form so we can convert lists to newline-separated strings
     import copy
     form_content = copy.deepcopy(resume.content)
-    
+
     for section in ['experience', 'projects', 'volunteer_experience', 'awards', 'publications', 'patents']:
         if section in form_content:
             for item in form_content[section]:
-                if isinstance(item.get('description'), list):
-                    item['description'] = '\n'.join(item['description'])
-                    
+                desc = item.get('description')
+                if desc is None:
+                    item['description'] = ''
+                elif isinstance(desc, list):
+                    item['description'] = '\n'.join(str(d) for d in desc if d)
+
     # Overlay the modified content back onto the resume object specifically for the template
     resume.content = form_content
-                    
+
     return render(request, 'resumes/edit.html', {'resume': resume})
 
 @login_required
@@ -273,7 +311,7 @@ def export_pdf_view(request, resume_id):
             pdf_data = f.read()
     except Exception as e:
         logger.exception("PDF export failed for resume %s", resume_id)
-        return HttpResponse(f"Error generating PDF: {e}", status=500)
+        return HttpResponse("PDF generation failed. Please try again.", status=500)
     finally:
         # Always clean up the temp file to avoid disk leaks
         try:
@@ -310,7 +348,7 @@ def generate_optimized_pdf_view(request, job_id):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return HttpResponse(f"Error generating PDF: {e}", status=500)
+        return HttpResponse("PDF generation failed. Please try again.", status=500)
 
 @login_required
 def generate_cover_letter_view(request, job_id):
@@ -332,7 +370,7 @@ def generate_cover_letter_view(request, job_id):
             )
             return redirect('cover_letter_preview', letter_id=letter.id)
         except Exception as e:
-            return HttpResponse(f"Error generating cover letter: {e}", status=500)
+            return HttpResponse("Cover letter generation failed. Please try again.", status=500)
             
     return render(request, 'resumes/generate_cover_letter.html', {'job': job})
 
