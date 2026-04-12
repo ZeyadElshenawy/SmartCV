@@ -409,59 +409,118 @@ class CVExtractor:
                 elif 'kaggle.com' in url_lower and not info.get('kaggle'):
                     info['kaggle'] = url
         
+        # Name extraction — conservative. Only accept if the line looks
+        # clearly like a person name (not a placeholder, section header,
+        # job title, or academic field). Leave null on uncertainty; the
+        # LLM validator will extract from raw text.
+        NAME_BLOCKLIST = {
+            'first last', 'john doe', 'jane doe', 'firstname lastname',
+            'computer science', 'software engineering', 'data science',
+            'curriculum vitae', 'resume', 'cv', 'contact', 'summary',
+            'profile', 'about', 'objective', 'experience', 'education',
+            'skills', 'projects', 'certifications', 'work experience',
+            'professional experience', 'relevant experience',
+            'work history', 'employment history', 'career history',
+            'technical skills', 'core skills', 'key skills',
+            'cornell university', 'stanford university', 'mit',
+        }
+        # Section header words — any line containing these in a short
+        # 2-4 word context is almost certainly not a person name.
+        SECTION_WORDS = {
+            'experience', 'education', 'skills', 'contact', 'summary',
+            'profile', 'objective', 'projects', 'certifications',
+            'references', 'awards', 'publications', 'employment',
+            'qualifications', 'achievements', 'history', 'university',
+            'college', 'institute', 'school',
+        }
+        ROLE_WORDS = {
+            'developer', 'engineer', 'analyst', 'manager', 'lead',
+            'scientist', 'designer', 'architect', 'consultant',
+            'specialist', 'intern', 'associate', 'director', 'officer',
+            'administrator', 'coordinator', 'assistant', 'technician',
+            'researcher', 'programmer',
+        }
         lines = text.split('\n')
-        if lines:
-            for i, line in enumerate(lines[:20]):
-                line = line.strip()
-                if not line or len(line) > 60:
-                    continue
-                words = line.split()
-                if 2 <= len(words) <= 4:
-                    if line.isupper() and all(len(w) > 1 for w in words):
-                        excluded = ['DATA SCIENTIST', 'SOFTWARE ENGINEER', 'DEVELOPER', 'ANALYST', 
-                                   'CURRICULUM', 'RESUME', 'CV', 'VITAE']
-                        if not any(header in line.upper() for header in excluded):
-                            if all(len(w) >= 2 for w in words):
-                                info['name'] = line.title()
-                                break
-                    if all(w[0].isupper() and (len(w) == 1 or w[1:].islower()) for w in words):
-                         if not self.email_pattern.search(line) and not phone_pattern_improved.search(line):
-                             if i < 10:
-                                 info['name'] = line
-                                 break
-                                 
-        # Location Heuristic: Look for City, Country patterns or capitalized words after contact info
-        # Common locations in the example: "Cairo", "Milan, Italy", "Alamein, Matrouh"
-        # We scan the first 15 lines again for location-like strings
-        likely_locations = []
-        for line in lines[:20]:
-            line = line.strip()
-            if len(line) < 4 or len(line) > 50: continue
-            # Skip lines that are definitely not locations
-            if any(x in line.lower() for x in ['phone', 'email', 'linkedin', 'github', 'summary', 'experience']): continue
-            if self.email_pattern.search(line) or self.phone_pattern.search(line): continue
-            
-            # Pattern: City, Country or just Capitalized words not being a name
-            # Heuristic: If it has a comma and both parts are capitalized
-            if ',' in line:
-                parts = line.split(',')
-                if len(parts) == 2 and all(p.strip().istitle() for p in parts):
-                    likely_locations.append(line)
-            # Heuristic: Known major cities (simple list)
-            elif line.lower() in ['cairo', 'london', 'new york', 'dubai', 'berlin', 'paris', 'milan', 'rome', 'madrid']:
-                 likely_locations.append(line)
-            # Heuristic: "City" followed by digits (zip) or mixed
-            elif line[0].isupper() and not any(w.isdigit() for w in line.split()) and len(line.split()) < 4:
-                # Avoid "Assistant" or "Engineer"
-                if not any(j in line.lower() for j in ['engineer', 'developer', 'assistant', 'manager', 'lead']):
-                     if line != info.get('name'): # Don't duplicate name
-                        # Lower confidence, but add
-                        likely_locations.append(line)
+        for i, line in enumerate(lines[:15]):
+            line_s = line.strip()
+            if not line_s or len(line_s) > 60:
+                continue
+            words = line_s.split()
+            if not (2 <= len(words) <= 4):
+                continue
+            lower = line_s.lower()
+            if lower in NAME_BLOCKLIST:
+                continue
+            word_lowers = {w.lower() for w in words}
+            if word_lowers & SECTION_WORDS:
+                continue
+            if word_lowers & ROLE_WORDS:
+                continue
+            if self.email_pattern.search(line_s) or phone_pattern_improved.search(line_s):
+                continue
+            # ALL CAPS (e.g., "JOHANN BACH") — each word 2+ chars, no digits
+            if line_s.isupper() and all(len(w) >= 2 and w.isalpha() for w in words):
+                info['name'] = line_s.title()
+                break
+            # Title case (e.g., "Karen Santos") — each word starts uppercase, rest lowercase
+            if all(w[0].isupper() and w[1:].islower() and w.isalpha() for w in words):
+                info['name'] = line_s
+                break
 
-        if likely_locations:
-             # Pick the first one that looks most like a location (contains comma)
-             best = next((l for l in likely_locations if ',' in l), likely_locations[0])
-             info['address'] = best
+        # Location extraction — strict. Only accept "City, State" or
+        # "City, Country" patterns, or a short known-city list.
+        # Don't guess on single-word capitalized lines (too risky — catches
+        # names, headers, companies).
+        US_STATES = {
+            'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL',
+            'IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT',
+            'NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI',
+            'SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC',
+        }
+        KNOWN_CITIES = {
+            'cairo', 'giza', 'alexandria', 'london', 'new york', 'dubai',
+            'berlin', 'paris', 'milan', 'rome', 'madrid', 'barcelona',
+            'amsterdam', 'toronto', 'vancouver', 'sydney', 'melbourne',
+            'singapore', 'tokyo', 'seoul', 'beijing', 'shanghai', 'mumbai',
+            'bangalore', 'delhi', 'riyadh', 'doha', 'istanbul',
+        }
+        COUNTRIES = {
+            'usa','us','uk','uae','egypt','germany','france','italy','spain',
+            'netherlands','canada','australia','india','china','japan',
+            'singapore','saudi arabia','qatar','brazil','mexico', 'ireland',
+        }
+        for line in lines[:20]:
+            line_s = line.strip()
+            if not line_s or len(line_s) > 50 or len(line_s) < 4:
+                continue
+            if self.email_pattern.search(line_s) or self.phone_pattern.search(line_s):
+                continue
+            lower = line_s.lower()
+            # Skip section headers and non-location lines
+            if lower in NAME_BLOCKLIST or lower in ('contact', 'contact info', 'contact information'):
+                continue
+            # Strict pattern: "City, Region/Country" with comma
+            if ',' in line_s:
+                parts = [p.strip() for p in line_s.split(',')]
+                if len(parts) == 2:
+                    city, region = parts
+                    # Each part must be short (<=3 words), alphabetic-ish
+                    if (1 <= len(city.split()) <= 3 and 1 <= len(region.split()) <= 3
+                        and all(c.isalpha() or c.isspace() for c in city)
+                        and all(c.isalpha() or c.isspace() for c in region)):
+                        # Region must be a US state, country, or short region name
+                        region_lower = region.lower()
+                        region_upper = region.upper()
+                        if (region_upper in US_STATES
+                            or region_lower in COUNTRIES
+                            or region_lower in KNOWN_CITIES
+                            or (len(region.split()) <= 2 and city.lower() not in NAME_BLOCKLIST)):
+                            info['address'] = line_s
+                            break
+            # Single known city as a standalone line
+            elif lower in KNOWN_CITIES:
+                info['address'] = line_s
+                break
              
         # LinkedIn handle fallback
         if not info.get('linkedin'):
