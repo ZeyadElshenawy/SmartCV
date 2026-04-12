@@ -287,7 +287,22 @@ def resume_edit_view(request, resume_id):
     # Overlay the modified content back onto the resume object specifically for the template
     resume.content = form_content
 
-    return render(request, 'resumes/edit.html', {'resume': resume})
+    # Single source of truth for the template picker. Values must match PDF
+    # template file names: pdf_template.html for 'standard', otherwise
+    # pdf_template_{value}.html.
+    template_choices = [
+        {'value': 'standard',    'label': 'Standard',    'subtitle': 'Classic layout',     'tag': 'B&W'},
+        {'value': 'executive',   'label': 'Executive',   'subtitle': 'Serif, traditional', 'tag': 'B&W'},
+        {'value': 'minimalist',  'label': 'Minimalist',  'subtitle': 'Clean whitespace',   'tag': 'B&W'},
+        {'value': 'compact',     'label': 'Compact',     'subtitle': 'Dense one-pager',    'tag': 'B&W'},
+        {'value': 'danette',     'label': 'Accent',      'subtitle': 'Blue highlights',    'tag': 'Color'},
+        {'value': 'zeyad',       'label': 'Modern',      'subtitle': 'Bold sans-serif',    'tag': 'Color'},
+    ]
+
+    return render(request, 'resumes/edit.html', {
+        'resume': resume,
+        'template_choices': template_choices,
+    })
 
 @login_required
 def export_pdf_view(request, resume_id):

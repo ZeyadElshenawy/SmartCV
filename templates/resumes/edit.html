@@ -113,23 +113,23 @@
                         <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"></path></svg>
                         Choose Resume Template
                     </h2>
-                    <div class="grid grid-cols-3 gap-4">
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
                         {% with current_template=resume.content.template_name|default:"standard" %}
-                        <label class="relative flex flex-col items-center justify-center p-4 border-2 cursor-pointer bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:border-rn-blue dark:hover:border-rn-gold transition-colors {% if current_template == 'standard' %}border-rn-blue ring-1 ring-rn-blue dark:border-rn-gold dark:ring-rn-gold{% else %}border-gray-200 dark:border-gray-700{% endif %}">
-                            <input type="radio" name="template_name" value="standard" class="hidden" {% if current_template == 'standard' %}checked{% endif %} onchange="updateTemplateSelection(this)">
-                            <div class="font-bold text-rn-navy dark:text-gray-200 text-sm">Standard</div>
-                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Classic</div>
+                        {% comment %}
+                        Each template is a label containing a hidden radio input + a
+                        small preview card. Values correspond to PDF template file
+                        names (pdf_template_{value}.html, or pdf_template.html for 'standard').
+                        {% endcomment %}
+                        {% for t in template_choices %}
+                        <label class="relative flex flex-col items-start p-4 border-2 cursor-pointer bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:border-rn-blue dark:hover:border-rn-gold transition-colors {% if current_template == t.value %}border-rn-blue ring-1 ring-rn-blue dark:border-rn-gold dark:ring-rn-gold{% else %}border-gray-200 dark:border-gray-700{% endif %}">
+                            <input type="radio" name="template_name" value="{{ t.value }}" class="hidden" {% if current_template == t.value %}checked{% endif %} onchange="updateTemplateSelection(this)">
+                            <div class="font-bold text-rn-navy dark:text-gray-200 text-sm">{{ t.label }}</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ t.subtitle }}</div>
+                            {% if t.tag %}
+                            <div class="mt-2 text-[10px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">{{ t.tag }}</div>
+                            {% endif %}
                         </label>
-                        <label class="relative flex flex-col items-center justify-center p-4 border-2 cursor-pointer bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:border-rn-blue dark:hover:border-rn-gold transition-colors {% if current_template == 'danette' %}border-rn-blue ring-1 ring-rn-blue dark:border-rn-gold dark:ring-rn-gold{% else %}border-gray-200 dark:border-gray-700{% endif %}">
-                            <input type="radio" name="template_name" value="danette" class="hidden" {% if current_template == 'danette' %}checked{% endif %} onchange="updateTemplateSelection(this)">
-                            <div class="font-bold text-rn-navy dark:text-gray-200 text-sm">Danette</div>
-                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Formal</div>
-                        </label>
-                        <label class="relative flex flex-col items-center justify-center p-4 border-2 cursor-pointer bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:border-rn-blue dark:hover:border-rn-gold transition-colors {% if current_template == 'zeyad' %}border-rn-blue ring-1 ring-rn-blue dark:border-rn-gold dark:ring-rn-gold{% else %}border-gray-200 dark:border-gray-700{% endif %}">
-                            <input type="radio" name="template_name" value="zeyad" class="hidden" {% if current_template == 'zeyad' %}checked{% endif %} onchange="updateTemplateSelection(this)">
-                            <div class="font-bold text-rn-navy dark:text-gray-200 text-sm">Zeyad</div>
-                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Modern</div>
-                        </label>
+                        {% endfor %}
                         {% endwith %}
                     </div>
                 </div>
