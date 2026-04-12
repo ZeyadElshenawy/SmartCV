@@ -75,10 +75,31 @@ MATCHED SKILLS (high priority): {', '.join(gap_analysis.matched_skills if hasatt
 - Replace em dashes (—) with a comma or delete them.
 - Avoid repetitive sentence structure across bullet points.
 
+=== BULLET POINT STANDARDS (CRITICAL for resume quality) ===
+- Each experience role: 3-5 bullets. Never more, never fewer if data exists.
+- Each project: 2-3 bullets max.
+- Bullet length: 1-2 lines each, roughly 15-25 words. No walls of text, no one-word bullets.
+- Structure: [Strong action verb] + [What you did] + [Measurable outcome or tool used].
+- QUANTIFY whenever the source CV has any number (%, $, users, hours, records, teams, etc). Do NOT invent numbers. If the source bullet is "Built a data pipeline" keep it qualitative — do not fabricate "40% faster".
+- Start every bullet with a DIFFERENT action verb. Never repeat the same verb in the same role.
+- Preferred action verbs by intent: Built / Designed / Implemented / Shipped / Launched (creation); Reduced / Improved / Accelerated / Cut (optimization); Led / Owned / Coordinated / Mentored (leadership); Analyzed / Investigated / Diagnosed (analysis).
+
+=== LENGTH & DENSITY ===
+- Professional summary: 2-3 sentences, 40-60 words max. No fluff.
+- Skills list: 8-15 items. Prioritize job-required skills that the candidate actually has (matched_skills first, then supporting technical skills).
+- Total resume should fit one page for candidates with <5 years experience, maximum two pages otherwise.
+
 === REWRITE & STRUCTURING ===
-1. PROFESSIONAL SUMMARY: Replace objective statement with a professional summary written in third person (no "I" statements). Reflect ONLY experience already present in the resume.
+1. PROFESSIONAL SUMMARY: Replace objective statement with a professional summary written in third person (no "I" statements). Reflect ONLY experience already present in the resume. Lead with role/years, one strength, one domain.
 2. SKILLS SECTION: Remove ALL soft skills. Keep ONLY hard/technical skills explicitly listed.
-3. EXPERIENCE BULLETS: Start each bullet with a strong action verb. Use XYZ structure where possible.
+3. EXPERIENCE BULLETS: Start each bullet with a strong action verb. Use STAR structure where possible (Situation/Task → Action → Result).
+4. MOST RECENT EXPERIENCE FIRST: Within each section, order entries newest first.
+
+=== ATS OPTIMIZATION ===
+- Use standard section names: "Professional Summary", "Skills", "Experience", "Education", "Projects", "Certifications".
+- Spell out acronyms on first use where non-obvious (e.g., "SEO (Search Engine Optimization)"). Keep industry-standard acronyms as-is (SQL, AWS, API).
+- Keep job titles in the output identical to how they appear in the source CV. Only fix clear typos.
+- Ensure every skill from Required Skills that the candidate genuinely has appears at least once in the resume (skills section or bullets).
 
 === THEME MIRRORING ===
 1. Identify 3 key themes from the job posting.
