@@ -8,10 +8,7 @@ logger = logging.getLogger(__name__)
 # Central model configuration
 # Groq LPU — fastest inference available (~2s responses)
 # ---------------------------------------------------------------------------
-GROQ_API_KEY = os.getenv(
-    "GROQ_API_KEY",
-    "***GROQ_KEY_REDACTED***",
-)
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 LLM_MODEL = os.getenv("GROQ_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
 
 

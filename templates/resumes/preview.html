@@ -32,7 +32,7 @@
              <div class="bg-indigo-900/50 rounded-lg p-4 border border-indigo-800">
                  <p class="text-xs text-indigo-200 mb-2 font-medium">ATS Match Score</p>
                  <div class="flex items-end gap-2">
-                     <span class="text-3xl font-bold text-white">{{ resume.ats_score|default:"85" }}%</span>
+                     <span class="text-3xl font-bold text-white">{{ resume.ats_score|floatformat:0 }}%</span>
                  </div>
                 <div class="w-full bg-indigo-950 rounded-full h-1.5 mt-2 overflow-hidden">
                     <div class="bg-rn-gold h-1.5 rounded-full" style="width: {{ resume.ats_score|default:'85' }}%;"></div>
@@ -76,7 +76,7 @@
                 </div>
                 
                 <div class="flex gap-3">
-                    <a href="{% url 'resume_edit' resume.id %}" class="inline-flex items-center px-6 py-3 border-2 border-rn-blue dark:border-gray-700 text-rn-blue dark:text-rn-gold font-bold rounded-rn-pill hover:bg-blue-50 dark:hover:bg-gray-750 transition-colors bg-white dark:bg-gray-800">
+                    <a href="{% url 'resume_edit' resume.id %}" class="inline-flex items-center px-6 py-3 border-2 border-rn-blue dark:border-gray-700 text-rn-blue dark:text-rn-gold font-bold rounded-rn-pill hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800">
                         Edit Content
                     </a>
                     <a href="{% url 'export_pdf' resume.id %}" target="_blank" @click="setTimeout(() => showNextStepsModal = true, 800)" class="inline-flex items-center px-6 py-3 bg-rn-gold text-rn-navy font-bold rounded-rn-pill hover:bg-rn-gold-hover hover:-translate-y-0.5 transition-all shadow-md">

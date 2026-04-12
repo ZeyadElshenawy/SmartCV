@@ -4,6 +4,9 @@ from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .models import User
+import logging
+
+logger = logging.getLogger(__name__)
 
 # TODO: Use custom forms for styled rendering if needed, 
 # for now using standard Django forms or manual handling in templates for custom style as requested
@@ -28,7 +31,8 @@ def register_view(request):
             login(request, user)
             return redirect('dashboard')
         except Exception as e:
-            messages.error(request, f"Error: {e}")
+            logger.exception("Registration failed: %s", e)
+            messages.error(request, "Registration failed. Please try again.")
             
     return render(request, 'accounts/register.html')
 

@@ -8,25 +8,25 @@
             size: A4;
             margin: 1.5cm;
         }
-        
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: 'Helvetica', 'Arial', sans-serif;
             font-size: 11pt;
             line-height: 1.5;
             color: #333;
         }
-        
+
         .container {
             max-width: 800px;
             margin: 0 auto;
         }
-        
+
         /* Header */
         .header {
             text-align: center;
@@ -34,27 +34,27 @@
             padding-bottom: 15px;
             border-bottom: 2px solid #2563eb;
         }
-        
+
         .header h1 {
             font-size: 24pt;
             color: #1e40af;
             margin-bottom: 8px;
         }
-        
+
         .header .contact {
             font-size: 10pt;
             color: #666;
         }
-        
+
         .header .contact span {
             margin: 0 10px;
         }
-        
+
         /* Sections */
         .section {
             margin-bottom: 20px;
         }
-        
+
         .section-title {
             font-size: 14pt;
             font-weight: bold;
@@ -64,101 +64,130 @@
             padding-bottom: 5px;
             margin-bottom: 10px;
         }
-        
+
         /* Summary */
         .summary {
             font-size: 10.5pt;
             line-height: 1.6;
             color: #555;
         }
-        
-        /* Skills */
-        .skills-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
+
+        /* Skills - table-based for xhtml2pdf compatibility */
+        .skills-table {
+            width: 100%;
+            border-collapse: collapse;
         }
-        
+
+        .skills-table td {
+            width: 33%;
+            padding: 4px;
+            vertical-align: top;
+        }
+
         .skill {
             padding: 6px 10px;
             background: #f1f5f9;
             border-radius: 4px;
             font-size: 10pt;
+            margin-bottom: 4px;
         }
-        
+
         .skill.matched {
             background: #dcfce7;
             border-left: 3px solid #16a34a;
             font-weight: 600;
         }
-        
+
         /* Experience */
         .experience-item {
             margin-bottom: 15px;
         }
-        
+
         .experience-header {
-            display: flex;
-            justify-content: space-between;
+            width: 100%;
+            border-collapse: collapse;
             margin-bottom: 5px;
         }
-        
+
+        .experience-header td {
+            vertical-align: top;
+        }
+
         .experience-title {
             font-weight: bold;
             font-size: 11.5pt;
         }
-        
+
         .experience-company {
             color: #1e40af;
             font-size: 10.5pt;
         }
-        
+
         .experience-dates {
             color: #666;
             font-size: 10pt;
+            text-align: right;
         }
-        
+
         .experience-description {
             font-size: 10pt;
             color: #555;
             margin-top: 5px;
         }
-        
+
+        .experience-description ul {
+            margin-left: 15px;
+            padding-left: 0;
+        }
+
+        .experience-description li {
+            margin-bottom: 3px;
+        }
+
         /* Education */
         .education-item {
             margin-bottom: 12px;
         }
-        
+
         .education-degree {
             font-weight: bold;
             font-size: 11pt;
         }
-        
+
         .education-institution {
             color: #1e40af;
             font-size: 10.5pt;
         }
-        
+
         /* Projects */
         .project-item {
             margin-bottom: 12px;
         }
-        
+
         .project-name {
             font-weight: bold;
             font-size: 11pt;
         }
-        
+
         .project-description {
             font-size: 10pt;
             color: #555;
         }
-        
+
+        .project-description ul {
+            margin-left: 15px;
+            padding-left: 0;
+        }
+
+        .project-description li {
+            margin-bottom: 3px;
+        }
+
         /* Dynamic Sections */
         .dynamic-section {
             margin-bottom: 15px;
         }
-        
+
         .dynamic-item {
             margin-bottom: 8px;
             font-size: 10pt;
@@ -172,12 +201,12 @@
             <h1>{{ full_name }}</h1>
             <div class="contact">
                 {% if email %}<span>{{ email }}</span>{% endif %}
-                {% if phone %}<span>•</span><span>{{ phone }}</span>{% endif %}
-                {% if location %}<span>•</span><span>{{ location }}</span>{% endif %}
-                {% if linkedin_url %}<span>•</span><span>{{ linkedin_url }}</span>{% endif %}
+                {% if phone %}<span>&bull;</span><span>{{ phone }}</span>{% endif %}
+                {% if location %}<span>&bull;</span><span>{{ location }}</span>{% endif %}
+                {% if linkedin_url %}<span>&bull;</span><span>{{ linkedin_url }}</span>{% endif %}
             </div>
         </div>
-        
+
         <!-- Summary -->
         {% if summary %}
         <div class="section">
@@ -185,45 +214,57 @@
             <div class="summary">{{ summary }}</div>
         </div>
         {% endif %}
-        
+
         <!-- Skills -->
         {% if skills %}
         <div class="section">
             <div class="section-title">Skills</div>
-            <div class="skills-grid">
+            <table class="skills-table">
                 {% for skill in skills %}
-                <div class="skill {% if skill.name in job_skills or skill in job_skills %}matched{% endif %}">
-                    {% if skill.name %}{{ skill.name }}{% else %}{{ skill }}{% endif %}
-                </div>
+                {% if forloop.counter0|divisibleby:3 %}<tr>{% endif %}
+                <td>
+                    <div class="skill {% if skill.name in job_skills or skill in job_skills %}matched{% endif %}">
+                        {% if skill.name %}{{ skill.name }}{% else %}{{ skill }}{% endif %}
+                    </div>
+                </td>
+                {% if forloop.counter|divisibleby:3 or forloop.last %}</tr>{% endif %}
                 {% endfor %}
-            </div>
+            </table>
         </div>
         {% endif %}
-        
+
         <!-- Experience -->
         {% if experiences %}
         <div class="section">
             <div class="section-title">Professional Experience</div>
             {% for exp in experiences %}
             <div class="experience-item">
-                <div class="experience-header">
-                    <div>
-                        <div class="experience-title">{{ exp.title }}</div>
-                        <div class="experience-company">{{ exp.company }}</div>
-                    </div>
-                    <div class="experience-dates">
-                        {% if exp.start_date %}{{ exp.start_date }}{% endif %}
-                        {% if exp.end_date %} - {{ exp.end_date }}{% endif %}
-                    </div>
-                </div>
+                <table class="experience-header">
+                    <tr>
+                        <td>
+                            <div class="experience-title">{{ exp.title }}</div>
+                            <div class="experience-company">{{ exp.company }}</div>
+                        </td>
+                        <td class="experience-dates">
+                            {% if exp.start_date %}{{ exp.start_date }}{% endif %}
+                            {% if exp.end_date %} - {{ exp.end_date }}{% endif %}
+                        </td>
+                    </tr>
+                </table>
                 {% if exp.description %}
-                <div class="experience-description">{{ exp.description }}</div>
+                <div class="experience-description">
+                    {% if exp.description.0 %}
+                        <ul>{% for point in exp.description %}<li>{{ point }}</li>{% endfor %}</ul>
+                    {% else %}
+                        {{ exp.description|linebreaksbr }}
+                    {% endif %}
+                </div>
                 {% endif %}
             </div>
             {% endfor %}
         </div>
         {% endif %}
-        
+
         <!-- Education -->
         {% if education %}
         <div class="section">
@@ -237,7 +278,7 @@
             {% endfor %}
         </div>
         {% endif %}
-        
+
         <!-- Projects -->
         {% if projects %}
         <div class="section">
@@ -246,13 +287,19 @@
             <div class="project-item">
                 <div class="project-name">{{ project.name }}</div>
                 {% if project.description %}
-                <div class="project-description">{{ project.description }}</div>
+                <div class="project-description">
+                    {% if project.description.0 %}
+                        <ul>{% for point in project.description %}<li>{{ point }}</li>{% endfor %}</ul>
+                    {% else %}
+                        {{ project.description|linebreaksbr }}
+                    {% endif %}
+                </div>
                 {% endif %}
             </div>
             {% endfor %}
         </div>
         {% endif %}
-        
+
         <!-- Certifications -->
         {% if certifications %}
         <div class="section">
@@ -266,7 +313,7 @@
             {% endfor %}
         </div>
         {% endif %}
-        
+
         <!-- Dynamic Sections (Awards, Volunteering, etc.) -->
         {% for section_title, section_data in extra_sections.items %}
         <div class="section dynamic-section">
@@ -279,7 +326,7 @@
                         <strong>{{ key|title }}:</strong> {{ value }}<br>
                         {% endfor %}
                     {% else %}
-                        • {{ item }}
+                        &bull; {{ item }}
                     {% endif %}
                 </div>
                 {% endfor %}

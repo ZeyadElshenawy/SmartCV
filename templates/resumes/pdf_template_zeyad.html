@@ -141,12 +141,12 @@
         <table class="header-table">
             <tr>
                 <td class="header-left">
-                    <div class="name">{{ profile.full_name|default:"Your Name" }}</div>
-                    <div class="professional-title">{{ resume.professional_title|default:"Professional Resume" }}</div>
+                    <div class="name">{{ profile.full_name }}</div>
+                    <div class="professional-title">{{ resume.professional_title }}</div>
                 </td>
                 <td class="header-right">
-                    <div>{{ profile.email|default:"email@example.com" }}</div>
-                    <div>{{ profile.phone|default:"+1-555-555-5555" }}</div>
+                    {% if profile.email %}<div>{{ profile.email }}</div>{% endif %}
+                    {% if profile.phone %}<div>{{ profile.phone }}</div>{% endif %}
                     {% if profile.linkedin_url %}<div>{{ profile.linkedin_url }}</div>{% endif %}
                     {% if profile.location %}<div>{{ profile.location }}</div>{% endif %}
                 </td>
@@ -178,7 +178,13 @@
                 </tr>
             </table>
             {% if exp.description %}
-            <div class="item-description">{{ exp.description|linebreaksbr }}</div>
+            <div class="item-description">
+                {% if exp.description.0 %}
+                    <ul>{% for point in exp.description %}<li>{{ point }}</li>{% endfor %}</ul>
+                {% else %}
+                    {{ exp.description|linebreaksbr }}
+                {% endif %}
+            </div>
             {% endif %}
         </div>
         {% endfor %}
@@ -229,7 +235,13 @@
                 {% if proj.url %}<a href="{{ proj.url }}" target="_blank" style="color: #111111; text-decoration: none;">{{ proj.name }}</a>{% else %}{{ proj.name }}{% endif %}
             </div>
             {% if proj.description %}
-            <div class="item-description">{{ proj.description|linebreaksbr }}</div>
+            <div class="item-description">
+                {% if proj.description.0 %}
+                    <ul>{% for point in proj.description %}<li>{{ point }}</li>{% endfor %}</ul>
+                {% else %}
+                    {{ proj.description|linebreaksbr }}
+                {% endif %}
+            </div>
             {% endif %}
         </div>
         {% endfor %}
