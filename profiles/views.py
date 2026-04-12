@@ -245,7 +245,10 @@ def chatbot_api(request):
             )
             
             if result.get('error'):
-                 return JsonResponse({'error': result['error']}, status=400)
+                 return JsonResponse({
+                     'error': result['error'],
+                     'recoverable': result.get('recoverable', False),
+                 }, status=400)
                  
             if result.get('needs_clarification'):
                  return JsonResponse({
@@ -271,7 +274,10 @@ def chatbot_api(request):
                     'complete': True,
                     'profile_updated': result.get('profile_updated', False) if user_message else False,
                     'gap_score': gap_score,
-                    'redirect_url': f'/profiles/form/{job_id}/'
+                    # Send the user to generate a tailored resume — the natural
+                    # next step after filling skill gaps. Previously this routed
+                    # to the manual form, which was confusing.
+                    'redirect_url': reverse('generate_resume', kwargs={'job_id': job_id})
                 })
             else:
                 return JsonResponse({

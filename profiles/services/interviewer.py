@@ -5,13 +5,32 @@ import os
 import difflib
 from typing import Dict, Any, Tuple, Optional, List
 from django.conf import settings
+from django.core.cache import cache
 from profiles.models import UserProfile
 from jobs.models import Job
 
 logger = logging.getLogger(__name__)
 
-# Conversation state tracking
-_conversation_state = {}
+# Conversation state — cached per (user, job) pair. Uses Django's cache
+# backend so state survives process restarts and works across workers.
+# Expires after 24h of inactivity.
+_STATE_TTL_SECONDS = 60 * 60 * 24
+
+
+def _state_key(user_id: int, job_id: str) -> str:
+    return f"smartcv:chatbot_state:{user_id}:{job_id}"
+
+
+def _load_state(user_id: int, job_id: str) -> Optional[Dict[str, Any]]:
+    return cache.get(_state_key(user_id, job_id))
+
+
+def _save_state(user_id: int, job_id: str, state: Dict[str, Any]) -> None:
+    cache.set(_state_key(user_id, job_id), state, _STATE_TTL_SECONDS)
+
+
+def _clear_state(user_id: int, job_id: str) -> None:
+    cache.delete(_state_key(user_id, job_id))
 
 # Standardized proficiency levels
 VALID_PROFICIENCIES = ['Beginner', 'Intermediate', 'Advanced', 'Expert']
@@ -142,17 +161,16 @@ def process_chat_turn(user_id: int, job_id: str, user_reply: str, conversation_h
     except (Job.DoesNotExist, UserProfile.DoesNotExist):
         return {'error': 'Profile or Job not found'}
         
-    state_key = f"{user_id}_{job_id}"
-    if state_key not in _conversation_state:
+    state = _load_state(user_id, job_id)
+    if state is None:
         comparison = compare_cv_with_job(profile.skills or [], job.extracted_skills or [])
-        _conversation_state[state_key] = {
+        state = {
             'covered_skills': [],
             'mentioned_skills': [],
             'turn_count': 0,
-            'validated_skills': comparison['exact_matches']
+            'last_question': '',
+            'validated_skills': comparison['exact_matches'],
         }
-    
-    state = _conversation_state[state_key]
     state['turn_count'] += 1
     
     # Removed manual string intercept code so the LLM manages flow state organically
@@ -175,6 +193,7 @@ def process_chat_turn(user_id: int, job_id: str, user_reply: str, conversation_h
             completion_msg = f"{'Great work, ' + user_name + '! ' if user_name else 'Great work! '}Your profile now covers all the key skills for **{job.title}**. You have **{skill_count} skills** on record — that's a strong foundation. Let's move on to generating your tailored resume!"
         else:
             completion_msg = f"{'Thanks, ' + user_name + '! ' if user_name else 'Thanks! '}We've covered a lot of ground. Your profile is looking solid with **{skill_count} skills** for the **{job.title}** role. Ready to put it all together!"
+        _save_state(user_id, job_id, state)
         return {
              'needs_clarification': False,
              'extracted_skills': [],
@@ -421,30 +440,72 @@ User just said: "{user_reply or '(No reply yet — generate your opening message
                 if sn and sn not in covered_lower:
                     state['covered_skills'].append(s.get('name', ''))
                     covered_lower.add(sn)
-              
+
+        # Loop detection — if the LLM just repeated the previous question
+        # verbatim, force completion rather than trap the user in a loop.
+        final_question = next_gen.question or f"I'd love to hear more about your experience, {user_name}. What tools or technologies do you use most often?"
+        if state.get('last_question') and final_question.strip() == state['last_question'].strip():
+            logger.warning("Chatbot loop detected (identical question repeated) — forcing completion")
+            _save_state(user_id, job_id, state)
+            return {
+                'needs_clarification': False,
+                'extracted_skills': skills_to_add,
+                'profile_updated': profile_updated,
+                'next_question': "We've covered a lot together! Let's put this into a tailored resume.",
+                'next_topic': 'completion',
+                'is_complete': True,
+            }
+        state['last_question'] = final_question
+
+        # Persist state for the next turn
+        _save_state(user_id, job_id, state)
+
         return {
             'needs_clarification': False,
             'extracted_skills': skills_to_add,
             'profile_updated': profile_updated,
-            'next_question': next_gen.question or f"I'd love to hear more about your experience, {user_name}. What tools or technologies do you use most often?",
+            'next_question': final_question,
             'next_topic': next_topic,
             'is_complete': False
         }
 
     except Exception as e:
         logger.exception(f"Chat turn failed: {e}")
+        # Differentiate first-turn failure from mid-conversation failure.
+        # Referencing user_name here crashed before because it was only defined
+        # inside the try block.
+        safe_name = ''
+        try:
+            safe_name = (profile.data_content or {}).get('full_name', '').split()[0]
+        except Exception:
+            pass
+        is_first_turn = not conversation_history
+        if is_first_turn:
+            opener = (
+                f"Hi{' ' + safe_name if safe_name else ''}! I'm your SmartCV Career Agent. "
+                f"I've looked through your profile for the **{job.title}** role — "
+                "tell me a bit about your recent work experience and what tools you use day-to-day."
+            )
+            return {
+                'needs_clarification': False,
+                'extracted_skills': [],
+                'profile_updated': False,
+                'next_question': opener,
+                'next_topic': 'general',
+                'is_complete': False,
+                'error_kind': 'soft_failure_first_turn',
+            }
+        # Mid-conversation failure — signal it clearly so the client can show retry.
         return {
             'needs_clarification': False,
             'extracted_skills': [],
             'profile_updated': False,
-            'next_question': f"Hi{' ' + user_name if user_name != 'there' else ''}! I'm your SmartCV Career Agent. I've looked through your profile for the **{job.title}** role — tell me a bit about your recent work experience and what tools you use day-to-day.",
-            'next_topic': "general",
-            'is_complete': False
+            'error': 'Our AI hit a snag. Please try sending your message again.',
+            'recoverable': True,
+            'is_complete': False,
         }
 
 
 def reset_conversation_state(user_id: int, job_id: str):
     """Clear conversation state."""
-    state_key = f"{user_id}_{job_id}"
-    if state_key in _conversation_state:
-        del _conversation_state[state_key]
+    _clear_state(user_id, job_id)

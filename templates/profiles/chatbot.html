@@ -42,12 +42,14 @@
                     <template x-if="msg.role === 'assistant'">
                         <div class="flex items-end gap-2.5 max-w-[85%]">
                             <!-- Avatar -->
-                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center shrink-0 shadow-sm">
-                                <span class="text-white font-bold text-[10px]">S</span>
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm"
+                                 :class="msg.isError ? 'bg-red-500' : 'bg-gradient-to-br from-blue-600 to-indigo-700'">
+                                <span class="text-white font-bold text-[10px]" x-text="msg.isError ? '!' : 'S'"></span>
                             </div>
                             <!-- Bubble & Actions Container -->
                             <div class="flex flex-col items-start gap-1.5">
-                                <div class="bg-gradient-to-br from-blue-600 to-indigo-700 text-white px-4 py-3 rounded-2xl rounded-bl-md shadow-md">
+                                <div class="px-4 py-3 rounded-2xl rounded-bl-md shadow-md"
+                                     :class="msg.isError ? 'bg-red-50 border border-red-200 text-red-900' : 'bg-gradient-to-br from-blue-600 to-indigo-700 text-white'">
                                     <div class="text-sm leading-relaxed whitespace-pre-wrap chat-bot-msg" x-html="formatBotMessage(msg.content)"></div>
                                     <!-- Profile Update Indicator -->
                                     <template x-if="msg.profileUpdated">
@@ -57,9 +59,17 @@
                                         </div>
                                     </template>
                                 </div>
-                                
-                                <!-- Skip Button (visible only on the latest bot message when not loading) -->
-                                <template x-if="msg.id === messages[messages.length - 1]?.id && !loading && !completionRedirectUrl">
+
+                                <!-- Retry Button (on recoverable error) -->
+                                <template x-if="msg.isError && msg.retryPayload">
+                                    <button @click="retryLastMessage(msg)" class="ml-1 flex items-center gap-1.5 text-[11px] text-red-700 hover:text-red-900 font-bold px-2.5 py-1 bg-white rounded-lg shadow-sm border border-red-200 transition duration-200">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                        <span>Retry</span>
+                                    </button>
+                                </template>
+
+                                <!-- Skip Button (visible only on the latest non-error bot message when not loading) -->
+                                <template x-if="!msg.isError && msg.id === messages[messages.length - 1]?.id && !loading && !completionRedirectUrl">
                                     <button @click="skipQuestion" class="ml-1 flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 font-medium px-2.5 py-1 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 transition duration-200">
                                         <span>Skip this</span>
                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path></svg>
@@ -437,10 +447,18 @@ function careerAgent() {
                     body: JSON.stringify(payload)
                 });
 
-                if (!response.ok) throw new Error(`Server returned ${response.status}`);
-
-                const data = await response.json();
-                if (data.error) throw new Error(data.error);
+                let data;
+                try {
+                    data = await response.json();
+                } catch (_) {
+                    data = { error: `Server returned ${response.status}` };
+                }
+                if (!response.ok || data.error) {
+                    const err = new Error(data.error || `Server returned ${response.status}`);
+                    err.recoverable = data.recoverable;
+                    err.lastUserMessage = userMessage;
+                    throw err;
+                }
 
                 if (data.message) {
                     const msg = {
@@ -472,8 +490,10 @@ function careerAgent() {
                 this.messages.push({
                     id: Date.now(),
                     role: 'assistant',
-                    content: `I apologize, something went wrong: ${error.message}. Please try again.`,
-                    profileUpdated: false
+                    content: error.message || 'Something went wrong.',
+                    profileUpdated: false,
+                    isError: true,
+                    retryPayload: error.recoverable ? error.lastUserMessage : null,
                 });
             } finally {
                 this.loading = false;
@@ -506,6 +526,14 @@ function careerAgent() {
             });
 
             await this.fetchNextQuestion(answer);
+        },
+
+        async retryLastMessage(errorMsg) {
+            if (this.loading) return;
+            const payload = errorMsg.retryPayload;
+            // Remove the error message from the UI so the retry isn't visually stacked on an error
+            this.messages = this.messages.filter(m => m.id !== errorMsg.id);
+            await this.fetchNextQuestion(payload);
         },
 
         async skipQuestion() {
