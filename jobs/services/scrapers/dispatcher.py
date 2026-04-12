@@ -3,7 +3,7 @@ Dispatcher: picks the right scraper based on URL, returns a normalized
 job dict. Falls back to the generic JSON-LD scraper for unknown hosts.
 """
 import logging
-from . import linkedin, greenhouse, lever, generic
+from . import linkedin, indeed, greenhouse, lever, generic
 from .base import ScrapeError
 
 logger = logging.getLogger(__name__)
@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 # so it acts as the final fallback.
 _SCRAPERS = [
     ('linkedin', linkedin),
+    ('indeed', indeed),
     ('greenhouse', greenhouse),
     ('lever', lever),
     ('generic', generic),

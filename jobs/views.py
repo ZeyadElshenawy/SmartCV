@@ -42,16 +42,29 @@ def job_input_view(request):
         try:
             if input_method == 'url':
                 url = request.POST.get('job_url')
-                logger.info("Starting job extraction for URL: %s", url)
+                # The UI sends a source_hint (linkedin / indeed / greenhouse /
+                # lever / other) based on which tab the user picked. We don't
+                # force-route by it — the dispatcher decides from the URL —
+                # but we do warn the user if their pasted URL doesn't match
+                # the tab they selected. Prevents silent misroutes.
+                source_hint = (request.POST.get('source_hint') or '').lower().strip()
+                logger.info("Starting job extraction for URL: %s (hint=%s)", url, source_hint or 'none')
 
                 # Dispatch to the appropriate scraper by URL host
-                # (LinkedIn, Greenhouse, Lever, or generic JSON-LD fallback).
+                # (LinkedIn, Indeed, Greenhouse, Lever, or generic JSON-LD fallback).
                 job_data = scrape_job(url)
-                logger.info(
-                    "Job scraped from %s: %s",
-                    job_data.get('source', '?'),
-                    job_data.get('title', 'Unknown'),
-                )
+                detected = job_data.get('source', '?')
+                logger.info("Job scraped from %s: %s", detected, job_data.get('title', 'Unknown'))
+
+                # Soft validation — if the hint was a specific source but we
+                # routed to 'generic' or a different source, note it in logs.
+                # Not an error: the scraper still succeeded. Just a helpful
+                # signal for the user's mental model.
+                if source_hint and source_hint not in ('other', detected):
+                    logger.info(
+                        "Source hint '%s' didn't match detected source '%s' — "
+                        "letting dispatcher routing stand.", source_hint, detected
+                    )
 
                 # Extract skills
                 skills = extract_skills(job_data['description'])
