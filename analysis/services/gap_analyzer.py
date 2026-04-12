@@ -124,6 +124,34 @@ def compute_gap_analysis(profile, job):
     job_skills = job.extracted_skills or []
     candidate_context = _build_full_candidate_context(profile)
 
+    # Early exits: when there's nothing to compare, don't waste an LLM call
+    # and don't return a misleading 0% score.
+    if not job_skills:
+        logger.info("Gap analysis skipped: job has no extracted skills")
+        return {
+            'matched_skills': [],
+            'missing_skills': [],
+            'partial_skills': [],
+            'soft_skill_gaps': [],
+            'critical_missing_skills': [],
+            'seniority_mismatch': None,
+            'similarity_score': 0.0,
+            'analysis_method': 'no_job_skills',
+        }
+
+    if not candidate_context.strip():
+        logger.info("Gap analysis skipped: profile is effectively empty")
+        return {
+            'matched_skills': [],
+            'missing_skills': list(job_skills),
+            'partial_skills': [],
+            'soft_skill_gaps': [],
+            'critical_missing_skills': list(job_skills)[:5],
+            'seniority_mismatch': None,
+            'similarity_score': 0.0,
+            'analysis_method': 'empty_profile',
+        }
+
     try:
         prompt = f"""You are an expert technical recruiter. Compare the candidate's FULL profile against the job requirements.
 
@@ -160,10 +188,15 @@ RULE 3 — NO DUPLICATES:
 RULE 4 — CASE-INSENSITIVE:
 - "PySpark" and "Pyspark" and "pyspark" are the SAME skill. Do not list them separately.
 
+RULE 5 — SENIORITY & CAREER-SWITCH SIGNALS (soft_skill_gaps):
+- If the job title implies a seniority (Senior, Staff, Lead, Principal) but the candidate has <3 years of relevant experience, add a concise note to soft_skill_gaps like "Seniority gap: job asks for Senior; candidate reads as mid-level".
+- If the candidate's experience is in a different domain than the target role (e.g., teaching background applying to SWE), add "Career transition: limited direct industry experience in [target domain]".
+- These should be CONSTRUCTIVE observations, not blockers. Keep each under 20 words.
+
 === OUTPUT ===
 Return ONLY the structured JSON via the provided function. No preamble."""
 
-        structured_llm = get_structured_llm(GapAnalysisResult, temperature=0.1, max_tokens=600)
+        structured_llm = get_structured_llm(GapAnalysisResult, temperature=0.1, max_tokens=2000)
         result = structured_llm.invoke(prompt)
 
         # Clamp similarity score to valid range

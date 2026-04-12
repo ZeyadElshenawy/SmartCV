@@ -23,28 +23,26 @@ def generate_job_embeddings(job_id):
 
 def compute_gap_analysis_task(job_id, user_id):
     """
-    Background task to compute full gap analysis via LLM,
-    saving the result to the GapAnalysis model asynchronously.
+    Synchronously compute gap analysis via LLM and persist to GapAnalysis.
+    Raises on failure so callers can surface errors to the user.
     """
-    try:
-        from analysis.services.gap_analyzer import compute_gap_analysis
-        from analysis.models import GapAnalysis
-        
-        job = Job.objects.get(id=job_id, user_id=user_id)
-        profile = UserProfile.objects.get(user_id=user_id)
-        
-        analysis_results = compute_gap_analysis(profile, job)
-        
-        GapAnalysis.objects.update_or_create(
-            job=job,
-            user_id=user_id,
-            defaults={
-                'matched_skills': analysis_results['matched_skills'],
-                'missing_skills': analysis_results['missing_skills'],
-                'partial_skills': analysis_results['partial_skills'],
-                'similarity_score': analysis_results['similarity_score']
-            }
-        )
-        logger.info(f"Successfully computed gap analysis for job {job_id}")
-    except Exception as e:
-        logger.error(f"Failed to compute gap analysis in background for job {job_id}: {e}")
+    from analysis.services.gap_analyzer import compute_gap_analysis
+    from analysis.models import GapAnalysis
+
+    job = Job.objects.get(id=job_id, user_id=user_id)
+    profile = UserProfile.objects.get(user_id=user_id)
+
+    analysis_results = compute_gap_analysis(profile, job)
+
+    GapAnalysis.objects.update_or_create(
+        job=job,
+        user_id=user_id,
+        defaults={
+            'matched_skills': analysis_results['matched_skills'],
+            'missing_skills': analysis_results['missing_skills'],
+            'partial_skills': analysis_results['partial_skills'],
+            'similarity_score': analysis_results['similarity_score'],
+        }
+    )
+    logger.info(f"Successfully computed gap analysis for job {job_id}")
+    return analysis_results

@@ -99,32 +99,74 @@ def gap_analysis_view(request, job_id):
     
         return render(request, 'analysis/gap_analysis.html', context)
     else:
-        # Not computed yet! Return immediately with is_computing flag
+        # Validate preconditions up front so users aren't stuck in a
+        # "spin → error → retry" loop when their profile or job is empty.
+        if not job.extracted_skills:
+            from django.contrib import messages
+            messages.error(
+                request,
+                "We couldn't extract any technical skills from this job description. "
+                "Edit the description to include specific requirements, then retry."
+            )
+            return redirect('review_extracted_job', job_id=job.id)
+
+        if not profile.skills:
+            from django.contrib import messages
+            messages.warning(
+                request,
+                "Add some skills to your profile (upload a CV or fill it in manually) "
+                "before running gap analysis."
+            )
+            return redirect('review_master_profile')
+
         context = {
             'job': job,
             'profile': profile,
-            'is_computing': True, 
+            'is_computing': True,
         }
         return render(request, 'analysis/gap_analysis.html', context)
 
 @login_required
 def compute_gap_api(request, job_id):
-    """API endpoint to trigger the gap analysis background task"""
+    """API endpoint to trigger the gap analysis synchronously."""
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
-        
+
     job = get_object_or_404(Job, id=job_id, user=request.user)
-    
+
     try:
         profile = UserProfile.objects.get(user=request.user)
     except UserProfile.DoesNotExist:
-        return JsonResponse({'error': 'Profile not found'}, status=404)
-        
-    # Direct synchronous computation
-    from .tasks import compute_gap_analysis_task
-    compute_gap_analysis_task(job.id, request.user.id)
-    
-    return JsonResponse({'success': True, 'message': 'Analysis complete'})
+        return JsonResponse({
+            'error': 'Please upload your CV first before running gap analysis.',
+            'action': 'upload_profile',
+        }, status=400)
+
+    # Validate preconditions — the analysis is meaningless without inputs.
+    if not job.extracted_skills:
+        return JsonResponse({
+            'error': "We couldn't extract any skills from this job description. Try editing the description to include technical requirements.",
+            'action': 'edit_job',
+        }, status=400)
+
+    if not profile.skills:
+        return JsonResponse({
+            'error': 'Your profile has no skills yet. Upload your CV or add skills manually, then run gap analysis.',
+            'action': 'upload_profile',
+        }, status=400)
+
+    import logging as _logging
+    _log = _logging.getLogger(__name__)
+    try:
+        from .tasks import compute_gap_analysis_task
+        compute_gap_analysis_task(job.id, request.user.id)
+        return JsonResponse({'success': True, 'message': 'Analysis complete'})
+    except Exception as e:
+        _log.exception(f"Gap analysis failed for job {job_id}: {e}")
+        return JsonResponse({
+            'error': 'Gap analysis failed. This can happen if the AI is temporarily unavailable — please try again in a moment.',
+            'retryable': True,
+        }, status=500)
 
 @login_required
 @require_POST
