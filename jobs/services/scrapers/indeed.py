@@ -91,7 +91,7 @@ def scrape(url: str) -> dict:
                     page.wait_for_selector('h1', timeout=10000)
                 except Exception:
                     # Might be a Cloudflare challenge — check and raise
-                    body_text = page.locator('body').first.text_content(timeout=2000) or ''
+                    body_text = page.locator('body').first.inner_text(timeout=2000) or ''
                     if 'needs to review' in body_text.lower() or 'cloudflare' in body_text.lower():
                         raise ScrapeError(
                             "Indeed served a Cloudflare challenge we couldn't bypass. "
@@ -104,7 +104,7 @@ def scrape(url: str) -> dict:
 
                 # Title
                 try:
-                    title = page.locator('h1').first.text_content(timeout=2000)
+                    title = page.locator('h1').first.inner_text(timeout=2000)
                     if title:
                         title = title.strip()
                 except Exception:
@@ -117,7 +117,7 @@ def scrape(url: str) -> dict:
                 ):
                     try:
                         el = page.locator(sel).first
-                        company_name = (el.text_content(timeout=2000) or '').strip() or company_name
+                        company_name = (el.inner_text(timeout=2000) or '').strip() or company_name
                         if company_name:
                             break
                     except Exception:
@@ -142,7 +142,7 @@ def scrape(url: str) -> dict:
                 ):
                     try:
                         el = page.locator(sel).first
-                        location = (el.text_content(timeout=2000) or '').strip() or location
+                        location = (el.inner_text(timeout=2000) or '').strip() or location
                         if location:
                             break
                     except Exception:
@@ -152,7 +152,7 @@ def scrape(url: str) -> dict:
                 for sel in ('#salaryInfoAndJobType', '#jobDetailsSection'):
                     try:
                         el = page.locator(sel).first
-                        details = (el.text_content(timeout=2000) or '').strip() or details
+                        details = (el.inner_text(timeout=2000) or '').strip() or details
                         if details:
                             break
                     except Exception:
