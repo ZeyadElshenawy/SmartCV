@@ -257,28 +257,50 @@ class CVExtractor:
         """
         # --- Fix letter-spaced words (PDF kerning artifact) ---
         # PDFs with wide letter-spacing produce "B ACH ELOR" or "IN FR OM ATION".
-        # Use a known-word replacement table for common terms found in CVs.
-        letter_spaced_fixes = {
-            r'B\s*ACH\s*ELOR': 'BACHELOR',
-            r'M\s*AST\s*ER': 'MASTER',
-            r'IN\s*FR\s*OM\s*ATION': 'INFORMATION',
-            r'TECH\s*N\s*OL\s*O\s*G\s*Y': 'TECHNOLOGY',
-            r'COM\s*PUTER': 'COMPUTER',
-            r'SCIEN\s*CE': 'SCIENCE',
-            r'DIG\s*ITAL': 'DIGITAL',
-            r'PION\s*E\s*E\s*R\s*S': 'PIONEERS',
-            r'IN\s*ITIATIVE': 'INITIATIVE',
-            r'COUR\s*SER\s*A': 'COURSERA',
-            r'DATA\s*CAM\s*P': 'DATACAMP',
-            r'ENG\s*IN\s*EER': 'ENGINEER',
-            r'MAN\s*AGE\s*MENT': 'MANAGEMENT',
-            r'CERT\s*IF\s*IC\s*AT': 'CERTIFICAT',
-            r'PROF\s*ESS\s*ION\s*AL': 'PROFESSIONAL',
-            r'EXP\s*ER\s*IENCE': 'EXPERIENCE',
-            r'ED\s*UC\s*ATION': 'EDUCATION',
-        }
-        for pattern, replacement in letter_spaced_fixes.items():
-            text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+        # Use a known-word list. Preserve original casing: detect whether the
+        # match was all-caps, title case, or lowercase, and apply the same casing.
+        letter_spaced_words = [
+            r'B\s*ACH\s*ELOR',
+            r'M\s*AST\s*ER',
+            r'IN\s*FR\s*OM\s*ATION',
+            r'IN\s*FORM\s*ATION',
+            r'TECH\s*N\s*OL\s*O\s*G\s*Y',
+            r'COM\s*PUTER',
+            r'SCIEN\s*CE',
+            r'DIG\s*ITAL',
+            r'PION\s*E\s*E\s*R\s*S',
+            r'IN\s*ITIATIVE',
+            r'COUR\s*SER\s*A',
+            r'DATA\s*CAM\s*P',
+            r'ENG\s*IN\s*EER',
+            r'MAN\s*AGE\s*MENT',
+            r'CERT\s*IF\s*IC\s*AT',
+            r'PROF\s*ESS\s*ION\s*AL',
+            r'EXP\s*ER\s*IENCE',
+            r'ED\s*UC\s*ATION',
+            r'FOR\s*ENS\s*ICS',
+            r'FOR\s*ENS\s*IC',
+        ]
+
+        def _case_preserving_collapse(match):
+            """Collapse the matched letter-spaced text while preserving its original casing."""
+            original = match.group(0)
+            collapsed = re.sub(r'\s+', '', original)
+            # Detect casing from first two non-space chars of the original
+            non_space = [c for c in original if not c.isspace()]
+            if not non_space:
+                return collapsed
+            if all(c.isupper() for c in non_space if c.isalpha()):
+                return collapsed.upper()
+            if non_space[0].isupper() and all(c.islower() for c in non_space[1:] if c.isalpha()):
+                return collapsed[0].upper() + collapsed[1:].lower()
+            if all(c.islower() for c in non_space if c.isalpha()):
+                return collapsed.lower()
+            # Mixed — fall back to title case
+            return collapsed[0].upper() + collapsed[1:].lower()
+
+        for pattern in letter_spaced_words:
+            text = re.sub(pattern, _case_preserving_collapse, text, flags=re.IGNORECASE)
 
         # Remove common header/footer patterns
         noise_patterns = [
