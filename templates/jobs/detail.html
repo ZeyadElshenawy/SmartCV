@@ -23,7 +23,7 @@
                 </div>
                 
                 <!-- Status Control -->
-                <div class="bg-gray-50 dark:bg-gray-750 p-4 rounded-lg border border-gray-200 dark:border-gray-700 min-w-[240px] transition-colors">
+                <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-700 min-w-[240px] transition-colors">
                     <form method="post" class="flex flex-col gap-3">
                         {% csrf_token %}
                         <label for="application_status" class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -50,11 +50,25 @@
             <div class="px-8 py-8">
                 <!-- Action Buttons -->
                 <div class="flex flex-col sm:flex-row flex-wrap gap-4 mb-10 pb-10 border-b border-gray-200">
+                    {% if not has_profile %}
                     <a href="{% url 'profile_upload_cv' job.id %}"
                        class="inline-flex items-center justify-center px-8 py-3.5 bg-rn-gold text-rn-navy rounded-rn-pill font-bold shadow-md hover:bg-rn-gold-hover hover:-translate-y-0.5 transition-all duration-200">
-                        Customize Resume
+                        Upload Your CV
                         <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                     </a>
+                    {% elif existing_resume %}
+                    <a href="{% url 'resume_edit' existing_resume.id %}"
+                       class="inline-flex items-center justify-center px-8 py-3.5 bg-rn-gold text-rn-navy rounded-rn-pill font-bold shadow-md hover:bg-rn-gold-hover hover:-translate-y-0.5 transition-all duration-200">
+                        View Tailored Resume
+                        <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                    </a>
+                    {% else %}
+                    <a href="{% url 'generate_resume' job.id %}"
+                       class="inline-flex items-center justify-center px-8 py-3.5 bg-rn-gold text-rn-navy rounded-rn-pill font-bold shadow-md hover:bg-rn-gold-hover hover:-translate-y-0.5 transition-all duration-200">
+                        Generate Tailored Resume
+                        <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                    </a>
+                    {% endif %}
                     
                     <a href="{% url 'gap_analysis' job.id %}"
                        class="inline-flex items-center justify-center px-8 py-3.5 bg-amber-50 border-2 border-amber-200 text-amber-700 rounded-rn-pill font-bold shadow-sm hover:bg-amber-100 transition-colors duration-200">
