@@ -1,83 +1,97 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 transition-colors" x-data="{ activeTab: 'url' }">
+{# Per-source tab configuration. Each URL tab submits to the same endpoint
+   (input_method=url) — the backend dispatcher routes by URL. The per-tab
+   placeholder and hint just guide users toward the right link shape. #}
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 transition-colors"
+     x-data="{
+        activeTab: 'linkedin',
+        sources: {
+            linkedin:   { label: 'LinkedIn',   placeholder: 'https://www.linkedin.com/jobs/view/4081234567/', hint: 'Paste the LinkedIn job link. Works for /jobs/view/{id} and /jobs/search links.' },
+            indeed:     { label: 'Indeed',     placeholder: 'https://www.indeed.com/viewjob?jk=abc123...',      hint: 'Paste the Indeed job link. Works with all country versions (eg, uk, us, etc.).' },
+            greenhouse: { label: 'Greenhouse', placeholder: 'https://boards.greenhouse.io/company/jobs/1234567', hint: 'Paste any Greenhouse board link (boards.greenhouse.io, job-boards.greenhouse.io, or company.greenhouse.io).' },
+            lever:      { label: 'Lever',      placeholder: 'https://jobs.lever.co/company/abc12345-de67-...',  hint: 'Paste the Lever posting link. Reads directly from Lever\'s public API.' },
+            other:      { label: 'Other',      placeholder: 'https://careers.company.com/jobs/...',             hint: 'Paste any company career page. We parse schema.org JobPosting data when available.' },
+        }
+     }">
     <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        
+
         <!-- Main Form Card -->
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
             <!-- Card Header -->
             <div class="px-8 py-8 border-b border-gray-200 dark:border-gray-700 text-center bg-white dark:bg-gray-800 transition-colors">
                 <h1 class="text-3xl font-extrabold text-rn-navy dark:text-gray-100 tracking-tight mb-2">Analyze a Job Description</h1>
-                <p class="text-gray-500 dark:text-gray-400 font-medium">Link a LinkedIn job or paste the details to start your tailored resume.</p>
+                <p class="text-gray-500 dark:text-gray-400 font-medium">Pick your source below or paste the details manually.</p>
             </div>
-            
+
             {% if error %}
             <div class="m-8 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-md flex items-center">
                 <svg class="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
                 {{ error }}
             </div>
             {% endif %}
-            
+
             <div class="px-8 py-6">
-                <!-- Tab Buttons (Pill shaped toggle) -->
-                <div class="flex p-1 bg-gray-100 dark:bg-gray-700 rounded-lg mb-8 max-w-sm mx-auto transition-colors">
-                    <button 
-                        @click="activeTab = 'url'" 
-                        :class="activeTab === 'url' ? 'bg-white dark:bg-gray-600 text-rn-blue dark:text-white shadow-sm font-bold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 font-medium'"
-                        class="flex-1 py-2.5 px-4 rounded-md text-sm transition-all duration-200"
-                    >
-                        LinkedIn URL
-                    </button>
-                    <button 
-                        @click="activeTab = 'text'" 
-                        :class="activeTab === 'text' ? 'bg-white dark:bg-gray-600 text-rn-blue dark:text-white shadow-sm font-bold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 font-medium'"
-                        class="flex-1 py-2.5 px-4 rounded-md text-sm transition-all duration-200"
+                <!-- Source tabs (URL sources + Manual) -->
+                <div class="flex flex-wrap gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg mb-8 transition-colors">
+                    <template x-for="(cfg, key) in sources" :key="key">
+                        <button
+                            type="button"
+                            @click="activeTab = key"
+                            :class="activeTab === key ? 'bg-white dark:bg-gray-600 text-rn-blue dark:text-white shadow-sm font-bold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 font-medium'"
+                            class="flex-1 min-w-[84px] py-2.5 px-3 rounded-md text-sm transition-all duration-200"
+                            x-text="cfg.label"
+                        ></button>
+                    </template>
+                    <button
+                        type="button"
+                        @click="activeTab = 'manual'"
+                        :class="activeTab === 'manual' ? 'bg-white dark:bg-gray-600 text-rn-blue dark:text-white shadow-sm font-bold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 font-medium'"
+                        class="flex-1 min-w-[104px] py-2.5 px-3 rounded-md text-sm transition-all duration-200"
                     >
                         Manual Entry
                     </button>
                 </div>
-                
-                <!-- URL Input Tab -->
-                <div x-show="activeTab === 'url'" x-cloak>
+
+                <!-- URL Input Form (shared across LinkedIn / Indeed / Greenhouse / Lever / Other) -->
+                <div x-show="activeTab !== 'manual'" x-cloak>
                     <form method="post" class="space-y-6 max-w-xl mx-auto" onsubmit="showLoading('Scraping job details...')">
                         {% csrf_token %}
                         <input type="hidden" name="input_method" value="url">
-                        
+                        <input type="hidden" name="source_hint" :value="activeTab">
+
                         <div>
                             <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                                LinkedIn Job URL <span class="text-red-500">*</span>
+                                <span x-text="sources[activeTab].label"></span> Job URL <span class="text-red-500">*</span>
                             </label>
                             <input
                                 type="url"
                                 name="job_url"
-                                placeholder="https://www.linkedin.com/jobs/view/... or boards.greenhouse.io/... or jobs.lever.co/..."
+                                :placeholder="sources[activeTab].placeholder"
                                 required
                                 class="w-full px-4 py-3.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 rounded-md focus:ring-2 focus:ring-blue-100 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-600 transition-colors"
                             >
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium leading-relaxed">
-                                <span class="flex items-center gap-1 mb-1">
-                                    <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                    Works with LinkedIn, Greenhouse, Lever, and most company career pages.
-                                </span>
-                                <span class="block pl-5">If your link doesn't work, paste the description manually below.</span>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium leading-relaxed flex items-start gap-1">
+                                <svg class="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                <span x-text="sources[activeTab].hint"></span>
                             </p>
                         </div>
-                        
+
                         <div class="pt-4 text-center">
-                            <button 
+                            <button
                                 type="submit"
                                 class="inline-flex justify-center items-center px-10 py-4 bg-rn-gold text-gray-900 rounded-rn-pill font-bold shadow-md hover:bg-rn-gold-hover hover:-translate-y-0.5 transition-all duration-200 w-full sm:w-auto text-lg"
                             >
-                                Next Step
+                                Analyze Job
                                 <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                             </button>
                         </div>
                     </form>
                 </div>
                 
-                <!-- Text Input Tab -->
-                <div x-show="activeTab === 'text'" x-cloak>
+                <!-- Manual Entry Tab -->
+                <div x-show="activeTab === 'manual'" x-cloak>
                     <form method="post" class="space-y-5" onsubmit="showLoading('Processing job details...')">
                         {% csrf_token %}
                         <input type="hidden" name="input_method" value="text">
@@ -124,7 +138,7 @@
                         </div>
                         
                         <div class="pt-4 text-center flex justify-between items-center">
-                            <button type="button" @click="activeTab = 'url'" class="text-gray-500 hover:text-gray-800 font-medium transition-colors">
+                            <button type="button" @click="activeTab = 'linkedin'" class="text-gray-500 hover:text-gray-800 font-medium transition-colors">
                                 &larr; Back
                             </button>
                             <button 

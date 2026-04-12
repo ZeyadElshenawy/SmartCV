@@ -27,7 +27,7 @@ _GH_URL_RE = re.compile(
 
 def matches(url: str) -> bool:
     host = urlparse(url).netloc.lower()
-    return 'greenhouse.io' in host
+    return host == 'greenhouse.io' or host.endswith('.greenhouse.io')
 
 
 def _extract_board_and_id(url: str) -> tuple[str, str] | None:
