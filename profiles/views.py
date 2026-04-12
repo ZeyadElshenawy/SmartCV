@@ -11,9 +11,14 @@ from .services.interviewer import process_chat_turn
 from .services.outreach_generator import generate_outreach_campaign
 
 from jobs.models import Job, RecommendedJob
+from core.services.action_planner import get_recommended_actions
+from django.contrib import messages
 import json
 import logging
 import traceback
+
+MAX_CV_SIZE = 10 * 1024 * 1024  # 10 MB
+ALLOWED_CV_EXTENSIONS = {'pdf', 'docx', 'doc', 'txt'}
 
 logger = logging.getLogger(__name__)
 
@@ -72,13 +77,22 @@ def profile_upload_cv(request, job_id):
     
     if request.method == 'POST' and request.FILES.get('cv_file'):
         cv_file = request.FILES['cv_file']
-        
+
+        # Validate file
+        ext = cv_file.name.rsplit('.', 1)[-1].lower() if '.' in cv_file.name else ''
+        if ext not in ALLOWED_CV_EXTENSIONS:
+            messages.error(request, "Unsupported file type. Please upload a PDF, DOCX, or TXT file.")
+            return render(request, 'profiles/upload_cv.html', {'job': job})
+        if cv_file.size > MAX_CV_SIZE:
+            messages.error(request, "File too large. Maximum size is 10 MB.")
+            return render(request, 'profiles/upload_cv.html', {'job': job})
+
         # Save file temporarily
         profile, _ = UserProfile.objects.get_or_create(user=request.user)
         profile.uploaded_cv = cv_file
         profile.input_method = 'upload'
         profile.save()
-        
+
         # Parse CV
         try:
             # Step 1: Parse CV with existing parser
@@ -126,9 +140,8 @@ def profile_upload_cv(request, job_id):
             return redirect('profile_chatbot', job_id=job_id)
             
         except Exception as e:
-            logger.error(f"CV parsing/validation failed: {e}")
-            traceback.print_exc()
-            # Fallback to manual entry on error
+            logger.exception(f"CV parsing/validation failed: {e}")
+            messages.error(request, "We couldn't parse your CV automatically. Please enter your details manually.")
             return redirect('profile_manual_form', job_id=job_id)
     
     return render(request, 'profiles/upload_cv.html', {'job': job})
@@ -271,8 +284,7 @@ def chatbot_api(request):
 
         except Exception as e:
             logger.exception(f"Chatbot API error: {e}")
-            traceback.print_exc()
-            return JsonResponse({'error': str(e)}, status=500)
+            return JsonResponse({'error': 'Something went wrong. Please try again.'}, status=500)
     
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
@@ -281,6 +293,16 @@ def upload_master_profile(request):
     """Phase 1: Master Profile Upload (Step 1)"""
     if request.method == 'POST' and request.FILES.get('cv_file'):
         cv_file = request.FILES['cv_file']
+
+        # Validate file
+        ext = cv_file.name.rsplit('.', 1)[-1].lower() if '.' in cv_file.name else ''
+        if ext not in ALLOWED_CV_EXTENSIONS:
+            messages.error(request, "Unsupported file type. Please upload a PDF, DOCX, or TXT file.")
+            return render(request, 'profiles/upload_cv.html', {'is_master': True})
+        if cv_file.size > MAX_CV_SIZE:
+            messages.error(request, "File too large. Maximum size is 10 MB.")
+            return render(request, 'profiles/upload_cv.html', {'is_master': True})
+
         profile, _ = UserProfile.objects.get_or_create(user=request.user)
         profile.uploaded_cv = cv_file
         profile.input_method = 'upload'
@@ -315,6 +337,7 @@ def upload_master_profile(request):
 
         except Exception as e:
             logger.error("Master Profile Parsing Failed: %s", e)
+            messages.warning(request, "We saved your CV but couldn't auto-fill everything. Please review and complete the fields below.")
             return redirect('review_master_profile')  # Fallback to manual edit
 
     return render(request, 'profiles/upload_cv.html', {'is_master': True})
@@ -364,6 +387,12 @@ def review_master_profile(request):
             logger.error("JSON Error: %s", e)
 
         profile.save()
+        messages.success(request, "Profile saved successfully.")
+        # Natural next step: if the user has no jobs yet, send them to add one.
+        # Otherwise back to dashboard so they can see their pipeline.
+        has_jobs = Job.objects.filter(user=request.user).exists()
+        if not has_jobs:
+            return redirect('job_input_view')
         return redirect('dashboard')
 
     context = _build_profile_form_context(profile)
@@ -437,6 +466,9 @@ def dashboard(request):
     has_jobs = total_applications > 0
     show_onboarding = not (profile_complete and has_jobs)
     
+    # AI-recommended next steps
+    next_actions = get_recommended_actions(request.user)
+
     context = {
         'profile': profile,
         'kanban_boards': kanban_boards,
@@ -446,6 +478,7 @@ def dashboard(request):
         'profile_complete': profile_complete,
         'has_jobs': has_jobs,
         'show_onboarding': show_onboarding,
+        'next_actions': next_actions,
     }
     return render(request, 'profiles/dashboard.html', context)
 
@@ -504,7 +537,8 @@ def chatbot_complete(request, job_id):
             
             return JsonResponse({'success': True, 'redirect_url': f'/analysis/gap/{job_id}/'})
         except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
+            logger.exception(f"Chatbot complete error: {e}")
+            return JsonResponse({'error': 'Failed to extract profile. Please try again.'}, status=500)
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
 
@@ -547,7 +581,11 @@ def chatbot_scope_decision(request, job_id):
         # Revert master profile to pre-chatbot state
         profile.data_content = pre_chatbot_data
         profile.save()
-        
+
+        # Invalidate stale gap analysis (was computed with chatbot-enhanced profile)
+        from analysis.models import GapAnalysis
+        GapAnalysis.objects.filter(job=job, user=request.user).delete()
+
         # Clean session
         del request.session[session_key]
         
@@ -556,7 +594,7 @@ def chatbot_scope_decision(request, job_id):
         
     except Exception as e:
         logger.exception("Scope decision failed: %s", e)
-        return JsonResponse({'error': str(e)}, status=500)
+        return JsonResponse({'error': 'Something went wrong. Please try again.'}, status=500)
 
 @login_required
 def generate_outreach_view(request, job_id):
