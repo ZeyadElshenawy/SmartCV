@@ -1,15 +1,14 @@
 {
   "name": "smartcv",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "SmartCV frontend build toolchain.",
+  "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build:css": "tailwindcss -i ./static/src/input.css -o ./static/css/output.css --minify",
+    "dev:css": "tailwindcss -i ./static/src/input.css -o ./static/css/output.css --watch"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "devDependencies": {
+    "@tailwindcss/cli": "^4.2.2",
     "tailwindcss": "^4.2.1"
   }
 }
