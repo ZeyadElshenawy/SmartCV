@@ -1,0 +1,24 @@
+{% comment %}
+Badge — compact status / tag pill.
+Params: label (required), tone (neutral|brand|accent|success|warning|danger),
+small_caps (bool), dot (bool), size (sm|md).
+{% endcomment %}
+<span class="inline-flex items-center gap-1.5 font-medium whitespace-nowrap
+    {% if size == 'md' %}text-xs px-2.5 py-1 rounded-md
+    {% else %}text-[11px] px-2 py-0.5 rounded-md{% endif %}
+    {% if small_caps %}uppercase tracking-[0.12em]{% endif %}
+    {% if tone == 'brand' %}bg-brand-50 text-brand-700 ring-1 ring-brand-200/60 dark:bg-brand-950/40 dark:text-brand-300 dark:ring-brand-900
+    {% elif tone == 'accent' %}bg-accent-50 text-accent-700 ring-1 ring-accent-200/60 dark:bg-accent-950/40 dark:text-accent-300 dark:ring-accent-900
+    {% elif tone == 'success' %}bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-900
+    {% elif tone == 'warning' %}bg-amber-50 text-amber-800 ring-1 ring-amber-200/60 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-900
+    {% elif tone == 'danger' %}bg-red-50 text-red-700 ring-1 ring-red-200/60 dark:bg-red-950/40 dark:text-red-300 dark:ring-red-900
+    {% else %}bg-neutral-100 text-neutral-700 ring-1 ring-neutral-200/60 dark:bg-neutral-800 dark:text-neutral-300 dark:ring-neutral-700{% endif %}">
+    {% if dot %}<span aria-hidden="true" class="h-1.5 w-1.5 rounded-full
+        {% if tone == 'brand' %}bg-brand-500
+        {% elif tone == 'accent' %}bg-accent-500
+        {% elif tone == 'success' %}bg-emerald-500
+        {% elif tone == 'warning' %}bg-amber-500
+        {% elif tone == 'danger' %}bg-red-500
+        {% else %}bg-neutral-400{% endif %}"></span>{% endif %}
+    {{ label }}
+</span>

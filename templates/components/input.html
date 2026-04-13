@@ -1,0 +1,28 @@
+{% comment %}
+Input — text field with label, help text, and error state.
+Params: name (required), label (required), type (text default), value,
+placeholder, help, error, required (bool), autocomplete, id, extra.
+{% endcomment %}
+{% with input_id=id|default:"id_"|add:name %}
+<div class="space-y-2">
+    <label for="{{ input_id }}" class="block text-xs font-medium uppercase tracking-[0.14em] text-neutral-600 dark:text-neutral-400">
+        {{ label }}{% if required %} <span class="text-red-500" aria-hidden="true">*</span>{% endif %}
+    </label>
+    <input
+        id="{{ input_id }}"
+        name="{{ name }}"
+        type="{{ type|default:'text' }}"
+        {% if value %}value="{{ value }}"{% endif %}
+        {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+        {% if required %}required{% endif %}
+        {% if autocomplete %}autocomplete="{{ autocomplete }}"{% endif %}
+        class="block w-full h-11 px-4 text-sm rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 ring-1 transition-[box-shadow,border-color] duration-150 focus:outline-none
+        {% if error %}ring-red-300 dark:ring-red-500 focus:ring-4 focus:ring-red-200/70{% else %}ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500{% endif %}
+        {{ extra|default:'' }}">
+    {% if error %}
+        <p class="text-xs font-medium text-red-600 dark:text-red-400">{{ error }}</p>
+    {% elif help %}
+        <p class="text-xs text-neutral-500 dark:text-neutral-400">{{ help }}</p>
+    {% endif %}
+</div>
+{% endwith %}

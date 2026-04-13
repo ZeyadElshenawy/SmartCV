@@ -1,0 +1,40 @@
+{% comment %}
+Button — editorial primary with arrow-transit, secondary, ghost, danger.
+Usage:
+  include "components/button.html" with variant="primary" label="Save"
+  include "components/button.html" with variant="primary" label="Continue" href=some_url arrow=True
+  include "components/button.html" with variant="secondary" label="Cancel" type="button"
+  include "components/button.html" with variant="ghost" label="Details" size="sm"
+
+Params (all optional except label):
+  label    — button text (required)
+  variant  — "primary" (default) | "secondary" | "ghost" | "danger"
+  size     — "sm" | "md" (default) | "lg"
+  href     — if set, renders as <a>; otherwise <button type=...>
+  type     — button type ("submit" default when no href)
+  arrow    — True to add an arrow that transits on hover (primary only)
+  block    — True for full-width
+  disabled — True to disable (button only)
+  form     — optional form id (button only)
+  extra    — extra utility classes appended to the end
+
+Note: intentionally no outer {with variant=variant|default:...}. Django's
+context-push for include recurses when the with-var shadows the include-var
+of the same name; use inline else-branches for defaults instead.
+{% endcomment %}
+{% if href %}<a href="{{ href }}"{% else %}<button type="{{ type|default:'submit' }}"{% if form %} form="{{ form }}"{% endif %}{% if disabled %} disabled{% endif %}{% endif %}
+    class="group/btn relative inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium tracking-tight transition-[background-color,color,border-color,transform,box-shadow] duration-150 ease-out focus-visible:outline-none focus-visible:ring-4 disabled:cursor-not-allowed disabled:opacity-50 select-none
+    {% if block %}w-full{% endif %}
+    {% if size == 'sm' %}h-9 px-3.5 text-xs rounded-lg
+    {% elif size == 'lg' %}h-12 px-6 text-sm rounded-xl
+    {% else %}h-11 px-5 text-sm rounded-lg{% endif %}
+    {% if variant == 'secondary' %}bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 border border-neutral-200 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700 focus-visible:ring-neutral-200 dark:focus-visible:ring-neutral-700
+    {% elif variant == 'ghost' %}text-brand-700 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950/40 focus-visible:ring-brand-200
+    {% elif variant == 'danger' %}bg-red-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-red-700 hover:-translate-y-px focus-visible:ring-red-300/50
+    {% else %}bg-brand-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-brand-700 hover:-translate-y-px focus-visible:ring-brand-300/50 active:translate-y-0 active:bg-brand-800{% endif %}
+    {{ extra|default:'' }}">
+    {% if icon_before %}<span class="-ml-0.5 flex-shrink-0">{{ icon_before|safe }}</span>{% endif %}
+    <span>{{ label }}</span>
+    {% if arrow and variant != 'secondary' and variant != 'ghost' and variant != 'danger' %}<span aria-hidden="true" class="-mr-0.5 flex-shrink-0 transition-transform duration-200 group-hover/btn:translate-x-0.5">→</span>{% endif %}
+    {% if icon_after %}<span class="-mr-0.5 flex-shrink-0">{{ icon_after|safe }}</span>{% endif %}
+{% if href %}</a>{% else %}</button>{% endif %}

@@ -1,0 +1,19 @@
+{% comment %}
+Card — single-slab editorial card with a top accent rule.
+Params: body (HTML string, required), eyebrow (small-caps label, optional),
+tone (brand default | accent | success | warning | danger | neutral),
+padded (True default; False for no inner padding), extra (extra wrapper classes).
+{% endcomment %}
+<section class="group relative overflow-hidden rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 transition-shadow duration-200 hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)] {{ extra|default:'' }}">
+    <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px]
+        {% if tone == 'accent' %}bg-accent-500
+        {% elif tone == 'success' %}bg-emerald-500
+        {% elif tone == 'warning' %}bg-amber-500
+        {% elif tone == 'danger' %}bg-red-500
+        {% elif tone == 'neutral' %}bg-neutral-300 dark:bg-neutral-700
+        {% else %}bg-brand-500{% endif %}"></div>
+    <div class="{% if padded is not False %}p-6 sm:p-8{% endif %}">
+        {% if eyebrow %}<div class="mb-4">{% include "components/section_label.html" with text=eyebrow %}</div>{% endif %}
+        {{ body|safe }}
+    </div>
+</section>
