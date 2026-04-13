@@ -74,6 +74,31 @@ def check_resume_status_api(request, job_id):
         return JsonResponse({'status': 'completed', 'resume_id': str(resume.id)})
     return JsonResponse({'status': 'waiting'})
 
+def _description_text_to_list(raw):
+    """Convert a textarea string (newline-separated bullets) into a List[str].
+
+    Handles `\\r\\n` line endings, trims whitespace, drops empty lines, and
+    treats None as an empty list.
+    """
+    if raw is None:
+        return []
+    text = str(raw).replace('\r\n', '\n').replace('\r', '\n')
+    return [line.strip() for line in text.split('\n') if line.strip()]
+
+
+def _description_list_to_text(value):
+    """Convert a List[str] description into a newline-separated textarea string.
+
+    Returns `''` for None or empty lists. A single string is returned as-is
+    (lets legacy string-shaped descriptions round-trip without munging).
+    """
+    if value is None:
+        return ''
+    if isinstance(value, str):
+        return value
+    return '\n'.join(str(d) for d in value if d)
+
+
 def _normalize_legacy_resume_content(resume):
     """Backwards compatibility check for older resumes generated before the schema upgraded descriptions to Lists"""
     modified = False
@@ -87,7 +112,7 @@ def _normalize_legacy_resume_content(resume):
                     item['description'] = []
                     modified = True
                 elif isinstance(desc, str):
-                    item['description'] = [d.strip() for d in desc.split('\n') if d.strip()]
+                    item['description'] = _description_text_to_list(desc)
                     modified = True
 
     if modified:
@@ -150,7 +175,7 @@ def resume_edit_view(request, resume_id):
                     'title': exp_titles[i],
                     'company': exp_companies[i],
                     'duration': exp_durations[i] if i < len(exp_durations) else '',
-                    'description': [d.strip() for d in raw_desc.split('\n') if d.strip()]
+                    'description': _description_text_to_list(raw_desc)
                 })
         updated_content['experience'] = experience_list
         
@@ -179,7 +204,7 @@ def resume_edit_view(request, resume_id):
                 raw_desc = proj_desc[i] if i < len(proj_desc) else ''
                 projects_list.append({
                     'name': proj_names[i],
-                    'description': [d.strip() for d in raw_desc.split('\n') if d.strip()],
+                    'description': _description_text_to_list(raw_desc),
                     'url': proj_urls[i] if i < len(proj_urls) else ''
                 })
         updated_content['projects'] = projects_list
@@ -214,7 +239,7 @@ def resume_edit_view(request, resume_id):
                         'title': titles[i],
                         'organization': orgs[i] if i < len(orgs) else '',
                         'date': dates[i] if i < len(dates) else '',
-                        'description': [d.strip() for d in raw_desc.split('\n') if d.strip()]
+                        'description': _description_text_to_list(raw_desc)
                     })
             return items
 
@@ -278,11 +303,7 @@ def resume_edit_view(request, resume_id):
     for section in ['experience', 'projects', 'volunteer_experience', 'awards', 'publications', 'patents']:
         if section in form_content:
             for item in form_content[section]:
-                desc = item.get('description')
-                if desc is None:
-                    item['description'] = ''
-                elif isinstance(desc, list):
-                    item['description'] = '\n'.join(str(d) for d in desc if d)
+                item['description'] = _description_list_to_text(item.get('description'))
 
     # Overlay the modified content back onto the resume object specifically for the template
     resume.content = form_content
