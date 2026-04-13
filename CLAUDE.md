@@ -16,8 +16,10 @@ python manage.py runserver
 python manage.py makemigrations
 python manage.py migrate
 
-# Tailwind CSS (watch mode)
-npx tailwindcss -i ./static/input.css -o ./static/output.css --watch
+# Tailwind CSS v4 — one-time build
+npm run build:css
+# Tailwind CSS v4 — watch mode (recommended during template work)
+npm run dev:css
 
 # Tests
 python manage.py test                                              # all
@@ -72,7 +74,15 @@ Two-phase approach: (1) LLM categorizes skills as matched/missing/partial, (2) p
 
 ### Resume Editing: List/String Conversion
 
-Schemas store descriptions as `List[str]` (bullet points). Views in `resumes/views.py` convert list->multiline string for textarea display and back on POST. This was a source of bugs (bracket notation corruption) -- see commit `fd90299`.
+Schemas store descriptions as `List[str]` (bullet points). Views in `resumes/views.py` convert list->multiline string for textarea display and back on POST. This was a source of bugs (bracket notation corruption) -- see commit `fd90299`. The conversion is centralized in `_description_text_to_list` / `_description_list_to_text` helpers (tested in `resumes/tests.py`).
+
+### Frontend Toolchain
+
+Tailwind CSS v4 via the standalone CLI (`@tailwindcss/cli`), built from `static/src/input.css` to `static/css/output.css`. Config is CSS-first (`@theme { ... }` inside `input.css`) — there is no `tailwind.config.js`. Alpine.js is still loaded via CDN. Fonts: Inter (UI), Fraunces variable serif (display), IBM Plex Mono (code), loaded from Google Fonts.
+
+The built `output.css` is committed so `python manage.py runserver` works without running npm. Rebuild after template changes (to refresh the content scan) with `npm run build:css`, or run `npm run dev:css` in a watcher while iterating.
+
+Legacy `rn-*` color tokens (rn-blue, rn-navy, rn-gold, rn-pill radius) are preserved alongside the new `brand-*` / `accent-*` palette so the phased redesign doesn't break existing templates mid-flight.
 
 ## Database
 
