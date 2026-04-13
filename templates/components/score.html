@@ -1,0 +1,23 @@
+{% comment %}
+Score — Fraunces italic number + small-caps label.
+Params: value (required), label (required), suffix (default "%"; pass "none" to omit),
+size (md|lg), tone (brand|accent|danger|neutral; auto-derived from value when omitted).
+{% endcomment %}
+<div class="flex flex-col gap-2">
+    <div class="flex items-baseline font-display italic tabular-nums
+        {% if tone == 'brand' %}text-brand-600 dark:text-brand-400
+        {% elif tone == 'accent' %}text-accent-600 dark:text-accent-400
+        {% elif tone == 'danger' %}text-red-600 dark:text-red-400
+        {% elif tone == 'neutral' %}text-neutral-700 dark:text-neutral-300
+        {% elif value >= 80 %}text-brand-600 dark:text-brand-400
+        {% elif value >= 50 %}text-accent-600 dark:text-accent-400
+        {% else %}text-red-600 dark:text-red-400{% endif %}"
+        style="font-variation-settings: 'opsz' 144;">
+        <span class="{% if size == 'lg' %}text-7xl{% else %}text-5xl{% endif %} leading-none font-semibold">{{ value }}</span>
+        {% if suffix != 'none' %}<span class="{% if size == 'lg' %}text-4xl{% else %}text-2xl{% endif %} leading-none not-italic font-medium ml-0.5 opacity-70">{{ suffix|default:'%' }}</span>{% endif %}
+    </div>
+    {% if tone %}{% include "components/section_label.html" with text=label tone=tone %}
+    {% elif value >= 80 %}{% include "components/section_label.html" with text=label tone="brand" %}
+    {% elif value >= 50 %}{% include "components/section_label.html" with text=label tone="accent" %}
+    {% else %}{% include "components/section_label.html" with text=label tone="danger" %}{% endif %}
+</div>

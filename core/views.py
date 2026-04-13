@@ -19,3 +19,10 @@ def custom_404(request, exception):
 def custom_500(request):
     """Custom 500 error page"""
     return render(request, '500.html', status=500)
+
+
+def design_system_view(request):
+    """Internal styleguide — renders every component primitive under
+    templates/components/ in every tone/size so visual regressions show
+    up at a glance. Route: /design/"""
+    return render(request, 'core/design_system.html')

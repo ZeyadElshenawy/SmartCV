@@ -1,0 +1,11 @@
+{% comment %}Section Label — thin rule + small-caps label. Params: text (required), tone (neutral|brand|accent|success|warning|danger).{% endcomment %}
+<div class="flex items-center gap-3
+    {% if tone == 'brand' %}text-brand-700 dark:text-brand-400
+    {% elif tone == 'accent' %}text-accent-700 dark:text-accent-400
+    {% elif tone == 'success' %}text-emerald-700 dark:text-emerald-400
+    {% elif tone == 'warning' %}text-amber-700 dark:text-amber-400
+    {% elif tone == 'danger' %}text-red-700 dark:text-red-400
+    {% else %}text-neutral-500 dark:text-neutral-400{% endif %}">
+    <span aria-hidden="true" class="h-px w-6 bg-current opacity-60"></span>
+    <span class="text-[11px] font-medium uppercase tracking-[0.18em]">{{ text }}</span>
+</div>

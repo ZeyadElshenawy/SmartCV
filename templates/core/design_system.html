@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+{% block title %}Design system — SmartCV{% endblock %}
+
+{% block content %}
+<div class="bg-neutral-50 dark:bg-neutral-950 min-h-screen">
+<div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-16 sm:py-24 space-y-20">
+
+    {# ======================== HEADER ======================== #}
+    <header class="space-y-6">
+        {% include "components/section_label.html" with text="Internal / v1" %}
+        <h1 class="font-display text-5xl sm:text-6xl leading-[1.05] tracking-tight text-neutral-900 dark:text-neutral-50"
+            style="font-variation-settings: 'opsz' 144, 'SOFT' 50;">
+            <em class="font-medium">SmartCV</em> design system.
+        </h1>
+        <p class="max-w-2xl text-neutral-600 dark:text-neutral-400 text-lg leading-relaxed">
+            Editorial confidence, precise UI. Fraunces for display, Inter for the craft,
+            IBM Plex Mono for numbers and code. Every component lives here — change it once,
+            ship it everywhere.
+        </p>
+    </header>
+
+    {# ======================== TYPOGRAPHY ======================== #}
+    <section class="space-y-8">
+        {% include "components/section_label.html" with text="01 — Typography" %}
+        <div class="grid gap-8">
+            <div class="space-y-1">
+                <div class="font-display text-6xl leading-none text-neutral-900 dark:text-neutral-50"
+                     style="font-variation-settings: 'opsz' 144;">
+                    The <em class="font-medium">résumé</em> that listens.
+                </div>
+                <div class="text-xs uppercase tracking-[0.18em] text-neutral-500 font-mono">Fraunces 6xl · opsz 144 · italic emphasis</div>
+            </div>
+            <div class="space-y-1">
+                <div class="font-display text-3xl text-neutral-800 dark:text-neutral-100"
+                     style="font-variation-settings: 'opsz' 36;">
+                    Section heading — set in display.
+                </div>
+                <div class="text-xs uppercase tracking-[0.18em] text-neutral-500 font-mono">Fraunces 3xl · opsz 36</div>
+            </div>
+            <div class="space-y-1 max-w-prose">
+                <p class="text-base text-neutral-700 dark:text-neutral-300 leading-relaxed">
+                    Body copy reads in Inter. We favor measured line-lengths, restrained
+                    weight, and generous leading. Numbers like <span class="font-display italic font-semibold text-brand-700 dark:text-brand-400">83%</span> get
+                    the editorial treatment — serif, italic, optical-size 144 — so a score
+                    feels like a verdict, not a gauge.
+                </p>
+                <div class="text-xs uppercase tracking-[0.18em] text-neutral-500 font-mono">Inter base · 65ch · Fraunces accent for numbers</div>
+            </div>
+            <div class="space-y-1">
+                <code class="font-mono text-sm bg-neutral-100 dark:bg-neutral-900 px-2 py-1 rounded text-neutral-800 dark:text-neutral-200">print("hello, career")</code>
+                <div class="text-xs uppercase tracking-[0.18em] text-neutral-500 font-mono">IBM Plex Mono sm</div>
+            </div>
+        </div>
+    </section>
+
+    {# ======================== COLOR ======================== #}
+    <section class="space-y-6">
+        {% include "components/section_label.html" with text="02 — Color" %}
+        <div class="grid sm:grid-cols-2 gap-8">
+            <div>
+                <div class="text-xs uppercase tracking-[0.14em] text-neutral-500 mb-3">Brand (primary)</div>
+                <div class="grid grid-cols-11 gap-0 rounded-lg overflow-hidden ring-1 ring-neutral-200 dark:ring-neutral-800">
+                    <div class="aspect-square bg-brand-50"></div><div class="aspect-square bg-brand-100"></div>
+                    <div class="aspect-square bg-brand-200"></div><div class="aspect-square bg-brand-300"></div>
+                    <div class="aspect-square bg-brand-400"></div><div class="aspect-square bg-brand-500"></div>
+                    <div class="aspect-square bg-brand-600"></div><div class="aspect-square bg-brand-700"></div>
+                    <div class="aspect-square bg-brand-800"></div><div class="aspect-square bg-brand-900"></div>
+                    <div class="aspect-square bg-brand-950"></div>
+                </div>
+            </div>
+            <div>
+                <div class="text-xs uppercase tracking-[0.14em] text-neutral-500 mb-3">Accent (secondary)</div>
+                <div class="grid grid-cols-11 gap-0 rounded-lg overflow-hidden ring-1 ring-neutral-200 dark:ring-neutral-800">
+                    <div class="aspect-square bg-accent-50"></div><div class="aspect-square bg-accent-100"></div>
+                    <div class="aspect-square bg-accent-200"></div><div class="aspect-square bg-accent-300"></div>
+                    <div class="aspect-square bg-accent-400"></div><div class="aspect-square bg-accent-500"></div>
+                    <div class="aspect-square bg-accent-600"></div><div class="aspect-square bg-accent-700"></div>
+                    <div class="aspect-square bg-accent-800"></div><div class="aspect-square bg-accent-900"></div>
+                    <div class="aspect-square bg-accent-950"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    {# ======================== BUTTONS ======================== #}
+    <section class="space-y-6">
+        {% include "components/section_label.html" with text="03 — Buttons" %}
+        <div class="grid gap-10">
+            <div class="space-y-3">
+                <div class="text-xs uppercase tracking-[0.14em] text-neutral-500">Primary · sizes + arrow-transit</div>
+                <div class="flex flex-wrap items-center gap-3">
+                    {% include "components/button.html" with variant="primary" label="Save" size="sm" %}
+                    {% include "components/button.html" with variant="primary" label="Continue" arrow=True %}
+                    {% include "components/button.html" with variant="primary" label="Generate resume" size="lg" arrow=True %}
+                </div>
+            </div>
+            <div class="space-y-3">
+                <div class="text-xs uppercase tracking-[0.14em] text-neutral-500">Secondary / ghost / danger</div>
+                <div class="flex flex-wrap items-center gap-3">
+                    {% include "components/button.html" with variant="secondary" label="Cancel" %}
+                    {% include "components/button.html" with variant="ghost" label="View details" %}
+                    {% include "components/button.html" with variant="danger" label="Delete" %}
+                </div>
+            </div>
+            <div class="space-y-3">
+                <div class="text-xs uppercase tracking-[0.14em] text-neutral-500">Disabled</div>
+                <div class="flex flex-wrap items-center gap-3">
+                    {% include "components/button.html" with variant="primary" label="Saving…" disabled=True %}
+                    {% include "components/button.html" with variant="secondary" label="Unavailable" disabled=True %}
+                </div>
+            </div>
+        </div>
+    </section>
+
+    {# ======================== BADGES ======================== #}
+    <section class="space-y-6">
+        {% include "components/section_label.html" with text="04 — Badges" %}
+        <div class="space-y-4">
+            <div class="flex flex-wrap gap-2">
+                {% include "components/badge.html" with label="Python" %}
+                {% include "components/badge.html" with label="Django" tone="brand" %}
+                {% include "components/badge.html" with label="LangChain" tone="accent" %}
+                {% include "components/badge.html" with label="Matched" tone="success" %}
+                {% include "components/badge.html" with label="Partial" tone="warning" %}
+                {% include "components/badge.html" with label="Missing" tone="danger" %}
+            </div>
+            <div class="flex flex-wrap gap-2">
+                {% include "components/badge.html" with label="Interview" tone="brand" small_caps=True dot=True %}
+                {% include "components/badge.html" with label="Offer" tone="success" small_caps=True dot=True %}
+                {% include "components/badge.html" with label="Rejected" tone="danger" small_caps=True dot=True %}
+                {% include "components/badge.html" with label="Applied" tone="neutral" small_caps=True dot=True %}
+            </div>
+        </div>
+    </section>
+
+    {# ======================== INPUTS ======================== #}
+    <section class="space-y-6">
+        {% include "components/section_label.html" with text="05 — Inputs" %}
+        <div class="grid sm:grid-cols-2 gap-8 max-w-2xl">
+            {% include "components/input.html" with name="sg_email" label="Email address" type="email" placeholder="you@example.com" help="We'll never share this." %}
+            {% include "components/input.html" with name="sg_pw" label="Password" type="password" required=True %}
+            {% include "components/input.html" with name="sg_url" label="Job URL" placeholder="https://linkedin.com/jobs/..." %}
+            {% include "components/input.html" with name="sg_err" label="LinkedIn handle" value="short" error="Handle must be at least 8 characters." %}
+        </div>
+    </section>
+
+    {# ======================== SCORES ======================== #}
+    <section class="space-y-6">
+        {% include "components/section_label.html" with text="06 — Score" %}
+        <div class="grid sm:grid-cols-3 gap-8 max-w-2xl">
+            {% include "components/score.html" with value=91 label="Match" %}
+            {% include "components/score.html" with value=67 label="ATS score" %}
+            {% include "components/score.html" with value=34 label="Readiness" %}
+        </div>
+        <div class="pt-4">
+            {% include "components/score.html" with value=83 label="Overall fit" size="lg" %}
+        </div>
+    </section>
+
+    {# ======================== CARDS ======================== #}
+    <section class="space-y-6">
+        {% include "components/section_label.html" with text="07 — Cards" %}
+        <div class="grid sm:grid-cols-2 gap-6">
+            <section class="group relative overflow-hidden rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 transition-shadow duration-200 hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)]">
+                <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
+                <div class="p-6 sm:p-8">
+                    <div class="mb-4">{% include "components/section_label.html" with text="Job card" tone="brand" %}</div>
+                    <h3 class="font-display text-2xl text-neutral-900 dark:text-neutral-50 leading-tight"
+                        style="font-variation-settings: 'opsz' 36;">
+                        Senior ML Engineer
+                    </h3>
+                    <p class="text-sm text-neutral-500 mt-1">Stripe · San Francisco, CA</p>
+                    <p class="mt-4 text-sm text-neutral-700 dark:text-neutral-300 leading-relaxed">
+                        Strong fit on the technical side. Two narrative gaps around
+                        production ML ops we can address in cover letter.
+                    </p>
+                    <div class="mt-6 flex items-center gap-2">
+                        {% include "components/badge.html" with label="Interview" tone="brand" small_caps=True dot=True %}
+                        {% include "components/badge.html" with label="Remote" %}
+                    </div>
+                </div>
+            </section>
+            <section class="group relative overflow-hidden rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 transition-shadow duration-200 hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)]">
+                <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-accent-500"></div>
+                <div class="p-6 sm:p-8 flex items-center gap-6">
+                    {% include "components/score.html" with value=91 label="Match" %}
+                    <div class="flex-1 space-y-2">
+                        <h3 class="font-display text-xl text-neutral-900 dark:text-neutral-50 leading-tight"
+                            style="font-variation-settings: 'opsz' 24;">
+                            Ready to apply.
+                        </h3>
+                        <p class="text-sm text-neutral-600 dark:text-neutral-400">
+                            Your profile scores in the top decile for this role.
+                        </p>
+                        <div class="pt-2">
+                            {% include "components/button.html" with variant="primary" label="Generate resume" arrow=True size="sm" %}
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </section>
+
+    {# ======================== FOOTER ======================== #}
+    <footer class="pt-12 border-t border-neutral-200 dark:border-neutral-800 text-sm text-neutral-500">
+        <p>Every primitive lives in <code class="font-mono text-xs">templates/components/</code>.
+        Ship pages by composing, never by restyling.</p>
+    </footer>
+</div>
+</div>
+{% endblock %}
