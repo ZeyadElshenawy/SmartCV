@@ -21,4 +21,7 @@ urlpatterns = [
     
     # Advanced AI Features
     path('outreach/<uuid:job_id>/', views.generate_outreach_view, name='generate_outreach'),
+
+    # External signal aggregation (GitHub today; LinkedIn / Scholar later)
+    path('refresh-github/', views.refresh_github_signals, name='refresh_github_signals'),
 ]

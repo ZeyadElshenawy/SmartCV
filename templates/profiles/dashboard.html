@@ -143,6 +143,9 @@
                     </div>
                 </div>
                 {% endif %}
+
+                {# GitHub signals strip — populated on demand by /profiles/refresh-github/ #}
+                {% include "components/github_signals.html" with profile=profile %}
             </div>
         </div>
 {% if next_actions %}

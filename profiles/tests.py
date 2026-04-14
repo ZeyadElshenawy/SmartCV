@@ -1,4 +1,4 @@
-"""Tests for profiles.services.cv_parser.
+"""Tests for profiles services.
 
 Covers the deterministic text-processing stages (sanitization, regex-based
 personal info, section-header detection, fuzzy matching) — the parts that
@@ -6,7 +6,8 @@ have been patched repeatedly (9b998a9, e6fce11, dd00e14). LLM refinement is
 out of scope for these tests; get_llm_client is patched so no network/API
 calls happen.
 """
-from unittest.mock import patch
+from datetime import datetime, timezone, timedelta
+from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
 
@@ -184,3 +185,153 @@ class ExtractPersonalInfoLocationTests(SimpleTestCase):
         """Regression: a single capitalized word like a company shouldn't be picked as location."""
         info = self.ex.extract_personal_info("Jane Doe\nGoogle\njane@example.com")
         self.assertIsNone(info['address'])
+
+
+# ============================================================
+# GitHub aggregator
+# ============================================================
+
+from profiles.services.github_aggregator import (
+    fetch_github_snapshot,
+    parse_github_username,
+)
+
+
+class ParseGithubUsernameTests(SimpleTestCase):
+    def test_https_url(self):
+        self.assertEqual(parse_github_username("https://github.com/octocat"), "octocat")
+
+    def test_http_url(self):
+        self.assertEqual(parse_github_username("http://github.com/octocat"), "octocat")
+
+    def test_www_subdomain(self):
+        self.assertEqual(parse_github_username("https://www.github.com/octocat"), "octocat")
+
+    def test_url_with_repo_path(self):
+        self.assertEqual(parse_github_username("github.com/octocat/some-repo"), "octocat")
+
+    def test_url_with_trailing_slash(self):
+        self.assertEqual(parse_github_username("https://github.com/octocat/"), "octocat")
+
+    def test_at_handle(self):
+        self.assertEqual(parse_github_username("@octocat"), "octocat")
+
+    def test_bare_username(self):
+        self.assertEqual(parse_github_username("octocat"), "octocat")
+
+    def test_username_with_hyphen(self):
+        self.assertEqual(parse_github_username("octo-cat"), "octo-cat")
+
+    def test_empty_string_returns_none(self):
+        self.assertIsNone(parse_github_username(""))
+
+    def test_none_returns_none(self):
+        self.assertIsNone(parse_github_username(None))
+
+    def test_non_github_url_returns_none(self):
+        self.assertIsNone(parse_github_username("https://example.com/octocat"))
+
+    def test_path_without_recognized_host_returns_none(self):
+        self.assertIsNone(parse_github_username("/some/path"))
+
+    def test_invalid_username_chars_return_none(self):
+        # GitHub usernames can't contain underscores or special chars
+        self.assertIsNone(parse_github_username("octo_cat"))
+
+    def test_username_starting_with_hyphen_returns_none(self):
+        self.assertIsNone(parse_github_username("-octocat"))
+
+
+def _fake_response(json_data, status=200, ok=True):
+    """Helper to build a minimal mocked requests.Response."""
+    resp = MagicMock()
+    resp.status_code = status
+    resp.ok = ok
+    resp.headers = {}
+    resp.json.return_value = json_data
+    resp.text = ""
+    return resp
+
+
+def _stub_session(routes):
+    """Build a Session whose .get(url, ...) returns one of the configured
+    responses based on a substring match in the URL."""
+    session = MagicMock()
+    def fake_get(url, params=None, timeout=None):
+        for needle, response in routes.items():
+            if needle in url:
+                return response
+        return _fake_response({}, status=404, ok=False)
+    session.get.side_effect = fake_get
+    return session
+
+
+class FetchGithubSnapshotTests(SimpleTestCase):
+    def test_invalid_input_returns_error_snapshot(self):
+        snap = fetch_github_snapshot("https://example.com/notgithub")
+        self.assertEqual(snap['username'], '')
+        self.assertIn('Could not parse', snap['error'])
+        self.assertEqual(snap['top_repos'], [])
+        self.assertEqual(snap['language_breakdown'], [])
+
+    def test_user_404_returns_error_snapshot(self):
+        routes = {'/users/ghostuser': _fake_response(None, status=404, ok=False)}
+        with patch('profiles.services.github_aggregator.requests.Session', return_value=_stub_session(routes)):
+            snap = fetch_github_snapshot('ghostuser')
+        self.assertEqual(snap['username'], 'ghostuser')
+        self.assertIn('not found', snap['error'])
+
+    def test_happy_path_extracts_top_repos_languages_stars(self):
+        user_payload = {
+            'name': 'Octo Cat', 'bio': 'Hi.', 'public_repos': 3,
+            'followers': 100, 'following': 5, 'created_at': '2018-01-15T10:00:00Z',
+        }
+        repos_payload = [
+            {'name': 'alpha', 'full_name': 'octocat/alpha', 'description': 'a',
+             'html_url': 'https://github.com/octocat/alpha', 'stargazers_count': 50,
+             'forks_count': 2, 'language': 'Python', 'pushed_at': '2026-04-01T00:00:00Z'},
+            {'name': 'beta', 'full_name': 'octocat/beta', 'description': 'b',
+             'html_url': 'https://github.com/octocat/beta', 'stargazers_count': 5,
+             'forks_count': 0, 'language': 'Python', 'pushed_at': '2026-03-01T00:00:00Z'},
+            {'name': 'gamma', 'full_name': 'octocat/gamma', 'description': 'c',
+             'html_url': 'https://github.com/octocat/gamma', 'stargazers_count': 2,
+             'forks_count': 0, 'language': 'TypeScript', 'pushed_at': '2026-02-01T00:00:00Z'},
+            # A blocklisted language (Jupyter Notebook) — must not appear in breakdown
+            {'name': 'notes', 'full_name': 'octocat/notes', 'description': '',
+             'html_url': 'https://github.com/octocat/notes', 'stargazers_count': 0,
+             'forks_count': 0, 'language': 'Jupyter Notebook', 'pushed_at': '2025-01-01T00:00:00Z'},
+        ]
+        # Recent push event within 90 days — should count toward recent_commits
+        recent_iso = (datetime.now(timezone.utc) - timedelta(days=10)).isoformat().replace('+00:00', 'Z')
+        old_iso = (datetime.now(timezone.utc) - timedelta(days=200)).isoformat().replace('+00:00', 'Z')
+        events_payload = [
+            {'type': 'PushEvent', 'created_at': recent_iso, 'payload': {'size': 4}},
+            {'type': 'PushEvent', 'created_at': recent_iso, 'payload': {'size': 1}},
+            {'type': 'WatchEvent', 'created_at': recent_iso, 'payload': {}},  # not a push
+            {'type': 'PushEvent', 'created_at': old_iso, 'payload': {'size': 99}},  # too old
+        ]
+        routes = {
+            '/users/octocat/repos': _fake_response(repos_payload),
+            '/users/octocat/events/public': _fake_response(events_payload),
+            '/users/octocat': _fake_response(user_payload),
+        }
+        with patch('profiles.services.github_aggregator.requests.Session', return_value=_stub_session(routes)):
+            snap = fetch_github_snapshot('octocat', top_n=3)
+
+        self.assertIsNone(snap['error'])
+        self.assertEqual(snap['username'], 'octocat')
+        self.assertEqual(snap['name'], 'Octo Cat')
+        self.assertEqual(snap['public_repos'], 3)
+        self.assertEqual(snap['account_created'], '2018-01-15')
+        self.assertEqual(snap['total_stars'], 57)
+        # Top 3 repos sorted by stars
+        self.assertEqual([r['name'] for r in snap['top_repos']], ['alpha', 'beta', 'gamma'])
+        # Language breakdown counts only non-blocklisted languages
+        langs = dict(snap['language_breakdown'])
+        self.assertEqual(langs.get('Python'), 2)
+        self.assertEqual(langs.get('TypeScript'), 1)
+        self.assertNotIn('Jupyter Notebook', langs)
+        # Recent commits = sum of PushEvent sizes within 90 days
+        self.assertEqual(snap['recent_commit_count'], 5)
+
+

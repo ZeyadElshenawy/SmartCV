@@ -9,6 +9,7 @@ from .services.chatbot import chat_with_user, extract_profile_from_conversation
 from .services.llm_validator import validate_and_map_cv_data, get_missing_fields
 from .services.interviewer import process_chat_turn
 from .services.outreach_generator import generate_outreach_campaign
+from .services.github_aggregator import fetch_github_snapshot, parse_github_username
 
 from jobs.models import Job, RecommendedJob
 from core.services.action_planner import get_recommended_actions
@@ -605,16 +606,52 @@ def chatbot_scope_decision(request, job_id):
 @login_required
 def generate_outreach_view(request, job_id):
     """Generate tailored cold outreach scripts for a specific job"""
-    
+
     job = get_object_or_404(Job, id=job_id, user=request.user)
     profile = get_object_or_404(UserProfile, user=request.user)
-    
+
     campaign = None
     if request.method == 'POST':
         campaign = generate_outreach_campaign(profile, job)
-        
+
     return render(request, 'profiles/outreach.html', {
         'job': job,
         'profile': profile,
         'campaign': campaign
     })
+
+
+@login_required
+def refresh_github_signals(request):
+    """Fetch a fresh GitHub snapshot for the user's profile and cache it.
+
+    POST { github_input?: "username | URL" } — if omitted, falls back to the
+    profile.github_url already on file. Stores the snapshot in
+    profile.data_content['github_signals'] and returns it as JSON.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST only'}, status=405)
+
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+
+    raw = (request.POST.get('github_input') or '').strip()
+    if not raw and profile.github_url:
+        raw = profile.github_url
+
+    username = parse_github_username(raw)
+    if not username:
+        return JsonResponse({
+            'error': 'Could not parse a GitHub username from that input.',
+        }, status=400)
+
+    snapshot = fetch_github_snapshot(username)
+
+    # Persist the URL so subsequent refreshes don't need it re-pasted, and
+    # cache the snapshot in JSONB so the dashboard can render without a fetch.
+    profile.github_url = snapshot.get('profile_url') or profile.github_url
+    data = profile.data_content or {}
+    data['github_signals'] = snapshot
+    profile.data_content = data
+    profile.save(update_fields=['github_url', 'data_content', 'updated_at'])
+
+    return JsonResponse({'success': not snapshot.get('error'), 'snapshot': snapshot})
