@@ -1,149 +1,113 @@
 {% extends 'base.html' %}
+{% block title %}{{ job.title }} — {{ job.company }} — SmartCV{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 transition-colors">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        
-        <!-- Breadcrumbs -->
-        <nav class="flex items-center text-sm text-gray-500 dark:text-gray-400 mb-4 font-medium" aria-label="Breadcrumb">
-            <a href="{% url 'dashboard' %}" class="hover:text-rn-blue dark:hover:text-rn-gold transition-colors">Dashboard</a>
-            <svg class="w-4 h-4 mx-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-            <span class="text-gray-800 dark:text-gray-200 truncate max-w-[250px]">{{ job.title }}</span>
+<div class="min-h-screen bg-neutral-50 dark:bg-neutral-950 py-12 sm:py-16">
+    <div class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 space-y-10">
+
+        {# ---- Breadcrumb ---- #}
+        <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] font-medium text-neutral-500 dark:text-neutral-400">
+            <a href="{% url 'dashboard' %}" class="hover:text-brand-700 dark:hover:text-brand-400 transition-colors">Dashboard</a>
+            <span aria-hidden="true" class="text-neutral-300 dark:text-neutral-700">/</span>
+            <span class="text-neutral-900 dark:text-neutral-100 truncate max-w-[280px]">{{ job.title }}</span>
         </nav>
 
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
-            <!-- Header section -->
-            <div class="px-8 py-8 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col md:flex-row md:items-start justify-between gap-6 transition-colors">
-                <div>
-                    <h1 class="text-3xl font-extrabold text-rn-navy dark:text-gray-100 tracking-tight mb-2">{{ job.title }}</h1>
-                    <p class="text-gray-500 dark:text-gray-400 font-bold text-lg flex items-center">
-                        <svg class="w-5 h-5 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
-                        {{ job.company }}
-                    </p>
+        {# ---- Header card: title + status control ---- #}
+        <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)]">
+            <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
+            <div class="p-6 sm:p-8 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                <div class="md:col-span-2 space-y-3">
+                    {% include "components/section_label.html" with text="Job" tone="brand" %}
+                    <h1 class="font-display text-3xl sm:text-4xl leading-tight tracking-tight text-neutral-900 dark:text-neutral-50"
+                        style="font-variation-settings: 'opsz' 80;">
+                        {{ job.title }}
+                    </h1>
+                    <p class="text-neutral-500 dark:text-neutral-400">{{ job.company }}</p>
                 </div>
-                
-                <!-- Status Control -->
-                <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-700 min-w-[240px] transition-colors">
-                    <form method="post" class="flex flex-col gap-3">
+
+                <div class="md:border-l md:border-neutral-200 md:dark:border-neutral-800 md:pl-6 space-y-2">
+                    <form method="post" class="space-y-2">
                         {% csrf_token %}
-                        <label for="application_status" class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            Tracking Status
-                        </label>
-                        <select
-                            id="application_status"
-                            name="application_status"
-                            class="block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md text-sm font-semibold text-rn-navy dark:text-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-rn-blue transition-colors"
-                        >
+                        <label for="application_status" class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Tracking status</label>
+                        <select id="application_status" name="application_status"
+                                class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-900 dark:text-neutral-100 focus:ring-4 focus:ring-brand-200/70 focus:outline-none">
                             {% for value, label in status_choices %}
-                            <option value="{{ value }}" {% if job.application_status == value %}selected{% endif %}>
-                                {{ label }}
-                            </option>
+                            <option value="{{ value }}" {% if job.application_status == value %}selected{% endif %}>{{ label }}</option>
                             {% endfor %}
                         </select>
-                        <button type="submit" class="w-full text-xs font-bold text-rn-blue hover:text-rn-blue-hover transition-colors text-right">
-                            Save Status
-                        </button>
+                        <button type="submit" class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline">Save status →</button>
                     </form>
                 </div>
             </div>
-            
-            <div class="px-8 py-8">
-                <!-- Action Buttons -->
-                <div class="flex flex-col sm:flex-row flex-wrap gap-4 mb-10 pb-10 border-b border-gray-200">
-                    {% if not has_profile %}
-                    <a href="{% url 'profile_upload_cv' job.id %}"
-                       class="inline-flex items-center justify-center px-8 py-3.5 bg-rn-gold text-rn-navy rounded-rn-pill font-bold shadow-md hover:bg-rn-gold-hover hover:-translate-y-0.5 transition-all duration-200">
-                        Upload Your CV
-                        <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-                    </a>
-                    {% elif existing_resume %}
-                    <a href="{% url 'resume_edit' existing_resume.id %}"
-                       class="inline-flex items-center justify-center px-8 py-3.5 bg-rn-gold text-rn-navy rounded-rn-pill font-bold shadow-md hover:bg-rn-gold-hover hover:-translate-y-0.5 transition-all duration-200">
-                        View Tailored Resume
-                        <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-                    </a>
-                    {% else %}
-                    <a href="{% url 'generate_resume' job.id %}"
-                       class="inline-flex items-center justify-center px-8 py-3.5 bg-rn-gold text-rn-navy rounded-rn-pill font-bold shadow-md hover:bg-rn-gold-hover hover:-translate-y-0.5 transition-all duration-200">
-                        Generate Tailored Resume
-                        <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-                    </a>
-                    {% endif %}
-                    
-                    <a href="{% url 'gap_analysis' job.id %}"
-                       class="inline-flex items-center justify-center px-8 py-3.5 bg-amber-50 border-2 border-amber-200 text-amber-700 rounded-rn-pill font-bold shadow-sm hover:bg-amber-100 transition-colors duration-200">
-                        Run Gap Analysis
-                    </a>
+        </section>
 
-                    <a href="{% url 'profile_chatbot' job.id %}"
-                       class="inline-flex items-center justify-center px-8 py-3.5 bg-indigo-50 border-2 border-indigo-200 text-indigo-700 rounded-rn-pill font-bold shadow-sm hover:bg-indigo-100 transition-colors duration-200">
-                        Chat to Fill Gaps
+        {# ---- Actions ---- #}
+        <section class="space-y-3">
+            {% include "components/section_label.html" with text="Actions" %}
+            <div class="flex flex-wrap gap-2">
+                {% if not has_profile %}
+                    <a href="{% url 'profile_upload_cv' job.id %}" class="group/btn relative inline-flex items-center justify-center gap-2 h-11 px-5 text-sm font-medium rounded-lg bg-brand-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-brand-700 hover:-translate-y-px transition-[background-color,transform] duration-150">
+                        Upload your CV
+                        <span aria-hidden="true" class="transition-transform duration-200 group-hover/btn:translate-x-0.5">→</span>
                     </a>
-                    
-                    <a href="{% url 'generate_cover_letter' job.id %}"
-                       class="inline-flex items-center justify-center px-8 py-3.5 bg-white border-2 border-rn-blue text-rn-blue rounded-rn-pill font-bold shadow-sm hover:bg-blue-50 transition-colors duration-200">
-                        Write Cover Letter
+                {% elif existing_resume %}
+                    <a href="{% url 'resume_edit' existing_resume.id %}" class="group/btn relative inline-flex items-center justify-center gap-2 h-11 px-5 text-sm font-medium rounded-lg bg-brand-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-brand-700 hover:-translate-y-px transition-[background-color,transform] duration-150">
+                        View tailored résumé
+                        <span aria-hidden="true" class="transition-transform duration-200 group-hover/btn:translate-x-0.5">→</span>
                     </a>
-                    
-                    <a href="{% url 'generate_outreach' job.id %}"
-                       class="inline-flex items-center justify-center px-8 py-3.5 bg-gray-100 border-2 border-transparent text-gray-700 rounded-rn-pill font-bold shadow-sm hover:bg-gray-200 hover:text-gray-900 transition-colors duration-200">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                        Cold Email
+                {% else %}
+                    <a href="{% url 'generate_resume' job.id %}" class="group/btn relative inline-flex items-center justify-center gap-2 h-11 px-5 text-sm font-medium rounded-lg bg-brand-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-brand-700 hover:-translate-y-px transition-[background-color,transform] duration-150">
+                        Generate résumé
+                        <span aria-hidden="true" class="transition-transform duration-200 group-hover/btn:translate-x-0.5">→</span>
                     </a>
-                </div>
-                
-                <!-- Extracted Skills -->
-                <div class="mb-10">
-                    <h2 class="text-lg font-bold text-rn-navy mb-4 flex items-center">
-                        <svg class="w-5 h-5 mr-2 text-rn-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                        Target Keywords ({{ job.extracted_skills|length }})
-                    </h2>
-                    <div class="flex flex-wrap gap-2">
-                        {% for skill in job.extracted_skills %}
-                        <span class="px-3.5 py-1.5 bg-blue-50 text-rn-blue font-semibold rounded-md border border-blue-100 text-sm">
-                            {{ skill }}
-                        </span>
-                        {% empty %}
-                        <p class="text-gray-500 italic font-medium">No skills extracted from this description.</p>
-                        {% endfor %}
-                    </div>
-                </div>
-                
-                
-                <div>
-                    <h3 class="text-lg font-bold text-rn-navy dark:text-gray-200 mb-4">Original Description</h3>
-                    <div class="prose max-w-none text-gray-700 dark:text-gray-300 overflow-y-auto max-h-96 border border-gray-200 dark:border-gray-600 p-6 rounded-lg bg-gray-50 dark:bg-gray-800 leading-relaxed text-sm whitespace-pre-wrap transition-colors">
-                        {{ job.description }}
-                    </div>
+                {% endif %}
+                <a href="{% url 'gap_analysis' job.id %}" class="inline-flex items-center gap-1.5 h-11 px-4 text-sm font-medium rounded-lg bg-amber-50 dark:bg-amber-950/40 ring-1 ring-amber-200 dark:ring-amber-900 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950/60 transition-colors">Gap analysis</a>
+                <a href="{% url 'profile_chatbot' job.id %}" class="inline-flex items-center gap-1.5 h-11 px-4 text-sm font-medium rounded-lg bg-accent-50 dark:bg-accent-950/40 ring-1 ring-accent-200 dark:ring-accent-900 text-accent-700 dark:text-accent-300 hover:bg-accent-100 dark:hover:bg-accent-950/60 transition-colors">Chat to fill gaps</a>
+                <a href="{% url 'generate_cover_letter' job.id %}" class="inline-flex items-center gap-1.5 h-11 px-4 text-sm font-medium rounded-lg ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-700 dark:text-neutral-200 bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">Cover letter</a>
+                <a href="{% url 'generate_outreach' job.id %}" class="inline-flex items-center gap-1.5 h-11 px-4 text-sm font-medium rounded-lg ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-700 dark:text-neutral-200 bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">Cold email</a>
+            </div>
+        </section>
+
+        {# ---- Extracted skills ---- #}
+        <section class="space-y-3">
+            <div class="flex items-baseline justify-between gap-2 flex-wrap">
+                {% include "components/section_label.html" with text="Target keywords" tone="brand" %}
+                <span class="text-[11px] text-neutral-500 dark:text-neutral-400">
+                    <span class="font-display italic tabular-nums" style="font-variation-settings: 'opsz' 24;">{{ job.extracted_skills|length }}</span> extracted
+                </span>
+            </div>
+            <div class="rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-4">
+                <div class="flex flex-wrap gap-1.5">
+                    {% for skill in job.extracted_skills %}{% include "components/badge.html" with label=skill tone="brand" %}{% empty %}
+                    <p class="text-sm text-neutral-500 italic">No skills extracted.</p>
+                    {% endfor %}
                 </div>
             </div>
-            
-        </div>
+        </section>
 
-        <!-- Delete Job -->
-        <div x-data="{ confirmDelete: false }" class="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-red-200 dark:border-red-900/50 overflow-hidden">
-            <div class="px-6 py-4 flex items-center justify-between">
+        {# ---- Original description ---- #}
+        <section class="space-y-3">
+            {% include "components/section_label.html" with text="Original description" %}
+            <div class="rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 max-h-96 overflow-y-auto text-sm text-neutral-700 dark:text-neutral-300 leading-relaxed whitespace-pre-wrap">{{ job.description }}</div>
+        </section>
+
+        {# ---- Danger zone ---- #}
+        <section x-data="{ confirmDelete: false }" class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-red-200 dark:ring-red-900">
+            <div class="p-5 flex items-center justify-between gap-4 flex-wrap">
                 <div>
-                    <h3 class="text-sm font-bold text-red-700 dark:text-red-400">Danger Zone</h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Permanently delete this job and all related analyses, resumes, and cover letters.</p>
+                    {% include "components/section_label.html" with text="Danger zone" tone="danger" %}
+                    <p class="mt-2 text-sm text-neutral-600 dark:text-neutral-400">Permanently delete this job and all related analyses, résumés, and cover letters.</p>
                 </div>
-                <button @click="confirmDelete = true" x-show="!confirmDelete"
-                        class="px-4 py-2 text-sm font-bold text-red-600 border border-red-300 dark:border-red-700 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                    Delete Job
+                <button @click="confirmDelete = true" x-show="!confirmDelete" class="inline-flex items-center justify-center h-10 px-4 text-sm font-medium rounded-lg ring-1 ring-red-300 dark:ring-red-800 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors">
+                    Delete job
                 </button>
                 <form x-show="confirmDelete" x-cloak method="POST" action="{% url 'job_delete' job.id %}" class="flex items-center gap-2">
                     {% csrf_token %}
-                    <button type="button" @click="confirmDelete = false"
-                            class="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                        Cancel
-                    </button>
-                    <button type="submit"
-                            class="px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors shadow-sm">
-                        Confirm Delete
-                    </button>
+                    <button type="button" @click="confirmDelete = false" class="inline-flex items-center justify-center h-10 px-4 text-sm font-medium rounded-lg text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">Cancel</button>
+                    <button type="submit" class="inline-flex items-center justify-center h-10 px-4 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors">Confirm delete</button>
                 </form>
             </div>
-        </div>
+        </section>
     </div>
 </div>
 {% endblock %}

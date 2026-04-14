@@ -1,43 +1,39 @@
 {% extends 'base.html' %}
+{% block title %}Cover letter — {{ job.title }} — SmartCV{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-gray-50 py-12 flex items-center justify-center">
-    <div class="max-w-2xl w-full mx-auto px-4 sm:px-6">
-        
-        <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden text-center">
-            
-            <div class="bg-rn-navy px-8 py-10 relative overflow-hidden">
-                <!-- Decorative background elements -->
-                <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none" style="background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 0); background-size: 20px 20px;"></div>
-                
-                <h1 class="text-3xl font-extrabold text-white mb-2 relative z-10">Generate Cover Letter</h1>
-                <p class="text-indigo-200 font-medium relative z-10">Tailored perfectly for <span class="text-white font-bold">{{ job.title }}</span> at <span class="text-white font-bold">{{ job.company }}</span>.</p>
-            </div>
+<div class="min-h-screen bg-neutral-50 dark:bg-neutral-950 py-16 sm:py-24">
+    <div class="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8 space-y-10">
 
-            <div class="p-8 md:p-12">
-                <div class="mb-8 flex justify-center">
-                    <div class="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center">
-                        <svg class="w-10 h-10 text-rn-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76"></path></svg>
-                    </div>
+        <header class="space-y-5">
+            {% include "components/section_label.html" with text="Cover letter" tone="accent" %}
+            <h1 class="font-display text-4xl sm:text-5xl leading-[1.02] tracking-tight text-neutral-900 dark:text-neutral-50"
+                style="font-variation-settings: 'opsz' 80;">
+                Write the <em class="font-medium text-accent-700 dark:text-accent-400">letter</em>.
+            </h1>
+            <p class="text-lg text-neutral-600 dark:text-neutral-300 leading-relaxed">
+                Tailored for <span class="font-medium text-neutral-900 dark:text-neutral-100">{{ job.title }}</span>
+                at <span class="font-medium text-neutral-900 dark:text-neutral-100">{{ job.company }}</span>.
+                Three paragraphs, specific to the role, no chatbot-isms.
+            </p>
+        </header>
+
+        <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)]">
+            <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-accent-500"></div>
+            <form method="POST" class="p-6 sm:p-8 space-y-5" onsubmit="showLoading('Writing your cover letter — up to 60 seconds.')">
+                {% csrf_token %}
+                {% include "components/section_label.html" with text="Ready?" %}
+                <p class="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">
+                    We'll correlate your profile with the employer's exact needs, match the tone of their posting, and flag a clear personal connection to the role.
+                </p>
+                <div class="pt-2">
+                    {% include "components/button.html" with variant="primary" label="Write my cover letter" size="lg" arrow=True block=True %}
                 </div>
-                
-                <h2 class="text-xl font-bold text-gray-900 mb-2">Ready to Impress?</h2>
-                <p class="text-gray-500 font-medium mb-10 max-w-sm mx-auto">This takes a few seconds while our AI correlates your profile with the employer's exact needs.</p>
-                
-                <form method="POST" onsubmit="showLoading('Writing a personalized cover letter... (this may take up to 60s if the AI is waking up)')">
-                    {% csrf_token %}
-                    <button type="submit" class="inline-flex justify-center items-center w-full sm:w-auto px-12 py-4 bg-rn-gold text-rn-navy rounded-rn-pill font-bold shadow-md hover:bg-rn-gold-hover hover:-translate-y-0.5 transition-all duration-200 text-lg">
-                        Write My Cover Letter
-                        <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-                    </button>
-                    <div class="mt-4">
-                         <a href="{% url 'job_detail' job.id %}" class="text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors">Cancel</a>
-                    </div>
-                </form>
-            </div>
-            
-        </div>
-        
+                <div class="text-center pt-2">
+                    <a href="{% url 'job_detail' job.id %}" class="text-xs uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400 hover:text-brand-700 dark:hover:text-brand-400 transition-colors">Cancel · back to job</a>
+                </div>
+            </form>
+        </section>
     </div>
 </div>
 {% endblock %}

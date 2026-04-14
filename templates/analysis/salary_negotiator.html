@@ -1,65 +1,76 @@
 {% extends 'base.html' %}
+{% block title %}Salary negotiator — {{ job.title }} — SmartCV{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto px-4 py-8">
-    <div class="mb-8">
-        <a href="{% url 'dashboard' %}" class="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center mb-4">
-            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-            Back to Dashboard
-        </a>
-        <h1 class="text-3xl font-bold text-gray-900 mb-2">Salary Negotiator</h1>
-        <p class="text-gray-600">You received an offer for <span class="font-bold">{{ job.title }}</span> at <span class="font-bold">{{ job.company }}</span>! Let the AI help you negotiate the best compensation based on your unique skills.</p>
-    </div>
+<div class="min-h-screen bg-neutral-50 dark:bg-neutral-950 py-10 sm:py-14">
+    <div class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 space-y-8">
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-        
-        <!-- Input Panel -->
-        <div class="md:col-span-1">
-            <div class="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-                <form method="POST" onsubmit="showLoading('Generating negotiation script based on your skills... (this may take up to 60s if the AI is waking up)')">
-                    {% csrf_token %}
-                    <div class="mb-4">
-                        <label for="current_offer" class="block text-sm font-bold text-gray-700 mb-2">Current Offer ($)</label>
-                        <input type="text" id="current_offer" name="current_offer" placeholder="e.g., 90,000 + 10k bonus" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
-                    </div>
-                    <div class="mb-6">
-                        <label for="target_salary" class="block text-sm font-bold text-gray-700 mb-2">Target Salary ($)</label>
-                        <input type="text" id="target_salary" name="target_salary" placeholder="e.g., 105,000" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
-                    </div>
-                    <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg shadow hover:bg-blue-700 transition">
-                        Generate Script &rarr;
-                    </button>
-                </form>
-            </div>
-        </div>
+        <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] font-medium text-neutral-500 dark:text-neutral-400">
+            <a href="{% url 'dashboard' %}" class="hover:text-brand-700 dark:hover:text-brand-400 transition-colors">Dashboard</a>
+            <span aria-hidden="true" class="text-neutral-300 dark:text-neutral-700">/</span>
+            <a href="{% url 'job_detail' job.id %}" class="hover:text-brand-700 dark:hover:text-brand-400 transition-colors truncate max-w-[200px]">{{ job.title }}</a>
+            <span aria-hidden="true" class="text-neutral-300 dark:text-neutral-700">/</span>
+            <span class="text-neutral-900 dark:text-neutral-100">Salary negotiator</span>
+        </nav>
 
-        <!-- Result Panel -->
-        <div class="md:col-span-2">
-            {% if script %}
-            <div class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-                <div class="bg-gray-50 border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-                    <h3 class="font-bold text-gray-800">Your Negotiation Script</h3>
-                    <button onclick="copyToClipboard()" class="text-sm bg-white border border-gray-300 px-3 py-1.5 rounded shadow-sm font-medium hover:bg-gray-50">Copy Text</button>
+        <header class="space-y-3 max-w-2xl">
+            {% include "components/section_label.html" with text="Congratulations — offer received" tone="success" %}
+            <h1 class="font-display text-4xl sm:text-5xl leading-[1.02] tracking-tight text-neutral-900 dark:text-neutral-50"
+                style="font-variation-settings: 'opsz' 80;">
+                <em class="font-medium text-emerald-700 dark:text-emerald-400">Negotiate</em> it.
+            </h1>
+            <p class="text-neutral-600 dark:text-neutral-300 leading-relaxed">
+                You have an offer for <span class="font-medium text-neutral-900 dark:text-neutral-100">{{ job.title }}</span>
+                at <span class="font-medium text-neutral-900 dark:text-neutral-100">{{ job.company }}</span>.
+                We'll draft a negotiation script anchored in your specific strengths.
+            </p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+            {# Input panel #}
+            <div class="md:col-span-1">
+                <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+                    <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-emerald-500"></div>
+                    <form method="POST" class="p-5 space-y-5" onsubmit="showLoading('Generating negotiation script — up to 60 seconds.')">
+                        {% csrf_token %}
+                        {% include "components/section_label.html" with text="Inputs" tone="success" %}
+                        {% include "components/input.html" with name="current_offer" label="Current offer" placeholder="e.g., $90,000 + 10k bonus" required=True %}
+                        {% include "components/input.html" with name="target_salary" label="Target salary" placeholder="e.g., $105,000" required=True %}
+                        <div class="pt-2">
+                            {% include "components/button.html" with variant="primary" label="Generate script" arrow=True block=True %}
+                        </div>
+                    </form>
+                </section>
+            </div>
+
+            {# Result panel #}
+            <div class="md:col-span-2">
+                {% if script %}
+                <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+                    <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
+                    <div class="px-5 py-4 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between gap-3">
+                        {% include "components/section_label.html" with text="Your negotiation script" tone="brand" %}
+                        <button onclick="copyToClipboard()" class="inline-flex items-center gap-1 text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline">
+                            Copy text
+                        </button>
+                    </div>
+                    <div class="p-6">
+                        <pre id="script-text" class="font-sans text-sm text-neutral-800 dark:text-neutral-200 whitespace-pre-wrap leading-relaxed">{{ script }}</pre>
+                    </div>
+                </section>
+
+                <div class="mt-5 flex flex-col sm:flex-row gap-2">
+                    <a href="{% url 'job_detail' job.id %}" class="inline-flex items-center justify-center h-11 px-5 text-sm font-medium rounded-lg ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-700 dark:text-neutral-200 bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">Back to job</a>
+                    <a href="{% url 'dashboard' %}" class="inline-flex items-center justify-center h-11 px-5 text-sm font-medium rounded-lg ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-700 dark:text-neutral-200 bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">Dashboard</a>
                 </div>
-                <div class="p-6">
-                    <pre class="font-sans text-gray-800 whitespace-pre-wrap leading-relaxed" id="script-text">{{ script }}</pre>
+                {% else %}
+                <div class="h-full rounded-2xl ring-1 ring-dashed ring-neutral-300 dark:ring-neutral-700 bg-white dark:bg-neutral-900 p-12 flex flex-col items-center justify-center text-center space-y-3">
+                    <div aria-hidden="true" class="w-2 h-2 rounded-full bg-emerald-500"></div>
+                    <p class="text-sm text-neutral-600 dark:text-neutral-400 max-w-xs">Enter your offer details to the left and we'll draft a persuasive, evidence-backed email script anchored in your specific strengths.</p>
                 </div>
+                {% endif %}
             </div>
-            <!-- Next Steps -->
-            <div class="mt-6 flex flex-col sm:flex-row gap-3">
-                <a href="{% url 'job_detail' job.id %}" class="flex-1 inline-flex items-center justify-center px-5 py-3 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-lg hover:bg-gray-50 transition-colors text-sm">
-                    Back to job
-                </a>
-                <a href="{% url 'dashboard' %}" class="flex-1 inline-flex items-center justify-center px-5 py-3 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-lg hover:bg-gray-50 transition-colors text-sm">
-                    Dashboard
-                </a>
-            </div>
-            {% else %}
-            <div class="h-full border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center p-12 text-center text-gray-500 bg-gray-50">
-                <svg class="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                <p>Enter your offer details to generate a persuasive, data-backed email script.</p>
-            </div>
-            {% endif %}
         </div>
     </div>
 </div>
@@ -68,7 +79,7 @@
 function copyToClipboard() {
     const text = document.getElementById('script-text').innerText;
     navigator.clipboard.writeText(text).then(() => {
-        alert("Script copied to clipboard!");
+        alert('Script copied to clipboard.');
     });
 }
 </script>
