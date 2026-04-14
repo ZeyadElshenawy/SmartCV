@@ -1,167 +1,133 @@
 {% extends 'base.html' %}
+{% block title %}Analyze a job — SmartCV{% endblock %}
 
 {% block content %}
-{# Per-source tab configuration. Each URL tab submits to the same endpoint
-   (input_method=url) — the backend dispatcher routes by URL. The per-tab
-   placeholder and hint just guide users toward the right link shape. #}
-<div class="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 transition-colors"
+<div class="relative min-h-screen bg-neutral-50 dark:bg-neutral-950 py-16 sm:py-24"
      x-data="{
         activeTab: 'linkedin',
         sources: {
-            linkedin:   { label: 'LinkedIn',   placeholder: 'https://www.linkedin.com/jobs/view/4081234567/', hint: 'Paste the LinkedIn job link. Works for /jobs/view/{id} and /jobs/search links.' },
-            indeed:     { label: 'Indeed',     placeholder: 'https://www.indeed.com/viewjob?jk=abc123...',      hint: 'Paste the Indeed job link. Works with all country versions (eg, uk, us, etc.).' },
-            greenhouse: { label: 'Greenhouse', placeholder: 'https://boards.greenhouse.io/company/jobs/1234567', hint: 'Paste any Greenhouse board link (boards.greenhouse.io, job-boards.greenhouse.io, or company.greenhouse.io).' },
-            lever:      { label: 'Lever',      placeholder: 'https://jobs.lever.co/company/abc12345-de67-...',  hint: 'Paste the Lever posting link. Reads directly from Lever\'s public API.' },
-            other:      { label: 'Other',      placeholder: 'https://careers.company.com/jobs/...',             hint: 'Paste any company career page. We parse schema.org JobPosting data when available.' },
+            linkedin:   { label: 'LinkedIn',   placeholder: 'https://www.linkedin.com/jobs/view/4081234567/', hint: 'Paste any LinkedIn job link. Works for /jobs/view/{id} and /jobs/search links.' },
+            indeed:     { label: 'Indeed',     placeholder: 'https://www.indeed.com/viewjob?jk=abc123...',    hint: 'Paste any Indeed job link. All country versions supported (us, uk, etc.).' },
+            greenhouse: { label: 'Greenhouse', placeholder: 'https://boards.greenhouse.io/company/jobs/123',   hint: 'Any Greenhouse board — boards.greenhouse.io, job-boards.greenhouse.io, or company.greenhouse.io.' },
+            lever:      { label: 'Lever',      placeholder: 'https://jobs.lever.co/company/abc12345-de67-..',  hint: 'Lever postings. Read directly from Lever\'s public API.' },
+            other:      { label: 'Other',      placeholder: 'https://careers.company.com/jobs/...',            hint: 'Any company career page. We parse schema.org JobPosting markup when available.' },
         }
      }">
-    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 space-y-10">
 
-        <!-- Main Form Card -->
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
-            <!-- Card Header -->
-            <div class="px-8 py-8 border-b border-gray-200 dark:border-gray-700 text-center bg-white dark:bg-gray-800 transition-colors">
-                <h1 class="text-3xl font-extrabold text-rn-navy dark:text-gray-100 tracking-tight mb-2">Analyze a Job Description</h1>
-                <p class="text-gray-500 dark:text-gray-400 font-medium">Pick your source below or paste the details manually.</p>
+        {# ---- Editorial header ---- #}
+        <header class="space-y-5">
+            {% include "components/section_label.html" with text="Step 02 · Job" tone="brand" %}
+            <h1 class="font-display text-5xl sm:text-6xl leading-[1.02] tracking-tight text-neutral-900 dark:text-neutral-50"
+                style="font-variation-settings: 'opsz' 144;">
+                Show us the <em class="font-medium text-brand-700 dark:text-brand-400">job</em>.
+            </h1>
+            <p class="text-lg text-neutral-600 dark:text-neutral-300 leading-relaxed max-w-xl">
+                Paste a link from any of the big boards — we'll pull the title, company,
+                and every required skill. Or type it in yourself if the posting is elsewhere.
+            </p>
+        </header>
+
+        {# ---- Error banner ---- #}
+        {% if error %}
+        <div role="alert" class="flex items-start gap-3 rounded-xl bg-red-50 dark:bg-red-950/40 ring-1 ring-red-200 dark:ring-red-900 px-5 py-4">
+            <svg aria-hidden="true" class="w-5 h-5 flex-shrink-0 mt-0.5 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
+            <div>
+                <div class="text-[11px] uppercase tracking-[0.18em] font-medium text-red-700 dark:text-red-300">Couldn't scrape</div>
+                <p class="mt-1 text-sm text-red-700 dark:text-red-200">{{ error }}</p>
             </div>
+        </div>
+        {% endif %}
 
-            {% if error %}
-            <div class="m-8 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-md flex items-center">
-                <svg class="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
-                {{ error }}
-            </div>
-            {% endif %}
+        {# ---- Main card ---- #}
+        <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)]">
+            <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
 
-            <div class="px-8 py-6">
-                <!-- Source tabs (URL sources + Manual) -->
-                <div class="flex flex-wrap gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg mb-8 transition-colors">
+            <div class="p-6 sm:p-8 space-y-8">
+                {# Editorial segmented source picker — small-caps underline-active style #}
+                <div role="tablist" aria-label="Job source" class="flex flex-wrap gap-x-6 gap-y-2 border-b border-neutral-200 dark:border-neutral-800 pb-3">
                     <template x-for="(cfg, key) in sources" :key="key">
-                        <button
-                            type="button"
-                            @click="activeTab = key"
-                            :class="activeTab === key ? 'bg-white dark:bg-gray-600 text-rn-blue dark:text-white shadow-sm font-bold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 font-medium'"
-                            class="flex-1 min-w-[84px] py-2.5 px-3 rounded-md text-sm transition-all duration-200"
-                            x-text="cfg.label"
-                        ></button>
+                        <button type="button" role="tab"
+                                @click="activeTab = key"
+                                :aria-selected="activeTab === key"
+                                :class="activeTab === key
+                                    ? 'text-brand-700 dark:text-brand-400 border-b-2 border-brand-500'
+                                    : 'text-neutral-500 dark:text-neutral-400 border-b-2 border-transparent hover:text-neutral-900 dark:hover:text-neutral-100'"
+                                class="pb-2 -mb-[13px] text-[11px] uppercase tracking-[0.14em] font-medium transition-colors"
+                                x-text="cfg.label"></button>
                     </template>
-                    <button
-                        type="button"
-                        @click="activeTab = 'manual'"
-                        :class="activeTab === 'manual' ? 'bg-white dark:bg-gray-600 text-rn-blue dark:text-white shadow-sm font-bold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 font-medium'"
-                        class="flex-1 min-w-[104px] py-2.5 px-3 rounded-md text-sm transition-all duration-200"
-                    >
-                        Manual Entry
+                    <button type="button" role="tab"
+                            @click="activeTab = 'manual'"
+                            :aria-selected="activeTab === 'manual'"
+                            :class="activeTab === 'manual'
+                                ? 'text-brand-700 dark:text-brand-400 border-b-2 border-brand-500'
+                                : 'text-neutral-500 dark:text-neutral-400 border-b-2 border-transparent hover:text-neutral-900 dark:hover:text-neutral-100'"
+                            class="pb-2 -mb-[13px] text-[11px] uppercase tracking-[0.14em] font-medium transition-colors">
+                        Manual entry
                     </button>
                 </div>
 
-                <!-- URL Input Form (shared across LinkedIn / Indeed / Greenhouse / Lever / Other) -->
+                {# ---- URL form (shared across all URL sources) ---- #}
                 <div x-show="activeTab !== 'manual'" x-cloak>
-                    <form method="post" class="space-y-6 max-w-xl mx-auto" onsubmit="showLoading('Scraping job details...')">
+                    <form method="post" class="space-y-6" onsubmit="showLoading('Scraping the job — this usually takes 5–15 seconds.')">
                         {% csrf_token %}
                         <input type="hidden" name="input_method" value="url">
                         <input type="hidden" name="source_hint" :value="activeTab">
 
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                                <span x-text="sources[activeTab].label"></span> Job URL <span class="text-red-500">*</span>
+                        <div class="space-y-2">
+                            <label for="job_url_input" class="block text-xs font-medium uppercase tracking-[0.14em] text-neutral-600 dark:text-neutral-400">
+                                <span x-text="sources[activeTab].label"></span> URL <span class="text-red-500" aria-hidden="true">*</span>
                             </label>
-                            <input
-                                type="url"
-                                name="job_url"
-                                :placeholder="sources[activeTab].placeholder"
-                                required
-                                class="w-full px-4 py-3.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 rounded-md focus:ring-2 focus:ring-blue-100 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-600 transition-colors"
-                            >
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium leading-relaxed flex items-start gap-1">
-                                <svg class="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                <span x-text="sources[activeTab].hint"></span>
-                            </p>
+                            <input id="job_url_input" type="url" name="job_url" required
+                                   :placeholder="sources[activeTab].placeholder"
+                                   class="block w-full h-11 px-4 text-sm rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none transition-[box-shadow,border-color] duration-150">
+                            <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed" x-text="sources[activeTab].hint"></p>
                         </div>
 
-                        <div class="pt-4 text-center">
-                            <button
-                                type="submit"
-                                class="inline-flex justify-center items-center px-10 py-4 bg-rn-gold text-gray-900 rounded-rn-pill font-bold shadow-md hover:bg-rn-gold-hover hover:-translate-y-0.5 transition-all duration-200 w-full sm:w-auto text-lg"
-                            >
-                                Analyze Job
-                                <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-                            </button>
+                        <div class="pt-2">
+                            {% include "components/button.html" with variant="primary" label="Analyze job" size="lg" arrow=True block=True %}
                         </div>
                     </form>
                 </div>
-                
-                <!-- Manual Entry Tab -->
+
+                {# ---- Manual-entry form ---- #}
                 <div x-show="activeTab === 'manual'" x-cloak>
-                    <form method="post" class="space-y-5" onsubmit="showLoading('Processing job details...')">
+                    <form method="post" class="space-y-6" onsubmit="showLoading('Analyzing the job description.')">
                         {% csrf_token %}
                         <input type="hidden" name="input_method" value="text">
-                        
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-2">
-                                    Job Title <span class="text-red-500">*</span>
-                                </label>
-                                <input 
-                                    type="text" 
-                                    name="job_title" 
-                                    placeholder="e.g., Senior Software Engineer" 
-                                    required
-                                    class="w-full px-4 py-3 bg-gray-50 border border-gray-200 text-gray-900 rounded-md focus:ring-2 focus:ring-blue-100 focus:border-rn-blue focus:bg-white transition-colors"
-                                >
-                            </div>
-                            
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-2">
-                                    Company <span class="text-red-500">*</span>
-                                </label>
-                                <input 
-                                    type="text" 
-                                    name="company" 
-                                    placeholder="e.g., Google" 
-                                    required
-                                    class="w-full px-4 py-3 bg-gray-50 border border-gray-200 text-gray-900 rounded-md focus:ring-2 focus:ring-blue-100 focus:border-rn-blue focus:bg-white transition-colors"
-                                >
-                            </div>
+
+                        <div class="grid sm:grid-cols-2 gap-5">
+                            {% include "components/input.html" with name="job_title" label="Job title" placeholder="e.g., Senior ML Engineer" required=True %}
+                            {% include "components/input.html" with name="company" label="Company" placeholder="e.g., Stripe" required=True %}
                         </div>
-                        
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">
-                                Job Description <span class="text-red-500">*</span>
+
+                        <div class="space-y-2">
+                            <label for="job_description_input" class="block text-xs font-medium uppercase tracking-[0.14em] text-neutral-600 dark:text-neutral-400">
+                                Job description <span class="text-red-500" aria-hidden="true">*</span>
                             </label>
-                            <textarea 
-                                name="job_description" 
-                                rows="8" 
-                                placeholder="Paste the full job description here..."
-                                required
-                                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 text-gray-900 rounded-md focus:ring-2 focus:ring-blue-100 focus:border-rn-blue focus:bg-white transition-colors resize-y"
-                            ></textarea>
+                            <textarea id="job_description_input" name="job_description" rows="10" required
+                                      placeholder="Paste the full job description here — the more complete, the better the extraction."
+                                      class="block w-full px-4 py-3 text-sm rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none transition-[box-shadow,border-color] duration-150 resize-y"></textarea>
                         </div>
-                        
-                        <div class="pt-4 text-center flex justify-between items-center">
-                            <button type="button" @click="activeTab = 'linkedin'" class="text-gray-500 hover:text-gray-800 font-medium transition-colors">
-                                &larr; Back
+
+                        <div class="flex items-center justify-between gap-4 pt-2">
+                            <button type="button" @click="activeTab = 'linkedin'"
+                                    class="inline-flex items-center gap-1.5 text-sm font-medium text-neutral-600 dark:text-neutral-300 hover:text-brand-700 dark:hover:text-brand-400 transition-colors">
+                                <span aria-hidden="true">←</span> Back to URL
                             </button>
-                            <button 
-                                type="submit"
-                                class="inline-flex justify-center items-center px-10 py-4 bg-rn-gold text-gray-900 rounded-rn-pill font-bold shadow-md hover:bg-rn-gold-hover hover:-translate-y-0.5 transition-all duration-200"
-                            >
-                                Analyze Job
-                                <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-                            </button>
+                            <div>
+                                {% include "components/button.html" with variant="primary" label="Analyze job" size="lg" arrow=True %}
+                            </div>
                         </div>
                     </form>
                 </div>
             </div>
-            
-                <!-- Security Banner -->
+
+            <div class="px-6 sm:px-8 py-4 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-center gap-2 text-[11px] uppercase tracking-[0.18em] font-medium text-neutral-500 dark:text-neutral-400">
+                <svg class="w-3.5 h-3.5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path></svg>
+                You'll review the extracted data before analysis runs
             </div>
-            
-            <div class="bg-gray-50 dark:bg-gray-800/80 px-8 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-center text-xs text-gray-500 dark:text-gray-400 font-medium transition-colors">
-                <svg class="w-4 h-4 mr-1.5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path></svg>
-                Your data is secure and will never be shared.
-            </div>
-        </div>
-        
+        </section>
     </div>
 </div>
 {% endblock %}
