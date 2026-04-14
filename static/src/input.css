@@ -79,8 +79,12 @@
   /* --- Radius ------------------------------------------------- */
   --radius-rn-pill: 58px; /* legacy pill radius */
 
-  /* Light mode neutrals: keep Tailwind defaults (cool gray-50/100/200
-   * territory), matching the pre-redesign look. */
+  /* Light mode neutrals: cool slate-tinted page bg so white cards
+   * have clear contrast. Matches the target screenshot more closely
+   * than Tailwind's default near-white neutral-50. */
+  --color-neutral-50:  #f1f5f9; /* page bg — cool slate */
+  --color-neutral-100: #e8edf3; /* tile bg + hover surface */
+  --color-neutral-200: #cbd5e1; /* hairline rules + ring */
 }
 
 /* ---- Card elevation in light mode --------------------------
