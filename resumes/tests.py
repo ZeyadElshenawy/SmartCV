@@ -104,3 +104,176 @@ class RoundTripTests(SimpleTestCase):
         textarea_server_sent = _description_list_to_text(original)
         textarea_browser_posted = textarea_server_sent.replace('\n', '\r\n')
         self.assertEqual(_description_text_to_list(textarea_browser_posted), original)
+
+
+
+# ============================================================
+# resumes.services.scoring — ATS breakdown + evidence confidence
+# ============================================================
+
+from types import SimpleNamespace
+from resumes.services.scoring import (
+    compute_ats_breakdown,
+    compute_evidence_confidence,
+    calculate_ats_score,
+    STUFFING_THRESHOLD,
+    STUFFING_PENALTY_PER_SKILL,
+    IN_CONTEXT_BONUS_PER_SKILL,
+)
+
+
+class ComputeAtsBreakdownTests(SimpleTestCase):
+    def test_no_job_skills_returns_zero(self):
+        out = compute_ats_breakdown({"skills": ["Python"]}, [])
+        self.assertEqual(out["score"], 0.0)
+        self.assertEqual(out["matched_count"], 0)
+        self.assertEqual(out["total_count"], 0)
+
+    def test_basic_match_score(self):
+        # 2 of 4 keywords present anywhere in the resume JSON
+        content = {"skills": ["Python", "SQL"], "experience": []}
+        out = compute_ats_breakdown(content, ["Python", "SQL", "Rust", "Go"])
+        self.assertEqual(out["matched_count"], 2)
+        self.assertEqual(out["total_count"], 4)
+        self.assertEqual(out["raw_score"], 50.0)
+        # No in-context bonus (no experience), no stuffing — final = raw
+        self.assertEqual(out["score"], 50.0)
+
+    def test_in_context_bonus_for_keywords_in_experience(self):
+        # Same matched count, but the keyword also appears in experience
+        # bullets — should get the in-context bonus.
+        content = {
+            "skills": ["Python"],
+            "experience": [
+                {"description": ["Built distributed Python pipelines"]},
+            ],
+        }
+        out = compute_ats_breakdown(content, ["Python"])
+        self.assertEqual(out["matched_count"], 1)
+        self.assertEqual(out["in_context_count"], 1)
+        # raw 100 + bonus 2, capped at 100
+        self.assertEqual(out["score"], 100.0)
+        self.assertEqual(out["in_context_bonus"], IN_CONTEXT_BONUS_PER_SKILL)
+
+    def test_in_context_bonus_is_capped(self):
+        # 6 in-context skills × 2 = 12 raw bonus, capped at 10
+        content = {
+            "skills": ["Python", "SQL", "Java", "Rust", "Go", "Ruby"],
+            "experience": [{
+                "description": [
+                    "Used Python and SQL daily",
+                    "Migrated services to Java and Go",
+                    "Wrote internal tooling in Rust and Ruby",
+                ],
+            }],
+        }
+        out = compute_ats_breakdown(content, ["Python", "SQL", "Java", "Rust", "Go", "Ruby"])
+        self.assertEqual(out["in_context_count"], 6)
+        self.assertEqual(out["in_context_bonus"], 10.0)  # capped
+
+    def test_keyword_stuffing_is_penalized(self):
+        # A skill that appears > STUFFING_THRESHOLD times across the resume
+        # gets penalized 5 points per stuffed keyword.
+        stuffed = " python " * (STUFFING_THRESHOLD + 1)
+        content = {
+            "skills": ["Python"],
+            "experience": [{"description": [stuffed]}],
+        }
+        out = compute_ats_breakdown(content, ["Python"])
+        self.assertIn("Python", out["stuffed_skills"])
+        self.assertEqual(out["stuffing_penalty"], STUFFING_PENALTY_PER_SKILL)
+        # raw 100 + 2 bonus - 5 penalty = 97
+        self.assertEqual(out["score"], 97.0)
+
+    def test_score_is_clamped_to_zero_when_penalties_exceed(self):
+        # Engineer 5 stuffed skills (5 × 5pt = 25 pt penalty) on a resume
+        # with raw_score 0 (no skills match). Final must clamp to 0, not negative.
+        stuffed_text = " ".join(["python sql java rust go"] * 6)
+        content = {"experience": [{"description": [stuffed_text]}]}
+        out = compute_ats_breakdown(content, ["Python", "SQL", "Java", "Rust", "Go"])
+        self.assertGreater(out["stuffing_penalty"], 0)
+        self.assertGreaterEqual(out["score"], 0.0)
+
+    def test_keyword_counts_per_skill_are_returned(self):
+        content = {"skills": ["Python", "SQL"]}
+        out = compute_ats_breakdown(content, ["Python", "SQL", "Rust"])
+        self.assertEqual(out["keyword_counts"]["Python"], 1)
+        self.assertEqual(out["keyword_counts"]["SQL"], 1)
+        self.assertEqual(out["keyword_counts"]["Rust"], 0)
+
+    def test_legacy_calculate_ats_score_returns_just_the_float(self):
+        content = {"skills": ["Python"]}
+        score = calculate_ats_score(content, ["Python"])
+        self.assertIsInstance(score, float)
+        self.assertEqual(score, 100.0)
+
+
+class ComputeEvidenceConfidenceTests(SimpleTestCase):
+    def _profile(self, **signals):
+        return SimpleNamespace(data_content=signals)
+
+    def test_no_signals_returns_zero(self):
+        out = compute_evidence_confidence(self._profile())
+        self.assertEqual(out["score"], 0)
+        self.assertEqual(out["label"], "Untested")
+        self.assertEqual(out["sources"], [])
+
+    def test_only_github_with_repos_counts(self):
+        out = compute_evidence_confidence(self._profile(
+            github_signals={"public_repos": 5},
+        ))
+        self.assertEqual(out["score"], 1)
+        self.assertEqual(out["label"], "Limited")
+        self.assertEqual(out["sources"], ["github"])
+
+    def test_github_with_zero_repos_does_not_count(self):
+        out = compute_evidence_confidence(self._profile(
+            github_signals={"public_repos": 0},
+        ))
+        self.assertEqual(out["score"], 0)
+
+    def test_error_snapshot_is_skipped(self):
+        out = compute_evidence_confidence(self._profile(
+            github_signals={"error": "rate-limited", "public_repos": 99},
+        ))
+        self.assertEqual(out["score"], 0)
+
+    def test_scholar_needs_pubs_or_citations(self):
+        # Empty top_publications + 0 citations → does not count
+        out = compute_evidence_confidence(self._profile(
+            scholar_signals={"top_publications": [], "total_citations": 0},
+        ))
+        self.assertEqual(out["score"], 0)
+        # With citations
+        out = compute_evidence_confidence(self._profile(
+            scholar_signals={"top_publications": [], "total_citations": 100},
+        ))
+        self.assertEqual(out["score"], 1)
+        # With publications
+        out = compute_evidence_confidence(self._profile(
+            scholar_signals={"top_publications": [{"title": "A"}], "total_citations": 0},
+        ))
+        self.assertEqual(out["score"], 1)
+
+    def test_kaggle_any_category_activity_counts(self):
+        out = compute_evidence_confidence(self._profile(
+            kaggle_signals={
+                "competitions": {"count": 0},
+                "datasets": {"count": 0},
+                "notebooks": {"count": 3},
+                "discussion": {"count": 0},
+            },
+        ))
+        self.assertEqual(out["score"], 1)
+        self.assertEqual(out["sources"], ["kaggle"])
+
+    def test_all_three_signals_max_score(self):
+        out = compute_evidence_confidence(self._profile(
+            github_signals={"public_repos": 5},
+            scholar_signals={"total_citations": 100, "top_publications": [{"title": "X"}]},
+            kaggle_signals={"competitions": {"count": 1}, "datasets": {"count": 0},
+                            "notebooks": {"count": 0}, "discussion": {"count": 0}},
+        ))
+        self.assertEqual(out["score"], 3)
+        self.assertEqual(out["label"], "Strong")
+        self.assertEqual(set(out["sources"]), {"github", "scholar", "kaggle"})
