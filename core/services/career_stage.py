@@ -83,6 +83,10 @@ def _resume_url(job_id) -> str:
     return f'/resumes/generate/{job_id}/'
 
 
+def _agent_url(job_id) -> str:
+    return f'/agent/?job={job_id}'
+
+
 # ---- Core detector --------------------------------------------
 
 def detect_career_stage(*,
@@ -144,7 +148,7 @@ def detect_career_stage(*,
         secondary = []
         if iv_job:
             secondary.append(StageAction(label='Review the gap analysis', href=_gap_url(iv_job.id)))
-            secondary.append(StageAction(label='Rehearse outreach',       href=_outreach_url(iv_job.id)))
+            secondary.append(StageAction(label='Ask agent about this role', href=_agent_url(iv_job.id)))
         secondary.append(StageAction(label='See pipeline', href='/applications/'))
         return CareerStage(
             key='interviewing',
