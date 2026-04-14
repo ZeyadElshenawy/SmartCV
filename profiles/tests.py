@@ -690,3 +690,85 @@ class ProfileStrengthTests(TestCase):
         c = _score_evidence(profile)
         met = {i['key']: i['met'] for i in c['items']}
         self.assertTrue(met['has_credential'])
+
+    def test_signals_empty_profile_scores_zero(self):
+        from profiles.services.profile_strength import _score_signals
+        profile = self._make_profile()
+        c = _score_signals(profile)
+        self.assertEqual(c['key'], 'signals')
+        self.assertEqual(c['max'], 35)
+        self.assertEqual(c['score'], 0)
+
+    def test_signals_github_with_repos_scores_14(self):
+        from profiles.services.profile_strength import _score_signals
+        profile = self._make_profile(
+            data_content={
+                'github_signals': {
+                    'username': 'x', 'public_repos': 5,
+                    'fetched_at': '2026-04-10T00:00:00Z',
+                },
+            },
+        )
+        c = _score_signals(profile)
+        met = {i['key']: i['points'] for i in c['items'] if i['met']}
+        self.assertEqual(met.get('github_connected'), 14)
+
+    def test_signals_errored_github_counts_as_unmet(self):
+        from profiles.services.profile_strength import _score_signals
+        profile = self._make_profile(
+            data_content={
+                'github_signals': {
+                    'error': 'rate limited', 'username': 'x', 'public_repos': 99,
+                },
+            },
+        )
+        c = _score_signals(profile)
+        met = {i['key']: i['met'] for i in c['items']}
+        self.assertFalse(met['github_connected'])
+
+    def test_signals_scholar_citations_awards_points(self):
+        from profiles.services.profile_strength import _score_signals
+        profile = self._make_profile(
+            data_content={'scholar_signals': {'total_citations': 25, 'fetched_at': '2026-04-10T00:00:00Z'}},
+        )
+        c = _score_signals(profile)
+        met = {i['key']: i['met'] for i in c['items']}
+        self.assertTrue(met['scholar_or_kaggle'])
+
+    def test_signals_kaggle_competitions_awards_points(self):
+        from profiles.services.profile_strength import _score_signals
+        profile = self._make_profile(
+            data_content={'kaggle_signals': {'competitions': {'count': 2}, 'fetched_at': '2026-04-10T00:00:00Z'}},
+        )
+        c = _score_signals(profile)
+        met = {i['key']: i['met'] for i in c['items']}
+        self.assertTrue(met['scholar_or_kaggle'])
+
+    def test_signals_linkedin_url_awards_points(self):
+        from profiles.services.profile_strength import _score_signals
+        profile = self._make_profile(linkedin_url='https://linkedin.com/in/x')
+        c = _score_signals(profile)
+        met = {i['key']: i['points'] for i in c['items'] if i['met']}
+        self.assertEqual(met.get('has_linkedin'), 4)
+
+    def test_signals_freshness_requires_recent_fetched_at(self):
+        from profiles.services.profile_strength import _score_signals
+        from datetime import datetime, timezone, timedelta
+        recent = (datetime.now(timezone.utc) - timedelta(days=10)).isoformat()
+        old = (datetime.now(timezone.utc) - timedelta(days=200)).isoformat()
+        fresh_profile = self._make_profile(
+            data_content={'github_signals': {'public_repos': 2, 'fetched_at': recent}},
+        )
+        c = _score_signals(fresh_profile)
+        met = {i['key']: i['met'] for i in c['items']}
+        self.assertTrue(met['signals_fresh'])
+
+        from profiles.models import UserProfile
+        u2 = get_user_model().objects.create_user(username='s2@example.com', email='s2@example.com', password='x')
+        stale_profile = UserProfile.objects.create(
+            user=u2, full_name='S', email='s@e.com',
+            data_content={'github_signals': {'public_repos': 2, 'fetched_at': old}},
+        )
+        c2 = _score_signals(stale_profile)
+        met2 = {i['key']: i['met'] for i in c2['items']}
+        self.assertFalse(met2['signals_fresh'])
