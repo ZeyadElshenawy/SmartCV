@@ -280,3 +280,92 @@ class GitHubActivityFormattingTests(SimpleTestCase):
         profile = make_profile(skills=['Python'])
         ctx = _build_full_candidate_context(profile)
         self.assertNotIn('GITHUB ACTIVITY', ctx)
+
+
+
+# ============================================================
+# Scholar / Kaggle activity context blocks
+# ============================================================
+
+from analysis.services.gap_analyzer import (
+    _format_scholar_activity,
+    _format_kaggle_activity,
+)
+
+
+def _profile_with(**signals):
+    """Build a stub profile with arbitrary signal blocks pre-cached."""
+    return SimpleNamespace(
+        skills=[], experiences=[], projects=[], certifications=[], education=[],
+        data_content=signals,
+    )
+
+
+class FormatScholarActivityTests(SimpleTestCase):
+    SAMPLE = {
+        "user_id": "ABC123",
+        "name": "Dr Octocat",
+        "affiliation": "Stripe Research",
+        "total_citations": 1234,
+        "h_index": 42,
+        "i10_index": 88,
+        "top_publications": [
+            {"title": "Distributed training", "venue": "NeurIPS", "year": "2024", "citations": 300},
+            {"title": "PySpark optimization", "venue": "VLDB",   "year": "2023", "citations": 120},
+        ],
+    }
+
+    def test_no_signals_returns_empty(self):
+        self.assertEqual(_format_scholar_activity(_profile_with()), "")
+
+    def test_error_snapshot_returns_empty(self):
+        p = _profile_with(scholar_signals={"error": "boom", "user_id": "X"})
+        self.assertEqual(_format_scholar_activity(p), "")
+
+    def test_full_snapshot_renders_block(self):
+        block = _format_scholar_activity(_profile_with(scholar_signals=self.SAMPLE))
+        self.assertIn("GOOGLE SCHOLAR", block)
+        self.assertIn("Dr Octocat", block)
+        self.assertIn("Stripe Research", block)
+        self.assertIn("Citations: 1234 total", block)
+        self.assertIn("h-index: 42", block)
+        self.assertIn("i10: 88", block)
+        self.assertIn("Distributed training", block)
+        self.assertIn("NeurIPS", block)
+        self.assertIn("300 citations", block)
+
+
+class FormatKaggleActivityTests(SimpleTestCase):
+    SAMPLE = {
+        "username": "octocat",
+        "display_name": "Octo Cat",
+        "overall_tier": "Master",
+        "competitions": {"count": 12, "tier": "Master",
+                         "medals": {"gold": 1, "silver": 3, "bronze": 5}},
+        "datasets":     {"count": 4, "tier": "Contributor",
+                         "medals": {"gold": 0, "silver": 1, "bronze": 2}},
+        "notebooks":    {"count": 30, "tier": "Master",
+                         "medals": {"gold": 2, "silver": 5, "bronze": 8}},
+        "discussion":   {"count": 0, "tier": None,
+                         "medals": {"gold": 0, "silver": 0, "bronze": 0}},
+    }
+
+    def test_no_signals_returns_empty(self):
+        self.assertEqual(_format_kaggle_activity(_profile_with()), "")
+
+    def test_error_snapshot_returns_empty(self):
+        p = _profile_with(kaggle_signals={"error": "blocked", "username": "x"})
+        self.assertEqual(_format_kaggle_activity(p), "")
+
+    def test_full_snapshot_renders_block(self):
+        block = _format_kaggle_activity(_profile_with(kaggle_signals=self.SAMPLE))
+        self.assertIn("KAGGLE", block)
+        self.assertIn("Octo Cat", block)
+        self.assertIn("Master", block)  # overall tier
+        self.assertIn("Competitions: 12", block)
+        self.assertIn("Notebooks: 30", block)
+        self.assertIn("Datasets: 4", block)
+        # medals shown when category has any
+        self.assertIn("medals", block)
+        # Discussion has 0 count + no medals — should be skipped
+        self.assertNotIn("Discussion: 0", block)

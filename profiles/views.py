@@ -10,6 +10,9 @@ from .services.llm_validator import validate_and_map_cv_data, get_missing_fields
 from .services.interviewer import process_chat_turn
 from .services.outreach_generator import generate_outreach_campaign
 from .services.github_aggregator import fetch_github_snapshot, parse_github_username
+from .services.linkedin_aggregator import make_linkedin_snapshot
+from .services.scholar_aggregator import fetch_scholar_snapshot
+from .services.kaggle_aggregator import fetch_kaggle_snapshot
 
 from jobs.models import Job, RecommendedJob
 from core.services.action_planner import get_recommended_actions
@@ -655,3 +658,71 @@ def refresh_github_signals(request):
     profile.save(update_fields=['github_url', 'data_content', 'updated_at'])
 
     return JsonResponse({'success': not snapshot.get('error'), 'snapshot': snapshot})
+
+
+def _refresh_signal(request, *, signal_key: str, input_field: str, fetcher,
+                    fallback_url_attr: str = None):
+    """Shared helper for signal-aggregation refresh endpoints.
+
+    `fetcher(value)` must return a snapshot dict. The result is cached on
+    profile.data_content[signal_key] and returned as JSON.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST only'}, status=405)
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+
+    raw = (request.POST.get(input_field) or '').strip()
+    if not raw and fallback_url_attr:
+        raw = getattr(profile, fallback_url_attr, '') or ''
+
+    snapshot = fetcher(raw)
+
+    data = profile.data_content or {}
+    data[signal_key] = snapshot
+    profile.data_content = data
+    update_fields = ['data_content', 'updated_at']
+
+    # Persist canonical URL on the model too, when available.
+    if fallback_url_attr and snapshot.get('profile_url'):
+        setattr(profile, fallback_url_attr, snapshot['profile_url'])
+        update_fields.insert(0, fallback_url_attr)
+
+    profile.save(update_fields=update_fields)
+    return JsonResponse({'success': not snapshot.get('error'), 'snapshot': snapshot})
+
+
+@login_required
+def refresh_linkedin_signals(request):
+    """Validate a LinkedIn URL/handle and store it. No scraping (LinkedIn
+    blocks public profile data behind auth). See linkedin_aggregator docstring."""
+    return _refresh_signal(
+        request,
+        signal_key='linkedin_signals',
+        input_field='linkedin_input',
+        fetcher=make_linkedin_snapshot,
+        fallback_url_attr='linkedin_url',
+    )
+
+
+@login_required
+def refresh_scholar_signals(request):
+    """Scrape a Google Scholar profile (citations, h-index, top publications).
+    May fail if Scholar serves a CAPTCHA — snapshot.error indicates this."""
+    return _refresh_signal(
+        request,
+        signal_key='scholar_signals',
+        input_field='scholar_input',
+        fetcher=fetch_scholar_snapshot,
+    )
+
+
+@login_required
+def refresh_kaggle_signals(request):
+    """Scrape a Kaggle profile (tier, competitions, datasets, notebooks, medals)
+    by parsing the embedded __NEXT_DATA__ JSON blob."""
+    return _refresh_signal(
+        request,
+        signal_key='kaggle_signals',
+        input_field='kaggle_input',
+        fetcher=fetch_kaggle_snapshot,
+    )

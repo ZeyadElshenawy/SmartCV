@@ -335,3 +335,219 @@ class FetchGithubSnapshotTests(SimpleTestCase):
         self.assertEqual(snap['recent_commit_count'], 5)
 
 
+
+
+
+# ============================================================
+# LinkedIn / Scholar / Kaggle aggregators
+# ============================================================
+
+import json as _json
+from profiles.services.linkedin_aggregator import (
+    make_linkedin_snapshot,
+    parse_linkedin_handle,
+)
+from profiles.services.scholar_aggregator import (
+    fetch_scholar_snapshot,
+    parse_scholar_user_id,
+)
+from profiles.services.kaggle_aggregator import (
+    fetch_kaggle_snapshot,
+    parse_kaggle_username,
+)
+
+
+# ---- LinkedIn -------------------------------------------------
+
+class ParseLinkedinHandleTests(SimpleTestCase):
+    def test_full_url(self):
+        self.assertEqual(parse_linkedin_handle("https://www.linkedin.com/in/jane-doe-123"), "jane-doe-123")
+
+    def test_url_with_country_subdomain(self):
+        self.assertEqual(parse_linkedin_handle("https://uk.linkedin.com/in/jane-doe"), "jane-doe")
+
+    def test_url_with_trailing_slash(self):
+        self.assertEqual(parse_linkedin_handle("linkedin.com/in/jane-doe-123/"), "jane-doe-123")
+
+    def test_in_handle_form(self):
+        self.assertEqual(parse_linkedin_handle("in/jane-doe-123"), "jane-doe-123")
+
+    def test_bare_handle(self):
+        self.assertEqual(parse_linkedin_handle("jane-doe-123"), "jane-doe-123")
+
+    def test_foreign_url_returns_none(self):
+        self.assertIsNone(parse_linkedin_handle("https://example.com/in/jane"))
+
+    def test_empty_returns_none(self):
+        self.assertIsNone(parse_linkedin_handle(""))
+
+
+class MakeLinkedinSnapshotTests(SimpleTestCase):
+    def test_valid_url_builds_canonical_snapshot(self):
+        snap = make_linkedin_snapshot("https://www.linkedin.com/in/jane-doe")
+        self.assertIsNone(snap["error"])
+        self.assertEqual(snap["username"], "jane-doe")
+        self.assertEqual(snap["profile_url"], "https://www.linkedin.com/in/jane-doe/")
+
+    def test_invalid_input_returns_error(self):
+        snap = make_linkedin_snapshot("https://example.com/something")
+        self.assertIn("Couldn", snap["error"])
+        self.assertEqual(snap["username"], "")
+
+
+# ---- Scholar --------------------------------------------------
+
+class ParseScholarUserIdTests(SimpleTestCase):
+    def test_full_url_with_hl(self):
+        self.assertEqual(parse_scholar_user_id("https://scholar.google.com/citations?user=ABC123XY&hl=en"), "ABC123XY")
+
+    def test_url_without_hl(self):
+        self.assertEqual(parse_scholar_user_id("scholar.google.com/citations?user=ABC123XY"), "ABC123XY")
+
+    def test_bare_id(self):
+        self.assertEqual(parse_scholar_user_id("ABC123XY"), "ABC123XY")
+
+    def test_foreign_url_returns_none(self):
+        self.assertIsNone(parse_scholar_user_id("https://example.com/?user=NOPE"))
+
+    def test_empty_returns_none(self):
+        self.assertIsNone(parse_scholar_user_id(""))
+
+    def test_too_short_id_returns_none(self):
+        self.assertIsNone(parse_scholar_user_id("abc"))
+
+
+class FetchScholarSnapshotTests(SimpleTestCase):
+    def test_invalid_input_returns_error_snapshot(self):
+        snap = fetch_scholar_snapshot("https://example.com/notscholar")
+        self.assertIn("Could not parse", snap["error"])
+
+    def test_captcha_interstitial_returns_error_snapshot(self):
+        resp = MagicMock()
+        resp.url = "https://scholar.google.com/sorry/index?q=CAPTCHA"
+        resp.ok = True
+        resp.status_code = 200
+        resp.text = "Please show you are not a robot - unusual traffic detected"
+        with patch("profiles.services.scholar_aggregator.requests.get", return_value=resp):
+            snap = fetch_scholar_snapshot("ABC123XY")
+        self.assertIsNotNone(snap["error"])
+        self.assertIn("CAPTCHA", snap["error"])
+
+    def test_happy_path_extracts_name_citations_and_pubs(self):
+        html = """
+        <html><body>
+            <div id="gsc_prf_in">Dr Octocat</div>
+            <div id="gsc_prf_i"><div class="gsc_prf_il">Stripe Research</div></div>
+            <table id="gsc_rsb_st">
+                <tr><td class="gsc_rsb_std">1234</td><td class="gsc_rsb_std">800</td></tr>
+                <tr><td class="gsc_rsb_std">42</td><td class="gsc_rsb_std">35</td></tr>
+                <tr><td class="gsc_rsb_std">88</td><td class="gsc_rsb_std">70</td></tr>
+            </table>
+            <table>
+              <tr class="gsc_a_tr">
+                <td><a class="gsc_a_at">Distributed training</a><div class="gs_gray">co-author</div><div class="gs_gray">NeurIPS</div></td>
+                <td><a class="gsc_a_ac">300</a></td>
+                <td class="gsc_a_y"><span>2024</span></td>
+              </tr>
+              <tr class="gsc_a_tr">
+                <td><a class="gsc_a_at">PySpark optimization</a><div class="gs_gray">a</div><div class="gs_gray">VLDB</div></td>
+                <td><a class="gsc_a_ac">120</a></td>
+                <td class="gsc_a_y"><span>2023</span></td>
+              </tr>
+            </table>
+        </body></html>
+        """
+        resp = MagicMock()
+        resp.url = "https://scholar.google.com/citations?user=ABC123XY"
+        resp.ok = True
+        resp.status_code = 200
+        resp.text = html
+        with patch("profiles.services.scholar_aggregator.requests.get", return_value=resp):
+            snap = fetch_scholar_snapshot("ABC123XY")
+        self.assertIsNone(snap["error"])
+        self.assertEqual(snap["name"], "Dr Octocat")
+        self.assertEqual(snap["affiliation"], "Stripe Research")
+        self.assertEqual(snap["total_citations"], 1234)
+        self.assertEqual(snap["h_index"], 42)
+        self.assertEqual(snap["i10_index"], 88)
+        self.assertEqual(len(snap["top_publications"]), 2)
+        self.assertEqual(snap["top_publications"][0]["title"], "Distributed training")
+        self.assertEqual(snap["top_publications"][0]["venue"], "NeurIPS")
+        self.assertEqual(snap["top_publications"][0]["year"], "2024")
+        self.assertEqual(snap["top_publications"][0]["citations"], 300)
+
+
+# ---- Kaggle ---------------------------------------------------
+
+class ParseKaggleUsernameTests(SimpleTestCase):
+    def test_full_url(self):
+        self.assertEqual(parse_kaggle_username("https://www.kaggle.com/octocat"), "octocat")
+
+    def test_url_with_subpath(self):
+        self.assertEqual(parse_kaggle_username("kaggle.com/octocat/competitions"), "octocat")
+
+    def test_bare_username(self):
+        self.assertEqual(parse_kaggle_username("octocat"), "octocat")
+
+    def test_foreign_url_returns_none(self):
+        self.assertIsNone(parse_kaggle_username("https://example.com/octocat"))
+
+    def test_empty_returns_none(self):
+        self.assertIsNone(parse_kaggle_username(""))
+
+
+class FetchKaggleSnapshotTests(SimpleTestCase):
+    def test_invalid_input_returns_error_snapshot(self):
+        snap = fetch_kaggle_snapshot("https://example.com/octocat")
+        self.assertIn("Could not parse", snap["error"])
+
+    def test_happy_path_parses_next_data(self):
+        next_data = {
+            "props": {"pageProps": {"userProfile": {
+                "userName": "octocat",
+                "displayName": "Octo Cat",
+                "performanceTier": "Expert",
+                "competitionsCount": 12, "competitionsTier": "Master",
+                "competitionsMedals": {"gold": 1, "silver": 3, "bronze": 5},
+                "datasetsCount": 4, "datasetsTier": "Contributor",
+                "datasetsMedals": {"gold": 0, "silver": 1, "bronze": 2},
+                "kernelsCount": 30, "kernelsTier": "Master",
+                "kernelsMedals": {"gold": 2, "silver": 5, "bronze": 8},
+                "discussionCount": 50, "discussionTier": "Contributor",
+                "discussionMedals": {"gold": 0, "silver": 0, "bronze": 1},
+                "followersCount": 200,
+            }}}
+        }
+        # Use double quotes inside the embedded script tag to avoid the apostrophe issue.
+        html = (
+            "<html><body>"
+            "<script id=\"__NEXT_DATA__\" type=\"application/json\">"
+            + _json.dumps(next_data) +
+            "</script></body></html>"
+        )
+        resp = MagicMock()
+        resp.ok = True
+        resp.status_code = 200
+        resp.text = html
+        with patch("profiles.services.kaggle_aggregator.requests.get", return_value=resp):
+            snap = fetch_kaggle_snapshot("octocat")
+        self.assertIsNone(snap["error"])
+        self.assertEqual(snap["username"], "octocat")
+        self.assertEqual(snap["display_name"], "Octo Cat")
+        self.assertEqual(snap["overall_tier"], "Expert")
+        self.assertEqual(snap["competitions"]["count"], 12)
+        self.assertEqual(snap["competitions"]["tier"], "Master")
+        self.assertEqual(snap["competitions"]["medals"]["gold"], 1)
+        self.assertEqual(snap["notebooks"]["count"], 30)
+        self.assertEqual(snap["datasets"]["count"], 4)
+        self.assertEqual(snap["discussion"]["count"], 50)
+        self.assertEqual(snap["followers"], 200)
+
+    def test_missing_next_data_returns_error(self):
+        resp = MagicMock()
+        resp.ok = True
+        resp.status_code = 200
+        resp.text = "<html></html>"
+        with patch("profiles.services.kaggle_aggregator.requests.get", return_value=resp):
+            snap = fetch_kaggle_snapshot("octocat")
+        self.assertIn("__NEXT_DATA__", snap["error"])

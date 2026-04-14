@@ -113,12 +113,93 @@ def _build_full_candidate_context(profile):
             lines.append(f"- {degree} in {field} from {institution}")
         sections.append("\n".join(lines))
 
-    # --- GitHub activity (corroborates skills with public evidence) ---
-    github_section = _format_github_activity(profile)
-    if github_section:
-        sections.append(github_section)
+    # --- External signal blocks (corroborates skills with public evidence) ---
+    for builder in (_format_github_activity, _format_scholar_activity, _format_kaggle_activity):
+        block = builder(profile)
+        if block:
+            sections.append(block)
 
     return "\n\n".join(sections)
+
+
+def _signals(profile, key: str):
+    """Return profile.data_content[key] if it's a non-error dict, else None."""
+    data = getattr(profile, 'data_content', None) or {}
+    if not isinstance(data, dict):
+        return None
+    snap = data.get(key)
+    if not snap or not isinstance(snap, dict) or snap.get('error'):
+        return None
+    return snap
+
+
+def _format_scholar_activity(profile) -> str:
+    """Build the GOOGLE SCHOLAR block (citations, h-index, top publications)."""
+    snap = _signals(profile, 'scholar_signals')
+    if not snap:
+        return ''
+    lines = ["GOOGLE SCHOLAR (academic publications + citation impact):"]
+    name = snap.get('name') or snap.get('user_id') or 'unknown'
+    affil = snap.get('affiliation') or ''
+    line = f"- {name}"
+    if affil:
+        line += f" ({affil})"
+    lines.append(line)
+    lines.append(
+        f"- Citations: {snap.get('total_citations') or 0} total · "
+        f"h-index: {snap.get('h_index') or 0} · i10: {snap.get('i10_index') or 0}"
+    )
+    pubs = snap.get('top_publications') or []
+    for pub in pubs[:5]:
+        if not isinstance(pub, dict):
+            continue
+        title = (pub.get('title') or '').strip()
+        if not title:
+            continue
+        venue = pub.get('venue') or ''
+        year = pub.get('year') or ''
+        cites = pub.get('citations') or 0
+        bits = [title]
+        if venue:
+            bits.append(venue)
+        if year:
+            bits.append(year)
+        suffix = f" — {cites} citations" if cites else ''
+        lines.append(f"- {' · '.join(bits)}{suffix}")
+    return "\n".join(lines)
+
+
+def _format_kaggle_activity(profile) -> str:
+    """Build the KAGGLE block (tier, competitions/datasets/notebooks counts + medals)."""
+    snap = _signals(profile, 'kaggle_signals')
+    if not snap:
+        return ''
+    lines = ["KAGGLE (data-science platform — competitions, notebooks, datasets):"]
+    handle = snap.get('display_name') or snap.get('username') or 'unknown'
+    tier = snap.get('overall_tier') or 'Novice'
+    lines.append(f"- @{snap.get('username', handle)} ({handle}) — overall tier: {tier}")
+
+    def fmt_cat(label: str, cat) -> str | None:
+        if not isinstance(cat, dict):
+            return None
+        count = cat.get('count') or 0
+        if not count:
+            return None
+        m = cat.get('medals') or {}
+        gold = m.get('gold', 0); silver = m.get('silver', 0); bronze = m.get('bronze', 0)
+        medal_str = ''
+        if gold or silver or bronze:
+            medal_str = f" · medals 🥇{gold} 🥈{silver} 🥉{bronze}"
+        cat_tier = cat.get('tier')
+        tier_str = f" · {cat_tier}" if cat_tier else ''
+        return f"- {label}: {count}{tier_str}{medal_str}"
+
+    for label, key in [('Competitions', 'competitions'), ('Datasets', 'datasets'),
+                        ('Notebooks', 'notebooks'), ('Discussion', 'discussion')]:
+        line = fmt_cat(label, snap.get(key))
+        if line:
+            lines.append(line)
+    return "\n".join(lines)
 
 
 def _format_github_activity(profile) -> str:
@@ -238,6 +319,8 @@ A skill is MATCHED if the candidate demonstrates it ANYWHERE in their profile:
 - Used in PROJECT highlights or technologies
 - Covered by a CERTIFICATION or training course
 - Corroborated by GITHUB ACTIVITY — a language with multiple public repos OR a top repo using that tech is strong evidence of working knowledge
+- Corroborated by GOOGLE SCHOLAR — published work in a topic implies deep knowledge of the methods/tools mentioned in the paper titles
+- Corroborated by KAGGLE — competition tier (Expert/Master/Grandmaster) + medal counts in a category prove practical skill in that domain (notebooks → coding, competitions → modeling)
 - Is a foundational prerequisite of skills they already have (e.g., someone with "Regression" and "Classification" has implicit knowledge of "Statistics" and "Probabilities")
 
 RULE 2 — DIRECTIONAL SPECIFICITY (very important):

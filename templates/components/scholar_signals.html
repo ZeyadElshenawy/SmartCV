@@ -1,0 +1,117 @@
+{% comment %}
+Google Scholar signals tile — citations, h-index, top publications.
+Required context: `profile`.
+{% endcomment %}
+{{ profile.data_content.scholar_signals|default:""|json_script:"scholar-signals-initial" }}
+<section x-data="scholarSignals('scholar-signals-initial')"
+         class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+    <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-[#4285F4]"></div>
+    <div class="p-5 space-y-4">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center gap-2">
+                <svg aria-hidden="true" class="w-4 h-4 text-[#4285F4]" fill="currentColor" viewBox="0 0 24 24"><path d="M5.242 13.769L0 9.5 12 0l12 9.5-5.242 4.269C17.548 11.249 14.978 9.5 12 9.5c-2.977 0-5.548 1.748-6.758 4.269zM12 10a7 7 0 1 0 0 14 7 7 0 0 0 0-14z"/></svg>
+                {% include "components/section_label.html" with text="Google Scholar" %}
+            </div>
+            <button type="button" @click="refresh" :disabled="loading"
+                    class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline disabled:opacity-50">
+                <span x-show="!loading" x-text="hasData ? 'Refresh' : 'Connect'"></span>
+                <span x-show="loading">Fetching…</span>
+            </button>
+        </div>
+
+        <div x-show="!hasData && !error" x-cloak class="space-y-3">
+            <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                Pulls citations, h-index, and top publications from your public Scholar profile.
+            </p>
+            <form @submit.prevent="refresh" class="flex gap-2">
+                <input type="text" x-model="urlInput" placeholder="scholar.google.com/citations?user=ABC123XY"
+                       class="flex-1 h-9 px-3 text-xs rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                <button type="submit" :disabled="loading || !urlInput.trim()"
+                        class="inline-flex items-center justify-center h-9 px-3 text-xs font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-40 transition-colors">Pull</button>
+            </form>
+        </div>
+
+        <div x-show="error" x-cloak class="rounded-lg bg-red-50 dark:bg-red-950/40 ring-1 ring-red-200 dark:ring-red-900 px-3 py-2 text-xs text-red-700 dark:text-red-300">
+            <span x-text="error"></span>
+        </div>
+
+        <template x-if="hasData">
+            <div class="space-y-4">
+                <div class="space-y-1">
+                    <a :href="snapshot.profile_url" target="_blank" rel="noopener"
+                       class="text-sm font-medium text-neutral-900 dark:text-neutral-50 hover:text-brand-700 dark:hover:text-brand-400 transition-colors truncate"
+                       x-text="snapshot.name"></a>
+                    <div class="text-xs text-neutral-500 dark:text-neutral-400 truncate" x-text="snapshot.affiliation"></div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3 pt-1">
+                    <div>
+                        <div class="font-display italic tabular-nums text-2xl leading-none text-brand-600 dark:text-brand-400"
+                             style="font-variation-settings: 'opsz' 36;" x-text="snapshot.total_citations"></div>
+                        <div class="mt-1 text-[10px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400">Citations</div>
+                    </div>
+                    <div>
+                        <div class="font-display italic tabular-nums text-2xl leading-none text-brand-600 dark:text-brand-400"
+                             style="font-variation-settings: 'opsz' 36;" x-text="snapshot.h_index"></div>
+                        <div class="mt-1 text-[10px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400">h-index</div>
+                    </div>
+                    <div>
+                        <div class="font-display italic tabular-nums text-2xl leading-none text-brand-600 dark:text-brand-400"
+                             style="font-variation-settings: 'opsz' 36;" x-text="snapshot.i10_index"></div>
+                        <div class="mt-1 text-[10px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400">i10</div>
+                    </div>
+                </div>
+
+                <div x-show="snapshot.top_publications && snapshot.top_publications.length > 0" class="space-y-2">
+                    <div class="text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400">Top publications</div>
+                    <ul class="space-y-1.5">
+                        <template x-for="pub in snapshot.top_publications" :key="pub.title">
+                            <li class="text-xs text-neutral-700 dark:text-neutral-300 flex items-baseline justify-between gap-2">
+                                <span class="min-w-0 truncate" x-text="pub.title"></span>
+                                <span class="shrink-0 text-neutral-400">
+                                    <span class="font-display italic tabular-nums" style="font-variation-settings: 'opsz' 18;" x-text="pub.citations"></span>
+                                </span>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+            </div>
+        </template>
+    </div>
+</section>
+
+<script>
+function scholarSignals(snapshotElementId) {
+    let initialSnapshot = null;
+    try {
+        const el = document.getElementById(snapshotElementId);
+        const raw = el ? el.textContent.trim() : '';
+        if (raw && raw !== '""') initialSnapshot = JSON.parse(raw);
+    } catch (_) { initialSnapshot = null; }
+    return {
+        urlInput: initialSnapshot ? initialSnapshot.profile_url || '' : '',
+        snapshot: initialSnapshot,
+        loading: false,
+        error: null,
+        get hasData() { return this.snapshot && this.snapshot.user_id && !this.snapshot.error; },
+        async refresh() {
+            this.loading = true; this.error = null;
+            try {
+                const csrf = document.cookie.split('; ').find(c => c.startsWith('csrftoken='))?.split('=')[1] || '';
+                const body = new URLSearchParams();
+                if (this.urlInput) body.set('scholar_input', this.urlInput);
+                const resp = await fetch('/profiles/refresh-scholar/', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body,
+                });
+                const data = await resp.json();
+                if (!resp.ok || data.error) { this.error = data.error || ('Server returned ' + resp.status); return; }
+                this.snapshot = data.snapshot;
+                if (data.snapshot && data.snapshot.error) this.error = data.snapshot.error;
+            } catch (e) { this.error = e.message || 'Network error'; }
+            finally { this.loading = false; }
+        },
+    };
+}
+</script>

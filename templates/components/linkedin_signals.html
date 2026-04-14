@@ -1,0 +1,86 @@
+{% comment %}
+LinkedIn signals tile — store + validate only. LinkedIn doesn't allow
+public profile scraping, so this just gives users a single place to
+declare their handle. Required context: `profile`.
+{% endcomment %}
+{{ profile.data_content.linkedin_signals|default:""|json_script:"linkedin-signals-initial" }}
+<section x-data="linkedinSignals('{{ profile.linkedin_url|default:''|escapejs }}', 'linkedin-signals-initial')"
+         class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+    <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-[#0a66c2]"></div>
+    <div class="p-5 space-y-4">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center gap-2">
+                <svg aria-hidden="true" class="w-4 h-4 text-[#0a66c2]" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.063 2.063 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                {% include "components/section_label.html" with text="LinkedIn" %}
+            </div>
+            <button type="button" @click="refresh" :disabled="loading"
+                    class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline disabled:opacity-50">
+                <span x-show="!loading" x-text="hasData ? 'Edit' : 'Connect'"></span>
+                <span x-show="loading">Saving…</span>
+            </button>
+        </div>
+
+        <div x-show="!hasData && !error" x-cloak class="space-y-3">
+            <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                Just stores your link — LinkedIn doesn't allow public profile scraping.
+            </p>
+            <form @submit.prevent="refresh" class="flex gap-2">
+                <input type="text" x-model="urlInput" placeholder="linkedin.com/in/your-handle"
+                       class="flex-1 h-9 px-3 text-xs rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                <button type="submit" :disabled="loading || !urlInput.trim()"
+                        class="inline-flex items-center justify-center h-9 px-3 text-xs font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-40 transition-colors">Save</button>
+            </form>
+        </div>
+
+        <div x-show="error" x-cloak class="rounded-lg bg-red-50 dark:bg-red-950/40 ring-1 ring-red-200 dark:ring-red-900 px-3 py-2 text-xs text-red-700 dark:text-red-300">
+            <span x-text="error"></span>
+        </div>
+
+        <template x-if="hasData">
+            <a :href="snapshot.profile_url" target="_blank" rel="noopener"
+               class="block group">
+                <div class="text-sm font-mono text-neutral-700 dark:text-neutral-300 group-hover:text-brand-700 dark:group-hover:text-brand-400 transition-colors truncate"
+                     x-text="'/in/' + snapshot.username"></div>
+                <div class="text-[10px] uppercase tracking-[0.14em] font-medium text-neutral-400 dark:text-neutral-500 mt-1">
+                    Open profile <span aria-hidden="true">↗</span>
+                </div>
+            </a>
+        </template>
+    </div>
+</section>
+
+<script>
+function linkedinSignals(initialUrl, snapshotElementId) {
+    let initialSnapshot = null;
+    try {
+        const el = document.getElementById(snapshotElementId);
+        const raw = el ? el.textContent.trim() : '';
+        if (raw && raw !== '""') initialSnapshot = JSON.parse(raw);
+    } catch (_) { initialSnapshot = null; }
+    return {
+        urlInput: initialUrl || '',
+        snapshot: initialSnapshot,
+        loading: false,
+        error: null,
+        get hasData() { return this.snapshot && this.snapshot.username && !this.snapshot.error; },
+        async refresh() {
+            this.loading = true; this.error = null;
+            try {
+                const csrf = document.cookie.split('; ').find(c => c.startsWith('csrftoken='))?.split('=')[1] || '';
+                const body = new URLSearchParams();
+                if (this.urlInput) body.set('linkedin_input', this.urlInput);
+                const resp = await fetch('/profiles/refresh-linkedin/', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body,
+                });
+                const data = await resp.json();
+                if (!resp.ok || data.error) { this.error = data.error || ('Server returned ' + resp.status); return; }
+                this.snapshot = data.snapshot;
+                if (data.snapshot && data.snapshot.error) this.error = data.snapshot.error;
+            } catch (e) { this.error = e.message || 'Network error'; }
+            finally { this.loading = false; }
+        },
+    };
+}
+</script>
