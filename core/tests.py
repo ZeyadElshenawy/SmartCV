@@ -150,3 +150,90 @@ class RegisterRedirectTests(TestCase):
         })
         self.assertEqual(resp.status_code, 302)
         self.assertTrue(resp.url.endswith('/welcome/'))
+
+
+# ============================================================
+# Stage detector — secondary actions + deep-linking
+# ============================================================
+
+class _JobStub:
+    """Minimal stand-in for jobs.models.Job — only the fields the stage
+    detector reads (id, company, created_at)."""
+    def __init__(self, id, company=None, created_at='2026-04-14T10:00:00'):
+        self.id = id
+        self.company = company
+        self.created_at = created_at
+
+
+class CareerStageSecondaryActionsTests(SimpleTestCase):
+    """The stage detector returns contextual secondary actions — verified here."""
+
+    def test_offer_deep_links_to_specific_job_negotiator(self):
+        job = _JobStub('abc-123', company='Stripe')
+        s = detect_career_stage(
+            has_profile=True,
+            status_counts={'offer': 1},
+            jobs_by_status={'offer': [job]},
+        )
+        self.assertEqual(s['key'], 'offer_in_hand')
+        self.assertIn('abc-123', s['primary_href'])
+        self.assertIn('salary', s['primary_href'])
+        self.assertIn('Stripe', s['primary_label'])
+
+    def test_interviewing_deep_links_to_specific_job_chatbot(self):
+        job = _JobStub('iv-42', company='Airbnb')
+        s = detect_career_stage(
+            has_profile=True,
+            status_counts={'interviewing': 1},
+            jobs_by_status={'interviewing': [job]},
+        )
+        self.assertEqual(s['key'], 'interviewing')
+        self.assertIn('iv-42', s['primary_href'])
+        self.assertIn('chatbot', s['primary_href'])
+        self.assertIn('Airbnb', s['primary_label'])
+
+    def test_actively_applying_secondary_points_to_recent_job(self):
+        job = _JobStub('app-99', company='Notion')
+        s = detect_career_stage(
+            has_profile=True,
+            status_counts={'applied': 1},
+            jobs_by_status={'applied': [job]},
+        )
+        labels = [a['label'] for a in s['secondary_actions']]
+        # One of the secondary actions should reference the company name.
+        self.assertTrue(
+            any('Notion' in lbl for lbl in labels),
+            f'expected a Notion-specific secondary action; got {labels}'
+        )
+
+    def test_all_stages_return_secondary_actions(self):
+        """Every stage must return at least one secondary action, never an
+        empty list — the dashboard template assumes the row renders."""
+        stages = [
+            detect_career_stage(has_profile=False, status_counts={}, jobs_by_status={}),
+            detect_career_stage(has_profile=True,  status_counts={}, jobs_by_status={}),
+            detect_career_stage(has_profile=True,  status_counts={'saved': 1},
+                                jobs_by_status={'saved': [_JobStub('s1', 'X')]}),
+            detect_career_stage(has_profile=True,  status_counts={'interviewing': 1},
+                                jobs_by_status={'interviewing': [_JobStub('i1', 'Y')]}),
+            detect_career_stage(has_profile=True,  status_counts={'offer': 1},
+                                jobs_by_status={'offer': [_JobStub('o1', 'Z')]}),
+            detect_career_stage(has_profile=True,  status_counts={'rejected': 1},
+                                jobs_by_status={'rejected': [_JobStub('r1', 'W')]}),
+        ]
+        for s in stages:
+            with self.subTest(key=s['key']):
+                self.assertTrue(s['secondary_actions'], f"{s['key']} has no secondary actions")
+                self.assertLessEqual(len(s['secondary_actions']), 3,
+                                     f"{s['key']} has too many secondary actions")
+                for a in s['secondary_actions']:
+                    self.assertIn('label', a)
+                    self.assertIn('href', a)
+
+    def test_primary_href_falls_back_when_no_job_instance_supplied(self):
+        """When only counts are supplied (legacy callers), interviewing/offer
+        stages still pick a sensible generic URL."""
+        s_iv = detect_career_stage(has_profile=True, status_counts={'interviewing': 1})
+        self.assertTrue(s_iv['primary_href'])  # never blank
+        s_off = detect_career_stage(has_profile=True, status_counts={'offer': 1})
+        self.assertTrue(s_off['primary_href'])

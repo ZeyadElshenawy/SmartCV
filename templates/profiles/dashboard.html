@@ -103,21 +103,32 @@
                 <div class="grid grid-cols-1 sm:grid-cols-5 gap-4">
                     {# Stage-aware primary action — reflects what this career
                        moment actually needs, not just "add a job". #}
-                    <a href="{{ career_stage.primary_href }}" class="sm:col-span-3 group relative overflow-hidden rounded-2xl p-6 transition-colors
-                        {% if career_stage.tone == 'success' %}bg-emerald-600 text-white hover:bg-emerald-700
-                        {% elif career_stage.tone == 'accent' %}bg-accent-600 text-white hover:bg-accent-700
-                        {% elif career_stage.tone == 'neutral' %}bg-neutral-800 text-white hover:bg-neutral-900
-                        {% else %}bg-brand-600 text-white hover:bg-brand-700{% endif %}">
+                    <div class="sm:col-span-3 relative overflow-hidden rounded-2xl p-6 transition-colors
+                        {% if career_stage.tone == 'success' %}bg-emerald-600 text-white
+                        {% elif career_stage.tone == 'accent' %}bg-accent-600 text-white
+                        {% elif career_stage.tone == 'neutral' %}bg-neutral-800 text-white
+                        {% else %}bg-brand-600 text-white{% endif %}">
                         <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-white/20"></div>
                         <div aria-hidden="true" class="absolute -right-16 -top-16 w-64 h-64 rounded-full bg-white/10 blur-3xl"></div>
                         <div class="relative text-[11px] uppercase tracking-[0.16em] font-medium opacity-80">{{ career_stage.label }}</div>
                         <h3 class="relative mt-2 font-display text-xl sm:text-2xl leading-snug max-w-sm" style="font-variation-settings: 'opsz' 36;">
                             {{ career_stage.detail }}
                         </h3>
-                        <div class="relative mt-5 inline-flex items-center gap-1.5 text-sm font-medium">
-                            {{ career_stage.primary_label }} <span aria-hidden="true" class="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
+                        <a href="{{ career_stage.primary_href }}" class="group/primary relative mt-5 inline-flex items-center gap-1.5 h-10 px-4 text-sm font-medium rounded-lg bg-white/15 hover:bg-white/25 transition-colors">
+                            {{ career_stage.primary_label }}
+                            <span aria-hidden="true" class="transition-transform duration-200 group-hover/primary:translate-x-0.5">→</span>
+                        </a>
+                        {% if career_stage.secondary_actions %}
+                        <div class="relative mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] uppercase tracking-[0.14em] font-medium">
+                            {% for action in career_stage.secondary_actions %}
+                            <a href="{{ action.href }}" class="inline-flex items-center gap-1 opacity-80 hover:opacity-100 hover:underline transition-opacity">
+                                {{ action.label }}
+                                <span aria-hidden="true">↗</span>
+                            </a>
+                            {% endfor %}
                         </div>
-                    </a>
+                        {% endif %}
+                    </div>
 
                     <div class="sm:col-span-2 relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-6 flex flex-col justify-between gap-3">
                         <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-neutral-300 dark:bg-neutral-700"></div>
