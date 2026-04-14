@@ -575,6 +575,24 @@ class AgentChatViewJobTests(TestCase):
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(resp.url, reverse('agent_chat'))
 
+    def test_scope_pill_absent_in_general_chat(self):
+        resp = self.client.get(reverse('agent_chat'))
+        self.assertNotContains(resp, 'Talking about:')
+
+    def test_scope_pill_renders_for_owned_job(self):
+        job = self._make_job(self.user, company='Stripe')
+        resp = self.client.get(reverse('agent_chat') + f'?job={job.id}')
+        self.assertContains(resp, 'Talking about:')
+        self.assertContains(resp, 'Stripe')
+        # A dismiss link returning to general chat.
+        self.assertContains(resp, 'href="' + reverse('agent_chat') + '"')
+
+    def test_job_scoped_template_includes_jobId_in_alpine_state(self):
+        job = self._make_job(self.user)
+        resp = self.client.get(reverse('agent_chat') + f'?job={job.id}')
+        # The template seeds Alpine with the job id for POST bodies.
+        self.assertContains(resp, f"jobId: '{job.id}'")
+
 
 class AgentChatApiJobTests(TestCase):
     """POST /agent/api/ with job_id — validates ownership, forwards job to chat()."""
