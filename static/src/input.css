@@ -79,7 +79,14 @@
   /* --- Radius ------------------------------------------------- */
   --radius-rn-pill: 58px; /* legacy pill radius */
 
-  /* --- Spacing rhythm (already matches Tailwind defaults 1/2/3/4/6/8) --- */
+  /* --- Warm paper neutrals (light mode) ----------------------
+   * Override the cool Tailwind neutral-50/100/200 with a warm
+   * paper-cream so white cards have visible contrast against the
+   * page background. Dark-mode neutrals stay the default cool
+   * tones (we override only the pale shades). */
+  --color-neutral-50:  #f7f3eb; /* page bg — warm paper */
+  --color-neutral-100: #efe9dd; /* tile bg + hover surface */
+  --color-neutral-200: #e2dccf; /* hairline rules + ring */
 }
 
 /* Dark mode: opt-in via the `dark` class on <html> (already wired up). */

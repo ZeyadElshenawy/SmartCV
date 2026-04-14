@@ -26,11 +26,7 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 <body class="h-full font-sans text-neutral-900 dark:text-neutral-100 bg-neutral-50 dark:bg-neutral-950 flex flex-col min-h-screen">
-
-    {# ======================================================
-       GLOBAL NAV — editorial: wordmark + small-caps link row
-       ====================================================== #}
-    <nav x-data="{ mobileOpen: false }" class="sticky top-0 z-30 bg-white/80 dark:bg-neutral-950/80 backdrop-blur border-b border-neutral-200 dark:border-neutral-800">
+<nav x-data="{ mobileOpen: false }" class="sticky top-0 z-30 bg-white/80 dark:bg-neutral-950/80 backdrop-blur border-b border-neutral-200 dark:border-neutral-800">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
 
@@ -110,11 +106,7 @@
             </div>
         </div>
     </nav>
-
-    {# ======================================================
-       FLASH MESSAGES
-       ====================================================== #}
-    {% if messages %}
+{% if messages %}
     <div class="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-4 space-y-2" x-data="{ show: true }" x-show="show">
         {% for message in messages %}
         <div role="alert" class="flex items-start gap-3 rounded-xl px-5 py-4 ring-1
@@ -135,18 +127,10 @@
         {% endfor %}
     </div>
     {% endif %}
-
-    {# ======================================================
-       MAIN CONTENT
-       ====================================================== #}
-    <main class="flex-grow bg-neutral-50 dark:bg-neutral-950">
+<main class="flex-grow bg-neutral-50 dark:bg-neutral-950">
         {% block content %}{% endblock %}
     </main>
-
-    {# ======================================================
-       FOOTER — slim editorial signature
-       ====================================================== #}
-    <footer class="border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950">
+<footer class="border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
             <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
                 <div class="space-y-2">
@@ -181,11 +165,7 @@
             </div>
         </div>
     </footer>
-
-    {# ======================================================
-       GLOBAL LOADING OVERLAY — editorial
-       ====================================================== #}
-    <div id="loading-overlay" class="hidden fixed inset-0 bg-neutral-900/70 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
+<div id="loading-overlay" class="hidden fixed inset-0 bg-neutral-900/70 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
         <div class="max-w-sm text-center space-y-6 px-6">
             <div class="flex justify-center">
                 <div aria-hidden="true" class="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></div>

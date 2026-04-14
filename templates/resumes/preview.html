@@ -13,11 +13,7 @@
             <span aria-hidden="true" class="text-neutral-300 dark:text-neutral-700">/</span>
             <span class="text-neutral-900 dark:text-neutral-100">Tailored resume</span>
         </nav>
-
-        {# ======================================================
-           HERO — title + ATS score + actions, one card
-           ====================================================== #}
-        <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)]">
+<section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)]">
             <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
             <div class="p-6 sm:p-8 grid grid-cols-1 lg:grid-cols-5 gap-6 items-center">
                 <div class="lg:col-span-3 space-y-3 min-w-0">
@@ -74,11 +70,7 @@
                 </div>
             </div>
         </section>
-
-        {# ======================================================
-           RESUME PREVIEW — kept as PDF-style rendering
-           ====================================================== #}
-        <section class="rounded-2xl bg-white ring-1 ring-neutral-200 dark:ring-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_40px_-16px_rgba(15,23,42,0.15)] overflow-hidden">
+<section class="rounded-2xl bg-white ring-1 ring-neutral-200 dark:ring-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_40px_-16px_rgba(15,23,42,0.15)] overflow-hidden">
             <div class="px-4 py-2.5 border-b border-neutral-200 flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] font-medium text-neutral-500 bg-neutral-50">
                 <span aria-hidden="true" class="h-1.5 w-1.5 rounded-full bg-neutral-400"></span>
                 Preview · A4 · ATS-safe
@@ -238,11 +230,7 @@
             });
         </script>
     </div>
-
-    {# ======================================================
-       POST-DOWNLOAD MODAL — editorial next-step
-       ====================================================== #}
-    <div x-show="showNextStepsModal" x-cloak
+<div x-show="showNextStepsModal" x-cloak
          class="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/70 backdrop-blur-sm p-4"
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0"

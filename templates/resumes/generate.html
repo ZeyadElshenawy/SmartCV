@@ -6,10 +6,7 @@
     <div class="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8 space-y-10">
 
         {% if generating %}
-        {# ======================================================
-           POLLING STATE — editorial "tailoring" screen
-           ====================================================== #}
-        <div id="generating-state" class="text-center space-y-8">
+<div id="generating-state" class="text-center space-y-8">
             <div class="flex justify-center">
                 <div aria-hidden="true" class="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></div>
             </div>
@@ -75,10 +72,7 @@
         </script>
 
         {% else %}
-        {# ======================================================
-           INITIAL STATE — one-click tailor
-           ====================================================== #}
-        <header class="space-y-5">
+<header class="space-y-5">
             {% include "components/section_label.html" with text="Step 04 · Tailor" tone="brand" %}
             <h1 class="font-display text-5xl sm:text-6xl leading-[1.02] tracking-tight text-neutral-900 dark:text-neutral-50"
                 style="font-variation-settings: 'opsz' 144;">
