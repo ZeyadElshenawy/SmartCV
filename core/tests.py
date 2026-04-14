@@ -237,3 +237,159 @@ class CareerStageSecondaryActionsTests(SimpleTestCase):
         self.assertTrue(s_iv['primary_href'])  # never blank
         s_off = detect_career_stage(has_profile=True, status_counts={'offer': 1})
         self.assertTrue(s_off['primary_href'])
+
+
+# ============================================================
+# Agent chat (global) — system prompt assembly + chat dispatch
+# ============================================================
+
+from unittest.mock import MagicMock, patch
+
+
+class BuildSystemPromptTests(TestCase):
+    """build_system_prompt pulls context from the user's profile, signals,
+    and applications. We verify each section shows up when relevant and is
+    absent when empty."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        self.user = get_user_model().objects.create_user(
+            username='p@example.com', email='p@example.com', password='x'
+        )
+
+    def test_no_profile_yields_onboarding_guidance(self):
+        from core.services.agent_chat import build_system_prompt
+        prompt = build_system_prompt(self.user)
+        self.assertIn('career agent', prompt)
+        self.assertIn("hasn't built a profile yet", prompt)
+
+    def test_profile_with_skills_and_experience_is_summarized(self):
+        from profiles.models import UserProfile
+        UserProfile.objects.create(
+            user=self.user,
+            full_name='Jane Doe',
+            location='Cairo',
+            data_content={
+                'skills': [{'name': 'Python'}, {'name': 'PyTorch'}, 'SQL'],
+                'experiences': [{'title': 'ML Eng', 'company': 'Stripe'}],
+                'education': [{'degree': 'BSc CS', 'institution': 'KSIU'}],
+            },
+        )
+        from core.services.agent_chat import build_system_prompt
+        prompt = build_system_prompt(self.user)
+        self.assertIn('Jane Doe', prompt)
+        self.assertIn('Cairo', prompt)
+        self.assertIn('Python', prompt)
+        self.assertIn('PyTorch', prompt)
+        self.assertIn('SQL', prompt)
+        self.assertIn('ML Eng at Stripe', prompt)
+        self.assertIn('BSc CS', prompt)
+
+    def test_github_signals_render_when_present(self):
+        from profiles.models import UserProfile
+        UserProfile.objects.create(
+            user=self.user,
+            full_name='J',
+            data_content={
+                'github_signals': {
+                    'username': 'janedoe',
+                    'public_repos': 14,
+                    'total_stars': 220,
+                    'language_breakdown': [['Python', 8], ['TypeScript', 3]],
+                },
+            },
+        )
+        from core.services.agent_chat import build_system_prompt
+        prompt = build_system_prompt(self.user)
+        self.assertIn('GitHub @janedoe', prompt)
+        self.assertIn('14 repos', prompt)
+        self.assertIn('220 stars', prompt)
+        self.assertIn('Python', prompt)
+
+    def test_error_signals_are_skipped(self):
+        from profiles.models import UserProfile
+        UserProfile.objects.create(
+            user=self.user,
+            full_name='J',
+            data_content={
+                'github_signals': {'error': 'rate limited', 'username': 'x', 'public_repos': 99},
+                'scholar_signals': {'error': 'captcha'},
+            },
+        )
+        from core.services.agent_chat import build_system_prompt
+        prompt = build_system_prompt(self.user)
+        self.assertNotIn('GitHub @x', prompt)
+        self.assertNotIn('Scholar', prompt)
+
+    def test_application_pipeline_summary_is_included(self):
+        from profiles.models import UserProfile
+        from jobs.models import Job
+        UserProfile.objects.create(user=self.user, full_name='J')
+        Job.objects.create(user=self.user, title='A', company='X', application_status='applied')
+        Job.objects.create(user=self.user, title='B', company='Y', application_status='interviewing')
+        Job.objects.create(user=self.user, title='C', company='Z', application_status='applied')
+
+        from core.services.agent_chat import build_system_prompt
+        prompt = build_system_prompt(self.user)
+        self.assertIn('Application pipeline', prompt)
+        self.assertIn('2 applied', prompt)
+        self.assertIn('1 interviewing', prompt)
+
+
+class AgentChatApiTests(TestCase):
+    """POST /agent/api/ — dispatches to the chat service with mocked LLM."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        self.user = get_user_model().objects.create_user(
+            username='c@example.com', email='c@example.com', password='x'
+        )
+        self.client.force_login(self.user)
+
+    def test_get_is_rejected(self):
+        resp = self.client.get(reverse('agent_chat_api'))
+        self.assertEqual(resp.status_code, 405)
+
+    def test_invalid_json_returns_400(self):
+        resp = self.client.post(
+            reverse('agent_chat_api'), data='not json',
+            content_type='application/json',
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_empty_message_returns_400(self):
+        import json as _j
+        resp = self.client.post(
+            reverse('agent_chat_api'),
+            data=_j.dumps({'history': [], 'message': '   '}),
+            content_type='application/json',
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_happy_path_dispatches_to_llm_and_returns_reply(self):
+        import json as _j
+        fake_response = MagicMock(content='Here is a tight answer for you.')
+        fake_llm = MagicMock()
+        fake_llm.invoke.return_value = fake_response
+        with patch('core.services.agent_chat.get_llm', create=True, return_value=fake_llm), \
+             patch('profiles.services.llm_engine.get_llm', return_value=fake_llm):
+            resp = self.client.post(
+                reverse('agent_chat_api'),
+                data=_j.dumps({'history': [], 'message': 'What should I do next?'}),
+                content_type='application/json',
+            )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['reply'], 'Here is a tight answer for you.')
+
+    def test_llm_exception_returns_502_with_friendly_error(self):
+        import json as _j
+        fake_llm = MagicMock()
+        fake_llm.invoke.side_effect = RuntimeError('network down')
+        with patch('profiles.services.llm_engine.get_llm', return_value=fake_llm):
+            resp = self.client.post(
+                reverse('agent_chat_api'),
+                data=_j.dumps({'history': [], 'message': 'Help me.'}),
+                content_type='application/json',
+            )
+        self.assertEqual(resp.status_code, 502)
+        self.assertIn('agent', resp.json()['error'].lower())
