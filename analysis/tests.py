@@ -13,14 +13,20 @@ from analysis.services.gap_analyzer import compute_gap_analysis
 from profiles.services.schemas import GapAnalysisResult
 
 
-def make_profile(skills=None, experiences=None, projects=None, certifications=None, education=None):
-    """Minimal profile stub matching the attributes gap_analyzer reads."""
+def make_profile(skills=None, experiences=None, projects=None, certifications=None,
+                 education=None, github_signals=None):
+    """Minimal profile stub matching the attributes gap_analyzer reads.
+
+    Pass `github_signals=<dict>` to populate
+    profile.data_content['github_signals'] (consumed by _format_github_activity).
+    """
     return SimpleNamespace(
         skills=skills or [],
         experiences=experiences or [],
         projects=projects or [],
         certifications=certifications or [],
         education=education or [],
+        data_content={'github_signals': github_signals} if github_signals is not None else {},
     )
 
 
@@ -196,3 +202,81 @@ class FallbackTests(SimpleTestCase):
 
         self.assertEqual(result["analysis_method"], "fallback")
         self.assertIn("Python", result["matched_skills"])
+
+
+# ============================================================
+# GitHub activity context block
+# ============================================================
+
+from analysis.services.gap_analyzer import (
+    _build_full_candidate_context,
+    _format_github_activity,
+)
+
+
+class GitHubActivityFormattingTests(SimpleTestCase):
+    """Verifies the GITHUB ACTIVITY block format the LLM consumes."""
+
+    SAMPLE_SNAPSHOT = {
+        'username': 'octocat',
+        'public_repos': 12,
+        'total_stars': 247,
+        'recent_commit_count': 47,
+        'language_breakdown': [['Python', 8], ['TypeScript', 3]],
+        'top_repos': [
+            {'name': 'ml-pipeline', 'language': 'Python', 'stars': 120,
+             'description': 'Distributed training harness'},
+            {'name': 'spark-tools', 'language': 'Python', 'stars': 80,
+             'description': 'Helpers for PySpark on EMR'},
+        ],
+        'fetched_at': '2026-04-14T10:00:00Z',
+    }
+
+    def test_no_data_content_attr_returns_empty(self):
+        profile = SimpleNamespace(skills=[], experiences=[], projects=[],
+                                  certifications=[], education=[])
+        self.assertEqual(_format_github_activity(profile), '')
+
+    def test_empty_signals_returns_empty(self):
+        profile = make_profile()  # data_content={}
+        self.assertEqual(_format_github_activity(profile), '')
+
+    def test_error_snapshot_returns_empty(self):
+        profile = make_profile(github_signals={'error': 'rate limited', 'username': 'x'})
+        self.assertEqual(_format_github_activity(profile), '')
+
+    def test_full_snapshot_includes_header_languages_and_repos(self):
+        profile = make_profile(github_signals=self.SAMPLE_SNAPSHOT)
+        block = _format_github_activity(profile)
+
+        self.assertIn('GITHUB ACTIVITY', block)
+        self.assertIn('@octocat', block)
+        self.assertIn('12 public repos', block)
+        self.assertIn('247 total stars', block)
+        self.assertIn('47 commits in last 90 days', block)
+        self.assertIn('Python (8 repos)', block)
+        self.assertIn('TypeScript (3 repos)', block)
+        self.assertIn('ml-pipeline', block)
+        self.assertIn('120\u2605', block)
+        self.assertIn('Distributed training harness', block)
+
+    def test_repo_descriptions_are_truncated(self):
+        long_desc = 'x' * 500
+        snap = dict(self.SAMPLE_SNAPSHOT)
+        snap['top_repos'] = [{'name': 'big', 'language': 'Go', 'stars': 1, 'description': long_desc}]
+        profile = make_profile(github_signals=snap)
+        block = _format_github_activity(profile)
+        self.assertNotIn(long_desc, block)
+        self.assertIn('x' * 160, block)
+
+    def test_full_context_appends_github_block(self):
+        profile = make_profile(skills=['Python'], github_signals=self.SAMPLE_SNAPSHOT)
+        ctx = _build_full_candidate_context(profile)
+        self.assertIn('CANDIDATE SKILLS', ctx)
+        self.assertIn('GITHUB ACTIVITY', ctx)
+        self.assertLess(ctx.index('CANDIDATE SKILLS'), ctx.index('GITHUB ACTIVITY'))
+
+    def test_full_context_skips_github_when_absent(self):
+        profile = make_profile(skills=['Python'])
+        ctx = _build_full_candidate_context(profile)
+        self.assertNotIn('GITHUB ACTIVITY', ctx)
