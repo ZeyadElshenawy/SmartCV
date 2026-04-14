@@ -1,381 +1,316 @@
 {% extends 'base.html' %}
+{% block title %}Dashboard — SmartCV{% endblock %}
 
 {% block content %}
-<div class="w-full max-w-[1920px] mx-auto px-4 py-8" 
-     x-data="kanbanBoard()"
-     x-init="initBoard()">
-    <!-- Single-column layout: top bar, then board, then AI recommended (all full width) -->
-    <div class="grid gap-8" style="grid-template-columns: 1fr;">
-        
-        <!-- Row 1: Profile + Header/Stats -->
-        <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-6 min-h-0">
-            <!-- Left Panel: Master Profile Summary -->
-            <div class="md:col-span-1 lg:col-span-1">
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 border border-gray-200 dark:border-gray-700 sticky top-4 space-y-4 transition-colors">
-                <div class="text-center">
-                    <div class="w-14 h-14 bg-gradient-to-tr from-blue-500 to-indigo-600 rounded-full mx-auto flex items-center justify-center text-white text-xl font-bold uppercase mb-2">
-                        {{ profile.full_name|slice:":2"|default:user.email|slice:":2" }}
-                    </div>
-                    <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100 truncate">{{ profile.full_name|default:user.email }}</h2>
-                    {% if not profile.full_name %}
-                    <a href="{% url 'upload_master_profile' %}" class="text-xs text-orange-500 font-medium hover:underline">&#9888; Complete your profile</a>
-                    {% else %}
-                    <p class="text-xs text-gray-500 truncate">{{ profile.location }}</p>
-                    {% endif %}
+{# Kanban logic (drag-drop + optimistic update + salary-negotiate reveal via
+   [data-status="Offer"] selector) is preserved below. data-status and
+   data-job-id attributes must stay intact. #}
+<div class="min-h-screen bg-neutral-50 dark:bg-neutral-950 py-10 sm:py-14"
+     x-data="kanbanBoard()" x-init="initBoard()">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-10">
+
+        {# ---- Editorial header ---- #}
+        <header class="space-y-3">
+            {% include "components/section_label.html" with text="Dashboard" tone="brand" %}
+            <h1 class="font-display text-4xl sm:text-5xl leading-[1.02] tracking-tight text-neutral-900 dark:text-neutral-50"
+                style="font-variation-settings: 'opsz' 80;">
+                Welcome back{% if profile.full_name %}, <em class="font-medium text-brand-700 dark:text-brand-400">{{ profile.full_name|default:"" }}</em>{% endif %}.
+            </h1>
+            <p class="text-neutral-500 dark:text-neutral-400 text-sm sm:text-base">{{ total_applications|default:0 }} application{{ total_applications|pluralize }} in flight — pick up where you left off or start a new one.</p>
+        </header>
+
+        {# ---- Onboarding banner (conditional) ---- #}
+        {% if show_onboarding %}
+        <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+            <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-accent-500"></div>
+            <div class="p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center gap-6">
+                <div class="flex-1 space-y-2">
+                    {% include "components/section_label.html" with text="Getting started" tone="accent" %}
+                    <h2 class="font-display text-2xl leading-tight text-neutral-900 dark:text-neutral-50"
+                        style="font-variation-settings: 'opsz' 36;">
+                        Two steps to unlock the full agent.
+                    </h2>
+                    <p class="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed max-w-lg">
+                        A master profile and one job are all we need to start tailoring.
+                    </p>
                 </div>
-                
-                <div class="space-y-3">
-                    <div>
-                        <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Top Skills</h4>
-                        <div class="flex flex-wrap gap-1.5">
+                <div class="flex flex-col sm:flex-row items-stretch gap-3 w-full md:w-auto">
+                    <a href="{% url 'upload_master_profile' %}" class="flex items-center gap-3 rounded-xl ring-1 p-4
+                        {% if profile_complete %}ring-emerald-200 dark:ring-emerald-900 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300{% else %}ring-brand-200 dark:ring-brand-900 bg-brand-50 dark:bg-brand-950/30 text-brand-700 dark:text-brand-300{% endif %} transition-colors">
+                        <span aria-hidden="true" class="font-display italic text-2xl leading-none tabular-nums"
+                              style="font-variation-settings: 'opsz' 36;">{% if profile_complete %}✓{% else %}01{% endif %}</span>
+                        <span>
+                            <span class="block text-[11px] uppercase tracking-[0.14em] font-medium opacity-70">Step 1</span>
+                            <span class="block text-sm font-medium">Master profile</span>
+                        </span>
+                    </a>
+                    <a href="{% url 'job_input_view' %}" class="flex items-center gap-3 rounded-xl ring-1 p-4
+                        {% if has_jobs %}ring-emerald-200 dark:ring-emerald-900 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300{% elif profile_complete %}ring-brand-200 dark:ring-brand-900 bg-brand-50 dark:bg-brand-950/30 text-brand-700 dark:text-brand-300{% else %}ring-neutral-200 dark:ring-neutral-800 bg-neutral-50 dark:bg-neutral-900 text-neutral-500 dark:text-neutral-400{% endif %} transition-colors">
+                        <span aria-hidden="true" class="font-display italic text-2xl leading-none tabular-nums"
+                              style="font-variation-settings: 'opsz' 36;">{% if has_jobs %}✓{% else %}02{% endif %}</span>
+                        <span>
+                            <span class="block text-[11px] uppercase tracking-[0.14em] font-medium opacity-70">Step 2</span>
+                            <span class="block text-sm font-medium">First job</span>
+                        </span>
+                    </a>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        {# ======================================================
+           ROW 1 — Profile sidebar + CTA/stats
+           ====================================================== #}
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+            {# ---- Profile sidebar ---- #}
+            <aside class="lg:col-span-1">
+                <div class="sticky top-20 space-y-4 rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5">
+                    <div class="flex items-start gap-3">
+                        <div class="w-12 h-12 rounded-xl bg-brand-600 text-white flex items-center justify-center font-display italic text-lg font-semibold tabular-nums shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]"
+                             style="font-variation-settings: 'opsz' 24;">
+                            {{ profile.full_name|slice:":2"|default:user.email|slice:":2"|upper }}
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="font-display text-base leading-tight text-neutral-900 dark:text-neutral-50 truncate"
+                                 style="font-variation-settings: 'opsz' 20;">
+                                {{ profile.full_name|default:user.email }}
+                            </div>
+                            {% if profile.full_name and profile.location %}
+                            <p class="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-0.5">{{ profile.location }}</p>
+                            {% elif not profile.full_name %}
+                            <a href="{% url 'upload_master_profile' %}" class="text-xs text-amber-600 dark:text-amber-400 font-medium hover:underline">Complete your profile</a>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if profile.skills %}
+                    <div class="pt-4 border-t border-neutral-100 dark:border-neutral-800 space-y-2">
+                        {% include "components/section_label.html" with text="Top skills" %}
+                        <div class="flex flex-wrap gap-1">
                             {% for skill in profile.skills|slice:":5" %}
-                            <span class="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[11px] rounded-md transition-colors">
-                                {% if skill.name %}{{ skill.name }}{% else %}{{ skill }}{% endif %}
-                            </span>
+                            {% include "components/badge.html" with label=skill.name|default:skill %}
                             {% endfor %}
                         </div>
                     </div>
-                </div>
-                
-                <a href="{% url 'review_master_profile' %}" class="block w-full py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-100 text-center rounded-lg font-medium transition-colors text-xs">
-                    Edit Master Profile
-                </a>
-                <a href="{% url 'upload_master_profile' %}" class="block w-full py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 text-center rounded-lg font-medium transition-colors text-xs">
-                    Re-upload CV
-                </a>
-                <a href="{% url 'resume_list' %}" class="block w-full py-1.5 bg-blue-50 border border-blue-100 hover:bg-blue-100 text-blue-700 text-center rounded-lg font-semibold transition-colors text-xs">
-                    My Tailored Resumes
-                </a>
-            </div>
-        </div>
-        
-            <!-- Center/Right: Compact Header Row: CTA + Stats -->
-            <div class="md:col-span-3 lg:col-span-4 space-y-6">
-                
-                <!-- Onboarding Banner -->
-                {% if show_onboarding %}
-                <div class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-800 border border-blue-200 dark:border-gray-700 rounded-xl p-6 shadow-sm">
-                    <div class="flex flex-col sm:flex-row items-center gap-6">
-                        <div class="w-16 h-16 shrink-0 bg-white dark:bg-gray-700 rounded-full flex items-center justify-center shadow-md border border-blue-100 dark:border-gray-600">
-                            <span class="text-2xl">🚀</span>
-                        </div>
-                        <div class="flex-grow text-center sm:text-left">
-                            <h3 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">Welcome to your Career Agent</h3>
-                            <p class="text-gray-600 dark:text-gray-400 text-sm mb-4">Complete these two steps to unlock AI-tailored resumes and gap analysis.</p>
-                            
-                            <div class="flex flex-col sm:flex-row gap-4 justify-center sm:justify-start">
-                                <!-- Step 1 -->
-                                <div class="flex items-center gap-3 {% if profile_complete %}opacity-50{% endif %}">
-                                    <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold {% if profile_complete %}bg-green-100 text-green-600 border border-green-200{% else %}bg-blue-600 text-white{% endif %}">
-                                        {% if profile_complete %}✓{% else %}1{% endif %}
-                                    </div>
-                                    <div class="text-left">
-                                        <div class="text-sm font-bold text-gray-900 dark:text-gray-100">Master Profile</div>
-                                        <a href="{% url 'upload_master_profile' %}" class="text-xs text-blue-600 dark:text-blue-400 hover:underline">Upload CV</a>
-                                    </div>
-                                </div>
-                                
-                                <!-- Connecting Arrow -->
-                                <div class="hidden sm:flex items-center text-gray-300">
-                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-                                </div>
-                                
-                                <!-- Step 2 -->
-                                <div class="flex items-center gap-3 {% if not profile_complete %}opacity-50{% endif %}">
-                                    <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold {% if has_jobs %}bg-green-100 text-green-600 border border-green-200{% elif profile_complete %}bg-blue-600 text-white{% else %}bg-gray-200 text-gray-500 border border-gray-300{% endif %}">
-                                        {% if has_jobs %}✓{% else %}2{% endif %}
-                                    </div>
-                                    <div class="text-left">
-                                        <div class="text-sm font-bold text-gray-900 dark:text-gray-100">First Application</div>
-                                        <a href="{% url 'job_input_view' %}" class="text-xs text-blue-600 dark:text-blue-400 hover:underline">Add a Job</a>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    {% endif %}
+
+                    <div class="pt-4 border-t border-neutral-100 dark:border-neutral-800 space-y-1.5">
+                        <a href="{% url 'review_master_profile' %}" class="block w-full py-2 px-3 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-200 text-center text-xs font-medium transition-colors">Edit master profile</a>
+                        <a href="{% url 'upload_master_profile' %}" class="block w-full py-2 px-3 rounded-lg ring-1 ring-neutral-200 dark:ring-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 text-neutral-600 dark:text-neutral-300 text-center text-xs font-medium transition-colors">Re-upload CV</a>
+                        <a href="{% url 'resume_list' %}" class="block w-full py-2 px-3 rounded-lg bg-brand-50 dark:bg-brand-950/40 text-brand-700 dark:text-brand-300 text-center text-xs font-medium hover:bg-brand-100 dark:hover:bg-brand-950/60 transition-colors">My tailored resumes →</a>
                     </div>
                 </div>
-                {% endif %}
+            </aside>
 
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
-                <!-- New Application CTA -->
-                <div class="lg:col-span-2">
-                    <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl shadow-md px-6 py-5 text-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <div>
-                            <h1 class="text-2xl font-bold mb-1">New Application</h1>
-                            <p class="text-sm text-white/80">Tailor your resume for a new job description.</p>
+            {# ---- Main column ---- #}
+            <div class="lg:col-span-3 space-y-6">
+
+                {# CTA + stats row #}
+                <div class="grid grid-cols-1 sm:grid-cols-5 gap-4">
+                    <a href="{% url 'job_input_view' %}" class="sm:col-span-3 group relative overflow-hidden rounded-2xl bg-brand-600 text-white p-6 hover:bg-brand-700 transition-colors">
+                        <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-white/20"></div>
+                        <div aria-hidden="true" class="absolute -right-16 -top-16 w-64 h-64 rounded-full bg-white/10 blur-3xl"></div>
+                        <div class="relative text-[11px] uppercase tracking-[0.16em] font-medium opacity-80">New application</div>
+                        <h3 class="relative mt-2 font-display text-2xl sm:text-3xl leading-tight" style="font-variation-settings: 'opsz' 48;">
+                            Paste a job. <em class="font-medium">Ship a résumé.</em>
+                        </h3>
+                        <div class="relative mt-5 inline-flex items-center gap-1.5 text-sm font-medium">
+                            Start now <span aria-hidden="true" class="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
                         </div>
-                        <a href="{% url 'job_input_view' %}" class="inline-flex items-center justify-center px-6 py-2.5 bg-white text-blue-700 rounded-lg text-sm font-semibold shadow-sm hover:bg-blue-50 transition-colors">
-                            Start Now &rarr;
+                    </a>
+
+                    <div class="sm:col-span-2 relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-6 flex flex-col justify-between gap-3">
+                        <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-neutral-300 dark:bg-neutral-700"></div>
+                        <div>
+                            {% include "components/section_label.html" with text="Total" %}
+                            <div class="mt-2 flex items-baseline font-display italic tabular-nums text-neutral-900 dark:text-neutral-50"
+                                 style="font-variation-settings: 'opsz' 144;">
+                                <span class="text-5xl leading-none font-semibold">{{ total_applications|default:0 }}</span>
+                                <span class="text-sm leading-none not-italic font-medium ml-2 opacity-60">applications</span>
+                            </div>
+                        </div>
+                        <a href="{% url 'learning_path_global' %}" class="text-xs font-medium text-brand-700 dark:text-brand-400 hover:underline inline-flex items-center gap-1">
+                            Learning path <span aria-hidden="true">→</span>
                         </a>
                     </div>
                 </div>
 
-                <!-- AI Next Steps -->
-                <div class="space-y-3">
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between transition-colors">
-                        <div>
-                            <h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Applications</h4>
-                            <div class="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">{{ total_applications }}</div>
-                        </div>
-                        <div class="p-2.5 bg-blue-50 text-blue-600 rounded-lg">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-                        </div>
-                    </div>
-
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 px-4 py-3 transition-colors">
-                        <div class="flex items-center justify-between mb-2">
-                            <h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Top Skills</h4>
-                            <a href="{% url 'learning_path_global' %}" class="text-[11px] font-medium text-blue-600 hover:text-blue-800">
-                                AI Learning Path &rarr;
-                            </a>
-                        </div>
-                        <div class="flex flex-wrap gap-1.5">
-                            {% for skill, count in top_skills|slice:":4" %}
-                            <span class="px-2 py-0.5 bg-green-50 text-green-700 text-[11px] font-medium rounded-full flex items-center">
-                                {{ skill }}
-                                <span class="ml-1 bg-green-200 text-green-800 text-[10px] px-1 py-0.5 rounded-full">{{ count }}</span>
-                            </span>
-                            {% empty %}
-                            <span class="text-xs text-gray-500">No skills analyzed yet.</span>
-                            {% endfor %}
-                        </div>
+                {# Top skills strip #}
+                {% if top_skills %}
+                <div class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-3">
+                    {% include "components/section_label.html" with text="Top skills across your applications" %}
+                    <div class="flex flex-wrap gap-1.5">
+                        {% for skill, count in top_skills|slice:":8" %}
+                        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200/60 dark:ring-emerald-900">
+                            {{ skill }}
+                            <span class="font-display italic tabular-nums opacity-70" style="font-variation-settings: 'opsz' 18;">{{ count }}</span>
+                        </span>
+                        {% endfor %}
                     </div>
                 </div>
+                {% endif %}
             </div>
         </div>
 
-        <!-- Row 1.5: AI Recommended Next Steps -->
+        {# ======================================================
+           AI NEXT STEPS
+           ====================================================== #}
         {% if next_actions %}
-        <div class="w-full min-w-0 col-span-1" style="grid-column: 1 / -1;">
-            <div class="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-gray-800 dark:to-gray-800 border border-indigo-200 dark:border-gray-700 rounded-xl p-5 shadow-sm">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center">
-                        <svg class="w-5 h-5 mr-2 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
-                        AI Recommended Next Steps
-                    </h3>
-                    <span class="text-xs text-indigo-600 dark:text-indigo-400 font-medium">{{ next_actions|length }} action{{ next_actions|length|pluralize }}</span>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-                    {% for action in next_actions %}
-                    <a href="{{ action.url }}" class="group bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-500 hover:shadow-md transition-all flex flex-col gap-2">
-                        <div class="flex items-center gap-2">
-                            <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0
-                                {% if action.icon == 'upload' %}bg-blue-100 text-blue-600
-                                {% elif action.icon == 'briefcase' %}bg-indigo-100 text-indigo-600
-                                {% elif action.icon == 'chart' %}bg-amber-100 text-amber-600
-                                {% elif action.icon == 'book' %}bg-purple-100 text-purple-600
-                                {% elif action.icon == 'chat' %}bg-indigo-100 text-indigo-600
-                                {% elif action.icon == 'document' %}bg-green-100 text-green-600
-                                {% elif action.icon == 'mail' %}bg-pink-100 text-pink-600
-                                {% elif action.icon == 'clock' %}bg-orange-100 text-orange-600
-                                {% elif action.icon == 'dollar' %}bg-emerald-100 text-emerald-600
-                                {% elif action.icon == 'send' %}bg-cyan-100 text-cyan-600
-                                {% else %}bg-gray-100 text-gray-600{% endif %}">
-                                {% if action.icon == 'upload' %}
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                                {% elif action.icon == 'briefcase' %}
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.193 23.193 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                                {% elif action.icon == 'chart' %}
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-                                {% elif action.icon == 'book' %}
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-                                {% elif action.icon == 'chat' %}
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
-                                {% elif action.icon == 'document' %}
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                {% elif action.icon == 'mail' %}
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                                {% elif action.icon == 'clock' %}
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                {% elif action.icon == 'dollar' %}
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                {% elif action.icon == 'send' %}
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
-                                {% endif %}
-                            </div>
-                            <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-tight group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition-colors">{{ action.title }}</h4>
-                        </div>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{{ action.description }}</p>
-                    </a>
-                    {% endfor %}
-                </div>
+        <section class="space-y-4">
+            <div class="flex items-baseline justify-between flex-wrap gap-2">
+                {% include "components/section_label.html" with text="AI recommended · next steps" tone="accent" %}
+                <span class="text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400">{{ next_actions|length }} action{{ next_actions|length|pluralize }}</span>
             </div>
-        </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+                {% for action in next_actions %}
+                <a href="{{ action.url }}" class="group relative overflow-hidden rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-4 hover:ring-brand-300 dark:hover:ring-brand-700 hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)] transition-all">
+                    <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[2px]
+                        {% if action.icon == 'upload' or action.icon == 'briefcase' or action.icon == 'chat' %}bg-brand-500
+                        {% elif action.icon == 'chart' or action.icon == 'book' %}bg-accent-500
+                        {% elif action.icon == 'document' or action.icon == 'dollar' %}bg-emerald-500
+                        {% elif action.icon == 'mail' or action.icon == 'send' %}bg-amber-500
+                        {% else %}bg-neutral-300 dark:bg-neutral-700{% endif %}"></div>
+                    <div class="space-y-2">
+                        <h4 class="text-sm font-medium text-neutral-900 dark:text-neutral-100 leading-tight group-hover:text-brand-700 dark:group-hover:text-brand-400 transition-colors">{{ action.title }}</h4>
+                        <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">{{ action.description }}</p>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </section>
         {% endif %}
 
-        <!-- Row 2: Application Tracking Board (Kanban) - full width, forces new row -->
-        <div class="w-full min-w-0 col-span-1" style="grid-column: 1 / -1;">
-            <div class="flex items-center justify-between mb-3">
-                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100 flex items-center">
-                        <svg class="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
-                        Application Tracking Board
-                    </h3>
-                    <p class="hidden md:flex items-center text-xs text-gray-500 space-x-2">
-                        <span class="inline-flex items-center">
-                            <span class="w-2 h-2 rounded-full bg-gray-300 mr-1"></span> Saved
-                        </span>
-                        <span class="inline-flex items-center">
-                            <span class="w-2 h-2 rounded-full bg-blue-400 mr-1"></span> Applied
-                        </span>
-                        <span class="inline-flex items-center">
-                            <span class="w-2 h-2 rounded-full bg-amber-400 mr-1"></span> Interviewing
-                        </span>
-                        <span class="inline-flex items-center">
-                            <span class="w-2 h-2 rounded-full bg-emerald-400 mr-1"></span> Offer
-                        </span>
-                        <span class="inline-flex items-center">
-                            <span class="w-2 h-2 rounded-full bg-rose-400 mr-1"></span> Rejected
-                        </span>
-                    </p>
+        {# ======================================================
+           KANBAN BOARD
+           ====================================================== #}
+        <section class="space-y-4">
+            <div class="flex items-center justify-between flex-wrap gap-3">
+                {% include "components/section_label.html" with text="Applications" %}
+                <div class="hidden md:flex items-center gap-3 text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400">
+                    <span class="flex items-center gap-1.5"><span aria-hidden="true" class="h-1.5 w-1.5 rounded-full bg-neutral-400"></span>Saved</span>
+                    <span class="flex items-center gap-1.5"><span aria-hidden="true" class="h-1.5 w-1.5 rounded-full bg-brand-500"></span>Applied</span>
+                    <span class="flex items-center gap-1.5"><span aria-hidden="true" class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>Interviewing</span>
+                    <span class="flex items-center gap-1.5"><span aria-hidden="true" class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>Offer</span>
+                    <span class="flex items-center gap-1.5"><span aria-hidden="true" class="h-1.5 w-1.5 rounded-full bg-red-500"></span>Rejected</span>
+                </div>
             </div>
-            
-            <div class="flex gap-4 md:gap-5 overflow-x-auto pb-6 pt-2 px-1 snap-x snap-mandatory" style="-webkit-overflow-scrolling: touch; scrollbar-width: thin;">
-                    {% for status, category_jobs in kanban_boards.items %}
-                    <div 
-                        class="relative flex-none w-[85vw] sm:w-[320px] md:w-[300px] lg:w-[calc(20%-1rem)] snap-center bg-gray-100 dark:bg-gray-800/50 rounded-xl p-3 border border-gray-200 dark:border-gray-700 flex flex-col h-full shadow-sm transition-colors"
-                        :class="dragOverStatus === '{{ status }}' ? 'ring-2 ring-blue-400 ring-offset-2 ring-offset-gray-50' : ''"
-                        data-status="{{ status }}"
-                        @dragover.prevent="onDragOver('{{ status }}')"
-                        @dragleave="onDragLeave('{{ status }}')"
-                        @drop.prevent="onDrop('{{ status }}', $event)"
-                    >
-                        <div class="flex justify-between items-center mb-3 pb-2 border-b border-gray-200">
-                            <div class="flex items-center space-x-2">
-                                <span class="w-2 h-2 rounded-full 
-                                             {% if status == 'Saved' %}bg-gray-300
-                                             {% elif status == 'Applied' %}bg-blue-400
-                                             {% elif status == 'Interviewing' %}bg-amber-400
-                                             {% elif status == 'Offer' %}bg-emerald-400
-                                             {% elif status == 'Rejected' %}bg-rose-400
-                                             {% else %}bg-gray-300{% endif %}">
-                                </span>
-                                <h4 class="font-semibold text-gray-800 dark:text-gray-200 text-sm tracking-wide uppercase">{{ status }}</h4>
-                            </div>
-                            <span class="bg-white/80 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-2.5 py-0.5 rounded-full text-[11px] font-semibold shadow-sm transition-colors"
-                                  x-text="columnCounts['{{ status }}'] ?? {{ category_jobs|length }}">
-                                {{ category_jobs|length }}
-                            </span>
+
+            <div class="flex gap-4 overflow-x-auto pb-6 snap-x snap-mandatory" style="-webkit-overflow-scrolling: touch;">
+                {% for status, category_jobs in kanban_boards.items %}
+                <div class="relative flex-none w-[85vw] sm:w-[320px] lg:w-[calc(20%-1rem)] snap-center rounded-xl bg-neutral-50 dark:bg-neutral-900/50 ring-1 transition-all flex flex-col"
+                     :class="dragOverStatus === '{{ status }}' ? 'ring-2 ring-brand-400 dark:ring-brand-600' : 'ring-neutral-200 dark:ring-neutral-800'"
+                     data-status="{{ status }}"
+                     @dragover.prevent="onDragOver('{{ status }}')"
+                     @dragleave="onDragLeave('{{ status }}')"
+                     @drop.prevent="onDrop('{{ status }}', $event)">
+
+                    <div class="px-4 pt-4 pb-3 flex items-center justify-between border-b border-neutral-200 dark:border-neutral-800">
+                        <div class="flex items-center gap-2">
+                            <span aria-hidden="true" class="h-1.5 w-1.5 rounded-full
+                                {% if status == 'Saved' %}bg-neutral-400
+                                {% elif status == 'Applied' %}bg-brand-500
+                                {% elif status == 'Interviewing' %}bg-amber-500
+                                {% elif status == 'Offer' %}bg-emerald-500
+                                {% elif status == 'Rejected' %}bg-red-500
+                                {% else %}bg-neutral-400{% endif %}"></span>
+                            <h4 class="text-[11px] uppercase tracking-[0.16em] font-medium text-neutral-700 dark:text-neutral-200">{{ status }}</h4>
                         </div>
-                        
-                        <div class="flex-1 space-y-3 min-h-[60px] max-h-[70vh] overflow-y-auto pr-1">
-                            {% for job in category_jobs %}
-                            <div 
-                                class="group bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm p-4 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-500 transition-all cursor-move"
-                                draggable="true"
-                                @dragstart="onDragStart($event, '{{ job.id }}')"
-                                @dragend="onDragEnd()"
-                                data-job-id="{{ job.id }}"
-                            >
-                                <div class="flex items-start justify-between gap-3">
-                                    <div class="space-y-1">
-                                        <div class="font-semibold text-gray-900 dark:text-gray-100 text-sm leading-snug" title="{{ job.title }}">
-                                            {{ job.title }}
-                                        </div>
-                                        <div class="text-xs text-gray-600 dark:text-gray-400 leading-snug">
-                                            {{ job.company }}
-                                        </div>
-                                        {% if job.extracted_skills %}
-                                        <div class="flex flex-wrap gap-1 pt-1">
-                                            {% for skill in job.extracted_skills|slice:":3" %}
-                                            <span class="px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-[10px] text-gray-600 dark:text-gray-300 transition-colors">
-                                                {{ skill }}
-                                            </span>
-                                            {% endfor %}
-                                            {% if job.extracted_skills|length > 3 %}
-                                            <span class="text-[10px] text-gray-400">+{{ job.extracted_skills|length|add:-3 }}</span>
-                                            {% endif %}
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                    <span class="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/30 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                        {{ job.created_at|date:"M d" }}
-                                    </span>
+                        <span class="font-display italic tabular-nums text-sm leading-none text-neutral-500 dark:text-neutral-400"
+                              style="font-variation-settings: 'opsz' 18;"
+                              x-text="columnCounts['{{ status }}'] ?? {{ category_jobs|length }}">{{ category_jobs|length }}</span>
+                    </div>
+
+                    <div class="p-3 flex-1 space-y-2 min-h-[80px] max-h-[70vh] overflow-y-auto">
+                        {% for job in category_jobs %}
+                        <div class="group bg-white dark:bg-neutral-900 rounded-lg p-3 ring-1 ring-neutral-200 dark:ring-neutral-800 hover:ring-brand-300 dark:hover:ring-brand-700 transition-all cursor-move"
+                             draggable="true"
+                             @dragstart="onDragStart($event, '{{ job.id }}')"
+                             @dragend="onDragEnd()"
+                             data-job-id="{{ job.id }}">
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="min-w-0 flex-1 space-y-1">
+                                    <div class="text-sm font-medium text-neutral-900 dark:text-neutral-100 leading-snug truncate" title="{{ job.title }}">{{ job.title }}</div>
+                                    <div class="text-xs text-neutral-500 dark:text-neutral-400 truncate">{{ job.company }}</div>
                                 </div>
-                                <div class="flex justify-between items-center mt-3 pt-3 border-t border-gray-100 dark:border-gray-700/50">
-                                    <div class="flex space-x-1.5">
-                                        <a href="{% url 'gap_analysis' job.id %}" class="text-[10px] px-2 py-1 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors font-medium flex items-center gap-1" title="Run Gap Analysis">
-                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-                                            Analysis
-                                        </a>
-                                        <a href="{% url 'profile_chatbot' job.id %}" class="text-[10px] px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors font-medium flex items-center gap-1" title="Chat to Fill Gaps">
-                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
-                                            Chat
-                                        </a>
-                                    </div>
-                                    <div class="flex space-x-2 items-center">
-                                        <a href="{% url 'negotiate_salary' job.id %}" class="salary-negotiate-btn hidden text-xs text-green-600 hover:text-green-800 font-bold" title="AI Salary Negotiator">
-                                            <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                        </a>
-                                        <a href="{% url 'job_detail' job.id %}" class="text-[11px] text-blue-600 hover:text-blue-800 font-medium underline-offset-2 hover:underline">View &rarr;</a>
-                                    </div>
+                                <span class="shrink-0 text-[10px] uppercase tracking-[0.14em] font-medium text-neutral-400 dark:text-neutral-500">{{ job.created_at|date:"M d" }}</span>
+                            </div>
+                            {% if job.extracted_skills %}
+                            <div class="flex flex-wrap gap-1 mt-2">
+                                {% for skill in job.extracted_skills|slice:":3" %}
+                                <span class="px-1.5 py-0 text-[10px] rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400">{{ skill }}</span>
+                                {% endfor %}
+                                {% if job.extracted_skills|length > 3 %}
+                                <span class="text-[10px] text-neutral-400">+{{ job.extracted_skills|length|add:-3 }}</span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            <div class="flex items-center justify-between gap-2 mt-3 pt-2 border-t border-neutral-100 dark:border-neutral-800">
+                                <div class="flex items-center gap-1">
+                                    <a href="{% url 'gap_analysis' job.id %}" class="text-[10px] px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950/60 font-medium transition-colors" title="Gap analysis">Analysis</a>
+                                    <a href="{% url 'profile_chatbot' job.id %}" class="text-[10px] px-1.5 py-0.5 rounded bg-accent-50 dark:bg-accent-950/40 text-accent-700 dark:text-accent-300 hover:bg-accent-100 dark:hover:bg-accent-950/60 font-medium transition-colors" title="Chat to fill gaps">Chat</a>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <a href="{% url 'negotiate_salary' job.id %}" class="salary-negotiate-btn hidden text-emerald-600 dark:text-emerald-400 hover:text-emerald-800" title="AI salary negotiator">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    </a>
+                                    <a href="{% url 'job_detail' job.id %}" class="text-[11px] font-medium text-brand-700 dark:text-brand-400 hover:underline">View →</a>
                                 </div>
                             </div>
-                            {% endfor %}
-                            
-                            <!-- Empty State Placeholder (Managed by Alpine.js) -->
-                            <div x-show="(columnCounts['{{ status }}'] || 0) === 0" style="display: none;" class="flex flex-col items-center justify-center py-6 text-xs text-gray-400 dark:text-gray-500 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg bg-white/40 dark:bg-gray-800/40">
-                                <svg class="w-4 h-4 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16M4 12h8m-8 5h16"></path></svg>
-                                <span>Drag jobs here</span>
-                            </div>
                         </div>
+                        {% endfor %}
+
+                        <div x-show="(columnCounts['{{ status }}'] || 0) === 0" style="display: none;" class="flex flex-col items-center justify-center py-6 text-xs text-neutral-400 dark:text-neutral-500 border-2 border-dashed border-neutral-200 dark:border-neutral-800 rounded-lg">
+                            <span aria-hidden="true" class="text-lg leading-none mb-1">＋</span>
+                            <span class="uppercase tracking-[0.14em]">Drag here</span>
+                        </div>
+                    </div>
                 </div>
                 {% endfor %}
             </div>
-        </div>
-    
-        <!-- Row 3: AI Recommended Jobs Feed - full width -->
-        <div class="w-full min-w-0 col-span-1" style="grid-column: 1 / -1;">
-            <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                    AI Recommended Matches
-                </h3>
-                
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
-                    {% if recommended_jobs %}
-                        <ul class="divide-y divide-gray-100 dark:divide-gray-700">
-                            {% for rec in recommended_jobs %}
-                            <li class="p-5 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex justify-between items-center group">
-                                <div class="flex-1 mr-4">
-                                    <div class="flex mb-1 items-center">
-                                        <h4 class="text-lg font-bold text-gray-900 dark:text-white mr-3">{{ rec.title }}</h4>
-                                        <span class="bg-green-100 text-green-800 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-green-200">
-                                            {{ rec.match_score }}% Match
-                                        </span>
-                                    </div>
-                                    <div class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">{{ rec.company }}</div>
-                                    <p class="text-xs text-gray-500 dark:text-gray-500 line-clamp-2">{{ rec.description }}</p>
-                                </div>
-                                <div class="flex gap-2">
-                                    <a href="{{ rec.url }}" target="_blank" class="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition">View Source</a>
-                                    <button class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition shadow-sm">Save & Generate CV</button>
-                                </div>
-                            </li>
-                            {% endfor %}
-                        </ul>
-                    {% else %}
-                        <div class="p-12 text-center">
-                            <div class="text-gray-300 dark:text-gray-600 mb-3 flex justify-center">
-                                <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+        </section>
+
+        {# ======================================================
+           AI RECOMMENDED MATCHES
+           ====================================================== #}
+        <section class="space-y-4">
+            {% include "components/section_label.html" with text="Recommended · scanning the web" %}
+            <div class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 overflow-hidden">
+                {% if recommended_jobs %}
+                <ul class="divide-y divide-neutral-100 dark:divide-neutral-800">
+                    {% for rec in recommended_jobs %}
+                    <li class="p-5 hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors flex items-center justify-between gap-4">
+                        <div class="flex-1 min-w-0 space-y-1">
+                            <div class="flex items-center gap-3 flex-wrap">
+                                <h4 class="font-display text-lg leading-tight text-neutral-900 dark:text-neutral-50"
+                                    style="font-variation-settings: 'opsz' 24;">{{ rec.title }}</h4>
+                                {% include "components/badge.html" with label=rec.match_score|add:"% match" tone="success" %}
                             </div>
-                            <h4 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">Scanning for matches...</h4>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">Our AI is searching the web for jobs that fit your profile. Check back later!</p>
+                            <div class="text-sm text-neutral-500 dark:text-neutral-400">{{ rec.company }}</div>
+                            <p class="text-xs text-neutral-500 dark:text-neutral-400 line-clamp-2 max-w-2xl">{{ rec.description }}</p>
                         </div>
-                    {% endif %}
+                        <div class="flex gap-2 shrink-0">
+                            <a href="{{ rec.url }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 h-9 px-3 text-xs font-medium rounded-lg ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">Source</a>
+                            <button class="inline-flex items-center gap-1 h-9 px-3 text-xs font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors">Save & generate</button>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="p-10 text-center space-y-3">
+                    <div aria-hidden="true" class="mx-auto w-2 h-2 rounded-full bg-brand-500 animate-pulse"></div>
+                    <h4 class="font-display text-xl text-neutral-900 dark:text-neutral-50" style="font-variation-settings: 'opsz' 24;">Scanning for matches…</h4>
+                    <p class="text-sm text-neutral-500 dark:text-neutral-400 max-w-md mx-auto">Our agent is looking for jobs that fit your profile. Come back later — or add one yourself in the meantime.</p>
                 </div>
+                {% endif %}
             </div>
-        </div>
+        </section>
     </div>
 </div>
 
 <style>
-    /* 
-       Dynamically show the AI Salary Negotiator button ONLY when the card 
-       is physically parked inside the 'Offer' column in the DOM.
-       This enables instant visual feedback during drag-and-drop.
-    */
-    [data-status="Offer"] .salary-negotiate-btn {
-        display: inline-block !important;
-    }
+    /* Show salary negotiator icon only when the card lives inside the Offer column. */
+    [data-status="Offer"] .salary-negotiate-btn { display: inline-flex !important; }
 </style>
 
 <script>
@@ -387,7 +322,6 @@
             columnCounts: {},
 
             initBoard() {
-                // Initialize counts from DOM
                 const columns = document.querySelectorAll('[data-status]');
                 columns.forEach(col => {
                     const status = col.getAttribute('data-status');
@@ -410,15 +344,8 @@
                 this.dragOverStatus = null;
             },
 
-            onDragOver(status) {
-                this.dragOverStatus = status;
-            },
-
-            onDragLeave(status) {
-                if (this.dragOverStatus === status) {
-                    this.dragOverStatus = null;
-                }
-            },
+            onDragOver(status) { this.dragOverStatus = status; },
+            onDragLeave(status) { if (this.dragOverStatus === status) this.dragOverStatus = null; },
 
             async onDrop(toStatus, event) {
                 if (!this.dragJobId || !this.dragFromStatus || this.dragFromStatus === toStatus) {
@@ -426,62 +353,40 @@
                     return;
                 }
 
-                // Move card in the DOM optimistically
                 const columnEl = event.currentTarget;
                 const cardEl = document.querySelector(`[data-job-id="${this.dragJobId}"]`);
-                const listEl = columnEl.querySelector('.flex-1');
-
+                // Target list = the scrollable body of the column (second direct child)
+                const listEl = columnEl.children[1];
                 if (cardEl && listEl && cardEl.parentNode !== listEl) {
                     listEl.appendChild(cardEl);
                 }
 
-                // Optimistic counts update
                 this.columnCounts[this.dragFromStatus] = (this.columnCounts[this.dragFromStatus] || 1) - 1;
                 this.columnCounts[toStatus] = (this.columnCounts[toStatus] || 0) + 1;
-
                 this.dragOverStatus = null;
 
                 try {
                     const csrftoken = this.getCookie('csrftoken');
                     const response = await fetch('{% url "update_job_status" %}', {
                         method: 'POST',
-                        headers: {
-                            'X-CSRFToken': csrftoken,
-                        },
-                        body: new URLSearchParams({
-                            job_id: this.dragJobId,
-                            new_status: toStatus.toLowerCase(),
-                        }),
+                        headers: {'X-CSRFToken': csrftoken},
+                        body: new URLSearchParams({job_id: this.dragJobId, new_status: toStatus.toLowerCase()}),
                     });
-
-                    if (!response.ok) {
-                        // Revert counts on error
-                        this.columnCounts[this.dragFromStatus] += 1;
-                        this.columnCounts[toStatus] -= 1;
-
-                        // Move card back to original column
-                        const originalCol = document.querySelector(`[data-status="${this.dragFromStatus}"]`);
-                        if (originalCol) {
-                            const originalList = originalCol.querySelector('.flex-1');
-                            if (cardEl && originalList) {
-                                originalList.appendChild(cardEl);
-                            }
-                        }
-                    } 
+                    if (!response.ok) this.revert(cardEl, toStatus);
                 } catch (e) {
-                    this.columnCounts[this.dragFromStatus] += 1;
-                    this.columnCounts[toStatus] -= 1;
-                    
-                    // Move card back to original column on exception
-                    const originalCol = document.querySelector(`[data-status="${this.dragFromStatus}"]`);
-                    if (originalCol) {
-                        const originalList = originalCol.querySelector('.flex-1');
-                        if (cardEl && originalList) {
-                            originalList.appendChild(cardEl);
-                        }
-                    }
+                    this.revert(cardEl, toStatus);
                 } finally {
                     this.onDragEnd();
+                }
+            },
+
+            revert(cardEl, toStatus) {
+                this.columnCounts[this.dragFromStatus] += 1;
+                this.columnCounts[toStatus] -= 1;
+                const originalCol = document.querySelector(`[data-status="${this.dragFromStatus}"]`);
+                if (originalCol && cardEl) {
+                    const originalList = originalCol.children[1];
+                    if (originalList) originalList.appendChild(cardEl);
                 }
             },
 
