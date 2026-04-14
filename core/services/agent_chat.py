@@ -230,7 +230,7 @@ def _build_job_context_block(job) -> str:
     return "\n".join(lines)
 
 
-def build_system_prompt(user) -> str:
+def build_system_prompt(user, job=None) -> str:
     """Assemble the agent's system prompt from the user's real context.
 
     Exposed for testing — all the context gathering lives here, not inside
@@ -252,6 +252,8 @@ def build_system_prompt(user) -> str:
         apps = _applications_summary(user)
         if apps:
             sections.append(f"APPLICATIONS:\n{apps}")
+        if job is not None:
+            sections.append(f"TALKING ABOUT JOB:\n{_build_job_context_block(job)}")
         context_block = "\n\n".join(sections)
 
     return f"""You are the SmartCV career agent — a warm, direct, evidence-first career advisor.
