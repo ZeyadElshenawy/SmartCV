@@ -529,3 +529,48 @@ class BuildSystemPromptWithJobTests(TestCase):
         self.assertIn('JOB CONTEXT', prompt)
         self.assertIn('ML Eng', prompt)
         self.assertIn('Stripe', prompt)
+
+
+class AgentChatViewJobTests(TestCase):
+    """GET /agent/?job=<id> — validates ownership, injects job into template."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        self.user = get_user_model().objects.create_user(
+            username='av@example.com', email='av@example.com', password='x'
+        )
+        self.other = get_user_model().objects.create_user(
+            username='other@example.com', email='other@example.com', password='x'
+        )
+        self.client.force_login(self.user)
+
+    def _make_job(self, user, company='Stripe'):
+        from jobs.models import Job
+        return Job.objects.create(
+            user=user, title='SWE', company=company,
+            description='x', extracted_skills=['Python'],
+            application_status='interviewing',
+        )
+
+    def test_no_job_param_renders_general_chat(self):
+        resp = self.client.get(reverse('agent_chat'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertIsNone(resp.context.get('job'))
+
+    def test_valid_owned_job_id_passes_job_to_template(self):
+        job = self._make_job(self.user)
+        resp = self.client.get(reverse('agent_chat') + f'?job={job.id}')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context.get('job').id, job.id)
+        self.assertEqual(str(resp.context.get('job_id')), str(job.id))
+
+    def test_foreign_job_id_redirects_to_agent(self):
+        foreign_job = self._make_job(self.other)
+        resp = self.client.get(reverse('agent_chat') + f'?job={foreign_job.id}')
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, reverse('agent_chat'))
+
+    def test_invalid_uuid_redirects_to_agent(self):
+        resp = self.client.get(reverse('agent_chat') + '?job=not-a-uuid')
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, reverse('agent_chat'))

@@ -30,9 +30,34 @@ def design_system_view(request):
 
 @login_required
 def agent_chat_view(request):
-    """General agent chat — not tied to a specific job. Users talk career
-    strategy with an agent that already knows their profile + signals."""
-    return render(request, 'core/agent_chat.html')
+    """General agent chat — not tied to a specific job by default.
+
+    When reached via ``/agent/?job=<id>``, the agent is scoped to that job
+    and receives a rich dossier (gap analysis, snapshot, artifacts) in the
+    system prompt. Foreign or malformed job ids redirect back to the
+    general chat with a user-facing warning.
+    """
+    import uuid as _uuid
+    from django.contrib import messages
+    from jobs.models import Job
+
+    job = None
+    raw = request.GET.get('job')
+    if raw:
+        try:
+            _uuid.UUID(str(raw))
+        except (ValueError, TypeError):
+            messages.warning(request, "That job couldn't be found.")
+            return redirect('agent_chat')
+        job = Job.objects.filter(id=raw, user=request.user).first()
+        if job is None:
+            messages.warning(request, "That job couldn't be found.")
+            return redirect('agent_chat')
+
+    return render(request, 'core/agent_chat.html', {
+        'job': job,
+        'job_id': str(job.id) if job else None,
+    })
 
 
 @login_required
