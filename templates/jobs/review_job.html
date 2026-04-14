@@ -43,8 +43,13 @@
         </div>
         {% endif %}
 
-        {# ---- Review card ---- #}
-        <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)]">
+        {# ---- Review card — scannable order:
+                 1. Title / Company (quick verify)
+                 2. Extracted skills (what drives the analysis — most worth verifying)
+                 3. Source URL (reference)
+                 4. Description (biggest, usually correct — collapsed by default)
+               ---- #}
+        <section x-data="{ openDesc: false }" class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)]">
             <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
 
             <form method="post" class="p-6 sm:p-8 space-y-7">
@@ -55,24 +60,16 @@
                     {% include "components/input.html" with name="company" id="review-company" label="Company" value=job.company required=True %}
                 </div>
 
-                <div class="space-y-2">
-                    <label for="review-description" class="block text-xs font-medium uppercase tracking-[0.14em] text-neutral-600 dark:text-neutral-400">
-                        Job description <span class="text-red-500" aria-hidden="true">*</span>
-                    </label>
-                    <textarea id="review-description" name="description" rows="10" required
-                              class="block w-full px-4 py-3 text-sm rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none transition-[box-shadow,border-color] duration-150 resize-y leading-relaxed">{{ job.description }}</textarea>
-                </div>
-
                 {% if job.extracted_skills %}
                 <div class="space-y-3">
                     <div class="flex items-baseline justify-between flex-wrap gap-2">
                         {% include "components/section_label.html" with text="Extracted skills" tone="brand" %}
-                        <span class="text-[11px] text-neutral-500 dark:text-neutral-400">auto-detected from the description</span>
+                        <span class="text-[11px] text-neutral-500 dark:text-neutral-400"><span class="font-display italic tabular-nums text-neutral-700 dark:text-neutral-300" style="font-variation-settings: 'opsz' 24;">{{ job.extracted_skills|length }}</span> detected</span>
                     </div>
                     <div class="flex flex-wrap gap-1.5 rounded-xl bg-neutral-50 dark:bg-neutral-950/40 ring-1 ring-neutral-200 dark:ring-neutral-800 p-4">
                         {% for skill in job.extracted_skills %}{% include "components/badge.html" with label=skill tone="brand" %}{% endfor %}
                     </div>
-                    <p class="text-xs text-neutral-500 dark:text-neutral-400">Editing the description above will re-run extraction.</p>
+                    <p class="text-xs text-neutral-500 dark:text-neutral-400">Editing the description below will re-run extraction on submit.</p>
                 </div>
                 {% endif %}
 
@@ -85,6 +82,25 @@
                     </div>
                 </div>
                 {% endif %}
+
+                {# Description is collapsed by default — only expand to edit. Textarea stays
+                   mounted so Django always receives the value on submit. #}
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between gap-2">
+                        <label for="review-description" class="block text-xs font-medium uppercase tracking-[0.14em] text-neutral-600 dark:text-neutral-400">
+                            Job description <span class="text-red-500" aria-hidden="true">*</span>
+                        </label>
+                        <button type="button" @click="openDesc = !openDesc"
+                                class="text-xs font-medium text-brand-700 dark:text-brand-400 hover:underline"
+                                x-text="openDesc ? 'Hide' : 'Show & edit'"></button>
+                    </div>
+                    <div x-show="!openDesc" class="flex items-center gap-3 text-sm text-neutral-600 dark:text-neutral-400 rounded-lg bg-neutral-50 dark:bg-neutral-950/40 ring-1 ring-neutral-200 dark:ring-neutral-800 px-4 py-3">
+                        <svg aria-hidden="true" class="w-4 h-4 flex-shrink-0 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        <span><span class="font-display italic tabular-nums text-neutral-700 dark:text-neutral-300" style="font-variation-settings: 'opsz' 24;">{{ job.description|length }}</span> characters captured — looks fine unless you want to edit.</span>
+                    </div>
+                    <textarea id="review-description" name="description" rows="14" x-show="openDesc" x-cloak
+                              class="block w-full px-4 py-3 text-sm rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none transition-[box-shadow,border-color] duration-150 resize-y leading-relaxed">{{ job.description }}</textarea>
+                </div>
 
                 <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-neutral-100 dark:border-neutral-800">
                     <a href="{% url 'job_input_view' %}" class="text-sm font-medium text-neutral-600 dark:text-neutral-300 hover:text-brand-700 dark:hover:text-brand-400 transition-colors">
