@@ -197,6 +197,34 @@ def _build_job_context_block(job) -> str:
         if changed:
             lines.append(f"- Fields tailored vs. master profile: {', '.join(changed)}")
 
+    # Artifacts generated for this job.
+    resume_exists = False
+    resume_updated = None
+    cover_exists = False
+    try:
+        from resumes.models import GeneratedResume, CoverLetter
+        resume = (GeneratedResume.objects
+                  .filter(gap_analysis__job=job, gap_analysis__user=getattr(job, 'user', None))
+                  .order_by('-created_at').first())
+        if resume is not None:
+            resume_exists = True
+            resume_updated = resume.created_at
+        cover = CoverLetter.objects.filter(job=job).order_by('-created_at').first()
+        if cover is not None:
+            cover_exists = True
+    except Exception:
+        pass
+
+    if resume_exists or cover_exists:
+        lines.append("")
+        lines.append("Artifacts for this job:")
+        if resume_exists:
+            stamp = resume_updated.strftime('%Y-%m-%d') if resume_updated else 'unknown date'
+            lines.append(f"- Tailored resume: yes (last updated {stamp})")
+        else:
+            lines.append("- Tailored resume: no")
+        lines.append(f"- Cover letter: {'yes' if cover_exists else 'no'}")
+
     return "\n".join(lines)
 
 

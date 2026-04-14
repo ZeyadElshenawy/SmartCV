@@ -475,3 +475,24 @@ class JobContextBlockTests(TestCase):
         job = self._make_job()
         block = _build_job_context_block(job)
         self.assertNotIn('Job-specific profile variant', block)
+
+    def test_includes_artifacts_when_resume_and_cover_letter_exist(self):
+        from analysis.models import GapAnalysis
+        from resumes.models import GeneratedResume, CoverLetter
+        from profiles.models import UserProfile
+        from core.services.agent_chat import _build_job_context_block
+        profile = UserProfile.objects.create(user=self.user, full_name='J')
+        job = self._make_job()
+        gap = GapAnalysis.objects.create(job=job, user=self.user, similarity_score=0.5)
+        GeneratedResume.objects.create(gap_analysis=gap, name='v1', content={})
+        CoverLetter.objects.create(job=job, profile=profile, content='Dear Stripe, ...')
+        block = _build_job_context_block(job)
+        self.assertIn('Artifacts for this job', block)
+        self.assertIn('Tailored resume: yes', block)
+        self.assertIn('Cover letter: yes', block)
+
+    def test_omits_artifacts_section_when_none_exist(self):
+        from core.services.agent_chat import _build_job_context_block
+        job = self._make_job()
+        block = _build_job_context_block(job)
+        self.assertNotIn('Artifacts for this job', block)
