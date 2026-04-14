@@ -141,6 +141,28 @@ def _applications_summary(user) -> str:
     return f"- Application pipeline: {', '.join(parts)}" if parts else ''
 
 
+def _build_job_context_block(job) -> str:
+    """Rich per-job dossier for the system prompt.
+
+    Assembles: header (title, company, status, required skills), gap
+    analysis result, job-specific profile snapshot diff, and artifacts.
+    Missing subsections are silently omitted.
+    """
+    lines: list[str] = []
+
+    title = getattr(job, 'title', None) or '(untitled role)'
+    company = getattr(job, 'company', None) or '(unknown company)'
+    status = getattr(job, 'application_status', None) or 'saved'
+    lines.append(f"- Role: {title} at {company}")
+    lines.append(f"- Application status: {status}")
+
+    skills = getattr(job, 'extracted_skills', None) or []
+    if skills:
+        lines.append(f"- Required skills: {', '.join(str(s) for s in skills)}")
+
+    return "\n".join(lines)
+
+
 def build_system_prompt(user) -> str:
     """Assemble the agent's system prompt from the user's real context.
 
