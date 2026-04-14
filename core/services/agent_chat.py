@@ -272,7 +272,7 @@ say so and ask for exactly what you need.
 """
 
 
-def chat(user, history: list[ChatTurn], user_message: str) -> ChatResult:
+def chat(user, history: list[ChatTurn], user_message: str, job=None) -> ChatResult:
     """Send the conversation to the LLM and return its reply.
 
     history should already include previous turns (not the new user_message).
@@ -287,7 +287,7 @@ def chat(user, history: list[ChatTurn], user_message: str) -> ChatResult:
         logger.exception("LLM engine import failed: %s", e)
         return ChatResult(reply='', error='Agent unavailable right now.')
 
-    system_prompt = build_system_prompt(user)
+    system_prompt = build_system_prompt(user, job=job)
 
     # Build the LangChain message list.
     from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
