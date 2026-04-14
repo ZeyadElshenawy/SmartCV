@@ -5,9 +5,6 @@
 
 {% block content %}
 {% if is_computing %}
-{# ======================================================
-   COMPUTING STATE — editorial "reading the job" screen
-   ====================================================== #}
 <div id="computing-state" class="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center px-4">
     <div class="max-w-xl text-center space-y-8">
         <div class="flex justify-center">
@@ -91,9 +88,6 @@
 </script>
 
 {% else %}
-{# ======================================================
-   RESULTS — editorial gap report
-   ====================================================== #}
 <div x-data="{ openDesc: false }" class="min-h-screen bg-neutral-50 dark:bg-neutral-950 py-12 sm:py-16">
     <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 space-y-12">
 
@@ -137,11 +131,7 @@
                 LLM structured extraction · fuzzy reconciliation ensures every required skill is accounted for
             {% endif %}
         </div>
-
-        {# ======================================================
-           VERDICT HERO — score, verdict, action. All in one card.
-           ====================================================== #}
-        <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)]">
+<section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)]">
             <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px]
                 {% if gap.similarity_score >= 0.8 %}bg-brand-500
                 {% elif gap.similarity_score >= 0.5 %}bg-accent-500
@@ -221,11 +211,7 @@
                 </div>
             </div>
         </section>
-
-        {# ======================================================
-           SKILL DRAG-DROP — three columns, editorial chips
-           ====================================================== #}
-        <section x-data="skillDragDrop()" class="space-y-4">
+<section x-data="skillDragDrop()" class="space-y-4">
             <div class="flex items-start justify-between gap-4 flex-wrap">
                 {% include "components/section_label.html" with text="Reclassify skills" %}
                 <div class="flex items-center gap-3 text-xs text-neutral-500 dark:text-neutral-400">

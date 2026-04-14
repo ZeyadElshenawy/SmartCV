@@ -2,9 +2,6 @@
 {% block title %}Dashboard — SmartCV{% endblock %}
 
 {% block content %}
-{# Kanban logic (drag-drop + optimistic update + salary-negotiate reveal via
-   [data-status="Offer"] selector) is preserved below. data-status and
-   data-job-id attributes must stay intact. #}
 <div class="min-h-screen bg-neutral-50 dark:bg-neutral-950 py-10 sm:py-14"
      x-data="kanbanBoard()" x-init="initBoard()">
     <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-10">
@@ -57,11 +54,7 @@
             </div>
         </section>
         {% endif %}
-
-        {# ======================================================
-           ROW 1 — Profile sidebar + CTA/stats
-           ====================================================== #}
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+<div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
 
             {# ---- Profile sidebar ---- #}
             <aside class="lg:col-span-1">
@@ -152,11 +145,7 @@
                 {% endif %}
             </div>
         </div>
-
-        {# ======================================================
-           AI NEXT STEPS
-           ====================================================== #}
-        {% if next_actions %}
+{% if next_actions %}
         <section class="space-y-4">
             <div class="flex items-baseline justify-between flex-wrap gap-2">
                 {% include "components/section_label.html" with text="AI recommended · next steps" tone="accent" %}
@@ -180,11 +169,7 @@
             </div>
         </section>
         {% endif %}
-
-        {# ======================================================
-           KANBAN BOARD
-           ====================================================== #}
-        <section class="space-y-4">
+<section class="space-y-4">
             <div class="flex items-center justify-between flex-wrap gap-3">
                 {% include "components/section_label.html" with text="Applications" %}
                 <div class="hidden md:flex items-center gap-3 text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400">
@@ -269,11 +254,7 @@
                 {% endfor %}
             </div>
         </section>
-
-        {# ======================================================
-           AI RECOMMENDED MATCHES
-           ====================================================== #}
-        <section class="space-y-4">
+<section class="space-y-4">
             {% include "components/section_label.html" with text="Recommended · scanning the web" %}
             <div class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 overflow-hidden">
                 {% if recommended_jobs %}

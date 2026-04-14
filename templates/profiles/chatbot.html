@@ -2,9 +2,6 @@
 {% block title %}Chat — {{ job.title }} — SmartCV{% endblock %}
 
 {% block content %}
-{# Full Alpine state (careerAgent) preserved below. Visuals redone to match
-   the Editorial AI system. All fetch URLs, x-ref names, and the chat-bot-msg
-   selector are unchanged. #}
 <div class="flex h-[calc(100vh-64px)] bg-neutral-50 dark:bg-neutral-950" x-data="careerAgent()" x-init="init()">
 
     {# ═══════════ LEFT · Chat panel ═══════════ #}
