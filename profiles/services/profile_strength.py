@@ -127,6 +127,63 @@ def _score_completeness(profile) -> StrengthComponent:
     )
 
 
+def _score_evidence(profile) -> StrengthComponent:
+    """30-point breakdown: description richness, projects, credentials, quantification."""
+    data = profile.data_content or {}
+    experiences = [e for e in (data.get('experiences') or []) if isinstance(e, dict)]
+    projects = [p for p in (data.get('projects') or []) if isinstance(p, dict)]
+    certifications = data.get('certifications') or []
+    publications = data.get('publications') or []
+    awards = data.get('awards') or []
+
+    items: list[StrengthItem] = []
+
+    descs = [(e.get('description') or '').strip() for e in experiences[:5]]
+    avg_len = (sum(len(d) for d in descs) / len(descs)) if descs else 0
+    items.append(StrengthItem(
+        key='descriptions_rich',
+        label='Flesh out experience descriptions (≥150 chars each)',
+        met=avg_len >= 150,
+        points=10,
+    ))
+
+    items.append(StrengthItem(
+        key='has_project',
+        label='Add at least one described project',
+        met=any((p.get('description') or '').strip() for p in projects),
+        points=6,
+    ))
+
+    has_credential = (
+        (len(certifications) > 0)
+        or (len(publications) > 0)
+        or (len(awards) > 0)
+    )
+    items.append(StrengthItem(
+        key='has_credential',
+        label='Add a certification, publication, or award',
+        met=has_credential,
+        points=6,
+    ))
+
+    any_metric = any(
+        any(ch.isdigit() for ch in (e.get('description') or ''))
+        for e in experiences
+    )
+    items.append(StrengthItem(
+        key='descriptions_metric',
+        label='Quantify wins in at least one experience',
+        met=any_metric,
+        points=8,
+    ))
+
+    score = sum(i['points'] for i in items if i['met'])
+    return StrengthComponent(
+        key='evidence', label='Evidence depth',
+        score=score, max=30, items=items,
+    )
+
+
 def compute_profile_strength(profile, user) -> ProfileStrength:
     """Top-level entry point — stub until subsequent tasks wire up components."""
     return ProfileStrength(score=0, tier='Weak', components=[], top_actions=[])
