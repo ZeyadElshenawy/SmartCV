@@ -393,3 +393,37 @@ class AgentChatApiTests(TestCase):
             )
         self.assertEqual(resp.status_code, 502)
         self.assertIn('agent', resp.json()['error'].lower())
+
+
+class JobContextBlockTests(TestCase):
+    """_build_job_context_block — renders a rich dossier for a single job."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        self.user = get_user_model().objects.create_user(
+            username='j@example.com', email='j@example.com', password='x'
+        )
+
+    def _make_job(self, **kwargs):
+        from jobs.models import Job
+        defaults = dict(
+            user=self.user,
+            title='Senior SWE',
+            company='Stripe',
+            description='Build scalable payment infra.',
+            extracted_skills=['Python', 'Go', 'Kubernetes'],
+            application_status='interviewing',
+        )
+        defaults.update(kwargs)
+        return Job.objects.create(**defaults)
+
+    def test_header_includes_title_company_status_and_skills(self):
+        from core.services.agent_chat import _build_job_context_block
+        job = self._make_job()
+        block = _build_job_context_block(job)
+        self.assertIn('Senior SWE', block)
+        self.assertIn('Stripe', block)
+        self.assertIn('interviewing', block)
+        self.assertIn('Python', block)
+        self.assertIn('Go', block)
+        self.assertIn('Kubernetes', block)
