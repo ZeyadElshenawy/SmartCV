@@ -1,0 +1,114 @@
+{% comment %}
+Kaggle signals tile — tier, competitions/datasets/notebooks counts + medals.
+Required context: `profile`.
+{% endcomment %}
+{{ profile.data_content.kaggle_signals|default:""|json_script:"kaggle-signals-initial" }}
+<section x-data="kaggleSignals('kaggle-signals-initial')"
+         class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+    <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-[#20BEFF]"></div>
+    <div class="p-5 space-y-4">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center gap-2">
+                <svg aria-hidden="true" class="w-4 h-4 text-[#20BEFF]" fill="currentColor" viewBox="0 0 24 24"><path d="M18.825 23.859c-.022.092-.117.141-.281.141h-3.139c-.187 0-.351-.082-.492-.248l-5.178-6.589-1.448 1.374v5.111c0 .235-.117.352-.351.352H5.505c-.236 0-.354-.117-.354-.352V.353c0-.233.118-.353.354-.353h2.431c.234 0 .351.12.351.353v14.343l6.203-6.272c.165-.165.33-.246.495-.246h3.239c.144 0 .236.06.285.18.046.149.034.255-.036.315l-6.555 6.344 6.952 8.595c.095.104.117.208.07.346"/></svg>
+                {% include "components/section_label.html" with text="Kaggle" %}
+            </div>
+            <button type="button" @click="refresh" :disabled="loading"
+                    class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline disabled:opacity-50">
+                <span x-show="!loading" x-text="hasData ? 'Refresh' : 'Connect'"></span>
+                <span x-show="loading">Fetching…</span>
+            </button>
+        </div>
+
+        <div x-show="!hasData && !error" x-cloak class="space-y-3">
+            <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                Pulls tier, competitions/datasets/notebooks counts, and medal totals.
+            </p>
+            <form @submit.prevent="refresh" class="flex gap-2">
+                <input type="text" x-model="urlInput" placeholder="kaggle.com/your-username"
+                       class="flex-1 h-9 px-3 text-xs rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                <button type="submit" :disabled="loading || !urlInput.trim()"
+                        class="inline-flex items-center justify-center h-9 px-3 text-xs font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-40 transition-colors">Pull</button>
+            </form>
+        </div>
+
+        <div x-show="error" x-cloak class="rounded-lg bg-red-50 dark:bg-red-950/40 ring-1 ring-red-200 dark:ring-red-900 px-3 py-2 text-xs text-red-700 dark:text-red-300">
+            <span x-text="error"></span>
+        </div>
+
+        <template x-if="hasData">
+            <div class="space-y-4">
+                <div class="flex items-baseline justify-between gap-2">
+                    <a :href="snapshot.profile_url" target="_blank" rel="noopener"
+                       class="text-sm font-mono text-neutral-700 dark:text-neutral-300 hover:text-brand-700 dark:hover:text-brand-400 transition-colors truncate"
+                       x-text="'@' + snapshot.username"></a>
+                    <span class="text-[11px] uppercase tracking-[0.14em] font-medium text-amber-700 dark:text-amber-400" x-text="snapshot.overall_tier || 'Novice'"></span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <template x-for="cat in categories" :key="cat.key">
+                        <div x-show="snapshot[cat.key] && snapshot[cat.key].count > 0"
+                             class="rounded-lg bg-neutral-50 dark:bg-neutral-950/40 ring-1 ring-neutral-200 dark:ring-neutral-800 p-3 space-y-1">
+                            <div class="text-[10px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400" x-text="cat.label"></div>
+                            <div class="flex items-baseline gap-2">
+                                <span class="font-display italic tabular-nums text-xl leading-none text-neutral-900 dark:text-neutral-100"
+                                      style="font-variation-settings: 'opsz' 24;" x-text="snapshot[cat.key].count"></span>
+                                <span x-show="snapshot[cat.key].tier" class="text-[10px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400" x-text="snapshot[cat.key].tier"></span>
+                            </div>
+                            <div x-show="medalTotal(cat.key) > 0" class="flex items-center gap-1 text-[11px] text-neutral-600 dark:text-neutral-400">
+                                <span x-show="snapshot[cat.key].medals.gold > 0">🥇<span x-text="snapshot[cat.key].medals.gold" class="ml-0.5"></span></span>
+                                <span x-show="snapshot[cat.key].medals.silver > 0">🥈<span x-text="snapshot[cat.key].medals.silver" class="ml-0.5"></span></span>
+                                <span x-show="snapshot[cat.key].medals.bronze > 0">🥉<span x-text="snapshot[cat.key].medals.bronze" class="ml-0.5"></span></span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </template>
+    </div>
+</section>
+
+<script>
+function kaggleSignals(snapshotElementId) {
+    let initialSnapshot = null;
+    try {
+        const el = document.getElementById(snapshotElementId);
+        const raw = el ? el.textContent.trim() : '';
+        if (raw && raw !== '""') initialSnapshot = JSON.parse(raw);
+    } catch (_) { initialSnapshot = null; }
+    return {
+        urlInput: initialSnapshot ? initialSnapshot.profile_url || '' : '',
+        snapshot: initialSnapshot,
+        loading: false,
+        error: null,
+        categories: [
+            { key: 'competitions', label: 'Competitions' },
+            { key: 'datasets', label: 'Datasets' },
+            { key: 'notebooks', label: 'Notebooks' },
+            { key: 'discussion', label: 'Discussion' },
+        ],
+        get hasData() { return this.snapshot && this.snapshot.username && !this.snapshot.error; },
+        medalTotal(key) {
+            const m = this.snapshot[key]?.medals; if (!m) return 0;
+            return (m.gold || 0) + (m.silver || 0) + (m.bronze || 0);
+        },
+        async refresh() {
+            this.loading = true; this.error = null;
+            try {
+                const csrf = document.cookie.split('; ').find(c => c.startsWith('csrftoken='))?.split('=')[1] || '';
+                const body = new URLSearchParams();
+                if (this.urlInput) body.set('kaggle_input', this.urlInput);
+                const resp = await fetch('/profiles/refresh-kaggle/', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body,
+                });
+                const data = await resp.json();
+                if (!resp.ok || data.error) { this.error = data.error || ('Server returned ' + resp.status); return; }
+                this.snapshot = data.snapshot;
+                if (data.snapshot && data.snapshot.error) this.error = data.snapshot.error;
+            } catch (e) { this.error = e.message || 'Network error'; }
+            finally { this.loading = false; }
+        },
+    };
+}
+</script>

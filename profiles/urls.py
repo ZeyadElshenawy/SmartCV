@@ -22,6 +22,9 @@ urlpatterns = [
     # Advanced AI Features
     path('outreach/<uuid:job_id>/', views.generate_outreach_view, name='generate_outreach'),
 
-    # External signal aggregation (GitHub today; LinkedIn / Scholar later)
-    path('refresh-github/', views.refresh_github_signals, name='refresh_github_signals'),
+    # External signal aggregation
+    path('refresh-github/',   views.refresh_github_signals,   name='refresh_github_signals'),
+    path('refresh-linkedin/', views.refresh_linkedin_signals, name='refresh_linkedin_signals'),
+    path('refresh-scholar/',  views.refresh_scholar_signals,  name='refresh_scholar_signals'),
+    path('refresh-kaggle/',   views.refresh_kaggle_signals,   name='refresh_kaggle_signals'),
 ]
