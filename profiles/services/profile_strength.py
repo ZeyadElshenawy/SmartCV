@@ -184,6 +184,87 @@ def _score_evidence(profile) -> StrengthComponent:
     )
 
 
+def _is_active_signal(signal: dict) -> bool:
+    """A signal is 'active' when it's a dict, has no error, and shows activity."""
+    if not isinstance(signal, dict) or signal.get('error'):
+        return False
+    if 'public_repos' in signal:
+        return (signal.get('public_repos') or 0) > 0
+    if 'total_citations' in signal or 'top_publications' in signal:
+        return (signal.get('total_citations') or 0) > 0 or bool(signal.get('top_publications'))
+    for cat in ('competitions', 'datasets', 'notebooks', 'discussion'):
+        entry = signal.get(cat)
+        if isinstance(entry, dict) and (entry.get('count') or 0) > 0:
+            return True
+    return False
+
+
+def _signal_is_fresh(signal: dict, max_age_days: int = 90) -> bool:
+    from datetime import datetime, timezone
+    if not isinstance(signal, dict):
+        return False
+    raw = signal.get('fetched_at')
+    if not raw:
+        return False
+    try:
+        s = raw.replace('Z', '+00:00') if isinstance(raw, str) else raw
+        dt = datetime.fromisoformat(s)
+    except Exception:
+        return False
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    delta_days = (datetime.now(timezone.utc) - dt).days
+    return delta_days <= max_age_days
+
+
+def _score_signals(profile) -> StrengthComponent:
+    """35-point breakdown: GitHub, Scholar/Kaggle, LinkedIn, freshness."""
+    data = profile.data_content or {}
+    gh = data.get('github_signals') or {}
+    sc = data.get('scholar_signals') or {}
+    kg = data.get('kaggle_signals') or {}
+
+    items: list[StrengthItem] = []
+
+    items.append(StrengthItem(
+        key='github_connected',
+        label='Connect GitHub',
+        met=_is_active_signal(gh),
+        points=14,
+    ))
+
+    items.append(StrengthItem(
+        key='scholar_or_kaggle',
+        label='Connect Google Scholar or Kaggle',
+        met=_is_active_signal(sc) or _is_active_signal(kg),
+        points=10,
+    ))
+
+    items.append(StrengthItem(
+        key='has_linkedin',
+        label='Add your LinkedIn URL',
+        met=bool(getattr(profile, 'linkedin_url', None)),
+        points=4,
+    ))
+
+    any_fresh = any(
+        _signal_is_fresh(s) and _is_active_signal(s)
+        for s in (gh, sc, kg)
+    )
+    items.append(StrengthItem(
+        key='signals_fresh',
+        label='Refresh your external signals (older than 90 days)',
+        met=any_fresh,
+        points=7,
+    ))
+
+    score = sum(i['points'] for i in items if i['met'])
+    return StrengthComponent(
+        key='signals', label='External signals',
+        score=score, max=35, items=items,
+    )
+
+
 def compute_profile_strength(profile, user) -> ProfileStrength:
     """Top-level entry point — stub until subsequent tasks wire up components."""
     return ProfileStrength(score=0, tier='Weak', components=[], top_actions=[])
