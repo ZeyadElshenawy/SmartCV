@@ -1,6 +1,8 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 
+from .services.agent_chat import chat
+
 def home_view(request):
     """Landing page - redirect to appropriate dashboard"""
     if request.user.is_authenticated:
@@ -30,25 +32,55 @@ def design_system_view(request):
 
 @login_required
 def agent_chat_view(request):
-    """General agent chat — not tied to a specific job. Users talk career
-    strategy with an agent that already knows their profile + signals."""
-    return render(request, 'core/agent_chat.html')
+    """General agent chat — not tied to a specific job by default.
+
+    When reached via ``/agent/?job=<id>``, the agent is scoped to that job
+    and receives a rich dossier (gap analysis, snapshot, artifacts) in the
+    system prompt. Foreign or malformed job ids redirect back to the
+    general chat with a user-facing warning.
+    """
+    import uuid as _uuid
+    from django.contrib import messages
+    from jobs.models import Job
+
+    job = None
+    raw = request.GET.get('job')
+    if raw:
+        try:
+            _uuid.UUID(str(raw))
+        except (ValueError, TypeError):
+            messages.warning(request, "That job couldn't be found.")
+            return redirect('agent_chat')
+        job = Job.objects.filter(id=raw, user=request.user).first()
+        if job is None:
+            messages.warning(request, "That job couldn't be found.")
+            return redirect('agent_chat')
+
+    return render(request, 'core/agent_chat.html', {
+        'job': job,
+        'job_id': str(job.id) if job else None,
+    })
 
 
 @login_required
 def agent_chat_api(request):
     """POST API used by the agent-chat page.
 
-    Body: JSON { history: [{role, content}, ...], message: "..." }
-    Returns { reply, error }.
+    Body: JSON { history: [{role, content}, ...], message: "...", job_id?: "<uuid>" }
+    Returns { reply } on success, { error } on failure.
+
+    When ``job_id`` is present, it must belong to the authenticated user
+    (otherwise 403) and the matching Job is forwarded to the chat service
+    so the agent's system prompt includes the job's dossier.
     """
     if request.method != 'POST':
         from django.http import JsonResponse
         return JsonResponse({'error': 'POST only'}, status=405)
 
     import json
+    import uuid as _uuid
     from django.http import JsonResponse
-    from .services.agent_chat import chat
+    from jobs.models import Job
 
     try:
         payload = json.loads(request.body or b'{}')
@@ -62,7 +94,18 @@ def agent_chat_api(request):
     if not message:
         return JsonResponse({'error': 'Empty message.'}, status=400)
 
-    result = chat(request.user, history, message)
+    job = None
+    raw_job_id = payload.get('job_id')
+    if raw_job_id:
+        try:
+            _uuid.UUID(str(raw_job_id))
+        except (ValueError, TypeError):
+            return JsonResponse({'error': "That job couldn't be found."}, status=403)
+        job = Job.objects.filter(id=raw_job_id, user=request.user).first()
+        if job is None:
+            return JsonResponse({'error': "That job couldn't be found."}, status=403)
+
+    result = chat(request.user, history, message, job=job)
     if result.get('error'):
         return JsonResponse({'error': result['error']}, status=502)
     return JsonResponse({'reply': result['reply']})

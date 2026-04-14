@@ -238,6 +238,21 @@ class CareerStageSecondaryActionsTests(SimpleTestCase):
         s_off = detect_career_stage(has_profile=True, status_counts={'offer': 1})
         self.assertTrue(s_off['primary_href'])
 
+    def test_interviewing_stage_includes_ask_agent_chip(self):
+        job = _JobStub('deadbeef-dead-beef-dead-beefdeadbeef', company='Stripe')
+        jobs_by_status = {'interviewing': [job]}
+        s = detect_career_stage(
+            has_profile=True,
+            status_counts={'interviewing': 1},
+            jobs_by_status=jobs_by_status,
+        )
+        labels = [a['label'] for a in s['secondary_actions']]
+        hrefs = [a['href'] for a in s['secondary_actions']]
+        self.assertTrue(any('Ask agent' in l for l in labels),
+                        f"expected 'Ask agent' in {labels}")
+        self.assertTrue(any(f"/agent/?job={job.id}" in h for h in hrefs),
+                        f"expected /agent/?job= link in {hrefs}")
+
 
 # ============================================================
 # Agent chat (global) — system prompt assembly + chat dispatch
@@ -393,3 +408,263 @@ class AgentChatApiTests(TestCase):
             )
         self.assertEqual(resp.status_code, 502)
         self.assertIn('agent', resp.json()['error'].lower())
+
+
+class JobContextBlockTests(TestCase):
+    """_build_job_context_block — renders a rich dossier for a single job."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        self.user = get_user_model().objects.create_user(
+            username='j@example.com', email='j@example.com', password='x'
+        )
+
+    def _make_job(self, **kwargs):
+        from jobs.models import Job
+        defaults = dict(
+            user=self.user,
+            title='Senior SWE',
+            company='Stripe',
+            description='Build scalable payment infra.',
+            extracted_skills=['Python', 'Go', 'Kubernetes'],
+            application_status='interviewing',
+        )
+        defaults.update(kwargs)
+        return Job.objects.create(**defaults)
+
+    def test_header_includes_title_company_status_and_skills(self):
+        from core.services.agent_chat import _build_job_context_block
+        job = self._make_job()
+        block = _build_job_context_block(job)
+        self.assertIn('Senior SWE', block)
+        self.assertIn('Stripe', block)
+        self.assertIn('interviewing', block)
+        self.assertIn('Python', block)
+        self.assertIn('Go', block)
+        self.assertIn('Kubernetes', block)
+
+    def test_includes_gap_analysis_when_present(self):
+        from analysis.models import GapAnalysis
+        from core.services.agent_chat import _build_job_context_block
+        job = self._make_job()
+        GapAnalysis.objects.create(
+            job=job, user=self.user,
+            matched_skills=['Python'],
+            partial_skills=['Go'],
+            missing_skills=['Kubernetes'],
+            similarity_score=0.67,
+        )
+        block = _build_job_context_block(job)
+        self.assertIn('Gap analysis', block)
+        self.assertIn('67%', block)
+        self.assertIn('Matched: Python', block)
+        self.assertIn('Partial: Go', block)
+        self.assertIn('Missing: Kubernetes', block)
+
+    def test_omits_gap_section_when_no_analysis_cached(self):
+        from core.services.agent_chat import _build_job_context_block
+        job = self._make_job()
+        block = _build_job_context_block(job)
+        self.assertNotIn('Gap analysis', block)
+
+    def test_includes_snapshot_note_when_present(self):
+        from profiles.models import UserProfile, JobProfileSnapshot
+        from core.services.agent_chat import _build_job_context_block
+        profile = UserProfile.objects.create(
+            user=self.user, full_name='J',
+            data_content={'summary': 'Original', 'skills': [{'name': 'Python'}]},
+        )
+        job = self._make_job()
+        JobProfileSnapshot.objects.create(
+            profile=profile, job=job,
+            data_content={'summary': 'Tailored for Stripe', 'skills': [{'name': 'Python'}, {'name': 'Go'}]},
+            pre_chatbot_data={'summary': 'Original', 'skills': [{'name': 'Python'}]},
+        )
+        block = _build_job_context_block(job)
+        self.assertIn('Job-specific profile variant', block)
+        self.assertIn('summary', block)
+        self.assertIn('skills', block)
+
+    def test_omits_snapshot_section_when_absent(self):
+        from core.services.agent_chat import _build_job_context_block
+        job = self._make_job()
+        block = _build_job_context_block(job)
+        self.assertNotIn('Job-specific profile variant', block)
+
+    def test_includes_artifacts_when_resume_and_cover_letter_exist(self):
+        from analysis.models import GapAnalysis
+        from resumes.models import GeneratedResume, CoverLetter
+        from profiles.models import UserProfile
+        from core.services.agent_chat import _build_job_context_block
+        profile = UserProfile.objects.create(user=self.user, full_name='J')
+        job = self._make_job()
+        gap = GapAnalysis.objects.create(job=job, user=self.user, similarity_score=0.5)
+        GeneratedResume.objects.create(gap_analysis=gap, name='v1', content={})
+        CoverLetter.objects.create(job=job, profile=profile, content='Dear Stripe, ...')
+        block = _build_job_context_block(job)
+        self.assertIn('Artifacts for this job', block)
+        self.assertIn('Tailored resume: yes', block)
+        self.assertIn('Cover letter: yes', block)
+
+    def test_omits_artifacts_section_when_none_exist(self):
+        from core.services.agent_chat import _build_job_context_block
+        job = self._make_job()
+        block = _build_job_context_block(job)
+        self.assertNotIn('Artifacts for this job', block)
+
+
+class BuildSystemPromptWithJobTests(TestCase):
+    """build_system_prompt gains an optional job parameter."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from profiles.models import UserProfile
+        self.user = get_user_model().objects.create_user(
+            username='bsp@example.com', email='bsp@example.com', password='x'
+        )
+        UserProfile.objects.create(
+            user=self.user, full_name='Jane',
+            data_content={'skills': [{'name': 'Python'}]},
+        )
+
+    def test_prompt_without_job_omits_job_context_section(self):
+        from core.services.agent_chat import build_system_prompt
+        prompt = build_system_prompt(self.user)
+        self.assertNotIn('JOB CONTEXT', prompt)
+
+    def test_prompt_with_job_includes_job_context_section(self):
+        from jobs.models import Job
+        from core.services.agent_chat import build_system_prompt
+        job = Job.objects.create(
+            user=self.user, title='ML Eng', company='Stripe',
+            description='x', extracted_skills=['Python'],
+            application_status='interviewing',
+        )
+        prompt = build_system_prompt(self.user, job=job)
+        self.assertIn('JOB CONTEXT', prompt)
+        self.assertIn('ML Eng', prompt)
+        self.assertIn('Stripe', prompt)
+
+
+class AgentChatViewJobTests(TestCase):
+    """GET /agent/?job=<id> — validates ownership, injects job into template."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        self.user = get_user_model().objects.create_user(
+            username='av@example.com', email='av@example.com', password='x'
+        )
+        self.other = get_user_model().objects.create_user(
+            username='other@example.com', email='other@example.com', password='x'
+        )
+        self.client.force_login(self.user)
+
+    def _make_job(self, user, company='Stripe'):
+        from jobs.models import Job
+        return Job.objects.create(
+            user=user, title='SWE', company=company,
+            description='x', extracted_skills=['Python'],
+            application_status='interviewing',
+        )
+
+    def test_no_job_param_renders_general_chat(self):
+        resp = self.client.get(reverse('agent_chat'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertIsNone(resp.context.get('job'))
+
+    def test_valid_owned_job_id_passes_job_to_template(self):
+        job = self._make_job(self.user)
+        resp = self.client.get(reverse('agent_chat') + f'?job={job.id}')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context.get('job').id, job.id)
+        self.assertEqual(str(resp.context.get('job_id')), str(job.id))
+
+    def test_foreign_job_id_redirects_to_agent(self):
+        foreign_job = self._make_job(self.other)
+        resp = self.client.get(reverse('agent_chat') + f'?job={foreign_job.id}')
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, reverse('agent_chat'))
+
+    def test_invalid_uuid_redirects_to_agent(self):
+        resp = self.client.get(reverse('agent_chat') + '?job=not-a-uuid')
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, reverse('agent_chat'))
+
+    def test_scope_pill_absent_in_general_chat(self):
+        resp = self.client.get(reverse('agent_chat'))
+        self.assertNotContains(resp, 'Talking about:')
+
+    def test_scope_pill_renders_for_owned_job(self):
+        job = self._make_job(self.user, company='Stripe')
+        resp = self.client.get(reverse('agent_chat') + f'?job={job.id}')
+        self.assertContains(resp, 'Talking about:')
+        self.assertContains(resp, 'Stripe')
+        # A dismiss link returning to general chat.
+        self.assertContains(resp, 'href="' + reverse('agent_chat') + '"')
+
+    def test_job_scoped_template_includes_jobId_in_alpine_state(self):
+        job = self._make_job(self.user)
+        resp = self.client.get(reverse('agent_chat') + f'?job={job.id}')
+        # The template seeds Alpine with the job id for POST bodies.
+        self.assertContains(resp, f"jobId: '{job.id}'")
+
+
+class AgentChatApiJobTests(TestCase):
+    """POST /agent/api/ with job_id — validates ownership, forwards job to chat()."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        self.user = get_user_model().objects.create_user(
+            username='api@example.com', email='api@example.com', password='x'
+        )
+        self.other = get_user_model().objects.create_user(
+            username='other@example.com', email='other@example.com', password='x'
+        )
+        self.client.force_login(self.user)
+
+    def _make_job(self, user, company='Stripe'):
+        from jobs.models import Job
+        return Job.objects.create(
+            user=user, title='SWE', company=company,
+            description='x', extracted_skills=['Python'],
+            application_status='interviewing',
+        )
+
+    def _post(self, body):
+        import json as _j
+        return self.client.post(
+            reverse('agent_chat_api'),
+            data=_j.dumps(body),
+            content_type='application/json',
+        )
+
+    def test_valid_job_id_forwards_job_to_chat(self):
+        from unittest.mock import patch, MagicMock
+        job = self._make_job(self.user)
+        fake_llm = MagicMock()
+        fake_llm.invoke.return_value = MagicMock(content='scoped reply')
+        with patch('profiles.services.llm_engine.get_llm', return_value=fake_llm), \
+             patch('core.views.chat', wraps=__import__('core.services.agent_chat', fromlist=['chat']).chat) as spy:
+            resp = self._post({'history': [], 'message': 'Prep me.', 'job_id': str(job.id)})
+        self.assertEqual(resp.status_code, 200)
+        kwargs = spy.call_args.kwargs if spy.call_args else {}
+        self.assertIsNotNone(kwargs.get('job'))
+        self.assertEqual(kwargs['job'].id, job.id)
+
+    def test_foreign_job_id_returns_403(self):
+        foreign = self._make_job(self.other)
+        resp = self._post({'history': [], 'message': 'Hi', 'job_id': str(foreign.id)})
+        self.assertEqual(resp.status_code, 403)
+        self.assertIn('error', resp.json())
+
+    def test_invalid_job_id_returns_403(self):
+        resp = self._post({'history': [], 'message': 'Hi', 'job_id': 'not-a-uuid'})
+        self.assertEqual(resp.status_code, 403)
+
+    def test_missing_job_id_is_backwards_compatible(self):
+        from unittest.mock import patch, MagicMock
+        fake_llm = MagicMock()
+        fake_llm.invoke.return_value = MagicMock(content='general reply')
+        with patch('profiles.services.llm_engine.get_llm', return_value=fake_llm):
+            resp = self._post({'history': [], 'message': 'Hi'})
+        self.assertEqual(resp.status_code, 200)

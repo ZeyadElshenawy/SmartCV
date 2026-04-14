@@ -11,7 +11,7 @@ grounded in *their* situation, not generic career advice.
 
 Public API:
   - chat(user, history, user_message) → {'reply': str, 'error': Optional[str]}
-  - build_system_prompt(user) → the prompt string (exposed for testing)
+  - build_system_prompt(user, job=None) → the prompt string (exposed for testing)
 """
 from __future__ import annotations
 
@@ -141,7 +141,96 @@ def _applications_summary(user) -> str:
     return f"- Application pipeline: {', '.join(parts)}" if parts else ''
 
 
-def build_system_prompt(user) -> str:
+def _build_job_context_block(job) -> str:
+    """Rich per-job dossier for the system prompt.
+
+    Assembles: header (title, company, status, required skills), gap
+    analysis result, job-specific profile snapshot diff, and artifacts.
+    Missing subsections are silently omitted.
+    """
+    lines: list[str] = []
+
+    title = getattr(job, 'title', None) or '(untitled role)'
+    company = getattr(job, 'company', None) or '(unknown company)'
+    status = getattr(job, 'application_status', None) or 'saved'
+    lines.append(f"- Role: {title} at {company}")
+    lines.append(f"- Application status: {status}")
+
+    skills = getattr(job, 'extracted_skills', None) or []
+    if skills:
+        lines.append(f"- Required skills: {', '.join(str(s) for s in skills)}")
+
+    # Gap analysis — fetch lazily to keep the function import-cheap.
+    try:
+        from analysis.models import GapAnalysis
+        gap = GapAnalysis.objects.filter(job=job, user=getattr(job, 'user', None)).order_by('-created_at').first()
+    except Exception:
+        logger.warning("Failed to load gap analysis for job %s", getattr(job, 'id', '?'), exc_info=True)
+        gap = None
+
+    if gap is not None:
+        pct = int(round((gap.similarity_score or 0.0) * 100))
+        lines.append("")
+        lines.append(f"Gap analysis (overall match: {pct}%):")
+        matched = gap.matched_skills or []
+        partial = gap.partial_skills or []
+        missing = gap.missing_skills or []
+        if matched:
+            lines.append(f"- Matched: {', '.join(str(s) for s in matched)}")
+        if partial:
+            lines.append(f"- Partial: {', '.join(str(s) for s in partial)}")
+        if missing:
+            lines.append(f"- Missing: {', '.join(str(s) for s in missing)}")
+
+    # Job-specific profile snapshot — list field names that differ from pre-chatbot state.
+    try:
+        from profiles.models import JobProfileSnapshot
+        snap = JobProfileSnapshot.objects.filter(job=job).first()
+    except Exception:
+        logger.warning("Failed to load profile snapshot for job %s", getattr(job, 'id', '?'), exc_info=True)
+        snap = None
+
+    if snap is not None:
+        pre = snap.pre_chatbot_data or {}
+        cur = snap.data_content or {}
+        changed = sorted([k for k in set(list(pre.keys()) + list(cur.keys())) if pre.get(k) != cur.get(k)])
+        lines.append("")
+        lines.append("Job-specific profile variant exists for this role.")
+        if changed:
+            lines.append(f"- Fields tailored vs. master profile: {', '.join(changed)}")
+
+    # Artifacts generated for this job.
+    resume_exists = False
+    resume_updated = None
+    cover_exists = False
+    try:
+        from resumes.models import GeneratedResume, CoverLetter
+        resume = (GeneratedResume.objects
+                  .filter(gap_analysis__job=job, gap_analysis__user=getattr(job, 'user', None))
+                  .order_by('-created_at').first())
+        if resume is not None:
+            resume_exists = True
+            resume_updated = resume.created_at
+        cover = CoverLetter.objects.filter(job=job).order_by('-created_at').first()
+        if cover is not None:
+            cover_exists = True
+    except Exception:
+        logger.warning("Failed to load artifacts for job %s", getattr(job, 'id', '?'), exc_info=True)
+
+    if resume_exists or cover_exists:
+        lines.append("")
+        lines.append("Artifacts for this job:")
+        if resume_exists:
+            stamp = resume_updated.strftime('%Y-%m-%d') if resume_updated else 'unknown date'
+            lines.append(f"- Tailored resume: yes (last updated {stamp})")
+        else:
+            lines.append("- Tailored resume: no")
+        lines.append(f"- Cover letter: {'yes' if cover_exists else 'no'}")
+
+    return "\n".join(lines)
+
+
+def build_system_prompt(user, job=None) -> str:
     """Assemble the agent's system prompt from the user's real context.
 
     Exposed for testing — all the context gathering lives here, not inside
@@ -163,6 +252,8 @@ def build_system_prompt(user) -> str:
         apps = _applications_summary(user)
         if apps:
             sections.append(f"APPLICATIONS:\n{apps}")
+        if job is not None:
+            sections.append(f"JOB CONTEXT:\n{_build_job_context_block(job)}")
         context_block = "\n\n".join(sections)
 
     return f"""You are the SmartCV career agent — a warm, direct, evidence-first career advisor.
@@ -181,7 +272,7 @@ say so and ask for exactly what you need.
 """
 
 
-def chat(user, history: list[ChatTurn], user_message: str) -> ChatResult:
+def chat(user, history: list[ChatTurn], user_message: str, job=None) -> ChatResult:
     """Send the conversation to the LLM and return its reply.
 
     history should already include previous turns (not the new user_message).
@@ -196,7 +287,7 @@ def chat(user, history: list[ChatTurn], user_message: str) -> ChatResult:
         logger.exception("LLM engine import failed: %s", e)
         return ChatResult(reply='', error='Agent unavailable right now.')
 
-    system_prompt = build_system_prompt(user)
+    system_prompt = build_system_prompt(user, job=job)
 
     # Build the LangChain message list.
     from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
