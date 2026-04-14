@@ -362,25 +362,13 @@ def _ensure_profile_data_preserved(resume_content: dict, profile_data: dict) -> 
 
 
 def calculate_ats_score(resume_content, job_skills):
-    """Calculate ATS compatibility score based on keyword presence."""
-    resume_text = json.dumps(resume_content).lower()
-    
-    matched_keywords = 0
-    keyword_counts = {}
-    
-    if not job_skills:
-        return 0
-        
-    for skill in job_skills:
-        skill_lower = skill.lower()
-        count = resume_text.count(skill_lower)
-        keyword_counts[skill] = count
-        
-        if count > 0:
-            matched_keywords += 1
-            if count > 4:
-                logger.warning(f"Keyword stuffing detected: '{skill}' appears {count} times")
-    
-    score = (matched_keywords / len(job_skills)) * 100
-    logger.info(f"ATS Score: {score}% - Matched {matched_keywords}/{len(job_skills)} keywords")
-    return round(score, 1)
+    """Backwards-compat shim — delegates to resumes.services.scoring.
+
+    The new implementation penalizes keyword stuffing (>4 occurrences), rewards
+    keywords that appear in experience descriptions (not just the skills list),
+    and exposes a structured breakdown via compute_ats_breakdown(). Callers
+    that just need the float (tasks.py, views.py) keep calling this; UI code
+    that wants transparency should import compute_ats_breakdown() directly.
+    """
+    from .scoring import calculate_ats_score as _calc
+    return _calc(resume_content, job_skills)

@@ -10,6 +10,16 @@ from .models import GapAnalysis
 from .services.gap_analyzer import compute_gap_analysis
 from .services.learning_path_generator import generate_learning_path
 from .services.salary_negotiator import generate_negotiation_script
+from resumes.services.scoring import compute_evidence_confidence
+
+
+def _compute_evidence_safe(profile):
+    """Defensive wrapper — never let evidence-confidence break gap analysis."""
+    try:
+        return compute_evidence_confidence(profile)
+    except Exception:
+        return {'score': 0, 'label': 'Untested', 'sources': [],
+                'detail': 'No external signals available.'}
 
 @login_required
 @transaction.atomic
@@ -95,6 +105,10 @@ def gap_analysis_view(request, job_id):
             'matched_skills_json': json.dumps(matched_str),
             'missing_skills_json': json.dumps(missing_str),
             'soft_skills_json': json.dumps(soft_str),
+
+            # Evidence confidence — derived from connected external signals
+            # (GitHub / Scholar / Kaggle). 0–3 stars + label + detail.
+            'evidence': _compute_evidence_safe(profile),
         }
     
         return render(request, 'analysis/gap_analysis.html', context)
