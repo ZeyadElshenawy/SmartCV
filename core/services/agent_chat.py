@@ -11,7 +11,7 @@ grounded in *their* situation, not generic career advice.
 
 Public API:
   - chat(user, history, user_message) → {'reply': str, 'error': Optional[str]}
-  - build_system_prompt(user) → the prompt string (exposed for testing)
+  - build_system_prompt(user, job=None) → the prompt string (exposed for testing)
 """
 from __future__ import annotations
 
@@ -253,7 +253,7 @@ def build_system_prompt(user, job=None) -> str:
         if apps:
             sections.append(f"APPLICATIONS:\n{apps}")
         if job is not None:
-            sections.append(f"TALKING ABOUT JOB:\n{_build_job_context_block(job)}")
+            sections.append(f"JOB CONTEXT:\n{_build_job_context_block(job)}")
         context_block = "\n\n".join(sections)
 
     return f"""You are the SmartCV career agent — a warm, direct, evidence-first career advisor.
