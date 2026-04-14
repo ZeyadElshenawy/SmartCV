@@ -1,28 +1,23 @@
 {% extends 'base.html' %}
-
-{% block title %}Server Error | SmartCV{% endblock %}
+{% block title %}Server error — SmartCV{% endblock %}
 
 {% block content %}
 <div class="min-h-[70vh] flex items-center justify-center px-4">
-    <div class="text-center max-w-lg">
-        <div class="relative mb-8">
-            <span class="text-[140px] font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-red-200 to-rose-300 dark:from-gray-700 dark:to-gray-800 leading-none select-none">500</span>
-            <div class="absolute inset-0 flex items-center justify-center">
-                <svg class="w-20 h-20 text-red-400/30 dark:text-red-500/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                </svg>
-            </div>
-        </div>
-        <h1 class="text-2xl font-extrabold text-rn-navy dark:text-white mb-3">Something went wrong</h1>
-        <p class="text-gray-500 dark:text-gray-400 mb-8 leading-relaxed">Our servers hit an unexpected error. This has been logged and we're looking into it.</p>
-        <div class="flex flex-col sm:flex-row gap-3 justify-center">
-            <a href="{% url 'dashboard' %}"
-               class="px-8 py-3 bg-rn-blue hover:bg-rn-blue-hover text-white font-bold rounded-rn-pill shadow-sm transition-all hover:-translate-y-0.5 duration-200">
-                Go to Dashboard
-            </a>
-            <button onclick="location.reload()"
-                    class="px-8 py-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-rn-navy dark:text-gray-200 font-bold rounded-rn-pill transition-colors">
-                Try Again
+    <div class="max-w-lg text-center space-y-6">
+        <div class="font-display italic text-[10rem] sm:text-[14rem] leading-none tracking-tight text-red-600/20 dark:text-red-400/20 tabular-nums"
+             style="font-variation-settings: 'opsz' 144;">500</div>
+        {% include "components/section_label.html" with text="Something broke" tone="danger" %}
+        <h1 class="font-display text-3xl sm:text-4xl leading-tight text-neutral-900 dark:text-neutral-50"
+            style="font-variation-settings: 'opsz' 80;">
+            Our servers hit a wall.
+        </h1>
+        <p class="text-neutral-500 dark:text-neutral-400 leading-relaxed">
+            This has been logged. We're looking into it.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+            {% include "components/button.html" with variant="primary" label="Go to dashboard" arrow=True href="/profiles/dashboard/" %}
+            <button onclick="location.reload()" class="inline-flex items-center justify-center gap-2 h-11 px-5 text-sm font-medium rounded-lg ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-700 dark:text-neutral-200 bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
+                Try again
             </button>
         </div>
     </div>
