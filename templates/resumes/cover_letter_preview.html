@@ -1,52 +1,54 @@
 {% extends 'base.html' %}
+{% block title %}Cover letter — {{ letter.job.title }} — SmartCV{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-gray-50 py-12">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        
-        <div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
-            <div>
-                <h1 class="text-3xl font-extrabold text-rn-navy tracking-tight mb-2">Your Cover Letter</h1>
-                <p class="text-gray-600 font-medium">For <strong class="text-gray-900">{{ letter.job.title }}</strong> at <strong class="text-gray-900">{{ letter.job.company }}</strong></p>
+<div class="min-h-screen bg-neutral-50 dark:bg-neutral-950 py-10 sm:py-14">
+    <div class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 space-y-8">
+
+        <header class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+            <div class="space-y-3 min-w-0">
+                {% include "components/section_label.html" with text="Cover letter" tone="accent" %}
+                <h1 class="font-display text-3xl sm:text-4xl leading-tight tracking-tight text-neutral-900 dark:text-neutral-50"
+                    style="font-variation-settings: 'opsz' 48;">
+                    {{ letter.job.title }}
+                </h1>
+                <p class="text-sm text-neutral-500 dark:text-neutral-400 truncate">{{ letter.job.company }}</p>
             </div>
-            
-            <div class="flex gap-3">
-                <a href="{% url 'job_detail' letter.job.id %}" class="inline-flex items-center px-6 py-3 border-2 border-gray-300 text-gray-700 font-bold rounded-rn-pill hover:bg-white transition-colors bg-gray-50">
-                    Back to Job
-                </a>
-                <button onclick="copyToClipboard()" class="inline-flex items-center px-6 py-3 bg-rn-blue text-white font-bold rounded-rn-pill hover:bg-rn-blue-hover hover:-translate-y-0.5 transition-all shadow-md">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
-                    Copy to Clipboard
+            <div class="flex gap-2 shrink-0">
+                <a href="{% url 'job_detail' letter.job.id %}" class="inline-flex items-center justify-center h-11 px-4 text-sm font-medium rounded-lg ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-700 dark:text-neutral-200 bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">Back to job</a>
+                <button onclick="copyToClipboard()" class="inline-flex items-center gap-2 h-11 px-5 text-sm font-medium rounded-lg bg-brand-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-brand-700 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+                    Copy text
                 </button>
             </div>
-        </div>
+        </header>
 
-        <!-- Letter Content -->
-        <div class="bg-white rounded-xl shadow-lg border border-gray-200 p-10 md:p-14 mb-8">
-            <div class="prose max-w-none text-gray-900 leading-relaxed font-sans text-[15px] whitespace-pre-wrap" id="cover-letter-text">Dear Hiring Manager,
+        <section class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_40px_-16px_rgba(15,23,42,0.15)] overflow-hidden">
+            <div class="px-4 py-2.5 border-b border-neutral-200 dark:border-neutral-800 flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] font-medium text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-950/40">
+                <span aria-hidden="true" class="h-1.5 w-1.5 rounded-full bg-neutral-400"></span>
+                Preview · ready to copy
+            </div>
+            <div class="p-8 sm:p-12">
+                <div id="cover-letter-text" class="max-w-prose text-[15px] leading-relaxed text-neutral-800 dark:text-neutral-200 whitespace-pre-wrap">Dear Hiring Manager,
 
 {{ letter.content }}
 
 Sincerely,
 {{ letter.profile.full_name }}</div>
-        </div>
-
-        <!-- Next Steps -->
-        <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-6 mb-12">
-            <h3 class="text-sm font-bold text-indigo-900 uppercase tracking-wider mb-3">What's next?</h3>
-            <div class="flex flex-col sm:flex-row gap-3">
-                <a href="{% url 'generate_resume' letter.job.id %}" class="flex-1 inline-flex items-center justify-center px-5 py-3 bg-rn-blue text-white font-bold rounded-rn-pill hover:bg-rn-blue-hover transition-colors text-sm">
-                    Generate tailored resume
-                </a>
-                <a href="{% url 'job_detail' letter.job.id %}" class="flex-1 inline-flex items-center justify-center px-5 py-3 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-rn-pill hover:bg-gray-50 transition-colors text-sm">
-                    Back to job
-                </a>
-                <a href="{% url 'resume_list' %}" class="flex-1 inline-flex items-center justify-center px-5 py-3 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-rn-pill hover:bg-gray-50 transition-colors text-sm">
-                    All my resumes
-                </a>
             </div>
-        </div>
+        </section>
 
+        <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-4">
+            <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
+            {% include "components/section_label.html" with text="What next" tone="brand" %}
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <a href="{% url 'generate_resume' letter.job.id %}" class="group/btn relative inline-flex items-center justify-center gap-2 h-11 px-4 text-sm font-medium rounded-lg bg-brand-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-brand-700 transition-colors">
+                    Tailored résumé <span aria-hidden="true" class="transition-transform group-hover/btn:translate-x-0.5">→</span>
+                </a>
+                <a href="{% url 'job_detail' letter.job.id %}" class="inline-flex items-center justify-center h-11 px-4 text-sm font-medium rounded-lg ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">Back to job</a>
+                <a href="{% url 'resume_list' %}" class="inline-flex items-center justify-center h-11 px-4 text-sm font-medium rounded-lg ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">All my résumés</a>
+            </div>
+        </section>
     </div>
 </div>
 
@@ -54,8 +56,7 @@ Sincerely,
 function copyToClipboard() {
     const text = document.getElementById('cover-letter-text').innerText;
     navigator.clipboard.writeText(text).then(() => {
-        // Simple temporary toast could go here, for now using alert mapping to a nicer styled one if wanted
-        alert("Cover letter copied to clipboard!");
+        alert('Cover letter copied to clipboard.');
     });
 }
 </script>
