@@ -87,6 +87,25 @@
   --color-neutral-200: #cbd5e1; /* hairline rules + ring */
 }
 
+/* ---- Cursor: hand on buttons + clickable controls ----------
+ * Tailwind v4's preflight removes the browser default
+ * `cursor: pointer` from <button> elements. Restore it (and apply
+ * to other interactive controls) so click affordance stays visible. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [type="submit"]:not(:disabled),
+  [type="button"]:not(:disabled),
+  [type="reset"]:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+}
+
 /* ---- Card elevation in light mode --------------------------
  * Auto-elevate any white card with a ring with the same shadow
  * profile the old design used (shadow-md). Gives cards real depth
