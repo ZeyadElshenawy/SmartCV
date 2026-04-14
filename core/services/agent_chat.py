@@ -181,6 +181,22 @@ def _build_job_context_block(job) -> str:
         if missing:
             lines.append(f"- Missing: {', '.join(str(s) for s in missing)}")
 
+    # Job-specific profile snapshot — list field names that differ from pre-chatbot state.
+    try:
+        from profiles.models import JobProfileSnapshot
+        snap = JobProfileSnapshot.objects.filter(job=job).first()
+    except Exception:
+        snap = None
+
+    if snap is not None:
+        pre = snap.pre_chatbot_data or {}
+        cur = snap.data_content or {}
+        changed = sorted([k for k in set(list(pre.keys()) + list(cur.keys())) if pre.get(k) != cur.get(k)])
+        lines.append("")
+        lines.append("Job-specific profile variant exists for this role.")
+        if changed:
+            lines.append(f"- Fields tailored vs. master profile: {', '.join(changed)}")
+
     return "\n".join(lines)
 
 

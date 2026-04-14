@@ -451,3 +451,27 @@ class JobContextBlockTests(TestCase):
         job = self._make_job()
         block = _build_job_context_block(job)
         self.assertNotIn('Gap analysis', block)
+
+    def test_includes_snapshot_note_when_present(self):
+        from profiles.models import UserProfile, JobProfileSnapshot
+        from core.services.agent_chat import _build_job_context_block
+        profile = UserProfile.objects.create(
+            user=self.user, full_name='J',
+            data_content={'summary': 'Original', 'skills': [{'name': 'Python'}]},
+        )
+        job = self._make_job()
+        JobProfileSnapshot.objects.create(
+            profile=profile, job=job,
+            data_content={'summary': 'Tailored for Stripe', 'skills': [{'name': 'Python'}, {'name': 'Go'}]},
+            pre_chatbot_data={'summary': 'Original', 'skills': [{'name': 'Python'}]},
+        )
+        block = _build_job_context_block(job)
+        self.assertIn('Job-specific profile variant', block)
+        self.assertIn('summary', block)
+        self.assertIn('skills', block)
+
+    def test_omits_snapshot_section_when_absent(self):
+        from core.services.agent_chat import _build_job_context_block
+        job = self._make_job()
+        block = _build_job_context_block(job)
+        self.assertNotIn('Job-specific profile variant', block)
