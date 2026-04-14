@@ -165,6 +165,7 @@ def _build_job_context_block(job) -> str:
         from analysis.models import GapAnalysis
         gap = GapAnalysis.objects.filter(job=job, user=getattr(job, 'user', None)).order_by('-created_at').first()
     except Exception:
+        logger.warning("Failed to load gap analysis for job %s", getattr(job, 'id', '?'), exc_info=True)
         gap = None
 
     if gap is not None:
@@ -186,6 +187,7 @@ def _build_job_context_block(job) -> str:
         from profiles.models import JobProfileSnapshot
         snap = JobProfileSnapshot.objects.filter(job=job).first()
     except Exception:
+        logger.warning("Failed to load profile snapshot for job %s", getattr(job, 'id', '?'), exc_info=True)
         snap = None
 
     if snap is not None:
@@ -213,7 +215,7 @@ def _build_job_context_block(job) -> str:
         if cover is not None:
             cover_exists = True
     except Exception:
-        pass
+        logger.warning("Failed to load artifacts for job %s", getattr(job, 'id', '?'), exc_info=True)
 
     if resume_exists or cover_exists:
         lines.append("")
