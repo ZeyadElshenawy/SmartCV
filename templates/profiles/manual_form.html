@@ -1,514 +1,489 @@
 {% extends 'base.html' %}
+{% block title %}{% if is_master %}Master profile{% else %}Review profile{% endif %} — SmartCV{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8" x-data="profileForm()">
-    
-    <!-- Hero Header -->
-    <div class="mb-10 text-center">
-        <h1 class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 mb-2">
-            {% if is_master %}Career Snapshot{% else %}Review Your Profile{% endif %}
-        </h1>
-        <p class="text-gray-600 dark:text-gray-400 text-lg">
-            {% if is_master %}Your master profile is the foundation for all future applications.{% else %}Ensure your details are correct before we analyze them against the job description.{% endif %}
-        </p>
-    </div>
+{# Full Alpine state (profileForm) and all form field names preserved. Visual
+   language lifted from rn-navy/gradient/colored-rail to the Editorial AI
+   system (top-accent rules, section_label eyebrows, Fraunces italic stats). #}
+<div class="min-h-screen bg-neutral-50 dark:bg-neutral-950 py-10 sm:py-14" x-data="profileForm()" x-init="init()">
+    <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 space-y-10">
 
-    {% if is_master and summary_stats %}
-    <!-- Career Snapshot Cards -->
-    <div class="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow border border-gray-200 dark:border-gray-700 text-center relative overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg">
-            <div class="absolute inset-x-0 bottom-0 h-1 bg-blue-500"></div>
-            <div class="text-3xl font-extrabold text-blue-600">{{ summary_stats.total_yoe }}+</div>
-            <div class="text-xs font-bold text-gray-500 uppercase mt-1">Years Exp.</div>
+        {# ---- Header ---- #}
+        <header class="space-y-4">
+            {% if is_master %}
+                {% include "components/section_label.html" with text="Master profile" tone="brand" %}
+            {% else %}
+                {% include "components/section_label.html" with text="Review profile" tone="brand" %}
+            {% endif %}
+            <h1 class="font-display text-4xl sm:text-5xl leading-[1.02] tracking-tight text-neutral-900 dark:text-neutral-50"
+                style="font-variation-settings: 'opsz' 80;">
+                {% if is_master %}
+                    Your <em class="font-medium text-brand-700 dark:text-brand-400">career snapshot</em>.
+                {% else %}
+                    Review your <em class="font-medium text-brand-700 dark:text-brand-400">details</em>.
+                {% endif %}
+            </h1>
+            <p class="text-neutral-600 dark:text-neutral-300 max-w-2xl leading-relaxed">
+                {% if is_master %}Your master profile is the foundation for every future application. Edit freely — changes are saved when you submit.{% else %}Make sure everything's right before we analyze it against the job description.{% endif %}
+            </p>
+        </header>
+
+        {# ---- Career Snapshot stats ---- #}
+        {% if is_master and summary_stats %}
+        <section class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-2">
+                <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
+                <div class="font-display italic tabular-nums text-4xl leading-none text-brand-600 dark:text-brand-400"
+                     style="font-variation-settings: 'opsz' 72;">{{ summary_stats.total_yoe }}+</div>
+                <div class="text-[11px] uppercase tracking-[0.16em] font-medium text-neutral-500 dark:text-neutral-400">Years exp</div>
+            </div>
+            <div class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-2">
+                <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-accent-500"></div>
+                <div class="font-display italic tabular-nums text-4xl leading-none text-accent-600 dark:text-accent-400"
+                     style="font-variation-settings: 'opsz' 72;">{{ summary_stats.skills_count }}</div>
+                <div class="text-[11px] uppercase tracking-[0.16em] font-medium text-neutral-500 dark:text-neutral-400">Skills</div>
+            </div>
+            <div class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-2">
+                <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-emerald-500"></div>
+                <div class="font-display italic tabular-nums text-4xl leading-none text-emerald-600 dark:text-emerald-400"
+                     style="font-variation-settings: 'opsz' 72;">{{ summary_stats.projects_count }}</div>
+                <div class="text-[11px] uppercase tracking-[0.16em] font-medium text-neutral-500 dark:text-neutral-400">Projects</div>
+            </div>
+            <div class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-2">
+                <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-amber-500"></div>
+                <div class="font-display italic tabular-nums text-4xl leading-none text-amber-600 dark:text-amber-400"
+                     style="font-variation-settings: 'opsz' 72;">{{ summary_stats.education_count }}</div>
+                <div class="text-[11px] uppercase tracking-[0.16em] font-medium text-neutral-500 dark:text-neutral-400">Education</div>
+            </div>
+        </section>
+
+        <div class="flex justify-center">
+            <a href="{% url 'dashboard' %}" class="inline-flex items-center gap-1.5 h-11 px-5 text-sm font-medium rounded-lg ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-700 dark:text-neutral-200 bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
+                <span aria-hidden="true">←</span> Looks good · back to dashboard
+            </a>
         </div>
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow border border-gray-200 dark:border-gray-700 text-center relative overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg">
-            <div class="absolute inset-x-0 bottom-0 h-1 bg-pink-500"></div>
-            <div class="text-3xl font-extrabold text-pink-600">{{ summary_stats.skills_count }}</div>
-            <div class="text-xs font-bold text-gray-500 uppercase mt-1">Top Skills</div>
-        </div>
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow border border-gray-200 dark:border-gray-700 text-center relative overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg">
-            <div class="absolute inset-x-0 bottom-0 h-1 bg-purple-500"></div>
-            <div class="text-3xl font-extrabold text-purple-600">{{ summary_stats.projects_count }}</div>
-            <div class="text-xs font-bold text-gray-500 uppercase mt-1">Projects</div>
-        </div>
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow border border-gray-200 dark:border-gray-700 text-center relative overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg">
-            <div class="absolute inset-x-0 bottom-0 h-1 bg-green-500"></div>
-            <div class="text-3xl font-extrabold text-green-600">{{ summary_stats.education_count }}</div>
-            <div class="text-xs font-bold text-gray-500 uppercase mt-1">Education</div>
-        </div>
-    </div>
-    
-    <div class="max-w-5xl mx-auto flex justify-center mb-10">
-        <a href="{% url 'dashboard' %}" class="px-8 py-3 bg-rn-gold hover:bg-rn-gold-hover text-rn-navy font-bold rounded-rn-pill shadow transition-transform hover:-translate-y-0.5 flex items-center">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12h18M3 12l6-6m-6 6l6 6"></path></svg>
-            Looks Good - Back to Dashboard
-        </a>
-    </div>
-    {% endif %}
+        {% endif %}
 
-    <form method="POST" @submit="submitForm" class="max-w-5xl mx-auto space-y-8">
-        {% csrf_token %}
-        
-        <!-- Hidden Inputs for JSON Data -->
-        <input type="hidden" name="skills_json" :value="JSON.stringify(skills)">
-        <input type="hidden" name="experiences_json" :value="JSON.stringify(experiences)">
-        <input type="hidden" name="education_json" :value="JSON.stringify(education)">
-        <input type="hidden" name="projects_json" :value="JSON.stringify(projects)">
-        <input type="hidden" name="certifications_json" :value="JSON.stringify(certifications)">
-        <input type="hidden" name="contact_links_json" :value="JSON.stringify(contact_links)">
+        <form method="POST" @submit="submitForm" class="space-y-6">
+            {% csrf_token %}
 
-        <!-- 1. Personal Information -->
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-200 dark:border-gray-700 relative group hover:shadow-2xl transition-all duration-300">
-            <div class="absolute top-0 left-0 w-2 h-full bg-blue-500"></div>
-            <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-300 mb-6 flex items-center">
-                <span class="bg-blue-100 text-blue-600 p-2 rounded-lg mr-3">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-                </span>
-                Personal Details
-            </h2>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Name -->
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Full Name</label>
-                    <input type="text" name="full_name" value="{{ profile.full_name|default:'' }}" 
-                           class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                           placeholder="John Doe">
-                </div>
-                
-                <!-- Email -->
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Email Address</label>
-                    <input type="email" name="email" value="{{ profile.email|default:'' }}" 
-                           class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                           placeholder="john@example.com">
-                </div>
-                
-                <!-- Phone -->
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Phone Number</label>
-                    <input type="tel" name="phone" value="{{ profile.phone|default:'' }}" 
-                           class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                           placeholder="+1 (555) 000-0000">
-                </div>
-                
-                <!-- Location -->
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Location</label>
-                    <input type="text" name="location" value="{{ profile.location|default:'' }}" 
-                           class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                           placeholder="New York, NY">
-                </div>
+            {# Hidden JSON bindings — names must match #}
+            <input type="hidden" name="skills_json" :value="JSON.stringify(skills)">
+            <input type="hidden" name="experiences_json" :value="JSON.stringify(experiences)">
+            <input type="hidden" name="education_json" :value="JSON.stringify(education)">
+            <input type="hidden" name="projects_json" :value="JSON.stringify(projects)">
+            <input type="hidden" name="certifications_json" :value="JSON.stringify(certifications)">
+            <input type="hidden" name="contact_links_json" :value="JSON.stringify(contact_links)">
 
-                                <!-- Objective -->
-                <div class="md:col-span-2" x-show="hasValue('{{ profile.objective|escapejs }}')">
-                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Objective</label>
-                    <textarea name="objective" class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" rows="3">{{ profile.objective|default:'' }}</textarea>
-                </div>
-                <!-- Normalized Summary -->
-                <div class="md:col-span-2" x-show="hasValue('{{ profile.normalized_summary|escapejs }}')">
-                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Normalized Summary</label>
-                    <textarea name="normalized_summary" class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" rows="3">{{ profile.normalized_summary|default:'' }}</textarea>
-                </div>
+            {# ====================================================
+               01 — Personal details
+               ==================================================== #}
+            <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+                <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
+                <div class="p-6 sm:p-8 space-y-6">
+                    {% include "components/section_label.html" with text="01 · Personal details" tone="brand" %}
 
-                <!-- Dynamic Contact Links -->
-                <div class="md:col-span-2 mt-4 space-y-4">
-                    <div class="flex justify-between items-center">
-                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300">Contact Links</label>
-                        <button type="button" @click="addLink()" class="px-3 py-1 bg-blue-50 text-blue-600 dark:bg-gray-700 dark:text-blue-400 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium">
-                            + Add Link
-                        </button>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        {% include "components/input.html" with name="full_name" label="Full name" value=profile.full_name|default:"" placeholder="John Doe" %}
+                        {% include "components/input.html" with name="email" label="Email" type="email" value=profile.email|default:"" placeholder="john@example.com" %}
+                        {% include "components/input.html" with name="phone" label="Phone" type="tel" value=profile.phone|default:"" placeholder="+1 (555) 000-0000" %}
+                        {% include "components/input.html" with name="location" label="Location" value=profile.location|default:"" placeholder="Cairo, Egypt" %}
+
+                        <div class="md:col-span-2 space-y-2" x-show="hasValue('{{ profile.objective|escapejs }}')">
+                            <label class="block text-xs font-medium uppercase tracking-[0.14em] text-neutral-600 dark:text-neutral-400">Objective</label>
+                            <textarea name="objective" rows="3" class="block w-full px-4 py-3 text-sm rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none transition-[box-shadow] duration-150 resize-y">{{ profile.objective|default:'' }}</textarea>
+                        </div>
+                        <div class="md:col-span-2 space-y-2" x-show="hasValue('{{ profile.normalized_summary|escapejs }}')">
+                            <label class="block text-xs font-medium uppercase tracking-[0.14em] text-neutral-600 dark:text-neutral-400">Summary</label>
+                            <textarea name="normalized_summary" rows="3" class="block w-full px-4 py-3 text-sm rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none transition-[box-shadow] duration-150 resize-y">{{ profile.normalized_summary|default:'' }}</textarea>
+                        </div>
                     </div>
-                    
-                    <div class="space-y-3">
-                        <template x-for="(link, index) in contact_links" :key="index">
-                            <div class="flex gap-3 items-start relative group">
-                                <div class="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                    <div class="sm:col-span-1">
-                                        <input type="text" x-model="link.platform" class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm" placeholder="Platform (e.g., LinkedIn)">
+
+                    {# Contact links #}
+                    <div class="pt-2 space-y-3">
+                        <div class="flex items-center justify-between">
+                            {% include "components/section_label.html" with text="Contact links" %}
+                            <button type="button" @click="addLink()" class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline">+ Add link</button>
+                        </div>
+                        <div class="space-y-2">
+                            <template x-for="(link, index) in contact_links" :key="index">
+                                <div class="flex gap-2 items-start group">
+                                    <div class="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                        <input type="text" x-model="link.platform" class="sm:col-span-1 block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100" placeholder="Platform (e.g., LinkedIn)">
+                                        <input type="url" x-model="link.url" class="sm:col-span-2 block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100" placeholder="https://...">
                                     </div>
-                                    <div class="sm:col-span-2">
-                                        <input type="url" x-model="link.url" class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm" placeholder="https://...">
-                                    </div>
-                                </div>
-                                <button type="button" @click="removeLink(index)" class="mt-2 text-gray-400 hover:text-red-500 dark:hover:text-red-400 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                </button>
-                            </div>
-                        </template>
-                        <div x-show="contact_links.length === 0" class="text-sm text-gray-500 dark:text-gray-400 italic">No links added.</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 2. Professional Experience -->
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-200 dark:border-gray-700 relative group hover:shadow-2xl transition-all duration-300">
-            <div class="absolute top-0 left-0 w-2 h-full bg-indigo-500"></div>
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-300 flex items-center">
-                    <span class="bg-indigo-100 text-indigo-600 p-2 rounded-lg mr-3">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                    </span>
-                    Professional Experience
-                </h2>
-                <button type="button" @click="addExperience()" class="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 font-medium transition-colors">
-                    + Add Position
-                </button>
-            </div>
-
-            <template x-for="(exp, index) in experiences" :key="index">
-                <div class="mb-6 p-6 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-700 relative transition-colors">
-                    <button type="button" @click="removeExperience(index)" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 dark:hover:text-red-400 p-1">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div x-show="hasValue(exp.title)">
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Job Title</label>
-                            <input type="text" x-model="exp.title" class="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-indigo-500" placeholder="Senior Developer">
-                        </div>
-                        <div x-show="hasValue(exp.company)">
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Company</label>
-                            <input type="text" x-model="exp.company" class="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-indigo-500" placeholder="Tech Corp">
-                        </div>
-                        <div x-show="hasValue(exp.duration)">
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Duration</label>
-                            <input type="text" x-model="exp.duration" class="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-indigo-500" placeholder="Jan 2020 - Present">
-                        </div>
-                        <div x-show="hasValue(exp.start_date)">
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Start Date</label>
-                            <input type="text" x-model="exp.start_date" class="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-indigo-500">
-                        </div>
-                        <div x-show="hasValue(exp.end_date)">
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">End Date</label>
-                            <input type="text" x-model="exp.end_date" class="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-indigo-500">
-                        </div>
-                        <div x-show="hasValue(exp.industry)">
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Industry</label>
-                            <input type="text" x-model="exp.industry" class="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-indigo-500">
-                        </div>
-                        <div x-show="hasValue(exp.location)">
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Location</label>
-                            <input type="text" x-model="exp.location" class="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-indigo-500">
-                        </div>
-
-                    </div>
-                    <div class="mb-4" x-show="hasValue(exp.description)">
-                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Description</label>
-                        <textarea x-model="exp.description" rows="3" class="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-indigo-500" placeholder="Provide a brief summary of the role..."></textarea>
-                    </div>
-                    <div x-show="hasValue(exp.highlights)">
-                        <div class="flex justify-between items-end mb-2">
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Highlights (Bullet Points)</label>
-                            <button type="button" @click="if(!exp.highlights) exp.highlights = []; exp.highlights.push('')" class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800">+ Add Highlight</button>
-                        </div>
-                        <template x-for="(hl, hlIdx) in (exp.highlights || [])" :key="hlIdx">
-                            <div class="flex gap-2 mb-2 items-start group">
-                                <span class="pt-2 text-gray-400 font-bold">•</span>
-                                <textarea x-model="exp.highlights[hlIdx]" rows="2" class="w-full px-3 py-2 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-indigo-500"></textarea>
-                                <button type="button" @click="exp.highlights.splice(hlIdx, 1)" class="pt-2 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                </button>
-                            </div>
-                        </template>
-                        <div x-show="!(exp.highlights && exp.highlights.length > 0)" class="text-xs text-gray-400 italic">No highlights added.</div>
-                    </div>
-                    <div x-show="hasValue(exp.achievements)" class="mt-4">
-                        <div class="flex justify-between items-end mb-2">
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Achievements</label>
-                            <button type="button" @click="if(!exp.achievements) exp.achievements = []; exp.achievements.push('')" class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800">+ Add Achievement</button>
-                        </div>
-                        <template x-for="(ach, achIdx) in (exp.achievements || [])" :key="'ach'+achIdx">
-                            <div class="flex gap-2 mb-2 items-start group">
-                                <span class="pt-2 text-gray-400 font-bold">★</span>
-                                <textarea x-model="exp.achievements[achIdx]" rows="2" class="w-full px-3 py-2 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-indigo-500"></textarea>
-                                <button type="button" @click="exp.achievements.splice(achIdx, 1)" class="pt-2 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                </button>
-                            </div>
-                        </template>
-                    </div>
-
-                </div>
-            </template>
-        </div>
-
-        <!-- 3. Education -->
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-200 dark:border-gray-700 relative group hover:shadow-2xl transition-all duration-300">
-            <div class="absolute top-0 left-0 w-2 h-full bg-green-500"></div>
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-300 flex items-center">
-                    <span class="bg-green-100 text-green-600 p-2 rounded-lg mr-3">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path></svg>
-                    </span>
-                    Education
-                </h2>
-                <button type="button" @click="addEducation()" class="px-4 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 font-medium transition-colors">
-                    + Add Education
-                </button>
-            </div>
-
-            <template x-for="(edu, index) in education" :key="index">
-                <div class="mb-6 p-6 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-700 relative transition-colors">
-                    <button type="button" @click="removeEducation(index)" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 dark:hover:text-red-400 p-1">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div x-show="hasValue(edu.degree)">
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Degree</label>
-                            <input type="text" x-model="edu.degree" class="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-green-500" placeholder="BSc Computer Science">
-                        </div>
-                        <div x-show="hasValue(edu.institution)">
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Institution</label>
-                            <input type="text" x-model="edu.institution" class="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-green-500" placeholder="University Name">
-                        </div>
-                        <div x-show="hasValue(edu.year)">
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Year</label>
-                            <input type="text" x-model="edu.year" class="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-green-500" placeholder="2018 - 2022">
-                        </div>
-                        <div x-show="hasValue(edu.field)">
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Field of Study</label>
-                            <input type="text" x-model="edu.field" class="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-green-500">
-                        </div>
-                        <div x-show="hasValue(edu.gpa)">
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">GPA</label>
-                            <input type="text" x-model="edu.gpa" class="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-green-500">
-                        </div>
-                        <div x-show="hasValue(edu.location)">
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Location</label>
-                            <input type="text" x-model="edu.location" class="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-green-500">
-                        </div>
-
-                    </div>
-                    <div x-show="hasValue(edu.honors)" class="mt-4">
-                        <div class="flex justify-between items-end mb-2">
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Honors</label>
-                            <button type="button" @click="if(!edu.honors) edu.honors = []; edu.honors.push('')" class="text-xs font-semibold text-green-600 dark:text-green-400 hover:text-green-800">+ Add Honor</button>
-                        </div>
-                        <template x-for="(hon, honIdx) in (edu.honors || [])" :key="'hon'+honIdx">
-                            <div class="flex gap-2 mb-2 items-start group">
-                                <span class="pt-2 text-gray-400 font-bold">•</span>
-                                <input type="text" x-model="edu.honors[honIdx]" class="w-full px-3 py-2 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-green-500">
-                                <button type="button" @click="edu.honors.splice(honIdx, 1)" class="pt-2 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                </button>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-            </template>
-        </div>
-        
-        <!-- 4. Projects -->
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-200 dark:border-gray-700 relative group hover:shadow-2xl transition-all duration-300">
-            <div class="absolute top-0 left-0 w-2 h-full bg-purple-500"></div>
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-300 flex items-center">
-                    <span class="bg-purple-100 text-purple-600 p-2 rounded-lg mr-3">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
-                    </span>
-                    Projects
-                </h2>
-                <button type="button" @click="addProject()" class="px-4 py-2 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 font-medium transition-colors">
-                    + Add Project
-                </button>
-            </div>
-
-            <template x-for="(proj, index) in projects" :key="index">
-                <div class="mb-6 p-6 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-700 relative transition-colors">
-                    <button type="button" @click="removeProject(index)" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 dark:hover:text-red-400 p-1">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
-                    
-                    <div class="mb-3" x-show="hasValue(proj.name)">
-                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Project Name</label>
-                        <input type="text" x-model="proj.name" class="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-purple-500" placeholder="Project Title">
-                    </div>
-                    <div class="mb-3 grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div x-show="hasValue(proj.role)">
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Role</label>
-                            <input type="text" x-model="proj.role" class="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-purple-500">
-                        </div>
-                        <div x-show="hasValue(proj.url)">
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Project URL</label>
-                            <input type="url" x-model="proj.url" class="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-purple-500">
-                        </div>
-                    </div>
-
-                    <div class="mb-4" x-show="hasValue(proj.description)">
-                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Description</label>
-                        <textarea x-model="proj.description" rows="2" class="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-purple-500" placeholder="Brief overview of what you built..."></textarea>
-                    </div>
-                    <div x-show="hasValue(proj.highlights)">
-                        <div class="flex justify-between items-end mb-2">
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Key Features (Bullet Points)</label>
-                            <button type="button" @click="if(!proj.highlights) proj.highlights = []; proj.highlights.push('')" class="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:text-purple-800">+ Add Feature</button>
-                        </div>
-                        <template x-for="(hl, hlIdx) in (proj.highlights || [])" :key="hlIdx">
-                            <div class="flex gap-2 mb-2 items-start group">
-                                <span class="pt-2 text-gray-400 font-bold">•</span>
-                                <textarea x-model="proj.highlights[hlIdx]" rows="2" class="w-full px-3 py-2 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-purple-500"></textarea>
-                                <button type="button" @click="proj.highlights.splice(hlIdx, 1)" class="pt-2 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                </button>
-                            </div>
-                        </template>
-                        <div x-show="!(proj.highlights && proj.highlights.length > 0)" class="text-xs text-gray-400 italic">No bullet points added.</div>
-                    </div>
-                    <div x-show="hasValue(proj.technologies)" class="mt-4">
-                        <div class="flex justify-between items-end mb-2">
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Technologies</label>
-                            <button type="button" @click="if(!proj.technologies) proj.technologies = []; proj.technologies.push('')" class="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:text-purple-800">+ Add Tech</button>
-                        </div>
-                        <div class="flex flex-wrap gap-2">
-                            <template x-for="(tech, techIdx) in (proj.technologies || [])" :key="'tech'+techIdx">
-                                <span class="inline-flex items-center px-3 py-1 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded-full text-sm font-medium border border-purple-200 dark:border-purple-800 group">
-                                    <input type="text" x-model="proj.technologies[techIdx]" class="bg-transparent border-none text-sm p-0 m-0 focus:ring-0 w-24">
-                                    <button type="button" @click="proj.technologies.splice(techIdx, 1)" class="ml-2 text-purple-400 hover:text-purple-600 focus:outline-none opacity-0 group-hover:opacity-100">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                    <button type="button" @click="removeLink(index)" class="h-10 w-10 flex items-center justify-center text-neutral-400 hover:text-red-600 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                                     </button>
-                                </span>
+                                </div>
                             </template>
-                        </div>
-                    </div>
-
-                </div>
-            </template>
-        </div>
-
-        <!-- 5. Certifications -->
-        <div x-show="hasValue(certifications)" class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-200 dark:border-gray-700 relative group hover:shadow-2xl transition-all duration-300 mb-8">
-            <div class="absolute top-0 left-0 w-2 h-full bg-yellow-500"></div>
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-300 flex items-center">
-                    <span class="bg-yellow-100 text-yellow-600 p-2 rounded-lg mr-3">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
-                    </span>
-                    Certifications
-                </h2>
-                <button type="button" @click="if(!certifications) certifications=[]; certifications.push({name:''})" class="px-4 py-2 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-100 font-medium transition-colors">
-                    + Add Certification
-                </button>
-            </div>
-
-            <template x-for="(cert, index) in certifications" :key="index">
-                <div class="mb-6 p-6 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-700 relative transition-colors">
-                    <button type="button" @click="certifications.splice(index, 1)" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 dark:hover:text-red-400 p-1">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
-                    
-                    <div class="mb-3" x-show="hasValue(cert.name)">
-                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Certification Name</label>
-                        <input type="text" x-model="cert.name" class="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-yellow-500" placeholder="e.g. AWS Certified Solutions Architect">
-                    </div>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div x-show="hasValue(cert.issuer)">
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Issuer</label>
-                            <input type="text" x-model="cert.issuer" class="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-yellow-500" placeholder="e.g. Amazon Web Services">
-                        </div>
-                        <div x-show="hasValue(cert.date)">
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Date</label>
-                            <input type="text" x-model="cert.date" class="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-yellow-500" placeholder="e.g. 2023">
-                        </div>
-                        <div x-show="hasValue(cert.duration)">
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Duration</label>
-                            <input type="text" x-model="cert.duration" class="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-yellow-500" placeholder="e.g. 3 Months">
-                        </div>
-                        <div x-show="hasValue(cert.url)">
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">URL (Proof)</label>
-                            <input type="url" x-model="cert.url" class="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-yellow-500" placeholder="https://...">
+                            <div x-show="contact_links.length === 0" class="text-xs text-neutral-500 dark:text-neutral-400 italic">No links added.</div>
                         </div>
                     </div>
                 </div>
-            </template>
-        </div>
+            </section>
 
-        <!-- 6. Skills -->
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-200 dark:border-gray-700 relative group hover:shadow-2xl transition-all duration-300 mb-8">
-            <div class="absolute top-0 left-0 w-2 h-full bg-pink-500"></div>
-            <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-300 mb-6 flex items-center">
-                <span class="bg-pink-100 text-pink-600 p-2 rounded-lg mr-3">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                </span>
-                Skills
-            </h2>
-            
-            <div class="space-y-4">
-                <div class="flex gap-2">
-                    <input type="text" x-model="newSkill" @keydown.enter.prevent="addSkill" class="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-pink-500" placeholder="Type a skill and press Enter (e.g. Python)">
-                    <button type="button" @click="addSkill" class="px-6 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 font-medium">Add</button>
-                </div>
-                
-                <div class="flex flex-wrap gap-2 min-h-[50px] bg-gray-50 dark:bg-gray-700 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
-                    <template x-for="(skill, index) in skills" :key="index">
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-600 shadow-sm transition-colors">
-                            <span x-text="typeof skill === 'string' ? skill : skill.name"></span>
-                            <button type="button" @click="removeSkill(index)" class="ml-2 text-gray-400 hover:text-red-500 dark:hover:text-red-400 focus:outline-none">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            {# ====================================================
+               02 — Experience
+               ==================================================== #}
+            <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+                <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
+                <div class="p-6 sm:p-8 space-y-5">
+                    <div class="flex items-center justify-between flex-wrap gap-2">
+                        {% include "components/section_label.html" with text="02 · Experience" tone="brand" %}
+                        <button type="button" @click="addExperience()" class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline">+ Add position</button>
+                    </div>
+
+                    <template x-for="(exp, index) in experiences" :key="index">
+                        <div class="relative rounded-xl bg-neutral-50/60 dark:bg-neutral-950/40 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-4 group">
+                            <button type="button" @click="removeExperience(index)" class="absolute top-3 right-3 w-7 h-7 flex items-center justify-center text-neutral-400 hover:text-red-600 hover:bg-white dark:hover:bg-neutral-900 rounded-full opacity-0 group-hover:opacity-100 transition-all">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                             </button>
-                        </span>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="space-y-1.5" x-show="hasValue(exp.title)">
+                                    <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Job title</label>
+                                    <input type="text" x-model="exp.title" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none font-medium text-neutral-900 dark:text-neutral-100" placeholder="Senior Developer">
+                                </div>
+                                <div class="space-y-1.5" x-show="hasValue(exp.company)">
+                                    <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Company</label>
+                                    <input type="text" x-model="exp.company" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100" placeholder="Tech Corp">
+                                </div>
+                                <div class="space-y-1.5" x-show="hasValue(exp.duration)">
+                                    <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Duration</label>
+                                    <input type="text" x-model="exp.duration" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100" placeholder="Jan 2020 – Present">
+                                </div>
+                                <div class="space-y-1.5" x-show="hasValue(exp.location)">
+                                    <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Location</label>
+                                    <input type="text" x-model="exp.location" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                </div>
+                                <div class="space-y-1.5" x-show="hasValue(exp.start_date)">
+                                    <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Start</label>
+                                    <input type="text" x-model="exp.start_date" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                </div>
+                                <div class="space-y-1.5" x-show="hasValue(exp.end_date)">
+                                    <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">End</label>
+                                    <input type="text" x-model="exp.end_date" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                </div>
+                                <div class="space-y-1.5" x-show="hasValue(exp.industry)">
+                                    <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Industry</label>
+                                    <input type="text" x-model="exp.industry" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                </div>
+                            </div>
+
+                            <div class="space-y-1.5" x-show="hasValue(exp.description)">
+                                <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Description</label>
+                                <textarea x-model="exp.description" rows="3" class="block w-full px-3 py-2.5 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none resize-y leading-relaxed text-neutral-900 dark:text-neutral-100" placeholder="Brief summary of the role."></textarea>
+                            </div>
+
+                            <div class="space-y-2" x-show="hasValue(exp.highlights)">
+                                <div class="flex items-center justify-between">
+                                    <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Highlights</label>
+                                    <button type="button" @click="if(!exp.highlights) exp.highlights = []; exp.highlights.push('')" class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline">+ Add highlight</button>
+                                </div>
+                                <template x-for="(hl, hlIdx) in (exp.highlights || [])" :key="hlIdx">
+                                    <div class="flex gap-2 items-start group/hl">
+                                        <span aria-hidden="true" class="pt-2.5 text-neutral-400">•</span>
+                                        <textarea x-model="exp.highlights[hlIdx]" rows="2" class="flex-1 block w-full px-3 py-2 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none resize-y text-neutral-900 dark:text-neutral-100"></textarea>
+                                        <button type="button" @click="exp.highlights.splice(hlIdx, 1)" class="h-10 w-10 flex items-center justify-center text-neutral-400 hover:text-red-600 rounded-lg opacity-0 group-hover/hl:opacity-100 transition-all">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        </button>
+                                    </div>
+                                </template>
+                                <div x-show="!(exp.highlights && exp.highlights.length > 0)" class="text-xs text-neutral-400 italic">No highlights added.</div>
+                            </div>
+
+                            <div class="space-y-2" x-show="hasValue(exp.achievements)">
+                                <div class="flex items-center justify-between">
+                                    <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Achievements</label>
+                                    <button type="button" @click="if(!exp.achievements) exp.achievements = []; exp.achievements.push('')" class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline">+ Add achievement</button>
+                                </div>
+                                <template x-for="(ach, achIdx) in (exp.achievements || [])" :key="'ach'+achIdx">
+                                    <div class="flex gap-2 items-start group/ach">
+                                        <span aria-hidden="true" class="pt-2.5 text-brand-500">★</span>
+                                        <textarea x-model="exp.achievements[achIdx]" rows="2" class="flex-1 block w-full px-3 py-2 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none resize-y text-neutral-900 dark:text-neutral-100"></textarea>
+                                        <button type="button" @click="exp.achievements.splice(achIdx, 1)" class="h-10 w-10 flex items-center justify-center text-neutral-400 hover:text-red-600 rounded-lg opacity-0 group-hover/ach:opacity-100 transition-all">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
                     </template>
-                    <div x-show="skills.length === 0" class="text-gray-400 italic text-sm py-1">No skills added yet...</div>
                 </div>
-            </div>
-        </div>
+            </section>
 
-        <!-- 6. Additional Information (Dynamic) -->
-        <template x-for="(items, sectionName) in extraSections" :key="sectionName">
-            <div x-show="items && items.length > 0" class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-200 dark:border-gray-700 relative group hover:shadow-2xl transition-all duration-300 mb-8">
-                <div class="absolute top-0 left-0 w-2 h-full bg-gray-500"></div>
-                <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-300 mb-6 flex items-center capitalize" x-text="sectionName.replace(/_/g, ' ')"></h2>
-                
-                <!-- List of Strings (like Languages) -->
-                <template x-if="items.length > 0 && typeof items[0] === 'string'">
-                    <div class="flex flex-wrap gap-2">
-                        <template x-for="(item, idx) in items" :key="idx">
-                            <span class="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-sm border border-gray-200 dark:border-gray-600 transition-colors" x-text="item"></span>
-                        </template>
+            {# ====================================================
+               03 — Education
+               ==================================================== #}
+            <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+                <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
+                <div class="p-6 sm:p-8 space-y-5">
+                    <div class="flex items-center justify-between flex-wrap gap-2">
+                        {% include "components/section_label.html" with text="03 · Education" tone="brand" %}
+                        <button type="button" @click="addEducation()" class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline">+ Add education</button>
                     </div>
-                </template>
 
-                <!-- List of Objects (like Awards) -->
-                <template x-if="items.length > 0 && typeof items[0] === 'object'">
-                    <div class="space-y-4">
-                        <template x-for="(item, idx) in items" :key="idx">
-                            <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors">
-                                <div class="font-bold text-gray-800 dark:text-gray-200" x-text="item.title || item.name || item.award || 'Item'"></div>
-                                <div class="text-sm text-gray-600 dark:text-gray-400 mt-1" x-text="item.description || item.issuer || item.date || ''"></div>
+                    <template x-for="(edu, index) in education" :key="index">
+                        <div class="relative rounded-xl bg-neutral-50/60 dark:bg-neutral-950/40 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-4 group">
+                            <button type="button" @click="removeEducation(index)" class="absolute top-3 right-3 w-7 h-7 flex items-center justify-center text-neutral-400 hover:text-red-600 hover:bg-white dark:hover:bg-neutral-900 rounded-full opacity-0 group-hover:opacity-100 transition-all">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="space-y-1.5" x-show="hasValue(edu.degree)">
+                                    <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Degree</label>
+                                    <input type="text" x-model="edu.degree" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none font-medium text-neutral-900 dark:text-neutral-100" placeholder="BSc Computer Science">
+                                </div>
+                                <div class="space-y-1.5" x-show="hasValue(edu.institution)">
+                                    <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Institution</label>
+                                    <input type="text" x-model="edu.institution" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100" placeholder="University">
+                                </div>
+                                <div class="space-y-1.5" x-show="hasValue(edu.year)">
+                                    <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Year</label>
+                                    <input type="text" x-model="edu.year" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100" placeholder="2018 – 2022">
+                                </div>
+                                <div class="space-y-1.5" x-show="hasValue(edu.field)">
+                                    <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Field</label>
+                                    <input type="text" x-model="edu.field" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                </div>
+                                <div class="space-y-1.5" x-show="hasValue(edu.gpa)">
+                                    <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">GPA</label>
+                                    <input type="text" x-model="edu.gpa" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                </div>
+                                <div class="space-y-1.5" x-show="hasValue(edu.location)">
+                                    <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Location</label>
+                                    <input type="text" x-model="edu.location" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                </div>
+                            </div>
+
+                            <div class="space-y-2" x-show="hasValue(edu.honors)">
+                                <div class="flex items-center justify-between">
+                                    <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Honors</label>
+                                    <button type="button" @click="if(!edu.honors) edu.honors = []; edu.honors.push('')" class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline">+ Add honor</button>
+                                </div>
+                                <template x-for="(hon, honIdx) in (edu.honors || [])" :key="'hon'+honIdx">
+                                    <div class="flex gap-2 items-start group/h">
+                                        <span aria-hidden="true" class="pt-2.5 text-neutral-400">•</span>
+                                        <input type="text" x-model="edu.honors[honIdx]" class="flex-1 block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                        <button type="button" @click="edu.honors.splice(honIdx, 1)" class="h-10 w-10 flex items-center justify-center text-neutral-400 hover:text-red-600 rounded-lg opacity-0 group-hover/h:opacity-100 transition-all">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </section>
+
+            {# ====================================================
+               04 — Projects
+               ==================================================== #}
+            <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+                <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
+                <div class="p-6 sm:p-8 space-y-5">
+                    <div class="flex items-center justify-between flex-wrap gap-2">
+                        {% include "components/section_label.html" with text="04 · Projects" tone="brand" %}
+                        <button type="button" @click="addProject()" class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline">+ Add project</button>
+                    </div>
+
+                    <template x-for="(proj, index) in projects" :key="index">
+                        <div class="relative rounded-xl bg-neutral-50/60 dark:bg-neutral-950/40 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-4 group">
+                            <button type="button" @click="removeProject(index)" class="absolute top-3 right-3 w-7 h-7 flex items-center justify-center text-neutral-400 hover:text-red-600 hover:bg-white dark:hover:bg-neutral-900 rounded-full opacity-0 group-hover:opacity-100 transition-all">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+
+                            <div class="space-y-1.5" x-show="hasValue(proj.name)">
+                                <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Project name</label>
+                                <input type="text" x-model="proj.name" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none font-medium text-neutral-900 dark:text-neutral-100" placeholder="Project title">
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="space-y-1.5" x-show="hasValue(proj.role)">
+                                    <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Role</label>
+                                    <input type="text" x-model="proj.role" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                </div>
+                                <div class="space-y-1.5" x-show="hasValue(proj.url)">
+                                    <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">URL</label>
+                                    <input type="url" x-model="proj.url" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                </div>
+                            </div>
+
+                            <div class="space-y-1.5" x-show="hasValue(proj.description)">
+                                <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Description</label>
+                                <textarea x-model="proj.description" rows="2" class="block w-full px-3 py-2.5 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none resize-y text-neutral-900 dark:text-neutral-100" placeholder="Brief overview of what you built."></textarea>
+                            </div>
+
+                            <div class="space-y-2" x-show="hasValue(proj.highlights)">
+                                <div class="flex items-center justify-between">
+                                    <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Key features</label>
+                                    <button type="button" @click="if(!proj.highlights) proj.highlights = []; proj.highlights.push('')" class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline">+ Add feature</button>
+                                </div>
+                                <template x-for="(hl, hlIdx) in (proj.highlights || [])" :key="hlIdx">
+                                    <div class="flex gap-2 items-start group/p">
+                                        <span aria-hidden="true" class="pt-2.5 text-neutral-400">•</span>
+                                        <textarea x-model="proj.highlights[hlIdx]" rows="2" class="flex-1 block w-full px-3 py-2 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none resize-y text-neutral-900 dark:text-neutral-100"></textarea>
+                                        <button type="button" @click="proj.highlights.splice(hlIdx, 1)" class="h-10 w-10 flex items-center justify-center text-neutral-400 hover:text-red-600 rounded-lg opacity-0 group-hover/p:opacity-100 transition-all">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+
+                            <div class="space-y-2" x-show="hasValue(proj.technologies)">
+                                <div class="flex items-center justify-between">
+                                    <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Technologies</label>
+                                    <button type="button" @click="if(!proj.technologies) proj.technologies = []; proj.technologies.push('')" class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline">+ Add tech</button>
+                                </div>
+                                <div class="flex flex-wrap gap-1.5">
+                                    <template x-for="(tech, techIdx) in (proj.technologies || [])" :key="'tech'+techIdx">
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-brand-50 dark:bg-brand-950/40 text-brand-700 dark:text-brand-300 ring-1 ring-brand-200/60 dark:ring-brand-900 text-[11px] font-medium">
+                                            <input type="text" x-model="proj.technologies[techIdx]" class="bg-transparent border-none p-0 m-0 focus:ring-0 text-xs w-24">
+                                            <button type="button" @click="proj.technologies.splice(techIdx, 1)" class="text-brand-400 hover:text-red-600">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                            </button>
+                                        </span>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </section>
+
+            {# ====================================================
+               05 — Certifications
+               ==================================================== #}
+            <section x-show="hasValue(certifications)" class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+                <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
+                <div class="p-6 sm:p-8 space-y-5">
+                    <div class="flex items-center justify-between flex-wrap gap-2">
+                        {% include "components/section_label.html" with text="05 · Certifications" tone="brand" %}
+                        <button type="button" @click="if(!certifications) certifications=[]; certifications.push({name:''})" class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline">+ Add certification</button>
+                    </div>
+
+                    <template x-for="(cert, index) in certifications" :key="index">
+                        <div class="relative rounded-xl bg-neutral-50/60 dark:bg-neutral-950/40 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-4 group">
+                            <button type="button" @click="certifications.splice(index, 1)" class="absolute top-3 right-3 w-7 h-7 flex items-center justify-center text-neutral-400 hover:text-red-600 hover:bg-white dark:hover:bg-neutral-900 rounded-full opacity-0 group-hover:opacity-100 transition-all">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+
+                            <div class="space-y-1.5" x-show="hasValue(cert.name)">
+                                <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Name</label>
+                                <input type="text" x-model="cert.name" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none font-medium text-neutral-900 dark:text-neutral-100" placeholder="AWS Certified Solutions Architect">
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="space-y-1.5" x-show="hasValue(cert.issuer)">
+                                    <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Issuer</label>
+                                    <input type="text" x-model="cert.issuer" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                </div>
+                                <div class="space-y-1.5" x-show="hasValue(cert.date)">
+                                    <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Date</label>
+                                    <input type="text" x-model="cert.date" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                </div>
+                                <div class="space-y-1.5" x-show="hasValue(cert.duration)">
+                                    <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Duration</label>
+                                    <input type="text" x-model="cert.duration" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                </div>
+                                <div class="space-y-1.5" x-show="hasValue(cert.url)">
+                                    <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">URL</label>
+                                    <input type="url" x-model="cert.url" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </section>
+
+            {# ====================================================
+               06 — Skills
+               ==================================================== #}
+            <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+                <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-accent-500"></div>
+                <div class="p-6 sm:p-8 space-y-4">
+                    {% include "components/section_label.html" with text="06 · Skills" tone="accent" %}
+                    <div class="flex gap-2">
+                        <input type="text" x-model="newSkill" @keydown.enter.prevent="addSkill"
+                               class="flex-1 block w-full h-11 px-4 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-accent-200/70 focus:border-accent-500 focus:outline-none text-neutral-900 dark:text-neutral-100"
+                               placeholder="Type a skill and press Enter (e.g. Python)">
+                        <button type="button" @click="addSkill" class="inline-flex items-center justify-center h-11 px-5 text-sm font-medium rounded-lg bg-accent-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-accent-700 transition-colors">Add</button>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 min-h-[50px] rounded-xl bg-neutral-50/60 dark:bg-neutral-950/40 ring-1 ring-neutral-200 dark:ring-neutral-800 p-4">
+                        <template x-for="(skill, index) in skills" :key="index">
+                            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200 ring-1 ring-neutral-200 dark:ring-neutral-800 text-[11px] font-medium">
+                                <span x-text="typeof skill === 'string' ? skill : skill.name"></span>
+                                <button type="button" @click="removeSkill(index)" class="text-neutral-400 hover:text-red-600">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                            </span>
+                        </template>
+                        <div x-show="skills.length === 0" class="text-xs text-neutral-400 italic py-1">No skills added yet.</div>
+                    </div>
+                </div>
+            </section>
+
+            {# ====================================================
+               07 — Additional sections (read-only dynamic)
+               ==================================================== #}
+            <template x-for="(items, sectionName) in extraSections" :key="sectionName">
+                <section x-show="items && items.length > 0" class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+                    <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-neutral-300 dark:bg-neutral-700"></div>
+                    <div class="p-6 sm:p-8 space-y-4">
+                        <div class="capitalize">
+                            {% include "components/section_label.html" with text="" %}
+                        </div>
+                        <div class="-mt-2 text-[11px] uppercase tracking-[0.16em] font-medium text-neutral-500 dark:text-neutral-400 capitalize" x-text="sectionName.replace(/_/g, ' ')"></div>
+
+                        <template x-if="items.length > 0 && typeof items[0] === 'string'">
+                            <div class="flex flex-wrap gap-1.5">
+                                <template x-for="(item, idx) in items" :key="idx">
+                                    <span class="px-2 py-0.5 rounded-md bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-[11px] font-medium" x-text="item"></span>
+                                </template>
+                            </div>
+                        </template>
+
+                        <template x-if="items.length > 0 && typeof items[0] === 'object'">
+                            <div class="space-y-2">
+                                <template x-for="(item, idx) in items" :key="idx">
+                                    <div class="rounded-lg bg-neutral-50/60 dark:bg-neutral-950/40 ring-1 ring-neutral-200 dark:ring-neutral-800 p-3">
+                                        <div class="text-sm font-medium text-neutral-900 dark:text-neutral-100" x-text="item.title || item.name || item.award || 'Item'"></div>
+                                        <div class="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5" x-text="item.description || item.issuer || item.date || ''"></div>
+                                    </div>
+                                </template>
                             </div>
                         </template>
                     </div>
-                </template>
-            </div>
-        </template>
+                </section>
+            </template>
 
-        <!-- DEBUG: Raw JSON View -->
-        <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
-            <details>
-                <summary class="cursor-pointer font-bold text-gray-700 dark:text-gray-300 hover:text-blue-600 outline-none">
-                    View Raw Extracted Data (JSON)
-                </summary>
-                <div class="mt-4 p-4 bg-gray-900 rounded-lg overflow-x-auto shadow-inner">
-                    <pre class="text-xs text-green-400 font-mono leading-relaxed">{{ full_json }}</pre>
+            {# ---- Raw JSON (debug, collapsed) ---- #}
+            <section x-data="{ showRaw: false }" class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+                <button type="button" @click="showRaw = !showRaw" :aria-expanded="showRaw"
+                        class="w-full px-5 py-3 flex items-center justify-between gap-4 hover:bg-neutral-50 dark:hover:bg-neutral-800/60 transition-colors focus:outline-none rounded-2xl">
+                    <div class="flex items-center gap-3">
+                        {% include "components/section_label.html" with text="Raw data" %}
+                        <span class="text-[11px] text-neutral-400 font-mono">JSON</span>
+                    </div>
+                    <svg :class="showRaw ? 'rotate-180' : ''" class="w-4 h-4 text-neutral-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </button>
+                <div x-show="showRaw" x-collapse x-cloak class="px-5 pb-5 border-t border-neutral-100 dark:border-neutral-800">
+                    <pre class="mt-4 p-4 bg-neutral-950 rounded-lg overflow-x-auto text-xs text-emerald-400 font-mono leading-relaxed">{{ full_json }}</pre>
                 </div>
-            </details>
-        </div>
+            </section>
 
-        <!-- Submit -->
-        <div class="flex justify-end pt-6">
-            <button type="submit" class="px-10 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 flex items-center">
-                <span>{% if is_master %}Save Master Profile{% else %}Analyze Profile{% endif %}</span>
-                <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
-            </button>
-        </div>
-
-    </form>
+            {# ---- Submit ---- #}
+            <div class="flex justify-end pt-2">
+                <button type="submit" class="group/btn relative inline-flex items-center justify-center gap-2 h-12 px-6 text-sm font-medium rounded-xl bg-brand-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-brand-700 hover:-translate-y-px transition-[background-color,transform] duration-150">
+                    {% if is_master %}Save master profile{% else %}Analyze profile{% endif %}
+                    <span aria-hidden="true" class="transition-transform duration-200 group-hover/btn:translate-x-0.5">→</span>
+                </button>
+            </div>
+        </form>
+    </div>
 </div>
 
-<!-- Alpine.js Application -->
 <script>
     function profileForm() {
         return {
@@ -529,7 +504,6 @@
                 return true;
             },
             init() {
-                // Ensure arrays are initialized if null
                 if (!this.skills) this.skills = [];
                 if (!this.experiences) this.experiences = [];
                 if (!this.education) this.education = [];
@@ -538,56 +512,33 @@
                 if (!this.extraSections) this.extraSections = {};
             },
 
-            addLink() {
-                this.contact_links.push({ platform: '', url: '' });
-            },
-            removeLink(index) {
-                this.contact_links.splice(index, 1);
-            },
+            addLink()     { this.contact_links.push({ platform: '', url: '' }); },
+            removeLink(i) { this.contact_links.splice(i, 1); },
 
-            addExperience() {
-                this.experiences.push({ title: '', company: '', duration: '', description: '' });
-            },
-            removeExperience(index) {
-                this.experiences.splice(index, 1);
-            },
+            addExperience()    { this.experiences.push({ title: '', company: '', duration: '', description: '' }); },
+            removeExperience(i){ this.experiences.splice(i, 1); },
 
-            addEducation() {
-                this.education.push({ degree: '', institution: '', year: '' });
-            },
-            removeEducation(index) {
-                this.education.splice(index, 1);
-            },
+            addEducation()    { this.education.push({ degree: '', institution: '', year: '' }); },
+            removeEducation(i){ this.education.splice(i, 1); },
 
-            addProject() {
-                this.projects.push({ name: '', description: '' });
-            },
-            removeProject(index) {
-                this.projects.splice(index, 1);
-            },
+            addProject()    { this.projects.push({ name: '', description: '' }); },
+            removeProject(i){ this.projects.splice(i, 1); },
 
             addSkill() {
                 if (this.newSkill.trim() !== '') {
-                    // Check if skill already exists
-                    let exists = this.skills.some(s => {
-                        let name = typeof s === 'string' ? s : s.name;
-                        return name.toLowerCase() === this.newSkill.trim().toLowerCase();
+                    const exists = this.skills.some(s => {
+                        const name = typeof s === 'string' ? s : s.name;
+                        return name && name.toLowerCase() === this.newSkill.trim().toLowerCase();
                     });
-                    
                     if (!exists) {
                         this.skills.push({ name: this.newSkill.trim(), proficiency: 'Intermediate' });
                     }
                     this.newSkill = '';
                 }
             },
-            removeSkill(index) {
-                this.skills.splice(index, 1);
-            },
+            removeSkill(i) { this.skills.splice(i, 1); },
 
-            submitForm(e) {
-                // Optional: Validation
-                return true;
-            }
+            submitForm(e) { return true; }
         }
     }
 </script>
