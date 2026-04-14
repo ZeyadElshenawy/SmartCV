@@ -496,3 +496,36 @@ class JobContextBlockTests(TestCase):
         job = self._make_job()
         block = _build_job_context_block(job)
         self.assertNotIn('Artifacts for this job', block)
+
+
+class BuildSystemPromptWithJobTests(TestCase):
+    """build_system_prompt gains an optional job parameter."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from profiles.models import UserProfile
+        self.user = get_user_model().objects.create_user(
+            username='bsp@example.com', email='bsp@example.com', password='x'
+        )
+        UserProfile.objects.create(
+            user=self.user, full_name='Jane',
+            data_content={'skills': [{'name': 'Python'}]},
+        )
+
+    def test_prompt_without_job_omits_job_context_section(self):
+        from core.services.agent_chat import build_system_prompt
+        prompt = build_system_prompt(self.user)
+        self.assertNotIn('TALKING ABOUT JOB', prompt)
+
+    def test_prompt_with_job_includes_job_context_section(self):
+        from jobs.models import Job
+        from core.services.agent_chat import build_system_prompt
+        job = Job.objects.create(
+            user=self.user, title='ML Eng', company='Stripe',
+            description='x', extracted_skills=['Python'],
+            application_status='interviewing',
+        )
+        prompt = build_system_prompt(self.user, job=job)
+        self.assertIn('TALKING ABOUT JOB', prompt)
+        self.assertIn('ML Eng', prompt)
+        self.assertIn('Stripe', prompt)
