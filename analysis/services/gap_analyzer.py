@@ -113,7 +113,69 @@ def _build_full_candidate_context(profile):
             lines.append(f"- {degree} in {field} from {institution}")
         sections.append("\n".join(lines))
 
+    # --- GitHub activity (corroborates skills with public evidence) ---
+    github_section = _format_github_activity(profile)
+    if github_section:
+        sections.append(github_section)
+
     return "\n\n".join(sections)
+
+
+def _format_github_activity(profile) -> str:
+    """Build the GITHUB ACTIVITY block from cached snapshot, if any.
+
+    The snapshot lives in profile.data_content['github_signals'], populated
+    by profiles.services.github_aggregator. Returns an empty string when no
+    snapshot is cached, the snapshot has an error, or the user has no
+    profile data attribute (e.g., a SimpleNamespace stub in tests).
+    """
+    data_content = getattr(profile, 'data_content', None) or {}
+    snap = data_content.get('github_signals') if isinstance(data_content, dict) else None
+    if not snap or not isinstance(snap, dict) or snap.get('error'):
+        return ''
+
+    lines = ["GITHUB ACTIVITY (public, evidence-corroborates skills):"]
+    username = snap.get('username') or 'unknown'
+    public_repos = snap.get('public_repos') or 0
+    total_stars = snap.get('total_stars') or 0
+    recent = snap.get('recent_commit_count') or 0
+    lines.append(
+        f"- @{username} — {public_repos} public repos, {total_stars} total stars, "
+        f"{recent} commits in last 90 days"
+    )
+
+    # Languages — strong signal for skill corroboration.
+    langs = snap.get('language_breakdown') or []
+    if langs:
+        # Each entry is (language, repo_count) — accept dict-shaped too just in case.
+        formatted = []
+        for entry in langs[:8]:
+            if isinstance(entry, (list, tuple)) and len(entry) >= 2:
+                formatted.append(f"{entry[0]} ({entry[1]} repos)")
+            elif isinstance(entry, dict) and 'name' in entry:
+                formatted.append(f"{entry.get('name')} ({entry.get('count', '?')} repos)")
+        if formatted:
+            lines.append(f"- Primary languages by repo count: {', '.join(formatted)}")
+
+    # Top repos — give the LLM concrete evidence per project.
+    top_repos = snap.get('top_repos') or []
+    for repo in top_repos[:5]:
+        if not isinstance(repo, dict):
+            continue
+        name = repo.get('name') or repo.get('full_name', '?')
+        lang = repo.get('language') or ''
+        stars = repo.get('stars') or 0
+        desc = (repo.get('description') or '').strip()
+        line = f"- {name}"
+        if lang:
+            line += f" [{lang}]"
+        if stars:
+            line += f" — {stars}★"
+        if desc:
+            line += f": {desc[:160]}"
+        lines.append(line)
+
+    return "\n".join(lines)
 
 
 def compute_gap_analysis(profile, job):
@@ -175,6 +237,7 @@ A skill is MATCHED if the candidate demonstrates it ANYWHERE in their profile:
 - Demonstrated in WORK EXPERIENCE highlights or descriptions
 - Used in PROJECT highlights or technologies
 - Covered by a CERTIFICATION or training course
+- Corroborated by GITHUB ACTIVITY — a language with multiple public repos OR a top repo using that tech is strong evidence of working knowledge
 - Is a foundational prerequisite of skills they already have (e.g., someone with "Regression" and "Classification" has implicit knowledge of "Statistics" and "Probabilities")
 
 RULE 2 — DIRECTIONAL SPECIFICITY (very important):
