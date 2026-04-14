@@ -1,8 +1,14 @@
 {% extends 'base.html' %}
+{% block title %}Edit résumé — {{ resume.gap_analysis.job.title }} — SmartCV{% endblock %}
 
 {% block content %}
+{# This file's JS is tightly coupled to specific element IDs, form names,
+   and CSS selectors (pdf-preview, p-*, section-*, preview-*, exp_title[], ...).
+   Every one is preserved below. Live-preview logic was rewritten to use
+   safe DOM APIs (createElement + textContent) instead of innerHTML. #}
 <div x-data="resumeEditor()" x-init="init()">
-    <!-- Save Success Toast -->
+
+    {# ---- Save Success Toast ---- #}
     <div x-show="showSaveToast" x-cloak
          x-transition:enter="transition ease-out duration-300"
          x-transition:enter-start="opacity-0 translate-y-2"
@@ -10,366 +16,351 @@
          x-transition:leave="transition ease-in duration-200"
          x-transition:leave-start="opacity-100 translate-y-0"
          x-transition:leave-end="opacity-0 translate-y-2"
-         class="fixed top-24 right-8 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-        <span class="font-bold">Resume saved successfully!</span>
+         class="fixed top-24 right-8 z-50 rounded-xl bg-emerald-600 text-white px-5 py-3 shadow-[0_8px_24px_-8px_rgba(5,150,105,0.4)] flex items-center gap-3">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+        <span class="text-sm font-medium">Saved.</span>
     </div>
 
-<div class="min-h-[calc(100vh-80px)] bg-gray-50 dark:bg-gray-900 flex flex-col md:flex-row transition-colors">
+<div class="min-h-[calc(100vh-80px)] bg-neutral-50 dark:bg-neutral-950 flex flex-col md:flex-row">
 
-    <!-- LEFT SIDEBAR: Section Nav -->
-    <div class="w-full md:w-64 bg-rn-navy text-white flex-shrink-0 hidden md:flex flex-col border-r border-gray-800">
-        <div class="p-6 flex-1">
-            <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">Resume Sections</h2>
-
-            <ul class="space-y-1">
-                <li>
-                    <a href="#section-summary" class="flex items-center p-3 rounded-md transition-colors"
-                       :class="activeSection === 'summary' ? 'bg-white/10 text-white font-bold border-l-4 border-rn-gold' : 'text-gray-300 hover:text-white hover:bg-white/5'">
-                        <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs mr-3"
-                              :class="activeSection === 'summary' ? 'bg-rn-gold text-rn-navy' : 'border border-gray-500'">1</span>
-                        Summary
-                    </a>
-                </li>
-                <li>
-                    <a href="#section-skills" class="flex items-center p-3 rounded-md transition-colors"
-                       :class="activeSection === 'skills' ? 'bg-white/10 text-white font-bold border-l-4 border-rn-gold' : 'text-gray-300 hover:text-white hover:bg-white/5'">
-                        <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs mr-3"
-                              :class="activeSection === 'skills' ? 'bg-rn-gold text-rn-navy' : 'border border-gray-500'">2</span>
-                        Skills
-                    </a>
-                </li>
-                <li>
-                    <a href="#section-experience" class="flex items-center p-3 rounded-md transition-colors"
-                       :class="activeSection === 'experience' ? 'bg-white/10 text-white font-bold border-l-4 border-rn-gold' : 'text-gray-300 hover:text-white hover:bg-white/5'">
-                        <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs mr-3"
-                              :class="activeSection === 'experience' ? 'bg-rn-gold text-rn-navy' : 'border border-gray-500'">3</span>
-                        Experience
-                    </a>
-                </li>
-                <li>
-                    <a href="#section-education" class="flex items-center p-3 rounded-md transition-colors"
-                       :class="activeSection === 'education' ? 'bg-white/10 text-white font-bold border-l-4 border-rn-gold' : 'text-gray-300 hover:text-white hover:bg-white/5'">
-                        <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs mr-3"
-                              :class="activeSection === 'education' ? 'bg-rn-gold text-rn-navy' : 'border border-gray-500'">4</span>
-                        Education
-                    </a>
-                </li>
-                <li>
-                    <a href="#section-projects" class="flex items-center p-3 rounded-md transition-colors"
-                       :class="activeSection === 'projects' ? 'bg-white/10 text-white font-bold border-l-4 border-rn-gold' : 'text-gray-300 hover:text-white hover:bg-white/5'">
-                        <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs mr-3"
-                              :class="activeSection === 'projects' ? 'bg-rn-gold text-rn-navy' : 'border border-gray-500'">5</span>
-                        Projects
-                    </a>
-                </li>
-                <li>
-                    <a href="#section-certifications" class="flex items-center p-3 rounded-md transition-colors"
-                       :class="activeSection === 'certifications' ? 'bg-white/10 text-white font-bold border-l-4 border-rn-gold' : 'text-gray-300 hover:text-white hover:bg-white/5'">
-                        <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs mr-3"
-                              :class="activeSection === 'certifications' ? 'bg-rn-gold text-rn-navy' : 'border border-gray-500'">6</span>
-                        Certifications
-                    </a>
-                </li>
-                <li>
-                    <a href="#section-languages" class="flex items-center p-3 rounded-md transition-colors"
-                       :class="activeSection === 'languages' ? 'bg-white/10 text-white font-bold border-l-4 border-rn-gold' : 'text-gray-300 hover:text-white hover:bg-white/5'">
-                        <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs mr-3"
-                              :class="activeSection === 'languages' ? 'bg-rn-gold text-rn-navy' : 'border border-gray-500'">7</span>
-                        Languages
-                    </a>
-                </li>
-            </ul>
+    {# ======================================================
+       LEFT SIDEBAR — section nav + ATS score
+       ====================================================== #}
+    <aside class="w-full md:w-64 flex-shrink-0 hidden md:flex flex-col border-r border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
+        <div class="p-6 flex-1 space-y-6">
+            {% include "components/section_label.html" with text="Sections" %}
+            <nav>
+                <ul class="space-y-1">
+                    <li>
+                        <a href="#section-summary"
+                           :class="activeSection === 'summary' ? 'bg-brand-50 dark:bg-brand-950/40 text-brand-700 dark:text-brand-400' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800/60 hover:text-neutral-900 dark:hover:text-neutral-100'"
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                            <span aria-hidden="true" class="font-display italic text-xs leading-none tabular-nums w-4 flex-shrink-0 opacity-70"
+                                  style="font-variation-settings: 'opsz' 24;">01</span>
+                            <span>Summary</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#section-skills"
+                           :class="activeSection === 'skills' ? 'bg-brand-50 dark:bg-brand-950/40 text-brand-700 dark:text-brand-400' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800/60 hover:text-neutral-900 dark:hover:text-neutral-100'"
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                            <span aria-hidden="true" class="font-display italic text-xs leading-none tabular-nums w-4 flex-shrink-0 opacity-70"
+                                  style="font-variation-settings: 'opsz' 24;">02</span>
+                            <span>Skills</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#section-experience"
+                           :class="activeSection === 'experience' ? 'bg-brand-50 dark:bg-brand-950/40 text-brand-700 dark:text-brand-400' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800/60 hover:text-neutral-900 dark:hover:text-neutral-100'"
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                            <span aria-hidden="true" class="font-display italic text-xs leading-none tabular-nums w-4 flex-shrink-0 opacity-70"
+                                  style="font-variation-settings: 'opsz' 24;">03</span>
+                            <span>Experience</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#section-education"
+                           :class="activeSection === 'education' ? 'bg-brand-50 dark:bg-brand-950/40 text-brand-700 dark:text-brand-400' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800/60 hover:text-neutral-900 dark:hover:text-neutral-100'"
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                            <span aria-hidden="true" class="font-display italic text-xs leading-none tabular-nums w-4 flex-shrink-0 opacity-70"
+                                  style="font-variation-settings: 'opsz' 24;">04</span>
+                            <span>Education</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#section-projects"
+                           :class="activeSection === 'projects' ? 'bg-brand-50 dark:bg-brand-950/40 text-brand-700 dark:text-brand-400' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800/60 hover:text-neutral-900 dark:hover:text-neutral-100'"
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                            <span aria-hidden="true" class="font-display italic text-xs leading-none tabular-nums w-4 flex-shrink-0 opacity-70"
+                                  style="font-variation-settings: 'opsz' 24;">05</span>
+                            <span>Projects</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#section-certifications"
+                           :class="activeSection === 'certifications' ? 'bg-brand-50 dark:bg-brand-950/40 text-brand-700 dark:text-brand-400' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800/60 hover:text-neutral-900 dark:hover:text-neutral-100'"
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                            <span aria-hidden="true" class="font-display italic text-xs leading-none tabular-nums w-4 flex-shrink-0 opacity-70"
+                                  style="font-variation-settings: 'opsz' 24;">06</span>
+                            <span>Certifications</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#section-languages"
+                           :class="activeSection === 'languages' ? 'bg-brand-50 dark:bg-brand-950/40 text-brand-700 dark:text-brand-400' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800/60 hover:text-neutral-900 dark:hover:text-neutral-100'"
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                            <span aria-hidden="true" class="font-display italic text-xs leading-none tabular-nums w-4 flex-shrink-0 opacity-70"
+                                  style="font-variation-settings: 'opsz' 24;">07</span>
+                            <span>Languages</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
         </div>
 
-        <div class="p-6">
-             <div class="bg-indigo-900/50 rounded-lg p-4 border border-indigo-800">
-                 <p class="text-xs text-indigo-200 mb-2 font-medium">ATS Match Score</p>
-                 <div class="flex items-end gap-2">
-                     <span class="text-3xl font-bold text-white">{{ resume.ats_score|floatformat:0 }}%</span>
-                 </div>
-                 <div class="w-full bg-indigo-950 rounded-full h-1.5 mt-2">
-                    <div class="bg-rn-gold h-1.5 rounded-full" style="width: {{ resume.ats_score|floatformat:0 }}%;"></div>
-                 </div>
-             </div>
-        </div>
-    </div>
-
-    <!-- CENTER COLUMN: Editor Area -->
-    <div id="editor-scroll" class="flex-grow p-4 sm:p-8 lg:p-12 overflow-y-auto" style="max-height: calc(100vh - 80px);">
-
-        <div class="max-w-3xl mx-auto">
-            <div class="mb-8">
-                <h1 class="text-3xl font-extrabold text-rn-navy dark:text-gray-100 mb-2">Edit your resume</h1>
-                <p class="text-gray-600 dark:text-gray-400 font-medium">Tailored for <strong class="text-gray-900 dark:text-white">{{ resume.gap_analysis.job.title }}</strong> at <strong class="text-gray-900 dark:text-white">{{ resume.gap_analysis.job.company }}</strong>.</p>
+        {# ATS score pinned to bottom #}
+        <div class="p-6 border-t border-neutral-200 dark:border-neutral-800 space-y-2">
+            {% include "components/section_label.html" with text="ATS score" %}
+            <div class="flex items-baseline font-display italic tabular-nums
+                {% if resume.ats_score >= 80 %}text-brand-600 dark:text-brand-400
+                {% elif resume.ats_score >= 50 %}text-accent-600 dark:text-accent-400
+                {% else %}text-red-600 dark:text-red-400{% endif %}"
+                style="font-variation-settings: 'opsz' 72;">
+                <span class="text-4xl leading-none font-semibold">{{ resume.ats_score|floatformat:0 }}</span>
+                <span class="text-xl leading-none not-italic font-medium ml-0.5 opacity-70">%</span>
             </div>
+            <div class="h-1 w-full bg-neutral-200 dark:bg-neutral-800 rounded-full overflow-hidden">
+                <div class="h-1 {% if resume.ats_score >= 80 %}bg-brand-500{% elif resume.ats_score >= 50 %}bg-accent-500{% else %}bg-red-500{% endif %}" style="width: {{ resume.ats_score|floatformat:0 }}%;"></div>
+            </div>
+        </div>
+    </aside>
 
-            <form method="POST" id="resume-edit-form" action="{% url 'resume_edit' resume.id %}" class="space-y-8 pb-28" @input="updateLivePreview()">
+    {# ======================================================
+       CENTER — editor form
+       ====================================================== #}
+    <div id="editor-scroll" class="flex-grow p-4 sm:p-8 lg:p-12 overflow-y-auto" style="max-height: calc(100vh - 80px);">
+        <div class="max-w-3xl mx-auto space-y-8">
+
+            <header class="space-y-4">
+                {% include "components/section_label.html" with text="Editing resume" tone="brand" %}
+                <h1 class="font-display text-4xl sm:text-5xl leading-[1.02] tracking-tight text-neutral-900 dark:text-neutral-50"
+                    style="font-variation-settings: 'opsz' 80;">
+                    {{ resume.gap_analysis.job.title }}
+                </h1>
+                <p class="text-sm text-neutral-500 dark:text-neutral-400">{{ resume.gap_analysis.job.company }} — edits preview live on the right.</p>
+            </header>
+
+            <form method="POST" id="resume-edit-form" action="{% url 'resume_edit' resume.id %}" class="space-y-8 pb-32" @input="updateLivePreview()">
                 {% csrf_token %}
 
-                <!-- Template Selection -->
-                <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-6 dark:bg-indigo-900/30 dark:border-indigo-800">
-                    <h2 class="text-lg font-bold text-rn-navy dark:text-gray-200 flex items-center gap-2 mb-4">
-                        <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"></path></svg>
-                        Choose Resume Template
-                    </h2>
-                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        {% with current_template=resume.content.template_name|default:"standard" %}
-                        {% comment %}
-                        Each template is a label containing a hidden radio input + a
-                        small preview card. Values correspond to PDF template file
-                        names (pdf_template_{value}.html, or pdf_template.html for 'standard').
-                        {% endcomment %}
-                        {% for t in template_choices %}
-                        <label class="relative flex flex-col items-start p-4 border-2 cursor-pointer bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:border-rn-blue dark:hover:border-rn-gold transition-colors {% if current_template == t.value %}border-rn-blue ring-1 ring-rn-blue dark:border-rn-gold dark:ring-rn-gold{% else %}border-gray-200 dark:border-gray-700{% endif %}">
-                            <input type="radio" name="template_name" value="{{ t.value }}" class="hidden" {% if current_template == t.value %}checked{% endif %} onchange="updateTemplateSelection(this)">
-                            <div class="font-bold text-rn-navy dark:text-gray-200 text-sm">{{ t.label }}</div>
-                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ t.subtitle }}</div>
-                            {% if t.tag %}
-                            <div class="mt-2 text-[10px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">{{ t.tag }}</div>
-                            {% endif %}
-                        </label>
-                        {% endfor %}
-                        {% endwith %}
+                {# ---- Template picker ---- #}
+                <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+                    <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-accent-500"></div>
+                    <div class="p-6 space-y-4">
+                        {% include "components/section_label.html" with text="Template" tone="accent" %}
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                            {% with current_template=resume.content.template_name|default:"standard" %}
+                            {% for t in template_choices %}
+                            <label class="relative flex flex-col items-start gap-1 p-3 cursor-pointer rounded-lg ring-1 transition-colors bg-white dark:bg-neutral-900
+                                {% if current_template == t.value %}ring-2 ring-brand-500 bg-brand-50/40 dark:bg-brand-950/30{% else %}ring-neutral-200 dark:ring-neutral-800 hover:ring-neutral-300 dark:hover:ring-neutral-700{% endif %}">
+                                <input type="radio" name="template_name" value="{{ t.value }}" class="sr-only" {% if current_template == t.value %}checked{% endif %} onchange="updateTemplateSelection(this)">
+                                <div class="font-display text-base leading-tight text-neutral-900 dark:text-neutral-100"
+                                     style="font-variation-settings: 'opsz' 24;">{{ t.label }}</div>
+                                <div class="text-xs text-neutral-500 dark:text-neutral-400">{{ t.subtitle }}</div>
+                                {% if t.tag %}
+                                <div class="mt-1 text-[10px] uppercase tracking-[0.14em] font-medium px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400">{{ t.tag }}</div>
+                                {% endif %}
+                            </label>
+                            {% endfor %}
+                            {% endwith %}
+                        </div>
                     </div>
-                </div>
+                </section>
 
-                <!-- Professional Summary -->
-                <div id="section-summary" class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
-                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700">
-                        <h2 class="text-lg font-bold text-rn-navy dark:text-gray-200 flex items-center gap-2">
-                            <svg class="w-5 h-5 text-rn-blue dark:text-rn-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            Professional Summary
-                        </h2>
-                    </div>
-                    <div class="p-6 md:p-8 space-y-6">
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Target Job Title</label>
+                {# ---- Summary ---- #}
+                <section id="section-summary" class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+                    <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
+                    <div class="p-6 space-y-5">
+                        {% include "components/section_label.html" with text="01 · Summary" tone="brand" %}
+                        <div class="space-y-2">
+                            <label class="block text-xs font-medium uppercase tracking-[0.14em] text-neutral-600 dark:text-neutral-400">Target job title</label>
                             <input type="text" name="professional_title" value="{{ resume.content.professional_title|default:'' }}"
-                                   class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 transition-colors">
+                                   class="block w-full h-11 px-4 text-sm rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none transition-[box-shadow] duration-150">
                         </div>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Summary Paragraph</label>
+                        <div class="space-y-2">
+                            <label class="block text-xs font-medium uppercase tracking-[0.14em] text-neutral-600 dark:text-neutral-400">Summary paragraph</label>
                             <textarea name="professional_summary" rows="5"
-                                      class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 transition-colors leading-relaxed">{{ resume.content.professional_summary|default:'' }}</textarea>
+                                      class="block w-full px-4 py-3 text-sm rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none transition-[box-shadow] duration-150 resize-y leading-relaxed">{{ resume.content.professional_summary|default:'' }}</textarea>
                         </div>
                     </div>
-                </div>
+                </section>
 
-                <!-- Skills -->
-                <div id="section-skills" class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
-                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700">
-                        <h2 class="text-lg font-bold text-rn-navy dark:text-gray-200 flex items-center gap-2">
-                            <svg class="w-5 h-5 text-rn-blue dark:text-rn-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
-                            Core Skills (ATS Keywords)
-                        </h2>
-                    </div>
-                    <div class="p-6 md:p-8">
+                {# ---- Skills ---- #}
+                <section id="section-skills" class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+                    <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
+                    <div class="p-6 space-y-3">
+                        {% include "components/section_label.html" with text="02 · Core skills · ATS keywords" tone="brand" %}
                         <textarea name="skills" rows="4"
-                                  class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 transition-colors font-mono text-sm leading-relaxed">{% for skill in resume.content.skills %}{{ skill }}{% if not forloop.last %}, {% endif %}{% endfor %}</textarea>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium">Separate skills with commas.</p>
+                                  class="block w-full px-4 py-3 text-sm rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none transition-[box-shadow] duration-150 font-mono leading-relaxed">{% for skill in resume.content.skills %}{{ skill }}{% if not forloop.last %}, {% endif %}{% endfor %}</textarea>
+                        <p class="text-xs text-neutral-500 dark:text-neutral-400">Comma-separated. These drive the ATS keyword match.</p>
                     </div>
-                </div>
+                </section>
 
-                <!-- Experience -->
-                <div id="section-experience" class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
-                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700">
-                        <h2 class="text-lg font-bold text-rn-navy dark:text-gray-200 flex items-center gap-2">
-                            <svg class="w-5 h-5 text-rn-blue dark:text-rn-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                            Work Experience
-                        </h2>
-                    </div>
-
-                    <div id="experience-container" class="p-6 md:p-8 space-y-6">
-                        {% for exp in resume.content.experience %}
-                        <div class="experience-entry relative border border-gray-200 dark:border-gray-700 p-6 rounded-lg bg-white dark:bg-gray-800 shadow-sm hover:border-blue-200 dark:hover:border-blue-500 transition-colors group">
-                            <button type="button" onclick="this.parentElement.remove(); updateLivePreview();" aria-label="Remove entry" class="absolute -top-3 -right-3 w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-colors shadow-sm opacity-0 group-hover:opacity-100">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                            </button>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Job Title</label>
-                                    <input type="text" name="exp_title[]" value="{{ exp.title }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm font-semibold text-rn-navy dark:text-gray-100">
+                {# ---- Experience ---- #}
+                <section id="section-experience" class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+                    <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
+                    <div class="p-6 space-y-5">
+                        {% include "components/section_label.html" with text="03 · Experience" tone="brand" %}
+                        <div id="experience-container" class="space-y-5">
+                            {% for exp in resume.content.experience %}
+                            <div class="experience-entry group relative rounded-xl ring-1 ring-neutral-200 dark:ring-neutral-800 bg-neutral-50/60 dark:bg-neutral-950/40 p-5 transition-colors hover:ring-neutral-300 dark:hover:ring-neutral-700">
+                                <button type="button" onclick="this.parentElement.remove(); updateLivePreview();" aria-label="Remove entry"
+                                        class="absolute -top-2.5 -right-2.5 w-7 h-7 bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-700 rounded-full flex items-center justify-center text-neutral-400 hover:text-red-600 hover:ring-red-200 shadow-sm opacity-0 group-hover:opacity-100 transition-all">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                    <div class="space-y-1.5">
+                                        <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Job title</label>
+                                        <input type="text" name="exp_title[]" value="{{ exp.title }}" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none font-medium text-neutral-900 dark:text-neutral-100">
+                                    </div>
+                                    <div class="space-y-1.5">
+                                        <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Company</label>
+                                        <input type="text" name="exp_company[]" value="{{ exp.company }}" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                    </div>
+                                    <div class="md:col-span-2 space-y-1.5">
+                                        <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Dates</label>
+                                        <input type="text" name="exp_duration[]" value="{{ exp.duration }}" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                    </div>
                                 </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Company</label>
-                                    <input type="text" name="exp_company[]" value="{{ exp.company }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
-                                </div>
-                                <div class="md:col-span-2">
-                                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Dates</label>
-                                    <input type="text" name="exp_duration[]" value="{{ exp.duration }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
+                                <div class="space-y-1.5">
+                                    <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Bullet points · one per line</label>
+                                    <textarea name="exp_description[]" rows="5" class="block w-full px-3 py-2.5 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none resize-y leading-relaxed text-neutral-900 dark:text-neutral-100">{{ exp.description }}</textarea>
                                 </div>
                             </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Bullet Points (one per line)</label>
-                                <textarea name="exp_description[]" rows="5" class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white leading-relaxed">{{ exp.description }}</textarea>
-                            </div>
+                            {% endfor %}
                         </div>
-                        {% endfor %}
-                    </div>
-
-                    <div class="px-6 md:px-8 pb-6 pt-2">
-                        <button type="button" onclick="addExperience(); updateLivePreview();" class="inline-flex items-center text-sm font-bold text-rn-blue dark:text-rn-gold hover:text-rn-blue-hover transition-colors">
-                            <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
-                            Add another position
+                        <button type="button" onclick="addExperience(); updateLivePreview();"
+                                class="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 dark:text-brand-400 hover:text-brand-800 dark:hover:text-brand-300 transition-colors">
+                            <span aria-hidden="true" class="text-base leading-none">+</span> Add another position
                         </button>
                     </div>
-                </div>
+                </section>
 
-                <!-- Education -->
-                <div id="section-education" class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
-                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700">
-                        <h2 class="text-lg font-bold text-rn-navy dark:text-gray-200 flex items-center gap-2">
-                            <svg class="w-5 h-5 text-rn-blue dark:text-rn-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222"></path></svg>
-                            Education
-                        </h2>
-                    </div>
-
-                    <div id="education-container" class="p-6 md:p-8 space-y-6">
-                        {% for edu in resume.content.education %}
-                        <div class="education-entry relative border border-gray-200 dark:border-gray-700 p-6 rounded-lg bg-white dark:bg-gray-800 shadow-sm hover:border-blue-200 dark:hover:border-blue-500 transition-colors group">
-                            <button type="button" onclick="this.parentElement.remove(); updateLivePreview();" aria-label="Remove entry" class="absolute -top-3 -right-3 w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-colors shadow-sm opacity-0 group-hover:opacity-100">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                            </button>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                <div class="md:col-span-2">
-                                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Degree</label>
-                                    <input type="text" name="edu_degree[]" value="{{ edu.degree }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm font-semibold text-rn-navy dark:text-gray-100">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Institution</label>
-                                    <input type="text" name="edu_institution[]" value="{{ edu.institution }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Graduation Year</label>
-                                    <input type="text" name="edu_year[]" value="{{ edu.year }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
+                {# ---- Education ---- #}
+                <section id="section-education" class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+                    <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
+                    <div class="p-6 space-y-5">
+                        {% include "components/section_label.html" with text="04 · Education" tone="brand" %}
+                        <div id="education-container" class="space-y-5">
+                            {% for edu in resume.content.education %}
+                            <div class="education-entry group relative rounded-xl ring-1 ring-neutral-200 dark:ring-neutral-800 bg-neutral-50/60 dark:bg-neutral-950/40 p-5 transition-colors hover:ring-neutral-300 dark:hover:ring-neutral-700">
+                                <button type="button" onclick="this.parentElement.remove(); updateLivePreview();" aria-label="Remove entry"
+                                        class="absolute -top-2.5 -right-2.5 w-7 h-7 bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-700 rounded-full flex items-center justify-center text-neutral-400 hover:text-red-600 hover:ring-red-200 shadow-sm opacity-0 group-hover:opacity-100 transition-all">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="md:col-span-2 space-y-1.5">
+                                        <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Degree</label>
+                                        <input type="text" name="edu_degree[]" value="{{ edu.degree }}" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none font-medium text-neutral-900 dark:text-neutral-100">
+                                    </div>
+                                    <div class="space-y-1.5">
+                                        <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Institution</label>
+                                        <input type="text" name="edu_institution[]" value="{{ edu.institution }}" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                    </div>
+                                    <div class="space-y-1.5">
+                                        <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Year</label>
+                                        <input type="text" name="edu_year[]" value="{{ edu.year }}" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                    </div>
                                 </div>
                             </div>
+                            {% endfor %}
                         </div>
-                        {% endfor %}
-                    </div>
-
-                    <div class="px-6 md:px-8 pb-6 pt-2">
-                        <button type="button" onclick="addEducation(); updateLivePreview();" class="inline-flex items-center text-sm font-bold text-rn-blue dark:text-rn-gold hover:text-rn-blue-hover transition-colors">
-                            <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
-                            Add another degree
+                        <button type="button" onclick="addEducation(); updateLivePreview();"
+                                class="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 dark:text-brand-400 hover:text-brand-800 dark:hover:text-brand-300 transition-colors">
+                            <span aria-hidden="true" class="text-base leading-none">+</span> Add another degree
                         </button>
                     </div>
-                </div>
+                </section>
 
-                <!-- Projects -->
-                <div id="section-projects" class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
-                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700">
-                        <h2 class="text-lg font-bold text-rn-navy dark:text-gray-200 flex items-center gap-2">
-                            <svg class="w-5 h-5 text-rn-blue dark:text-rn-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
-                            Projects
-                        </h2>
-                    </div>
-
-                    <div id="projects-container" class="p-6 md:p-8 space-y-6">
-                        {% for proj in resume.content.projects %}
-                        <div class="project-entry relative border border-gray-200 dark:border-gray-700 p-6 rounded-lg bg-white dark:bg-gray-800 shadow-sm hover:border-blue-200 dark:hover:border-blue-500 transition-colors group">
-                            <button type="button" onclick="this.parentElement.remove(); updateLivePreview();" aria-label="Remove entry" class="absolute -top-3 -right-3 w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-colors shadow-sm opacity-0 group-hover:opacity-100">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                            </button>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Project Name</label>
-                                    <input type="text" name="proj_name[]" value="{{ proj.name }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm font-semibold text-rn-navy dark:text-gray-100">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Project URL</label>
-                                    <input type="url" name="proj_url[]" value="{{ proj.url|default:'' }}" placeholder="https://" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-gray-100">
-                                </div>
-                                <div class="md:col-span-2">
-                                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Description (one bullet per line)</label>
-                                    <textarea name="proj_description[]" rows="3" class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white leading-relaxed">{{ proj.description }}</textarea>
+                {# ---- Projects ---- #}
+                <section id="section-projects" class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+                    <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
+                    <div class="p-6 space-y-5">
+                        {% include "components/section_label.html" with text="05 · Projects" tone="brand" %}
+                        <div id="projects-container" class="space-y-5">
+                            {% for proj in resume.content.projects %}
+                            <div class="project-entry group relative rounded-xl ring-1 ring-neutral-200 dark:ring-neutral-800 bg-neutral-50/60 dark:bg-neutral-950/40 p-5 transition-colors hover:ring-neutral-300 dark:hover:ring-neutral-700">
+                                <button type="button" onclick="this.parentElement.remove(); updateLivePreview();" aria-label="Remove entry"
+                                        class="absolute -top-2.5 -right-2.5 w-7 h-7 bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-700 rounded-full flex items-center justify-center text-neutral-400 hover:text-red-600 hover:ring-red-200 shadow-sm opacity-0 group-hover:opacity-100 transition-all">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="space-y-1.5">
+                                        <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Project name</label>
+                                        <input type="text" name="proj_name[]" value="{{ proj.name }}" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none font-medium text-neutral-900 dark:text-neutral-100">
+                                    </div>
+                                    <div class="space-y-1.5">
+                                        <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">URL</label>
+                                        <input type="url" name="proj_url[]" value="{{ proj.url|default:'' }}" placeholder="https://" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                    </div>
+                                    <div class="md:col-span-2 space-y-1.5">
+                                        <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Description · one bullet per line</label>
+                                        <textarea name="proj_description[]" rows="3" class="block w-full px-3 py-2.5 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none resize-y leading-relaxed text-neutral-900 dark:text-neutral-100">{{ proj.description }}</textarea>
+                                    </div>
                                 </div>
                             </div>
+                            {% endfor %}
                         </div>
-                        {% endfor %}
-                    </div>
-
-                    <div class="px-6 md:px-8 pb-6 pt-2">
-                        <button type="button" onclick="addProject(); updateLivePreview();" class="inline-flex items-center text-sm font-bold text-rn-blue dark:text-rn-gold hover:text-rn-blue-hover transition-colors">
-                            <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
-                            Add another project
+                        <button type="button" onclick="addProject(); updateLivePreview();"
+                                class="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 dark:text-brand-400 hover:text-brand-800 dark:hover:text-brand-300 transition-colors">
+                            <span aria-hidden="true" class="text-base leading-none">+</span> Add another project
                         </button>
                     </div>
-                </div>
+                </section>
 
-                <!-- Certifications -->
-                <div id="section-certifications" class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
-                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700">
-                        <h2 class="text-lg font-bold text-rn-navy dark:text-gray-200 flex items-center gap-2">
-                            <svg class="w-5 h-5 text-rn-blue dark:text-rn-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            Certifications
-                        </h2>
-                    </div>
-
-                    <div id="certifications-container" class="p-6 md:p-8 space-y-6">
-                        {% for cert in resume.content.certifications %}
-                        <div class="cert-entry relative border border-gray-200 dark:border-gray-700 p-6 rounded-lg bg-white dark:bg-gray-800 shadow-sm hover:border-blue-200 dark:hover:border-blue-500 transition-colors group">
-                            <button type="button" onclick="this.parentElement.remove(); updateLivePreview();" aria-label="Remove entry" class="absolute -top-3 -right-3 w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-colors shadow-sm opacity-0 group-hover:opacity-100">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                            </button>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                <div class="md:col-span-2">
-                                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Certification Name</label>
-                                    <input type="text" name="cert_name[]" value="{{ cert.name }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm font-semibold text-rn-navy dark:text-gray-100">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Issuing Organization</label>
-                                    <input type="text" name="cert_issuer[]" value="{{ cert.issuer }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Date / Year</label>
-                                    <input type="text" name="cert_date[]" value="{{ cert.date }}" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
-                                </div>
-                                <div class="md:col-span-2">
-                                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Certification URL</label>
-                                    <input type="url" name="cert_url[]" value="{{ cert.url|default:'' }}" placeholder="https://" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
+                {# ---- Certifications ---- #}
+                <section id="section-certifications" class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+                    <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
+                    <div class="p-6 space-y-5">
+                        {% include "components/section_label.html" with text="06 · Certifications" tone="brand" %}
+                        <div id="certifications-container" class="space-y-5">
+                            {% for cert in resume.content.certifications %}
+                            <div class="cert-entry group relative rounded-xl ring-1 ring-neutral-200 dark:ring-neutral-800 bg-neutral-50/60 dark:bg-neutral-950/40 p-5 transition-colors hover:ring-neutral-300 dark:hover:ring-neutral-700">
+                                <button type="button" onclick="this.parentElement.remove(); updateLivePreview();" aria-label="Remove entry"
+                                        class="absolute -top-2.5 -right-2.5 w-7 h-7 bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-700 rounded-full flex items-center justify-center text-neutral-400 hover:text-red-600 hover:ring-red-200 shadow-sm opacity-0 group-hover:opacity-100 transition-all">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="md:col-span-2 space-y-1.5">
+                                        <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Certification name</label>
+                                        <input type="text" name="cert_name[]" value="{{ cert.name }}" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none font-medium text-neutral-900 dark:text-neutral-100">
+                                    </div>
+                                    <div class="space-y-1.5">
+                                        <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Issuer</label>
+                                        <input type="text" name="cert_issuer[]" value="{{ cert.issuer }}" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                    </div>
+                                    <div class="space-y-1.5">
+                                        <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Date</label>
+                                        <input type="text" name="cert_date[]" value="{{ cert.date }}" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                    </div>
+                                    <div class="md:col-span-2 space-y-1.5">
+                                        <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">URL</label>
+                                        <input type="url" name="cert_url[]" value="{{ cert.url|default:'' }}" placeholder="https://" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                    </div>
                                 </div>
                             </div>
+                            {% endfor %}
                         </div>
-                        {% endfor %}
-                    </div>
-
-                    <div class="px-6 md:px-8 pb-6 pt-2">
-                        <button type="button" onclick="addCertification(); updateLivePreview();" class="inline-flex items-center text-sm font-bold text-rn-blue dark:text-rn-gold hover:text-rn-blue-hover transition-colors">
-                            <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
-                            Add another certification
+                        <button type="button" onclick="addCertification(); updateLivePreview();"
+                                class="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 dark:text-brand-400 hover:text-brand-800 dark:hover:text-brand-300 transition-colors">
+                            <span aria-hidden="true" class="text-base leading-none">+</span> Add another certification
                         </button>
                     </div>
-                </div>
+                </section>
 
-                <!-- Languages -->
-                <div id="section-languages" class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
-                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700">
-                        <h2 class="text-lg font-bold text-rn-navy dark:text-gray-200 flex items-center gap-2">
-                            <svg class="w-5 h-5 text-rn-blue dark:text-rn-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path></svg>
-                            Languages
-                        </h2>
-                    </div>
-                    <div class="p-6 md:p-8">
+                {# ---- Languages ---- #}
+                <section id="section-languages" class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+                    <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
+                    <div class="p-6 space-y-3">
+                        {% include "components/section_label.html" with text="07 · Languages" tone="brand" %}
                         <textarea name="languages" rows="2"
-                                  class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 transition-colors font-mono text-sm leading-relaxed">{% for lang in resume.content.languages %}{{ lang }}{% if not forloop.last %}, {% endif %}{% endfor %}</textarea>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium">Separate with commas (e.g., English (Native), Spanish (Fluent)).</p>
+                                  class="block w-full px-4 py-3 text-sm rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none transition-[box-shadow] duration-150 font-mono leading-relaxed">{% for lang in resume.content.languages %}{{ lang }}{% if not forloop.last %}, {% endif %}{% endfor %}</textarea>
+                        <p class="text-xs text-neutral-500 dark:text-neutral-400">Comma-separated (e.g., English (Native), Spanish (Fluent)).</p>
                     </div>
-                </div>
+                </section>
 
-            <!-- Sticky Bottom Action Bar -->
-            <div class="fixed bottom-0 left-0 md:left-64 right-0 lg:right-[33.333%] bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-center gap-3 z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] transition-colors">
-                    <a href="{% url 'resume_preview' resume.id %}" class="text-gray-500 dark:text-gray-400 font-semibold hover:text-rn-blue dark:hover:text-white transition-colors text-sm">
-                        &larr; Back to Preview
+                {# ---- Sticky bottom action bar ---- #}
+                <div class="fixed bottom-0 left-0 md:left-64 right-0 lg:right-[33.333%] bg-white/90 dark:bg-neutral-900/90 backdrop-blur-sm border-t border-neutral-200 dark:border-neutral-800 p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-center gap-3 z-40">
+                    <a href="{% url 'resume_preview' resume.id %}" class="text-sm font-medium text-neutral-600 dark:text-neutral-300 hover:text-brand-700 dark:hover:text-brand-400 transition-colors">
+                        ← Back to preview
                     </a>
-                    <div class="flex w-full sm:w-auto gap-3">
-                        <button type="submit" class="flex-1 sm:flex-none px-8 py-3 bg-rn-blue hover:bg-rn-blue-hover text-white rounded-rn-pill font-bold shadow-md hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center text-sm">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                            Save Changes
+                    <div class="flex w-full sm:w-auto gap-2">
+                        <button type="submit" class="group/btn flex-1 sm:flex-none inline-flex items-center justify-center gap-2 h-11 px-5 text-sm font-medium rounded-lg bg-brand-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-brand-700 hover:-translate-y-px transition-[background-color,transform] duration-150">
+                            <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                            Save changes
                         </button>
-                        <a href="{% url 'export_pdf' resume.id %}" target="_blank" class="flex-1 sm:flex-none px-8 py-3 bg-rn-gold hover:bg-rn-gold-hover text-gray-900 rounded-rn-pill font-bold shadow-md hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center text-sm">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        <a href="{% url 'export_pdf' resume.id %}" target="_blank" class="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 h-11 px-5 text-sm font-medium rounded-lg ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-700 dark:text-neutral-200 bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
+                            <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                             Download PDF
                         </a>
                     </div>
@@ -378,13 +369,17 @@
         </div>
     </div>
 
-    <!-- RIGHT SIDEBAR: Live Preview -->
-    <div class="w-1/3 bg-gray-100 dark:bg-gray-800 flex-shrink-0 hidden lg:flex flex-col border-l border-gray-200 dark:border-gray-700 relative">
-        <div class="absolute inset-0 overflow-y-auto p-6">
-            <h3 class="text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4">Live Preview</h3>
+    {# ======================================================
+       RIGHT SIDEBAR — live preview (A4 mockup)
+       ====================================================== #}
+    <aside class="w-1/3 flex-shrink-0 hidden lg:flex flex-col border-l border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-900 relative">
+        <div class="absolute inset-0 overflow-y-auto p-6 space-y-4">
+            <div class="flex items-center justify-between">
+                {% include "components/section_label.html" with text="Live preview" %}
+                <span class="text-[11px] text-neutral-400 dark:text-neutral-500">A4 · synced</span>
+            </div>
 
-            <!-- A4 Document Mockup -->
-            <div class="mx-auto w-full max-w-[480px] aspect-[1/1.414] bg-white shadow-xl rounded-sm p-5 text-left select-none overflow-y-auto border border-gray-200" style="overflow-x: hidden;">
+            <div class="mx-auto w-full max-w-[480px] aspect-[1/1.414] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_40px_-16px_rgba(15,23,42,0.18)] rounded-sm p-5 text-left select-none overflow-y-auto ring-1 ring-neutral-200" style="overflow-x: hidden;">
                 <style>
                     .pdf-preview {
                         font-family: 'Helvetica', 'Arial', sans-serif;
@@ -395,7 +390,7 @@
                         text-align: center;
                         margin-bottom: 12px;
                         padding-bottom: 8px;
-                        border-bottom: 1.5px solid #2563eb;
+                        border-bottom: 1.5px solid #3b82f6;
                     }
                     .pdf-preview .p-professional-title {
                         font-size: 13pt;
@@ -498,168 +493,216 @@
                 </div>
             </div>
         </div>
-    </div>
-        </div>
-    </div>
+    </aside>
+
+</div>
 </div>
 
-<!-- JavaScript Templates for dynamic fields -->
+{# ======================================================
+   HIDDEN <template> CLONES for dynamic "add another" entries
+   ====================================================== #}
 <template id="exp-template">
-    <div class="experience-entry relative border border-gray-200 dark:border-gray-700 p-6 rounded-lg bg-white dark:bg-gray-800 shadow-sm hover:border-blue-200 dark:hover:border-blue-500 transition-colors group">
-        <button type="button" onclick="this.parentElement.remove(); updateLivePreview();" aria-label="Remove entry" class="absolute -top-3 -right-3 w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-colors shadow-sm opacity-0 group-hover:opacity-100">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+    <div class="experience-entry group relative rounded-xl ring-1 ring-neutral-200 dark:ring-neutral-800 bg-neutral-50/60 dark:bg-neutral-950/40 p-5 transition-colors hover:ring-neutral-300 dark:hover:ring-neutral-700">
+        <button type="button" onclick="this.parentElement.remove(); updateLivePreview();" aria-label="Remove entry"
+                class="absolute -top-2.5 -right-2.5 w-7 h-7 bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-700 rounded-full flex items-center justify-center text-neutral-400 hover:text-red-600 hover:ring-red-200 shadow-sm opacity-0 group-hover:opacity-100 transition-all">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-            <div>
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Job Title</label>
-                <input type="text" name="exp_title[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm font-semibold text-rn-navy dark:text-gray-100">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div class="space-y-1.5">
+                <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Job title</label>
+                <input type="text" name="exp_title[]" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none font-medium text-neutral-900 dark:text-neutral-100">
             </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Company</label>
-                <input type="text" name="exp_company[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
+            <div class="space-y-1.5">
+                <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Company</label>
+                <input type="text" name="exp_company[]" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
             </div>
-            <div class="md:col-span-2">
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Dates</label>
-                <input type="text" name="exp_duration[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
+            <div class="md:col-span-2 space-y-1.5">
+                <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Dates</label>
+                <input type="text" name="exp_duration[]" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
             </div>
         </div>
-        <div>
-            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Bullet Points (one per line)</label>
-            <textarea name="exp_description[]" rows="5" class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white leading-relaxed"></textarea>
+        <div class="space-y-1.5">
+            <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Bullet points · one per line</label>
+            <textarea name="exp_description[]" rows="5" class="block w-full px-3 py-2.5 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none resize-y leading-relaxed text-neutral-900 dark:text-neutral-100"></textarea>
         </div>
     </div>
 </template>
 
 <template id="edu-template">
-    <div class="education-entry relative border border-gray-200 dark:border-gray-700 p-6 rounded-lg bg-white dark:bg-gray-800 shadow-sm hover:border-blue-200 dark:hover:border-blue-500 transition-colors group">
-        <button type="button" onclick="this.parentElement.remove(); updateLivePreview();" aria-label="Remove entry" class="absolute -top-3 -right-3 w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-colors shadow-sm opacity-0 group-hover:opacity-100">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+    <div class="education-entry group relative rounded-xl ring-1 ring-neutral-200 dark:ring-neutral-800 bg-neutral-50/60 dark:bg-neutral-950/40 p-5 transition-colors hover:ring-neutral-300 dark:hover:ring-neutral-700">
+        <button type="button" onclick="this.parentElement.remove(); updateLivePreview();" aria-label="Remove entry"
+                class="absolute -top-2.5 -right-2.5 w-7 h-7 bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-700 rounded-full flex items-center justify-center text-neutral-400 hover:text-red-600 hover:ring-red-200 shadow-sm opacity-0 group-hover:opacity-100 transition-all">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div class="md:col-span-2">
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Degree</label>
-                <input type="text" name="edu_degree[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm font-semibold text-rn-navy dark:text-gray-100">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="md:col-span-2 space-y-1.5">
+                <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Degree</label>
+                <input type="text" name="edu_degree[]" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none font-medium text-neutral-900 dark:text-neutral-100">
             </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Institution</label>
-                <input type="text" name="edu_institution[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
+            <div class="space-y-1.5">
+                <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Institution</label>
+                <input type="text" name="edu_institution[]" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
             </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Graduation Year</label>
-                <input type="text" name="edu_year[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
+            <div class="space-y-1.5">
+                <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Year</label>
+                <input type="text" name="edu_year[]" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
             </div>
         </div>
     </div>
 </template>
 
 <template id="proj-template">
-    <div class="project-entry relative border border-gray-200 dark:border-gray-700 p-6 rounded-lg bg-white dark:bg-gray-800 shadow-sm hover:border-blue-200 dark:hover:border-blue-500 transition-colors group">
-        <button type="button" onclick="this.parentElement.remove(); updateLivePreview();" aria-label="Remove entry" class="absolute -top-3 -right-3 w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-colors shadow-sm opacity-0 group-hover:opacity-100">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+    <div class="project-entry group relative rounded-xl ring-1 ring-neutral-200 dark:ring-neutral-800 bg-neutral-50/60 dark:bg-neutral-950/40 p-5 transition-colors hover:ring-neutral-300 dark:hover:ring-neutral-700">
+        <button type="button" onclick="this.parentElement.remove(); updateLivePreview();" aria-label="Remove entry"
+                class="absolute -top-2.5 -right-2.5 w-7 h-7 bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-700 rounded-full flex items-center justify-center text-neutral-400 hover:text-red-600 hover:ring-red-200 shadow-sm opacity-0 group-hover:opacity-100 transition-all">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Project Name</label>
-                <input type="text" name="proj_name[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm font-semibold text-rn-navy dark:text-gray-100">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="space-y-1.5">
+                <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Project name</label>
+                <input type="text" name="proj_name[]" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none font-medium text-neutral-900 dark:text-neutral-100">
             </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Project URL</label>
-                <input type="url" name="proj_url[]" placeholder="https://" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-gray-100">
+            <div class="space-y-1.5">
+                <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">URL</label>
+                <input type="url" name="proj_url[]" placeholder="https://" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
             </div>
-            <div class="md:col-span-2">
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Description (one bullet per line)</label>
-                <textarea name="proj_description[]" rows="3" class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white leading-relaxed"></textarea>
+            <div class="md:col-span-2 space-y-1.5">
+                <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Description · one bullet per line</label>
+                <textarea name="proj_description[]" rows="3" class="block w-full px-3 py-2.5 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none resize-y leading-relaxed text-neutral-900 dark:text-neutral-100"></textarea>
             </div>
         </div>
     </div>
 </template>
 
 <template id="cert-template">
-    <div class="cert-entry relative border border-gray-200 dark:border-gray-700 p-6 rounded-lg bg-white dark:bg-gray-800 shadow-sm hover:border-blue-200 dark:hover:border-blue-500 transition-colors group">
-        <button type="button" onclick="this.parentElement.remove(); updateLivePreview();" aria-label="Remove entry" class="absolute -top-3 -right-3 w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-colors shadow-sm opacity-0 group-hover:opacity-100">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+    <div class="cert-entry group relative rounded-xl ring-1 ring-neutral-200 dark:ring-neutral-800 bg-neutral-50/60 dark:bg-neutral-950/40 p-5 transition-colors hover:ring-neutral-300 dark:hover:ring-neutral-700">
+        <button type="button" onclick="this.parentElement.remove(); updateLivePreview();" aria-label="Remove entry"
+                class="absolute -top-2.5 -right-2.5 w-7 h-7 bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-700 rounded-full flex items-center justify-center text-neutral-400 hover:text-red-600 hover:ring-red-200 shadow-sm opacity-0 group-hover:opacity-100 transition-all">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div class="md:col-span-2">
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Certification Name</label>
-                <input type="text" name="cert_name[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm font-semibold text-rn-navy dark:text-gray-100">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="md:col-span-2 space-y-1.5">
+                <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Certification name</label>
+                <input type="text" name="cert_name[]" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none font-medium text-neutral-900 dark:text-neutral-100">
             </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Issuing Organization</label>
-                <input type="text" name="cert_issuer[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
+            <div class="space-y-1.5">
+                <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Issuer</label>
+                <input type="text" name="cert_issuer[]" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
             </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Date / Year</label>
-                <input type="text" name="cert_date[]" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
+            <div class="space-y-1.5">
+                <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Date</label>
+                <input type="text" name="cert_date[]" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
             </div>
-            <div class="md:col-span-2">
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Certification URL</label>
-                <input type="url" name="cert_url[]" placeholder="https://" class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-rn-blue/20 focus:border-rn-blue focus:bg-white dark:focus:bg-gray-800 text-sm dark:text-white">
+            <div class="md:col-span-2 space-y-1.5">
+                <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">URL</label>
+                <input type="url" name="cert_url[]" placeholder="https://" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
             </div>
         </div>
     </div>
 </template>
 
 <script>
-    function escapeHtml(unsafe) {
-        if (!unsafe) return '';
-        return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    // Live preview renderer. Uses createElement + textContent throughout to
+    // avoid any possibility of HTML injection (no innerHTML anywhere).
+    function el(tag, className, text) {
+        const n = document.createElement(tag);
+        if (className) n.className = className;
+        if (text != null && text !== '') n.textContent = text;
+        return n;
+    }
+    function clear(node) { node.replaceChildren(); }
+
+    function buildPItem(title, date, subtitle, description) {
+        const item = el('div', 'p-item');
+        const header = el('div', 'p-item-header');
+        header.append(el('div', 'p-item-title', title), el('div', 'p-item-date', date));
+        item.append(header);
+        if (subtitle) item.append(el('div', 'p-item-subtitle', subtitle));
+        if (description) item.append(el('div', 'p-item-description', description));
+        return item;
     }
 
     function updateLivePreview() {
-        document.getElementById('preview-title').innerText = document.querySelector('input[name="professional_title"]')?.value || '';
-        document.getElementById('preview-summary').innerText = document.querySelector('textarea[name="professional_summary"]')?.value || '';
+        const setText = (id, value) => {
+            const n = document.getElementById(id);
+            if (n) n.textContent = value || '';
+        };
+        const setSectionVisible = (id, visible) => {
+            const n = document.getElementById(id);
+            if (n) n.style.display = visible ? 'block' : 'none';
+        };
+        const val = (selector) => document.querySelector(selector)?.value || '';
+        const vals = (selector) => Array.from(document.querySelectorAll(selector)).map(n => n.value);
 
-        // Skills
-        const skillsVal = document.querySelector('textarea[name="skills"]')?.value || '';
-        document.getElementById('preview-skills').innerText = skillsVal;
-        document.getElementById('preview-skills-section').style.display = skillsVal.trim() ? 'block' : 'none';
+        setText('preview-title', val('input[name="professional_title"]'));
+        setText('preview-summary', val('textarea[name="professional_summary"]'));
+
+        const skills = val('textarea[name="skills"]');
+        setText('preview-skills', skills);
+        setSectionVisible('preview-skills-section', skills.trim().length > 0);
 
         // Experience
-        let expHtml = '';
-        const expTitles = document.querySelectorAll('input[name="exp_title[]"]');
-        const expComps = document.querySelectorAll('input[name="exp_company[]"]');
-        const expDates = document.querySelectorAll('input[name="exp_duration[]"]');
-        const expDescs = document.querySelectorAll('textarea[name="exp_description[]"]');
-        for(let i=0; i<expTitles.length; i++) {
-            expHtml += `<div class="p-item"><div class="p-item-header"><div class="p-item-title">${escapeHtml(expTitles[i].value)}</div><div class="p-item-date">${escapeHtml(expDates[i]?.value||'')}</div></div><div class="p-item-subtitle">${escapeHtml(expComps[i]?.value||'')}</div><div class="p-item-description">${escapeHtml(expDescs[i]?.value||'')}</div></div>`;
+        const expParent = document.getElementById('preview-experience');
+        if (expParent) {
+            clear(expParent);
+            const titles = vals('input[name="exp_title[]"]');
+            const comps = vals('input[name="exp_company[]"]');
+            const dates = vals('input[name="exp_duration[]"]');
+            const descs = vals('textarea[name="exp_description[]"]');
+            titles.forEach((t, i) => {
+                expParent.append(buildPItem(t, dates[i] || '', comps[i] || '', descs[i] || ''));
+            });
         }
-        document.getElementById('preview-experience').innerHTML = expHtml;
 
         // Education
-        let eduHtml = '';
-        const eduDeg = document.querySelectorAll('input[name="edu_degree[]"]');
-        const eduInst = document.querySelectorAll('input[name="edu_institution[]"]');
-        const eduYr = document.querySelectorAll('input[name="edu_year[]"]');
-        for(let i=0; i<eduDeg.length; i++) {
-            eduHtml += `<div class="p-item"><div class="p-item-header"><div class="p-item-title">${escapeHtml(eduDeg[i].value)}</div><div class="p-item-date">${escapeHtml(eduYr[i]?.value||'')}</div></div><div class="p-item-subtitle">${escapeHtml(eduInst[i]?.value||'')}</div></div>`;
+        const eduParent = document.getElementById('preview-education');
+        if (eduParent) {
+            clear(eduParent);
+            const degs = vals('input[name="edu_degree[]"]');
+            const insts = vals('input[name="edu_institution[]"]');
+            const yrs = vals('input[name="edu_year[]"]');
+            degs.forEach((d, i) => {
+                eduParent.append(buildPItem(d, yrs[i] || '', insts[i] || '', ''));
+            });
         }
-        document.getElementById('preview-education').innerHTML = eduHtml;
 
         // Projects
-        let projHtml = '';
-        const projNames = document.querySelectorAll('input[name="proj_name[]"]');
-        const projDescs = document.querySelectorAll('textarea[name="proj_description[]"]');
-        for(let i=0; i<projNames.length; i++) {
-            projHtml += `<div class="p-item"><div class="p-item-title">${escapeHtml(projNames[i].value)}</div><div class="p-item-description">${escapeHtml(projDescs[i]?.value||'')}</div></div>`;
+        const projParent = document.getElementById('preview-projects');
+        if (projParent) {
+            clear(projParent);
+            const names = vals('input[name="proj_name[]"]');
+            const descs = vals('textarea[name="proj_description[]"]');
+            names.forEach((n, i) => {
+                const item = el('div', 'p-item');
+                item.append(el('div', 'p-item-title', n));
+                if (descs[i]) item.append(el('div', 'p-item-description', descs[i]));
+                projParent.append(item);
+            });
+            setSectionVisible('preview-projects-section', names.length > 0);
         }
-        document.getElementById('preview-projects').innerHTML = projHtml;
-        document.getElementById('preview-projects-section').style.display = projNames.length > 0 ? 'block' : 'none';
 
         // Certifications
-        let certHtml = '';
-        const certNames = document.querySelectorAll('input[name="cert_name[]"]');
-        const certIssuers = document.querySelectorAll('input[name="cert_issuer[]"]');
-        for(let i=0; i<certNames.length; i++) {
-            certHtml += `<li style="margin-bottom: 2px;"><strong>${escapeHtml(certNames[i].value)}</strong>${certIssuers[i]?.value ? ' - ' + escapeHtml(certIssuers[i].value) : ''}</li>`;
+        const certParent = document.getElementById('preview-certifications');
+        if (certParent) {
+            clear(certParent);
+            const names = vals('input[name="cert_name[]"]');
+            const issuers = vals('input[name="cert_issuer[]"]');
+            names.forEach((n, i) => {
+                const li = document.createElement('li');
+                li.style.marginBottom = '2px';
+                const strong = document.createElement('strong');
+                strong.textContent = n;
+                li.append(strong);
+                if (issuers[i]) li.append(document.createTextNode(' - ' + issuers[i]));
+                certParent.append(li);
+            });
+            setSectionVisible('preview-certifications-section', names.length > 0);
         }
-        document.getElementById('preview-certifications').innerHTML = certHtml;
-        document.getElementById('preview-certifications-section').style.display = certNames.length > 0 ? 'block' : 'none';
 
         // Languages
-        const langVal = document.querySelector('textarea[name="languages"]')?.value || '';
-        document.getElementById('preview-languages').innerText = langVal;
-        document.getElementById('preview-languages-section').style.display = langVal.trim() ? 'block' : 'none';
+        const langs = val('textarea[name="languages"]');
+        setText('preview-languages', langs);
+        setSectionVisible('preview-languages-section', langs.trim().length > 0);
     }
 
     function addExperience() {
@@ -678,10 +721,11 @@
     function updateTemplateSelection(radioNode) {
         document.querySelectorAll('input[name="template_name"]').forEach(inp => {
             const label = inp.parentElement;
-            label.className = "relative flex flex-col items-center justify-center p-4 border-2 cursor-pointer bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:border-rn-blue dark:hover:border-rn-gold transition-colors border-gray-200 dark:border-gray-700";
+            label.classList.remove('ring-2', 'ring-brand-500', 'bg-brand-50/40', 'dark:bg-brand-950/30');
+            label.classList.add('ring-1', 'ring-neutral-200', 'dark:ring-neutral-800');
         });
-        radioNode.parentElement.classList.remove('border-gray-200', 'dark:border-gray-700');
-        radioNode.parentElement.classList.add('border-rn-blue', 'ring-1', 'ring-rn-blue', 'dark:border-rn-gold', 'dark:ring-rn-gold');
+        radioNode.parentElement.classList.remove('ring-1', 'ring-neutral-200', 'dark:ring-neutral-800');
+        radioNode.parentElement.classList.add('ring-2', 'ring-brand-500', 'bg-brand-50/40', 'dark:bg-brand-950/30');
     }
 
     function resumeEditor() {
@@ -692,8 +736,6 @@
 
             init() {
                 if (this.showSaveToast) setTimeout(() => this.showSaveToast = false, 3000);
-
-                // Track scroll position to highlight active sidebar section
                 const scrollEl = document.getElementById('editor-scroll');
                 if (scrollEl) {
                     scrollEl.addEventListener('scroll', () => this.onScroll(scrollEl));
