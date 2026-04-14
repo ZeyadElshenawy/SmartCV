@@ -29,6 +29,46 @@ def design_system_view(request):
 
 
 @login_required
+def agent_chat_view(request):
+    """General agent chat — not tied to a specific job. Users talk career
+    strategy with an agent that already knows their profile + signals."""
+    return render(request, 'core/agent_chat.html')
+
+
+@login_required
+def agent_chat_api(request):
+    """POST API used by the agent-chat page.
+
+    Body: JSON { history: [{role, content}, ...], message: "..." }
+    Returns { reply, error }.
+    """
+    if request.method != 'POST':
+        from django.http import JsonResponse
+        return JsonResponse({'error': 'POST only'}, status=405)
+
+    import json
+    from django.http import JsonResponse
+    from .services.agent_chat import chat
+
+    try:
+        payload = json.loads(request.body or b'{}')
+    except ValueError:
+        return JsonResponse({'error': 'Invalid JSON.'}, status=400)
+
+    history = payload.get('history') or []
+    if not isinstance(history, list):
+        history = []
+    message = (payload.get('message') or '').strip()
+    if not message:
+        return JsonResponse({'error': 'Empty message.'}, status=400)
+
+    result = chat(request.user, history, message)
+    if result.get('error'):
+        return JsonResponse({'error': result['error']}, status=502)
+    return JsonResponse({'reply': result['reply']})
+
+
+@login_required
 def welcome_view(request):
     """First-run orientation screen shown to brand-new signups.
 

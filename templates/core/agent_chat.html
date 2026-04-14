@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+{% block title %}Talk to your agent — SmartCV{% endblock %}
+
+{% block content %}
+<div class="flex flex-col h-[calc(100vh-64px)] bg-neutral-50 dark:bg-neutral-950"
+     x-data="agentChat()" x-init="init()">
+
+    <header class="shrink-0 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800 px-4 sm:px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <span aria-hidden="true" class="relative flex items-center justify-center w-9 h-9">
+                <span class="absolute inset-0 rounded-lg bg-brand-600 rotate-[-8deg]"></span>
+                <span class="relative font-display italic text-white text-base font-semibold leading-none"
+                      style="font-variation-settings: 'opsz' 14;">s</span>
+            </span>
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="font-display text-base leading-none text-neutral-900 dark:text-neutral-50"
+                          style="font-variation-settings: 'opsz' 20;">Your agent</span>
+                </div>
+                <div class="mt-1 flex items-center gap-1.5">
+                    <span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span class="text-[11px] text-neutral-500 dark:text-neutral-400">Ready · knows your profile and pipeline</span>
+                </div>
+            </div>
+        </div>
+        <button @click="reset()" type="button" class="text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400 hover:text-brand-700 dark:hover:text-brand-400 transition-colors">
+            New chat
+        </button>
+    </header>
+
+    <div class="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-5" x-ref="messages">
+        {# First-time empty state: prompt seeds + a brief orient #}
+        <template x-if="messages.length === 0 && !loading">
+            <div class="max-w-2xl mx-auto space-y-8 py-6">
+                <div class="text-center space-y-3">
+                    {% include "components/section_label.html" with text="Ask anything career-related" tone="brand" %}
+                    <h2 class="font-display text-3xl sm:text-4xl leading-tight text-neutral-900 dark:text-neutral-50"
+                        style="font-variation-settings: 'opsz' 48;">
+                        What's on your mind?
+                    </h2>
+                    <p class="text-sm text-neutral-500 dark:text-neutral-400 max-w-md mx-auto leading-relaxed">
+                        Your agent already knows your profile, signals, and applications.
+                        Keep it short and specific — it'll ask back if it needs more.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <template x-for="seed in seeds" :key="seed">
+                        <button type="button" @click="send(seed)" class="group text-left rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-4 hover:ring-brand-300 dark:hover:ring-brand-700 transition-all">
+                            <span class="text-sm text-neutral-800 dark:text-neutral-200 leading-relaxed" x-text="seed"></span>
+                            <span aria-hidden="true" class="block mt-2 text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                                Ask this →
+                            </span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+        </template>
+
+        {# Transcript #}
+        <template x-for="msg in messages" :key="msg.id">
+            <div>
+                <template x-if="msg.role === 'assistant'">
+                    <div class="flex items-end gap-2.5 max-w-[85%]">
+                        <span aria-hidden="true" class="relative flex items-center justify-center w-7 h-7 shrink-0">
+                            <span class="absolute inset-0 rounded-md rotate-[-8deg]"
+                                  :class="msg.isError ? 'bg-red-500' : 'bg-brand-600'"></span>
+                            <span class="relative font-display italic text-white text-xs font-semibold leading-none"
+                                  style="font-variation-settings: 'opsz' 14;" x-text="msg.isError ? '!' : 's'"></span>
+                        </span>
+                        <div class="relative rounded-2xl rounded-bl-md px-4 py-3 ring-1 overflow-hidden"
+                             :class="msg.isError ? 'bg-red-50 dark:bg-red-950/40 ring-red-200 dark:ring-red-900 text-red-900 dark:text-red-200' : 'bg-white dark:bg-neutral-900 ring-neutral-200 dark:ring-neutral-800 text-neutral-900 dark:text-neutral-100'">
+                            <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[2px]"
+                                 :class="msg.isError ? 'bg-red-500' : 'bg-brand-500'"></div>
+                            <p class="text-sm leading-relaxed whitespace-pre-wrap" x-text="msg.content"></p>
+                        </div>
+                    </div>
+                </template>
+                <template x-if="msg.role === 'user'">
+                    <div class="flex justify-end">
+                        <div class="max-w-[75%] bg-brand-600 text-white px-4 py-3 rounded-2xl rounded-br-md shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)]">
+                            <p class="text-sm leading-relaxed whitespace-pre-wrap" x-text="msg.content"></p>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </template>
+
+        <div x-show="loading" x-transition class="flex items-end gap-2.5 max-w-[85%]">
+            <span aria-hidden="true" class="relative flex items-center justify-center w-7 h-7 shrink-0">
+                <span class="absolute inset-0 rounded-md bg-brand-600 rotate-[-8deg]"></span>
+                <span class="relative font-display italic text-white text-xs font-semibold leading-none"
+                      style="font-variation-settings: 'opsz' 14;">s</span>
+            </span>
+            <div class="rounded-2xl rounded-bl-md px-4 py-3 bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+                <div class="flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 bg-brand-500 rounded-full animate-bounce" style="animation-delay:0ms"></span>
+                    <span class="w-1.5 h-1.5 bg-brand-500 rounded-full animate-bounce" style="animation-delay:150ms"></span>
+                    <span class="w-1.5 h-1.5 bg-brand-500 rounded-full animate-bounce" style="animation-delay:300ms"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="shrink-0 border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-4 sm:px-6 py-4">
+        <form @submit.prevent="sendFromInput()" class="flex items-center gap-2 max-w-4xl mx-auto">
+            <input type="text" x-model="userInput"
+                   placeholder="Ask your agent…"
+                   :disabled="loading"
+                   class="flex-1 h-11 px-4 text-sm rounded-lg bg-neutral-50 dark:bg-neutral-950/40 ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none transition-[box-shadow] duration-150"
+                   x-ref="chatInput">
+            <button type="submit" :disabled="loading || !userInput.trim()"
+                    class="w-11 h-11 rounded-lg bg-brand-600 hover:bg-brand-700 text-white flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] disabled:opacity-40 disabled:cursor-not-allowed transition-[background-color,transform] active:scale-95">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+function agentChat() {
+    return {
+        messages: [],
+        userInput: '',
+        loading: false,
+        seeds: [
+            "I have two offers — help me compare them.",
+            "What should I focus on to switch from backend to ML?",
+            "Draft a 30-second pitch from my profile.",
+            "How do I explain a 6-month gap in interviews?",
+        ],
+
+        init() {
+            this.$nextTick(() => { if (this.$refs.chatInput) this.$refs.chatInput.focus(); });
+        },
+
+        reset() {
+            this.messages = [];
+            this.userInput = '';
+            this.$nextTick(() => { if (this.$refs.chatInput) this.$refs.chatInput.focus(); });
+        },
+
+        sendFromInput() {
+            const text = (this.userInput || '').trim();
+            if (!text) return;
+            this.userInput = '';
+            this.send(text);
+        },
+
+        async send(text) {
+            if (!text || this.loading) return;
+            this.messages.push({ id: Date.now(), role: 'user', content: text });
+            this.$nextTick(() => this._scrollToBottom());
+            this.loading = true;
+
+            // Snapshot history BEFORE adding the new assistant reply.
+            const history = this.messages
+                .filter(m => !m.isError)
+                .slice(0, -1)  // exclude the user message we just pushed (sent separately below)
+                .map(m => ({ role: m.role, content: m.content }));
+
+            try {
+                const csrf = this._csrf();
+                const resp = await fetch('/agent/api/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                    body: JSON.stringify({ history, message: text }),
+                });
+                const data = await resp.json().catch(() => ({}));
+                if (!resp.ok || data.error) {
+                    this.messages.push({
+                        id: Date.now() + 1, role: 'assistant',
+                        content: data.error || ('Server returned ' + resp.status),
+                        isError: true,
+                    });
+                    return;
+                }
+                this.messages.push({ id: Date.now() + 1, role: 'assistant', content: data.reply });
+            } catch (e) {
+                this.messages.push({
+                    id: Date.now() + 1, role: 'assistant',
+                    content: e.message || 'Network error.', isError: true,
+                });
+            } finally {
+                this.loading = false;
+                this.$nextTick(() => {
+                    this._scrollToBottom();
+                    if (this.$refs.chatInput) this.$refs.chatInput.focus();
+                });
+            }
+        },
+
+        _scrollToBottom() {
+            if (this.$refs.messages) {
+                this.$refs.messages.scrollTop = this.$refs.messages.scrollHeight;
+            }
+        },
+
+        _csrf() {
+            return document.cookie.split('; ').find(c => c.startsWith('csrftoken='))?.split('=')[1] || '';
+        },
+    };
+}
+</script>
+{% endblock %}
