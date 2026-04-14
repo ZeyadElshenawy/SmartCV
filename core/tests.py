@@ -574,3 +574,64 @@ class AgentChatViewJobTests(TestCase):
         resp = self.client.get(reverse('agent_chat') + '?job=not-a-uuid')
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(resp.url, reverse('agent_chat'))
+
+
+class AgentChatApiJobTests(TestCase):
+    """POST /agent/api/ with job_id — validates ownership, forwards job to chat()."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        self.user = get_user_model().objects.create_user(
+            username='api@example.com', email='api@example.com', password='x'
+        )
+        self.other = get_user_model().objects.create_user(
+            username='other@example.com', email='other@example.com', password='x'
+        )
+        self.client.force_login(self.user)
+
+    def _make_job(self, user, company='Stripe'):
+        from jobs.models import Job
+        return Job.objects.create(
+            user=user, title='SWE', company=company,
+            description='x', extracted_skills=['Python'],
+            application_status='interviewing',
+        )
+
+    def _post(self, body):
+        import json as _j
+        return self.client.post(
+            reverse('agent_chat_api'),
+            data=_j.dumps(body),
+            content_type='application/json',
+        )
+
+    def test_valid_job_id_forwards_job_to_chat(self):
+        from unittest.mock import patch, MagicMock
+        job = self._make_job(self.user)
+        fake_llm = MagicMock()
+        fake_llm.invoke.return_value = MagicMock(content='scoped reply')
+        with patch('profiles.services.llm_engine.get_llm', return_value=fake_llm), \
+             patch('core.views.chat', wraps=__import__('core.services.agent_chat', fromlist=['chat']).chat) as spy:
+            resp = self._post({'history': [], 'message': 'Prep me.', 'job_id': str(job.id)})
+        self.assertEqual(resp.status_code, 200)
+        kwargs = spy.call_args.kwargs if spy.call_args else {}
+        self.assertIsNotNone(kwargs.get('job'))
+        self.assertEqual(kwargs['job'].id, job.id)
+
+    def test_foreign_job_id_returns_403(self):
+        foreign = self._make_job(self.other)
+        resp = self._post({'history': [], 'message': 'Hi', 'job_id': str(foreign.id)})
+        self.assertEqual(resp.status_code, 403)
+        self.assertIn('error', resp.json())
+
+    def test_invalid_job_id_returns_403(self):
+        resp = self._post({'history': [], 'message': 'Hi', 'job_id': 'not-a-uuid'})
+        self.assertEqual(resp.status_code, 403)
+
+    def test_missing_job_id_is_backwards_compatible(self):
+        from unittest.mock import patch, MagicMock
+        fake_llm = MagicMock()
+        fake_llm.invoke.return_value = MagicMock(content='general reply')
+        with patch('profiles.services.llm_engine.get_llm', return_value=fake_llm):
+            resp = self._post({'history': [], 'message': 'Hi'})
+        self.assertEqual(resp.status_code, 200)

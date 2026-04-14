@@ -1,6 +1,8 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 
+from .services.agent_chat import chat
+
 def home_view(request):
     """Landing page - redirect to appropriate dashboard"""
     if request.user.is_authenticated:
@@ -64,16 +66,21 @@ def agent_chat_view(request):
 def agent_chat_api(request):
     """POST API used by the agent-chat page.
 
-    Body: JSON { history: [{role, content}, ...], message: "..." }
-    Returns { reply, error }.
+    Body: JSON { history: [{role, content}, ...], message: "...", job_id?: "<uuid>" }
+    Returns { reply } on success, { error } on failure.
+
+    When ``job_id`` is present, it must belong to the authenticated user
+    (otherwise 403) and the matching Job is forwarded to the chat service
+    so the agent's system prompt includes the job's dossier.
     """
     if request.method != 'POST':
         from django.http import JsonResponse
         return JsonResponse({'error': 'POST only'}, status=405)
 
     import json
+    import uuid as _uuid
     from django.http import JsonResponse
-    from .services.agent_chat import chat
+    from jobs.models import Job
 
     try:
         payload = json.loads(request.body or b'{}')
@@ -87,7 +94,18 @@ def agent_chat_api(request):
     if not message:
         return JsonResponse({'error': 'Empty message.'}, status=400)
 
-    result = chat(request.user, history, message)
+    job = None
+    raw_job_id = payload.get('job_id')
+    if raw_job_id:
+        try:
+            _uuid.UUID(str(raw_job_id))
+        except (ValueError, TypeError):
+            return JsonResponse({'error': 'Job not found.'}, status=403)
+        job = Job.objects.filter(id=raw_job_id, user=request.user).first()
+        if job is None:
+            return JsonResponse({'error': 'Job not found.'}, status=403)
+
+    result = chat(request.user, history, message, job=job)
     if result.get('error'):
         return JsonResponse({'error': result['error']}, status=502)
     return JsonResponse({'reply': result['reply']})
