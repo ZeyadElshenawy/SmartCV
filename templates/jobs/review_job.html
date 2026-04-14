@@ -1,139 +1,109 @@
 {% extends 'base.html' %}
+{% block title %}Review extracted job — SmartCV{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 transition-colors">
-    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        
-        <!-- Progress Indicator -->
-        <div class="flex items-center justify-center mb-8 gap-3 text-sm font-medium">
-            <span class="flex items-center gap-1.5 text-green-600">
-                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
-                Job Input
+<div class="relative min-h-screen bg-neutral-50 dark:bg-neutral-950 py-16 sm:py-24">
+    <div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 space-y-10">
+
+        {# ---- Editorial progress strip ---- #}
+        <nav aria-label="Flow" class="flex flex-wrap items-center gap-x-6 gap-y-2 text-[11px] uppercase tracking-[0.16em] font-medium">
+            <span class="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                <svg aria-hidden="true" class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                Job captured
             </span>
-            <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-            <span class="flex items-center gap-1.5 text-rn-blue font-bold">
-                <span class="w-5 h-5 rounded-full bg-rn-blue text-white text-xs flex items-center justify-center">2</span>
-                Review & Confirm
+            <span aria-hidden="true" class="text-neutral-300 dark:text-neutral-700">·</span>
+            <span class="flex items-center gap-2 text-brand-700 dark:text-brand-400">
+                <span aria-hidden="true" class="h-1.5 w-1.5 rounded-full bg-brand-500 animate-pulse"></span>
+                Review & confirm
             </span>
-            <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-            <span class="text-gray-400">Gap Analysis</span>
+            <span aria-hidden="true" class="text-neutral-300 dark:text-neutral-700">·</span>
+            <span class="text-neutral-400 dark:text-neutral-600">Gap analysis</span>
+        </nav>
+
+        {# ---- Editorial header ---- #}
+        <header class="space-y-5">
+            <h1 class="font-display text-5xl sm:text-6xl leading-[1.02] tracking-tight text-neutral-900 dark:text-neutral-50"
+                style="font-variation-settings: 'opsz' 144;">
+                Did we get it <em class="font-medium text-brand-700 dark:text-brand-400">right</em>?
+            </h1>
+            <p class="text-lg text-neutral-600 dark:text-neutral-300 leading-relaxed max-w-xl">
+                Verify the extracted fields before analysis runs. If you edit the description,
+                we'll re-extract the skill list automatically.
+            </p>
+        </header>
+
+        {# ---- Error banner ---- #}
+        {% if error %}
+        <div role="alert" class="flex items-start gap-3 rounded-xl bg-red-50 dark:bg-red-950/40 ring-1 ring-red-200 dark:ring-red-900 px-5 py-4">
+            <svg aria-hidden="true" class="w-5 h-5 flex-shrink-0 mt-0.5 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
+            <div>
+                <div class="text-[11px] uppercase tracking-[0.18em] font-medium text-red-700 dark:text-red-300">Something went wrong</div>
+                <p class="mt-1 text-sm text-red-700 dark:text-red-200">{{ error }}</p>
+            </div>
         </div>
+        {% endif %}
 
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
-            <!-- Header -->
-            <div class="px-8 py-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-800">
-                <h1 class="text-2xl font-extrabold text-rn-navy dark:text-gray-100 mb-1">Review Extracted Job</h1>
-                <p class="text-gray-500 dark:text-gray-400 font-medium text-sm">Please verify the extracted data is correct before proceeding to gap analysis. Edit any incorrect fields below.</p>
-            </div>
+        {# ---- Review card ---- #}
+        <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)]">
+            <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
 
-            {% if error %}
-            <div class="m-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-md flex items-center text-sm">
-                <svg class="w-5 h-5 mr-3 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
-                {{ error }}
-            </div>
-            {% endif %}
-
-            <form method="post" class="p-8 space-y-6">
+            <form method="post" class="p-6 sm:p-8 space-y-7">
                 {% csrf_token %}
-                
-                <!-- Job Title & Company -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div>
-                        <label for="review-title" class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                            Job Title <span class="text-red-500">*</span>
-                        </label>
-                        <input 
-                            type="text" 
-                            id="review-title"
-                            name="title" 
-                            value="{{ job.title }}" 
-                            required
-                            class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-rn-blue transition-colors"
-                        >
-                    </div>
-                    <div>
-                        <label for="review-company" class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                            Company <span class="text-red-500">*</span>
-                        </label>
-                        <input 
-                            type="text" 
-                            id="review-company"
-                            name="company" 
-                            value="{{ job.company }}" 
-                            required
-                            class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-rn-blue transition-colors"
-                        >
-                    </div>
+
+                <div class="grid sm:grid-cols-2 gap-5">
+                    {% include "components/input.html" with name="title" id="review-title" label="Job title" value=job.title required=True %}
+                    {% include "components/input.html" with name="company" id="review-company" label="Company" value=job.company required=True %}
                 </div>
 
-                <!-- Description -->
-                <div>
-                    <label for="review-description" class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                        Job Description <span class="text-red-500">*</span>
+                <div class="space-y-2">
+                    <label for="review-description" class="block text-xs font-medium uppercase tracking-[0.14em] text-neutral-600 dark:text-neutral-400">
+                        Job description <span class="text-red-500" aria-hidden="true">*</span>
                     </label>
-                    <textarea 
-                        id="review-description"
-                        name="description" 
-                        rows="10" 
-                        required
-                        class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-rn-blue transition-colors resize-y text-sm leading-relaxed"
-                    >{{ job.description }}</textarea>
+                    <textarea id="review-description" name="description" rows="10" required
+                              class="block w-full px-4 py-3 text-sm rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none transition-[box-shadow,border-color] duration-150 resize-y leading-relaxed">{{ job.description }}</textarea>
                 </div>
 
-                <!-- Extracted Skills (read-only display) -->
                 {% if job.extracted_skills %}
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                        Extracted Skills
-                        <span class="text-xs font-normal text-gray-400 ml-1">(auto-detected from description)</span>
-                    </label>
-                    <div class="flex flex-wrap gap-2 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
-                        {% for skill in job.extracted_skills %}
-                        <span class="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-rn-blue dark:text-blue-300 font-semibold rounded-lg border border-blue-100 dark:border-blue-800 text-sm">
-                            {{ skill }}
-                        </span>
-                        {% endfor %}
+                <div class="space-y-3">
+                    <div class="flex items-baseline justify-between flex-wrap gap-2">
+                        {% include "components/section_label.html" with text="Extracted skills" tone="brand" %}
+                        <span class="text-[11px] text-neutral-500 dark:text-neutral-400">auto-detected from the description</span>
                     </div>
-                    <p class="text-xs text-gray-400 mt-1.5">Skills will be re-extracted if you change the description.</p>
+                    <div class="flex flex-wrap gap-1.5 rounded-xl bg-neutral-50 dark:bg-neutral-950/40 ring-1 ring-neutral-200 dark:ring-neutral-800 p-4">
+                        {% for skill in job.extracted_skills %}{% include "components/badge.html" with label=skill tone="brand" %}{% endfor %}
+                    </div>
+                    <p class="text-xs text-neutral-500 dark:text-neutral-400">Editing the description above will re-run extraction.</p>
                 </div>
                 {% endif %}
 
                 {% if job.url %}
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Source URL</label>
-                    <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600">
-                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
-                        <a href="{{ job.url }}" target="_blank" class="text-rn-blue hover:underline truncate">{{ job.url }}</a>
+                <div class="space-y-2">
+                    {% include "components/section_label.html" with text="Source" %}
+                    <div class="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-950/40 ring-1 ring-neutral-200 dark:ring-neutral-800 px-4 py-3 rounded-lg">
+                        <svg aria-hidden="true" class="w-4 h-4 flex-shrink-0 text-neutral-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                        <a href="{{ job.url }}" target="_blank" rel="noopener" class="text-brand-700 dark:text-brand-400 hover:underline truncate font-mono text-xs">{{ job.url }}</a>
                     </div>
                 </div>
                 {% endif %}
 
-                <!-- Action Buttons -->
-                <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <a href="{% url 'job_input_view' %}" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 font-medium transition-colors text-sm">
-                        ← Back to Job Input
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-neutral-100 dark:border-neutral-800">
+                    <a href="{% url 'job_input_view' %}" class="text-sm font-medium text-neutral-600 dark:text-neutral-300 hover:text-brand-700 dark:hover:text-brand-400 transition-colors">
+                        ← Edit job input
                     </a>
-                    <div class="flex gap-3">
-                        <button 
-                            type="submit"
-                            name="action"
-                            value="confirm"
-                            class="inline-flex items-center px-8 py-3.5 bg-rn-gold text-rn-navy font-bold rounded-rn-pill hover:bg-rn-gold-hover hover:-translate-y-0.5 transition-all shadow-md text-sm"
-                            onclick="showLoading('Running Gap Analysis...')"
-                        >
-                            Confirm & Analyze
-                            <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-                        </button>
-                    </div>
+                    <button type="submit" name="action" value="confirm"
+                            onclick="showLoading('Running gap analysis — this takes 5–10 seconds.')"
+                            class="group/btn relative inline-flex items-center justify-center gap-2 whitespace-nowrap h-12 px-6 text-sm font-medium tracking-tight rounded-xl bg-brand-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-brand-700 hover:-translate-y-px focus-visible:ring-4 focus-visible:ring-brand-300/50 focus-visible:outline-none transition-[background-color,transform,box-shadow] duration-150 ease-out">
+                        Confirm & analyze
+                        <span aria-hidden="true" class="flex-shrink-0 transition-transform duration-200 group-hover/btn:translate-x-0.5">→</span>
+                    </button>
                 </div>
             </form>
-        </div>
+        </section>
 
-        <!-- Security Banner -->
-        <div class="mt-4 text-center text-xs text-gray-400 font-medium flex items-center justify-center gap-1.5">
-            <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path></svg>
-            Your data is processed securely and never shared.
-        </div>
+        <p class="text-center text-[11px] uppercase tracking-[0.18em] font-medium text-neutral-500 dark:text-neutral-400 flex items-center justify-center gap-2">
+            <svg aria-hidden="true" class="w-3.5 h-3.5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path></svg>
+            Your data is processed securely and never shared
+        </p>
     </div>
 </div>
 {% endblock %}
