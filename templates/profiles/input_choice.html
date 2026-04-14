@@ -1,57 +1,55 @@
 {% extends 'base.html' %}
+{% block title %}Build your profile — SmartCV{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto px-4 py-8">
-    <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">Create Your Profile</h1>
-        <p class="mt-2 text-gray-600 dark:text-gray-400">Choose how you'd like to input your information</p>
-    </div>
-    
-    <div class="grid md:grid-cols-3 gap-6">
-        <!-- Upload CV -->
-        <a href="{% url 'profile_upload_cv' job.id %}" class="block group">
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border-2 border-gray-200 dark:border-gray-700 p-8 hover:border-blue-500 dark:hover:border-blue-500 transition-colors">
-                <div class="text-center">
-                    <div class="w-16 h-16 bg-blue-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors">
-                        <svg class="w-8 h-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                        </svg>
-                    </div>
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Upload CV</h3>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">Upload your existing resume (PDF/DOCX)</p>
+<div class="min-h-screen bg-neutral-50 dark:bg-neutral-950 py-16 sm:py-24">
+    <div class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 space-y-10">
+        <header class="text-center space-y-4 max-w-2xl mx-auto">
+            {% include "components/section_label.html" with text="Build your profile" tone="brand" %}
+            <h1 class="font-display text-4xl sm:text-5xl leading-[1.02] tracking-tight text-neutral-900 dark:text-neutral-50"
+                style="font-variation-settings: 'opsz' 80;">
+                Three ways <em class="font-medium text-brand-700 dark:text-brand-400">in</em>.
+            </h1>
+            <p class="text-neutral-500 dark:text-neutral-400">Pick whichever feels fastest — you can always edit later.</p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <a href="{% url 'profile_upload_cv' job.id %}" class="group relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-6 hover:ring-brand-300 dark:hover:ring-brand-700 hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)] transition-all">
+                <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
+                <div aria-hidden="true" class="font-display italic text-5xl leading-none tabular-nums text-brand-600 dark:text-brand-400 mb-4"
+                     style="font-variation-settings: 'opsz' 72;">01</div>
+                <h3 class="font-display text-xl leading-tight text-neutral-900 dark:text-neutral-50 mb-2"
+                    style="font-variation-settings: 'opsz' 24;">Upload CV</h3>
+                <p class="text-sm text-neutral-600 dark:text-neutral-400">Drop a PDF or DOCX. We extract every section.</p>
+                <div class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-brand-700 dark:text-brand-400">
+                    Choose <span aria-hidden="true" class="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
                 </div>
-            </div>
-        </a>
-        
-        <!-- Manual Form -->
-        <a href="{% url 'profile_manual_form' job.id %}" class="block group">
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border-2 border-gray-200 dark:border-gray-700 p-8 hover:border-blue-500 dark:hover:border-blue-500 transition-colors">
-                <div class="text-center">
-                    <div class="w-16 h-16 bg-blue-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors">
-                        <svg class="w-8 h-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                        </svg>
-                    </div>
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Fill Form</h3>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">Enter your information manually</p>
+            </a>
+
+            <a href="{% url 'profile_manual_form' job.id %}" class="group relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-6 hover:ring-brand-300 dark:hover:ring-brand-700 hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)] transition-all">
+                <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-accent-500"></div>
+                <div aria-hidden="true" class="font-display italic text-5xl leading-none tabular-nums text-accent-600 dark:text-accent-400 mb-4"
+                     style="font-variation-settings: 'opsz' 72;">02</div>
+                <h3 class="font-display text-xl leading-tight text-neutral-900 dark:text-neutral-50 mb-2"
+                    style="font-variation-settings: 'opsz' 24;">Fill a form</h3>
+                <p class="text-sm text-neutral-600 dark:text-neutral-400">Type it in yourself — clean slate, full control.</p>
+                <div class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-accent-700 dark:text-accent-400">
+                    Choose <span aria-hidden="true" class="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
                 </div>
-            </div>
-        </a>
-        
-        <!-- Chatbot -->
-        <a href="{% url 'profile_chatbot' job.id %}" class="block group">
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border-2 border-gray-200 dark:border-gray-700 p-8 hover:border-blue-500 dark:hover:border-blue-500 transition-colors">
-                <div class="text-center">
-                    <div class="w-16 h-16 bg-blue-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors">
-                        <svg class="w-8 h-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
-                        </svg>
-                    </div>
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Chat with AI</h3>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">Have a conversation with our AI assistant</p>
+            </a>
+
+            <a href="{% url 'profile_chatbot' job.id %}" class="group relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-6 hover:ring-brand-300 dark:hover:ring-brand-700 hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)] transition-all">
+                <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-emerald-500"></div>
+                <div aria-hidden="true" class="font-display italic text-5xl leading-none tabular-nums text-emerald-600 dark:text-emerald-400 mb-4"
+                     style="font-variation-settings: 'opsz' 72;">03</div>
+                <h3 class="font-display text-xl leading-tight text-neutral-900 dark:text-neutral-50 mb-2"
+                    style="font-variation-settings: 'opsz' 24;">Chat it out</h3>
+                <p class="text-sm text-neutral-600 dark:text-neutral-400">A guided conversation builds your profile piece by piece.</p>
+                <div class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                    Choose <span aria-hidden="true" class="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
                 </div>
-            </div>
-        </a>
+            </a>
+        </div>
     </div>
 </div>
 {% endblock %}

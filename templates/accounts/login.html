@@ -1,66 +1,53 @@
 {% extends 'base.html' %}
+{% block title %}Sign in — SmartCV{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4 py-12 transition-colors">
-    <div class="max-w-md w-full">
-        <div class="text-center mb-8">
-            <h1 class="text-3xl font-extrabold text-rn-navy dark:text-gray-100 tracking-tight">Sign In</h1>
-            <p class="mt-2 text-gray-600 dark:text-gray-400 font-medium">Welcome back to SmartCV</p>
+<div class="relative min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center px-4 py-16">
+    <div class="w-full max-w-md space-y-8">
+        <div class="text-center space-y-3">
+            {% include "components/section_label.html" with text="Welcome back" tone="brand" %}
+            <h1 class="font-display text-5xl leading-[1.02] tracking-tight text-neutral-900 dark:text-neutral-50"
+                style="font-variation-settings: 'opsz' 144;">
+                Sign <em class="font-medium text-brand-700 dark:text-brand-400">in</em>.
+            </h1>
         </div>
-        
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
-            <div class="p-8 sm:p-10">
-                <form method="post" class="space-y-6">
+
+        <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)]">
+            <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
+            <div class="p-6 sm:p-8">
+                <form method="post" class="space-y-5">
                     {% csrf_token %}
-                    
+
                     {% if messages %}
                         {% for message in messages %}
-                        <div class="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded text-sm font-medium mb-6">
-                            {{ message }}
+                        <div role="alert" class="flex items-start gap-3 rounded-xl bg-red-50 dark:bg-red-950/40 ring-1 ring-red-200 dark:ring-red-900 px-4 py-3 text-sm text-red-700 dark:text-red-200">
+                            <svg aria-hidden="true" class="w-4 h-4 flex-shrink-0 mt-0.5 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
+                            <span class="font-medium">{{ message }}</span>
                         </div>
                         {% endfor %}
                     {% endif %}
-                    
-                    <div>
-                        <label for="email" class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Email Address</label>
-                        <input type="email" id="email" name="email" required 
-                               class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-2 focus:ring-rn-blue focus:border-rn-blue transition-colors outline-none font-medium">
+
+                    {% include "components/input.html" with name="email" label="Email address" type="email" required=True autocomplete="email" %}
+                    {% include "components/input.html" with name="password" label="Password" type="password" required=True autocomplete="current-password" %}
+
+                    <div class="flex items-center justify-between pt-1">
+                        <label class="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-300">
+                            <input id="remember-me" name="remember-me" type="checkbox" class="h-4 w-4 rounded text-brand-600 focus:ring-brand-500 ring-1 ring-neutral-300 dark:ring-neutral-700 border-0">
+                            <span>Remember me</span>
+                        </label>
+                        <a href="{% url 'password_reset' %}" class="text-xs uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline">Forgot?</a>
                     </div>
-                    
-                    <div>
-                        <label for="password" class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Password</label>
-                        <input type="password" id="password" name="password" required 
-                               class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-2 focus:ring-rn-blue focus:border-rn-blue transition-colors outline-none font-medium">
+
+                    <div class="pt-2">
+                        {% include "components/button.html" with variant="primary" label="Sign in" size="lg" arrow=True block=True %}
                     </div>
-                    
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center">
-                            <input id="remember-me" name="remember-me" type="checkbox" 
-                                   class="h-4 w-4 text-rn-blue focus:ring-rn-blue border-gray-300 dark:border-gray-600 rounded">
-                            <label for="remember-me" class="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Remember me</label>
-                        </div>
-                        
-                        <div class="text-sm">
-                            <a href="{% url 'password_reset' %}" class="font-bold text-rn-blue hover:text-rn-blue-hover transition-colors">
-                                Forgot password?
-                            </a>
-                        </div>
-                    </div>
-                    
-                    <button type="submit" 
-                            class="w-full inline-flex justify-center items-center bg-rn-blue text-white py-3.5 rounded-rn-pill font-bold shadow-md hover:bg-rn-blue-hover hover:-translate-y-0.5 transition-all mt-4">
-                        Sign In
-                    </button>
                 </form>
             </div>
-            
-            <div class="bg-gray-50 dark:bg-gray-800/80 border-t border-gray-200 dark:border-gray-700 px-8 py-6 text-center transition-colors">
-                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">
-                    Don't have an account? 
-                    <a href="{% url 'register' %}" class="font-bold text-rn-blue hover:text-rn-blue-hover transition-colors">Sign up</a>
-                </p>
+            <div class="px-6 sm:px-8 py-4 border-t border-neutral-100 dark:border-neutral-800 text-center text-sm text-neutral-600 dark:text-neutral-400">
+                Don't have an account?
+                <a href="{% url 'register' %}" class="font-medium text-brand-700 dark:text-brand-400 hover:underline ml-0.5">Sign up</a>
             </div>
-        </div>
+        </section>
     </div>
 </div>
 {% endblock %}
