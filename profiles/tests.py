@@ -588,3 +588,49 @@ class ProfileStrengthTests(TestCase):
             'github_connected', 'scholar_or_kaggle', 'has_linkedin', 'signals_fresh',
         }
         self.assertEqual(set(HREF_BY_KEY.keys()), expected_keys)
+
+    def test_completeness_empty_profile_scores_zero(self):
+        from profiles.services.profile_strength import _score_completeness
+        profile = self._make_profile()
+        c = _score_completeness(profile)
+        self.assertEqual(c['key'], 'completeness')
+        self.assertEqual(c['max'], 35)
+        self.assertEqual(c['score'], 0)
+        self.assertTrue(all(not i['met'] for i in c['items']))
+
+    def test_completeness_full_profile_scores_max(self):
+        from profiles.services.profile_strength import _score_completeness
+        profile = self._make_profile(
+            full_name='Jane Doe', email='j@example.com',
+            location='Cairo', phone='+20 100 000',
+            data_content={
+                'summary': 'x' * 50,
+                'skills': [{'name': s} for s in ['Python', 'Go', 'SQL', 'React', 'Django']],
+                'experiences': [
+                    {'title': 'A', 'description': 'Did stuff.'},
+                    {'title': 'B', 'description': 'More stuff.'},
+                    {'title': 'C', 'description': 'Even more.'},
+                ],
+                'education': [{'degree': 'BSc', 'institution': 'KSIU'}],
+            },
+        )
+        c = _score_completeness(profile)
+        self.assertEqual(c['score'], 35)
+        self.assertTrue(all(i['met'] for i in c['items']))
+
+    def test_completeness_partial_only_counts_met_items(self):
+        from profiles.services.profile_strength import _score_completeness
+        profile = self._make_profile(
+            full_name='Jane', email='j@example.com',
+            data_content={'skills': [{'name': s} for s in ['Python', 'Go', 'SQL', 'React', 'Django']]},
+        )
+        c = _score_completeness(profile)
+        # identity (5) + skills (5) = 10
+        self.assertEqual(c['score'], 10)
+        met = {i['key']: i['met'] for i in c['items']}
+        self.assertTrue(met['has_identity'])
+        self.assertTrue(met['has_five_skills'])
+        self.assertFalse(met['has_three_exps'])
+        self.assertFalse(met['has_education'])
+        self.assertFalse(met['has_summary'])
+        self.assertFalse(met['has_location_phone'])

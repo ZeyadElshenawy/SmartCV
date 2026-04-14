@@ -61,6 +61,72 @@ HREF_BY_KEY: dict[str, str] = {
 }
 
 
+def _score_completeness(profile) -> StrengthComponent:
+    """35-point breakdown: identity, experiences, education, skills, summary, contact."""
+    data = profile.data_content or {}
+    experiences = data.get('experiences') or []
+    education = data.get('education') or []
+    skills = data.get('skills') or []
+    summary = (data.get('summary') or '').strip()
+
+    items: list[StrengthItem] = []
+
+    items.append(StrengthItem(
+        key='has_identity',
+        label='Add your name and email',
+        met=bool(profile.full_name) and bool(profile.email),
+        points=5,
+    ))
+
+    has_three_exps = (
+        len(experiences) >= 3
+        and all(
+            isinstance(exp, dict) and (exp.get('description') or '').strip()
+            for exp in experiences[:3]
+        )
+    )
+    items.append(StrengthItem(
+        key='has_three_exps',
+        label='Describe at least 3 experiences',
+        met=has_three_exps,
+        points=10,
+    ))
+
+    items.append(StrengthItem(
+        key='has_education',
+        label='Add at least one education entry',
+        met=len(education) >= 1,
+        points=5,
+    ))
+
+    items.append(StrengthItem(
+        key='has_five_skills',
+        label='List at least 5 skills',
+        met=len(skills) >= 5,
+        points=5,
+    ))
+
+    items.append(StrengthItem(
+        key='has_summary',
+        label='Write a professional summary',
+        met=len(summary) >= 40,
+        points=5,
+    ))
+
+    items.append(StrengthItem(
+        key='has_location_phone',
+        label='Fill in location and phone',
+        met=bool(profile.location) and bool(profile.phone),
+        points=5,
+    ))
+
+    score = sum(i['points'] for i in items if i['met'])
+    return StrengthComponent(
+        key='completeness', label='Completeness',
+        score=score, max=35, items=items,
+    )
+
+
 def compute_profile_strength(profile, user) -> ProfileStrength:
     """Top-level entry point — stub until subsequent tasks wire up components."""
     return ProfileStrength(score=0, tier='Weak', components=[], top_actions=[])
