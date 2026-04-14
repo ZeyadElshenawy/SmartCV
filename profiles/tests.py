@@ -634,3 +634,59 @@ class ProfileStrengthTests(TestCase):
         self.assertFalse(met['has_education'])
         self.assertFalse(met['has_summary'])
         self.assertFalse(met['has_location_phone'])
+
+    def test_evidence_empty_profile_scores_zero(self):
+        from profiles.services.profile_strength import _score_evidence
+        profile = self._make_profile()
+        c = _score_evidence(profile)
+        self.assertEqual(c['key'], 'evidence')
+        self.assertEqual(c['max'], 30)
+        self.assertEqual(c['score'], 0)
+
+    def test_evidence_full_scores_max(self):
+        from profiles.services.profile_strength import _score_evidence
+        long_desc = 'Led a team to deliver 30% faster throughput across 5 services.' * 3
+        profile = self._make_profile(
+            data_content={
+                'experiences': [
+                    {'description': long_desc},
+                    {'description': long_desc},
+                    {'description': long_desc},
+                ],
+                'projects': [{'name': 'X', 'description': 'Built a thing.'}],
+                'certifications': [{'name': 'AWS SAA'}],
+            },
+        )
+        c = _score_evidence(profile)
+        self.assertEqual(c['score'], 30)
+
+    def test_evidence_descriptions_metric_requires_digit(self):
+        from profiles.services.profile_strength import _score_evidence
+        from profiles.models import UserProfile
+
+        profile_with = self._make_profile(
+            data_content={
+                'experiences': [{'description': 'Improved throughput by 30% and cut latency.'}],
+            },
+        )
+        c = _score_evidence(profile_with)
+        met = {i['key']: i['met'] for i in c['items']}
+        self.assertTrue(met['descriptions_metric'])
+
+        u2 = get_user_model().objects.create_user(
+            username='b@example.com', email='b@example.com', password='x'
+        )
+        profile_without = UserProfile.objects.create(
+            user=u2, full_name='B', email='b@example.com',
+            data_content={'experiences': [{'description': 'Improved throughput and cut latency.'}]},
+        )
+        c2 = _score_evidence(profile_without)
+        met2 = {i['key']: i['met'] for i in c2['items']}
+        self.assertFalse(met2['descriptions_metric'])
+
+    def test_evidence_credential_accepts_publications_or_awards(self):
+        from profiles.services.profile_strength import _score_evidence
+        profile = self._make_profile(data_content={'publications': [{'title': 'Paper'}]})
+        c = _score_evidence(profile)
+        met = {i['key']: i['met'] for i in c['items']}
+        self.assertTrue(met['has_credential'])
