@@ -551,3 +551,40 @@ class FetchKaggleSnapshotTests(SimpleTestCase):
         with patch("profiles.services.kaggle_aggregator.requests.get", return_value=resp):
             snap = fetch_kaggle_snapshot("octocat")
         self.assertIn("__NEXT_DATA__", snap["error"])
+
+
+# ============================================================
+# Profile strength scoring
+# ============================================================
+
+from django.test import TestCase
+from django.contrib.auth import get_user_model
+
+
+class ProfileStrengthTests(TestCase):
+    """compute_profile_strength — see spec 2026-04-15-profile-strength-scoring-design.md."""
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username='ps@example.com', email='ps@example.com', password='x'
+        )
+
+    def _make_profile(self, **overrides):
+        from profiles.models import UserProfile
+        defaults = dict(user=self.user, full_name='', email='', data_content={})
+        defaults.update(overrides)
+        return UserProfile.objects.create(**defaults)
+
+    def test_module_exports_compute_profile_strength(self):
+        from profiles.services.profile_strength import compute_profile_strength
+        self.assertTrue(callable(compute_profile_strength))
+
+    def test_href_map_covers_every_item_key(self):
+        from profiles.services.profile_strength import HREF_BY_KEY
+        expected_keys = {
+            'has_identity', 'has_three_exps', 'has_education', 'has_five_skills',
+            'has_summary', 'has_location_phone',
+            'descriptions_rich', 'has_project', 'has_credential', 'descriptions_metric',
+            'github_connected', 'scholar_or_kaggle', 'has_linkedin', 'signals_fresh',
+        }
+        self.assertEqual(set(HREF_BY_KEY.keys()), expected_keys)
