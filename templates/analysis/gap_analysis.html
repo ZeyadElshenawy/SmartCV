@@ -138,59 +138,89 @@
             {% endif %}
         </div>
 
-        {# ---- Score + breakdown grid ---- #}
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {# ======================================================
+           VERDICT HERO — score, verdict, action. All in one card.
+           ====================================================== #}
+        <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)]">
+            <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px]
+                {% if gap.similarity_score >= 0.8 %}bg-brand-500
+                {% elif gap.similarity_score >= 0.5 %}bg-accent-500
+                {% else %}bg-red-500{% endif %}"></div>
 
-            {# Score card — giant Fraunces italic number, editorial #}
-            <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-8 flex flex-col items-start justify-between gap-6 min-h-[280px]">
-                <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px]
-                    {% if gap.similarity_score >= 0.8 %}bg-brand-500
-                    {% elif gap.similarity_score >= 0.5 %}bg-accent-500
-                    {% else %}bg-red-500{% endif %}"></div>
-                {% include "components/section_label.html" with text="Overall match" %}
-                <div class="flex items-baseline font-display italic tabular-nums
-                    {% if gap.similarity_score >= 0.8 %}text-brand-600 dark:text-brand-400
-                    {% elif gap.similarity_score >= 0.5 %}text-accent-600 dark:text-accent-400
-                    {% else %}text-red-600 dark:text-red-400{% endif %}"
-                    style="font-variation-settings: 'opsz' 144;">
-                    <span class="text-[7.5rem] sm:text-[9rem] leading-none font-semibold">{% widthratio gap.similarity_score 1 100 %}</span>
-                    <span class="text-5xl leading-none not-italic font-medium ml-1 opacity-70">%</span>
-                </div>
-                <p class="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed max-w-sm">
-                    {% if gap.similarity_score >= 0.8 %}You're strongly aligned with this role. Generate a tailored résumé and apply.
-                    {% elif gap.similarity_score >= 0.5 %}Solid fit with fixable gaps. Use the chatbot to fill in the weak spots.
-                    {% else %}Significant gaps — consider building the missing skills first.{% endif %}
-                </p>
-            </section>
+            <div class="p-8 sm:p-10 grid grid-cols-1 lg:grid-cols-5 gap-8 items-center">
 
-            {# Breakdown — 4 tiles, each a small Fraunces italic number #}
-            <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-8">
-                <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-neutral-300 dark:bg-neutral-700"></div>
-                <div class="mb-6">{% include "components/section_label.html" with text="Breakdown" %}</div>
-                <div class="grid grid-cols-2 gap-6">
-                    <div>
-                        <div class="font-display italic text-4xl leading-none text-neutral-700 dark:text-neutral-300 tabular-nums"
-                             style="font-variation-settings: 'opsz' 48;">{{ job.extracted_skills|length }}</div>
-                        <div class="mt-2 text-[11px] uppercase tracking-[0.16em] font-medium text-neutral-500 dark:text-neutral-400">Total required</div>
+                {# Left: score + verdict + explanation #}
+                <div class="lg:col-span-3 space-y-4">
+                    {% include "components/section_label.html" with text="Overall match" %}
+                    <div class="flex items-baseline font-display italic tabular-nums
+                        {% if gap.similarity_score >= 0.8 %}text-brand-600 dark:text-brand-400
+                        {% elif gap.similarity_score >= 0.5 %}text-accent-600 dark:text-accent-400
+                        {% else %}text-red-600 dark:text-red-400{% endif %}"
+                        style="font-variation-settings: 'opsz' 144;">
+                        <span class="text-[6.5rem] sm:text-[8rem] lg:text-[9rem] leading-none font-semibold">{% widthratio gap.similarity_score 1 100 %}</span>
+                        <span class="text-4xl sm:text-5xl leading-none not-italic font-medium ml-1 opacity-70">%</span>
                     </div>
-                    <div>
-                        <div class="font-display italic text-4xl leading-none text-emerald-600 dark:text-emerald-400 tabular-nums"
-                             style="font-variation-settings: 'opsz' 48;">{{ gap.matched_skills|length }}</div>
-                        <div class="mt-2 text-[11px] uppercase tracking-[0.16em] font-medium text-emerald-700 dark:text-emerald-400">Matched</div>
-                    </div>
-                    <div>
-                        <div class="font-display italic text-4xl leading-none text-red-600 dark:text-red-400 tabular-nums"
-                             style="font-variation-settings: 'opsz' 48;">{{ gap.missing_skills|length }}</div>
-                        <div class="mt-2 text-[11px] uppercase tracking-[0.16em] font-medium text-red-700 dark:text-red-400">Critical missing</div>
-                    </div>
-                    <div>
-                        <div class="font-display italic text-4xl leading-none text-amber-600 dark:text-amber-400 tabular-nums"
-                             style="font-variation-settings: 'opsz' 48;">{{ gap.soft_skill_gaps|length }}</div>
-                        <div class="mt-2 text-[11px] uppercase tracking-[0.16em] font-medium text-amber-700 dark:text-amber-400">Soft gaps</div>
-                    </div>
+                    <p class="text-base text-neutral-600 dark:text-neutral-400 leading-relaxed max-w-md">
+                        {% if gap.similarity_score >= 0.8 %}You're strongly aligned with this role. Generate a tailored résumé and apply.
+                        {% elif gap.similarity_score >= 0.5 %}Solid fit with fixable gaps. Use the chatbot to fill in the weak spots, then generate.
+                        {% else %}Significant gaps — consider building the missing skills first, or reframe with the chatbot.{% endif %}
+                    </p>
                 </div>
-            </section>
-        </div>
+
+                {# Right: tier-dependent primary action + quiet alternates #}
+                <div class="lg:col-span-2 lg:border-l lg:border-neutral-200 lg:dark:border-neutral-800 lg:pl-8 space-y-4">
+                    {% if gap.similarity_score >= 0.8 %}
+                        {% include "components/section_label.html" with text="Recommended" tone="brand" %}
+                        <a href="{% url 'generate_resume' job.id %}" class="group/btn relative inline-flex w-full items-center justify-between gap-2 h-12 px-5 rounded-xl bg-brand-600 text-white text-sm font-medium tracking-tight shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-brand-700 hover:-translate-y-px transition-[background-color,transform] duration-150">
+                            Generate tailored resume
+                            <span aria-hidden="true" class="transition-transform duration-200 group-hover/btn:translate-x-0.5">→</span>
+                        </a>
+                        <div class="pt-2 space-y-2 text-sm">
+                            <a href="{% url 'profile_chatbot' job.id %}" class="flex items-center justify-between text-neutral-600 dark:text-neutral-300 hover:text-brand-700 dark:hover:text-brand-400 transition-colors">
+                                <span>Chat to strengthen further</span>
+                                <span aria-hidden="true" class="opacity-40">↗</span>
+                            </a>
+                            <a href="{% url 'learning_path' job.id %}" class="flex items-center justify-between text-neutral-600 dark:text-neutral-300 hover:text-brand-700 dark:hover:text-brand-400 transition-colors">
+                                <span>Build learning path</span>
+                                <span aria-hidden="true" class="opacity-40">↗</span>
+                            </a>
+                        </div>
+                    {% elif gap.similarity_score >= 0.5 %}
+                        {% include "components/section_label.html" with text="Recommended" tone="accent" %}
+                        <a href="{% url 'profile_chatbot' job.id %}" class="group/btn relative inline-flex w-full items-center justify-between gap-2 h-12 px-5 rounded-xl bg-brand-600 text-white text-sm font-medium tracking-tight shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-brand-700 hover:-translate-y-px transition-[background-color,transform] duration-150">
+                            Chat to fill the gaps
+                            <span aria-hidden="true" class="transition-transform duration-200 group-hover/btn:translate-x-0.5">→</span>
+                        </a>
+                        <div class="pt-2 space-y-2 text-sm">
+                            <a href="{% url 'generate_resume' job.id %}" class="flex items-center justify-between text-neutral-600 dark:text-neutral-300 hover:text-brand-700 dark:hover:text-brand-400 transition-colors">
+                                <span>Generate resume anyway</span>
+                                <span aria-hidden="true" class="opacity-40">↗</span>
+                            </a>
+                            <a href="{% url 'learning_path' job.id %}" class="flex items-center justify-between text-neutral-600 dark:text-neutral-300 hover:text-brand-700 dark:hover:text-brand-400 transition-colors">
+                                <span>Build learning path</span>
+                                <span aria-hidden="true" class="opacity-40">↗</span>
+                            </a>
+                        </div>
+                    {% else %}
+                        {% include "components/section_label.html" with text="Recommended" tone="danger" %}
+                        <a href="{% url 'learning_path' job.id %}" class="group/btn relative inline-flex w-full items-center justify-between gap-2 h-12 px-5 rounded-xl bg-brand-600 text-white text-sm font-medium tracking-tight shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-brand-700 hover:-translate-y-px transition-[background-color,transform] duration-150">
+                            Build a learning path
+                            <span aria-hidden="true" class="transition-transform duration-200 group-hover/btn:translate-x-0.5">→</span>
+                        </a>
+                        <div class="pt-2 space-y-2 text-sm">
+                            <a href="{% url 'profile_chatbot' job.id %}" class="flex items-center justify-between text-neutral-600 dark:text-neutral-300 hover:text-brand-700 dark:hover:text-brand-400 transition-colors">
+                                <span>Chat — maybe we missed evidence</span>
+                                <span aria-hidden="true" class="opacity-40">↗</span>
+                            </a>
+                            <a href="{% url 'generate_resume' job.id %}" class="flex items-center justify-between text-neutral-600 dark:text-neutral-300 hover:text-brand-700 dark:hover:text-brand-400 transition-colors">
+                                <span>Generate resume anyway</span>
+                                <span aria-hidden="true" class="opacity-40">↗</span>
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
 
         {# ======================================================
            SKILL DRAG-DROP — three columns, editorial chips
@@ -390,74 +420,6 @@
             </div>
         </section>
 
-        {# ---- Action cards ---- #}
-        <section class="space-y-4">
-            {% include "components/section_label.html" with text="What next" %}
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {# Primary action depends on score #}
-                {% if gap.similarity_score >= 0.8 %}
-                    <a href="{% url 'generate_resume' job.id %}" class="group relative overflow-hidden rounded-xl bg-brand-600 text-white p-6 hover:bg-brand-700 transition-colors">
-                        <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-white/20"></div>
-                        <div class="text-[11px] uppercase tracking-[0.16em] font-medium opacity-90">Primary · recommended</div>
-                        <h3 class="mt-2 font-display text-2xl leading-tight" style="font-variation-settings: 'opsz' 36;">Generate tailored resume</h3>
-                        <p class="mt-2 text-sm opacity-90">You're ready. Ship a PDF tuned for this job.</p>
-                        <div class="mt-4 flex items-center gap-1.5 text-sm font-medium">Start <span aria-hidden="true" class="transition-transform duration-200 group-hover:translate-x-0.5">→</span></div>
-                    </a>
-                    <a href="{% url 'profile_chatbot' job.id %}" class="group relative overflow-hidden rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-6 hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)] transition-shadow">
-                        <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-accent-500"></div>
-                        {% include "components/section_label.html" with text="Secondary" tone="accent" %}
-                        <h3 class="mt-2 font-display text-2xl leading-tight text-neutral-900 dark:text-neutral-50" style="font-variation-settings: 'opsz' 36;">Chat to strengthen further</h3>
-                        <p class="mt-2 text-sm text-neutral-600 dark:text-neutral-400">Add more evidence before generating.</p>
-                    </a>
-                    <a href="{% url 'learning_path' job.id %}" class="group relative overflow-hidden rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-6 hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)] transition-shadow">
-                        <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-neutral-300 dark:bg-neutral-700"></div>
-                        {% include "components/section_label.html" with text="Optional" %}
-                        <h3 class="mt-2 font-display text-2xl leading-tight text-neutral-900 dark:text-neutral-50" style="font-variation-settings: 'opsz' 36;">Build learning path</h3>
-                        <p class="mt-2 text-sm text-neutral-600 dark:text-neutral-400">Strengthen adjacent skills.</p>
-                    </a>
-                {% elif gap.similarity_score >= 0.5 %}
-                    <a href="{% url 'profile_chatbot' job.id %}" class="group relative overflow-hidden rounded-xl bg-brand-600 text-white p-6 hover:bg-brand-700 transition-colors">
-                        <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-white/20"></div>
-                        <div class="text-[11px] uppercase tracking-[0.16em] font-medium opacity-90">Primary · recommended</div>
-                        <h3 class="mt-2 font-display text-2xl leading-tight" style="font-variation-settings: 'opsz' 36;">Chat to fill the gaps</h3>
-                        <p class="mt-2 text-sm opacity-90">Add context for the weak spots, then generate.</p>
-                        <div class="mt-4 flex items-center gap-1.5 text-sm font-medium">Start <span aria-hidden="true" class="transition-transform duration-200 group-hover:translate-x-0.5">→</span></div>
-                    </a>
-                    <a href="{% url 'generate_resume' job.id %}" class="group relative overflow-hidden rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-6 hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)] transition-shadow">
-                        <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-accent-500"></div>
-                        {% include "components/section_label.html" with text="Secondary" tone="accent" %}
-                        <h3 class="mt-2 font-display text-2xl leading-tight text-neutral-900 dark:text-neutral-50" style="font-variation-settings: 'opsz' 36;">Generate resume anyway</h3>
-                        <p class="mt-2 text-sm text-neutral-600 dark:text-neutral-400">Good enough for a stretch application.</p>
-                    </a>
-                    <a href="{% url 'learning_path' job.id %}" class="group relative overflow-hidden rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-6 hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)] transition-shadow">
-                        <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-neutral-300 dark:bg-neutral-700"></div>
-                        {% include "components/section_label.html" with text="Optional" %}
-                        <h3 class="mt-2 font-display text-2xl leading-tight text-neutral-900 dark:text-neutral-50" style="font-variation-settings: 'opsz' 36;">Build learning path</h3>
-                        <p class="mt-2 text-sm text-neutral-600 dark:text-neutral-400">Close the gaps long-term.</p>
-                    </a>
-                {% else %}
-                    <a href="{% url 'learning_path' job.id %}" class="group relative overflow-hidden rounded-xl bg-brand-600 text-white p-6 hover:bg-brand-700 transition-colors">
-                        <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-white/20"></div>
-                        <div class="text-[11px] uppercase tracking-[0.16em] font-medium opacity-90">Primary · recommended</div>
-                        <h3 class="mt-2 font-display text-2xl leading-tight" style="font-variation-settings: 'opsz' 36;">Build a learning path</h3>
-                        <p class="mt-2 text-sm opacity-90">The gap is real — here's how to close it.</p>
-                        <div class="mt-4 flex items-center gap-1.5 text-sm font-medium">Start <span aria-hidden="true" class="transition-transform duration-200 group-hover:translate-x-0.5">→</span></div>
-                    </a>
-                    <a href="{% url 'profile_chatbot' job.id %}" class="group relative overflow-hidden rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-6 hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)] transition-shadow">
-                        <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-accent-500"></div>
-                        {% include "components/section_label.html" with text="Secondary" tone="accent" %}
-                        <h3 class="mt-2 font-display text-2xl leading-tight text-neutral-900 dark:text-neutral-50" style="font-variation-settings: 'opsz' 36;">Chat to fill gaps</h3>
-                        <p class="mt-2 text-sm text-neutral-600 dark:text-neutral-400">Maybe we missed evidence you have.</p>
-                    </a>
-                    <a href="{% url 'generate_resume' job.id %}" class="group relative overflow-hidden rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-6 hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)] transition-shadow">
-                        <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-neutral-300 dark:bg-neutral-700"></div>
-                        {% include "components/section_label.html" with text="Anyway" %}
-                        <h3 class="mt-2 font-display text-2xl leading-tight text-neutral-900 dark:text-neutral-50" style="font-variation-settings: 'opsz' 36;">Generate resume anyway</h3>
-                        <p class="mt-2 text-sm text-neutral-600 dark:text-neutral-400">Long shot, but your call.</p>
-                    </a>
-                {% endif %}
-            </div>
-        </section>
     </div>
 </div>
 {% endif %}

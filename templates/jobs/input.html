@@ -2,17 +2,10 @@
 {% block title %}Analyze a job — SmartCV{% endblock %}
 
 {% block content %}
+{# Simplified: single URL field with host auto-detection. The view's scraper
+   dispatcher routes from the URL host itself — source_hint is advisory only. #}
 <div class="relative min-h-screen bg-neutral-50 dark:bg-neutral-950 py-16 sm:py-24"
-     x-data="{
-        activeTab: 'linkedin',
-        sources: {
-            linkedin:   { label: 'LinkedIn',   placeholder: 'https://www.linkedin.com/jobs/view/4081234567/', hint: 'Paste any LinkedIn job link. Works for /jobs/view/{id} and /jobs/search links.' },
-            indeed:     { label: 'Indeed',     placeholder: 'https://www.indeed.com/viewjob?jk=abc123...',    hint: 'Paste any Indeed job link. All country versions supported (us, uk, etc.).' },
-            greenhouse: { label: 'Greenhouse', placeholder: 'https://boards.greenhouse.io/company/jobs/123',   hint: 'Any Greenhouse board — boards.greenhouse.io, job-boards.greenhouse.io, or company.greenhouse.io.' },
-            lever:      { label: 'Lever',      placeholder: 'https://jobs.lever.co/company/abc12345-de67-..',  hint: 'Lever postings. Read directly from Lever\'s public API.' },
-            other:      { label: 'Other',      placeholder: 'https://careers.company.com/jobs/...',            hint: 'Any company career page. We parse schema.org JobPosting markup when available.' },
-        }
-     }">
+     x-data="{ mode: 'url' }">
     <div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 space-y-10">
 
         {# ---- Editorial header ---- #}
@@ -23,8 +16,8 @@
                 Show us the <em class="font-medium text-brand-700 dark:text-brand-400">job</em>.
             </h1>
             <p class="text-lg text-neutral-600 dark:text-neutral-300 leading-relaxed max-w-xl">
-                Paste a link from any of the big boards — we'll pull the title, company,
-                and every required skill. Or type it in yourself if the posting is elsewhere.
+                Paste a link — we'll figure out the source automatically and pull the
+                title, company, and every required skill.
             </p>
         </header>
 
@@ -43,84 +36,76 @@
         <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)]">
             <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
 
-            <div class="p-6 sm:p-8 space-y-8">
-                {# Editorial segmented source picker — small-caps underline-active style #}
-                <div role="tablist" aria-label="Job source" class="flex flex-wrap gap-x-6 gap-y-2 border-b border-neutral-200 dark:border-neutral-800 pb-3">
-                    <template x-for="(cfg, key) in sources" :key="key">
-                        <button type="button" role="tab"
-                                @click="activeTab = key"
-                                :aria-selected="activeTab === key"
-                                :class="activeTab === key
-                                    ? 'text-brand-700 dark:text-brand-400 border-b-2 border-brand-500'
-                                    : 'text-neutral-500 dark:text-neutral-400 border-b-2 border-transparent hover:text-neutral-900 dark:hover:text-neutral-100'"
-                                class="pb-2 -mb-[13px] text-[11px] uppercase tracking-[0.14em] font-medium transition-colors"
-                                x-text="cfg.label"></button>
-                    </template>
-                    <button type="button" role="tab"
-                            @click="activeTab = 'manual'"
-                            :aria-selected="activeTab === 'manual'"
-                            :class="activeTab === 'manual'
-                                ? 'text-brand-700 dark:text-brand-400 border-b-2 border-brand-500'
-                                : 'text-neutral-500 dark:text-neutral-400 border-b-2 border-transparent hover:text-neutral-900 dark:hover:text-neutral-100'"
-                            class="pb-2 -mb-[13px] text-[11px] uppercase tracking-[0.14em] font-medium transition-colors">
-                        Manual entry
-                    </button>
-                </div>
+            {# ---- URL form ---- #}
+            <div x-show="mode === 'url'" x-cloak class="p-6 sm:p-8">
+                <form method="post" class="space-y-6" onsubmit="showLoading('Scraping the job — 5 to 15 seconds.')">
+                    {% csrf_token %}
+                    <input type="hidden" name="input_method" value="url">
+                    <input type="hidden" name="source_hint" value="auto">
 
-                {# ---- URL form (shared across all URL sources) ---- #}
-                <div x-show="activeTab !== 'manual'" x-cloak>
-                    <form method="post" class="space-y-6" onsubmit="showLoading('Scraping the job — this usually takes 5–15 seconds.')">
-                        {% csrf_token %}
-                        <input type="hidden" name="input_method" value="url">
-                        <input type="hidden" name="source_hint" :value="activeTab">
+                    <div class="space-y-2">
+                        <label for="job_url_input" class="block text-xs font-medium uppercase tracking-[0.14em] text-neutral-600 dark:text-neutral-400">
+                            Job URL <span class="text-red-500" aria-hidden="true">*</span>
+                        </label>
+                        <input id="job_url_input" type="url" name="job_url" required autofocus
+                               placeholder="https://www.linkedin.com/jobs/view/..."
+                               class="block w-full h-12 px-4 text-base rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none transition-[box-shadow,border-color] duration-150">
+                    </div>
 
-                        <div class="space-y-2">
-                            <label for="job_url_input" class="block text-xs font-medium uppercase tracking-[0.14em] text-neutral-600 dark:text-neutral-400">
-                                <span x-text="sources[activeTab].label"></span> URL <span class="text-red-500" aria-hidden="true">*</span>
-                            </label>
-                            <input id="job_url_input" type="url" name="job_url" required
-                                   :placeholder="sources[activeTab].placeholder"
-                                   class="block w-full h-11 px-4 text-sm rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none transition-[box-shadow,border-color] duration-150">
-                            <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed" x-text="sources[activeTab].hint"></p>
+                    <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400">
+                        <span class="text-neutral-400 dark:text-neutral-500">Supports</span>
+                        <span>LinkedIn</span>
+                        <span aria-hidden="true" class="text-neutral-300 dark:text-neutral-700">·</span>
+                        <span>Indeed</span>
+                        <span aria-hidden="true" class="text-neutral-300 dark:text-neutral-700">·</span>
+                        <span>Greenhouse</span>
+                        <span aria-hidden="true" class="text-neutral-300 dark:text-neutral-700">·</span>
+                        <span>Lever</span>
+                        <span aria-hidden="true" class="text-neutral-300 dark:text-neutral-700">·</span>
+                        <span class="text-neutral-400 dark:text-neutral-500">any career page with JobPosting markup</span>
+                    </div>
+
+                    <div class="pt-2">
+                        {% include "components/button.html" with variant="primary" label="Analyze job" size="lg" arrow=True block=True %}
+                    </div>
+
+                    <div class="pt-2 flex items-center justify-center gap-2 text-sm text-neutral-500 dark:text-neutral-400">
+                        <span>Don't have a URL?</span>
+                        <button type="button" @click="mode = 'manual'" class="font-medium text-brand-700 dark:text-brand-400 hover:underline">Paste the description instead</button>
+                    </div>
+                </form>
+            </div>
+
+            {# ---- Manual entry ---- #}
+            <div x-show="mode === 'manual'" x-cloak class="p-6 sm:p-8">
+                <form method="post" class="space-y-6" onsubmit="showLoading('Analyzing the job description.')">
+                    {% csrf_token %}
+                    <input type="hidden" name="input_method" value="text">
+
+                    <div class="grid sm:grid-cols-2 gap-5">
+                        {% include "components/input.html" with name="job_title" label="Job title" placeholder="e.g., Senior ML Engineer" required=True %}
+                        {% include "components/input.html" with name="company" label="Company" placeholder="e.g., Stripe" required=True %}
+                    </div>
+
+                    <div class="space-y-2">
+                        <label for="job_description_input" class="block text-xs font-medium uppercase tracking-[0.14em] text-neutral-600 dark:text-neutral-400">
+                            Job description <span class="text-red-500" aria-hidden="true">*</span>
+                        </label>
+                        <textarea id="job_description_input" name="job_description" rows="10" required
+                                  placeholder="Paste the full job description here — the more complete, the better the extraction."
+                                  class="block w-full px-4 py-3 text-sm rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none transition-[box-shadow,border-color] duration-150 resize-y"></textarea>
+                    </div>
+
+                    <div class="flex items-center justify-between gap-4 pt-2">
+                        <button type="button" @click="mode = 'url'"
+                                class="inline-flex items-center gap-1.5 text-sm font-medium text-neutral-600 dark:text-neutral-300 hover:text-brand-700 dark:hover:text-brand-400 transition-colors">
+                            <span aria-hidden="true">←</span> Back to URL
+                        </button>
+                        <div>
+                            {% include "components/button.html" with variant="primary" label="Analyze job" size="lg" arrow=True %}
                         </div>
-
-                        <div class="pt-2">
-                            {% include "components/button.html" with variant="primary" label="Analyze job" size="lg" arrow=True block=True %}
-                        </div>
-                    </form>
-                </div>
-
-                {# ---- Manual-entry form ---- #}
-                <div x-show="activeTab === 'manual'" x-cloak>
-                    <form method="post" class="space-y-6" onsubmit="showLoading('Analyzing the job description.')">
-                        {% csrf_token %}
-                        <input type="hidden" name="input_method" value="text">
-
-                        <div class="grid sm:grid-cols-2 gap-5">
-                            {% include "components/input.html" with name="job_title" label="Job title" placeholder="e.g., Senior ML Engineer" required=True %}
-                            {% include "components/input.html" with name="company" label="Company" placeholder="e.g., Stripe" required=True %}
-                        </div>
-
-                        <div class="space-y-2">
-                            <label for="job_description_input" class="block text-xs font-medium uppercase tracking-[0.14em] text-neutral-600 dark:text-neutral-400">
-                                Job description <span class="text-red-500" aria-hidden="true">*</span>
-                            </label>
-                            <textarea id="job_description_input" name="job_description" rows="10" required
-                                      placeholder="Paste the full job description here — the more complete, the better the extraction."
-                                      class="block w-full px-4 py-3 text-sm rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none transition-[box-shadow,border-color] duration-150 resize-y"></textarea>
-                        </div>
-
-                        <div class="flex items-center justify-between gap-4 pt-2">
-                            <button type="button" @click="activeTab = 'linkedin'"
-                                    class="inline-flex items-center gap-1.5 text-sm font-medium text-neutral-600 dark:text-neutral-300 hover:text-brand-700 dark:hover:text-brand-400 transition-colors">
-                                <span aria-hidden="true">←</span> Back to URL
-                            </button>
-                            <div>
-                                {% include "components/button.html" with variant="primary" label="Analyze job" size="lg" arrow=True %}
-                            </div>
-                        </div>
-                    </form>
-                </div>
+                    </div>
+                </form>
             </div>
 
             <div class="px-6 sm:px-8 py-4 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-center gap-2 text-[11px] uppercase tracking-[0.18em] font-medium text-neutral-500 dark:text-neutral-400">
