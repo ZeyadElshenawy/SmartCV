@@ -238,6 +238,21 @@ class CareerStageSecondaryActionsTests(SimpleTestCase):
         s_off = detect_career_stage(has_profile=True, status_counts={'offer': 1})
         self.assertTrue(s_off['primary_href'])
 
+    def test_interviewing_stage_includes_ask_agent_chip(self):
+        job = _JobStub('deadbeef-dead-beef-dead-beefdeadbeef', company='Stripe')
+        jobs_by_status = {'interviewing': [job]}
+        s = detect_career_stage(
+            has_profile=True,
+            status_counts={'interviewing': 1},
+            jobs_by_status=jobs_by_status,
+        )
+        labels = [a['label'] for a in s['secondary_actions']]
+        hrefs = [a['href'] for a in s['secondary_actions']]
+        self.assertTrue(any('Ask agent' in l for l in labels),
+                        f"expected 'Ask agent' in {labels}")
+        self.assertTrue(any(f"/agent/?job={job.id}" in h for h in hrefs),
+                        f"expected /agent/?job= link in {hrefs}")
+
 
 # ============================================================
 # Agent chat (global) — system prompt assembly + chat dispatch
