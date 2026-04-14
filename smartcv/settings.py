@@ -99,6 +99,17 @@ DATABASES = {
 DATABASES['default']['DISABLE_SERVER_SIDE_CURSORS'] = True
 DATABASES['default']['OPTIONS'] = {'sslmode': 'require'}
 
+# Tests get an in-memory SQLite DB. Supabase's PgBouncer holds connections
+# open which blocks CREATE DATABASE test_... with "database is being accessed
+# by other users". SQLite keeps tests fast (no network) and side-steps the
+# pooler entirely. Trigger: any `manage.py test ...` invocation.
+import sys as _sys
+if 'test' in _sys.argv:
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': ':memory:',
+    }
+
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

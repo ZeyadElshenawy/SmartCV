@@ -29,6 +29,48 @@ def design_system_view(request):
 
 
 @login_required
+def welcome_view(request):
+    """First-run orientation screen shown to brand-new signups.
+
+    Presents three ways into the product (upload CV / build by form / just
+    tour the dashboard). Records has_seen_welcome on the profile so the
+    page short-circuits to the dashboard on repeat visits — prevents users
+    from getting stuck on a "welcome" screen they've already seen.
+
+    Users who explicitly click "Just show me around" also get the flag set
+    so the agent's stage-aware hero takes over from here on.
+    """
+    from profiles.models import UserProfile
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    data = profile.data_content or {}
+
+    # POST: user clicked "skip to dashboard" — mark seen and go.
+    if request.method == 'POST' and request.POST.get('action') == 'skip':
+        data['has_seen_welcome'] = True
+        profile.data_content = data
+        profile.save(update_fields=['data_content', 'updated_at'])
+        return redirect('dashboard')
+
+    # Repeat visit — short-circuit.
+    if data.get('has_seen_welcome'):
+        return redirect('dashboard')
+
+    # First visit — mark seen on the way in (whichever route they pick next,
+    # they won't see /welcome/ again). Profiles that already have content
+    # (e.g., user manually typed /welcome/) bypass the screen entirely.
+    if profile.full_name or profile.data_content.get('skills'):
+        data['has_seen_welcome'] = True
+        profile.data_content = data
+        profile.save(update_fields=['data_content', 'updated_at'])
+        return redirect('dashboard')
+
+    data['has_seen_welcome'] = True
+    profile.data_content = data
+    profile.save(update_fields=['data_content', 'updated_at'])
+    return render(request, 'core/welcome.html', {'user_email': request.user.email})
+
+
+@login_required
 def applications_view(request):
     """Full-screen kanban board — pulled out of the dashboard so the
     pipeline gets its own nav entry and first-class real estate."""
