@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block title %}Welcome — SmartCV{% endblock %}
+
+{% block content %}
+<div class="relative min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center px-4 py-16 sm:py-24 overflow-hidden">
+
+    {# Subtle grain texture to match the landing page's hero atmosphere #}
+    <div aria-hidden="true" class="pointer-events-none absolute inset-0 opacity-[0.03] mix-blend-multiply"
+         style="background-image: url(&quot;data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E&quot;);"></div>
+
+    <div class="relative w-full max-w-3xl space-y-12">
+
+        {# ---- Hero ---- #}
+        <header class="text-center space-y-5">
+            {% include "components/section_label.html" with text="Account created · step 1 of 3" tone="brand" %}
+            <h1 class="font-display text-5xl sm:text-6xl lg:text-7xl leading-[0.95] tracking-tight text-neutral-900 dark:text-neutral-50"
+                style="font-variation-settings: 'opsz' 144, 'SOFT' 30;">
+                Meet your <em class="font-medium text-brand-700 dark:text-brand-400">agent</em>.
+            </h1>
+            <p class="text-lg text-neutral-600 dark:text-neutral-300 max-w-xl mx-auto leading-relaxed">
+                It tailors a résumé for every job, explains the gap, writes cover letters and
+                cold emails, drafts negotiation scripts — all grounded in <em class="font-display italic text-neutral-900 dark:text-neutral-100">your</em> real work.
+            </p>
+            <p class="text-sm text-neutral-500 dark:text-neutral-400">Signed in as <span class="font-mono">{{ user_email }}</span></p>
+        </header>
+
+        {# ---- Three routes in ---- #}
+        <div class="space-y-4">
+            <div class="text-center">
+                {% include "components/section_label.html" with text="Give it something to work with" %}
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {# Upload CV — the highest-signal path #}
+                <a href="{% url 'upload_master_profile' %}" class="group relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-6 hover:ring-brand-300 dark:hover:ring-brand-700 transition-all">
+                    <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
+                    <div aria-hidden="true" class="font-display italic text-5xl leading-none tabular-nums text-brand-600 dark:text-brand-400 mb-3"
+                         style="font-variation-settings: 'opsz' 72;">01</div>
+                    <h3 class="font-display text-xl leading-tight text-neutral-900 dark:text-neutral-50 mb-1"
+                        style="font-variation-settings: 'opsz' 24;">Upload your CV</h3>
+                    <p class="text-sm text-neutral-600 dark:text-neutral-400">Fastest path. PDF or DOCX. Your agent reads every section and keeps it ready.</p>
+                    <div class="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 dark:text-brand-400">
+                        Start here <span aria-hidden="true" class="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
+                    </div>
+                </a>
+
+                {# Fill a form — manual path #}
+                <a href="{% url 'review_master_profile' %}" class="group relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-6 hover:ring-accent-300 dark:hover:ring-accent-700 transition-all">
+                    <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-accent-500"></div>
+                    <div aria-hidden="true" class="font-display italic text-5xl leading-none tabular-nums text-accent-600 dark:text-accent-400 mb-3"
+                         style="font-variation-settings: 'opsz' 72;">02</div>
+                    <h3 class="font-display text-xl leading-tight text-neutral-900 dark:text-neutral-50 mb-1"
+                        style="font-variation-settings: 'opsz' 24;">Build by form</h3>
+                    <p class="text-sm text-neutral-600 dark:text-neutral-400">Type it in yourself — clean slate, full control. Good if your CV is outdated.</p>
+                    <div class="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-accent-700 dark:text-accent-400">
+                        Start fresh <span aria-hidden="true" class="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        {# ---- Tour-skip link ---- #}
+        <form method="post" class="text-center pt-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="skip">
+            <button type="submit" class="inline-flex items-center gap-1.5 text-sm text-neutral-500 dark:text-neutral-400 hover:text-brand-700 dark:hover:text-brand-400 transition-colors">
+                Just show me around
+                <span aria-hidden="true">→</span>
+            </button>
+            <p class="mt-1 text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-400 dark:text-neutral-500">
+                Your agent can wait — you'll find it on the dashboard.
+            </p>
+        </form>
+    </div>
+</div>
+{% endblock %}

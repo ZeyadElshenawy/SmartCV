@@ -29,7 +29,9 @@ def register_view(request):
         try:
             user = User.objects.create_user(username=email, email=email, password=password)
             login(request, user)
-            return redirect('dashboard')
+            # First-ever entry point — a friendly welcome before the dashboard.
+            # welcome_view itself short-circuits to dashboard on repeat visits.
+            return redirect('welcome')
         except Exception as e:
             logger.exception("Registration failed: %s", e)
             messages.error(request, "Registration failed. Please try again.")

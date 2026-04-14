@@ -6,6 +6,8 @@ urlpatterns = [
     path('', views.home_view, name='home'),
     # Legacy route — redirect to the canonical profiles dashboard
     path('dashboard/', RedirectView.as_view(pattern_name='dashboard', permanent=False), name='core_dashboard'),
+    # First-run welcome (shown once after signup, then skips to dashboard)
+    path('welcome/',      views.welcome_view,      name='welcome'),
     # Career-agent surface: full pipeline + cross-cutting insights hub
     path('applications/', views.applications_view, name='applications'),
     path('insights/',     views.insights_view,     name='insights'),
