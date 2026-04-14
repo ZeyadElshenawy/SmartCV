@@ -160,6 +160,27 @@ def _build_job_context_block(job) -> str:
     if skills:
         lines.append(f"- Required skills: {', '.join(str(s) for s in skills)}")
 
+    # Gap analysis — fetch lazily to keep the function import-cheap.
+    try:
+        from analysis.models import GapAnalysis
+        gap = GapAnalysis.objects.filter(job=job, user=getattr(job, 'user', None)).order_by('-created_at').first()
+    except Exception:
+        gap = None
+
+    if gap is not None:
+        pct = int(round((gap.similarity_score or 0.0) * 100))
+        lines.append("")
+        lines.append(f"Gap analysis (overall match: {pct}%):")
+        matched = gap.matched_skills or []
+        partial = gap.partial_skills or []
+        missing = gap.missing_skills or []
+        if matched:
+            lines.append(f"- Matched: {', '.join(str(s) for s in matched)}")
+        if partial:
+            lines.append(f"- Partial: {', '.join(str(s) for s in partial)}")
+        if missing:
+            lines.append(f"- Missing: {', '.join(str(s) for s in missing)}")
+
     return "\n".join(lines)
 
 

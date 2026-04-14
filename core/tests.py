@@ -427,3 +427,27 @@ class JobContextBlockTests(TestCase):
         self.assertIn('Python', block)
         self.assertIn('Go', block)
         self.assertIn('Kubernetes', block)
+
+    def test_includes_gap_analysis_when_present(self):
+        from analysis.models import GapAnalysis
+        from core.services.agent_chat import _build_job_context_block
+        job = self._make_job()
+        GapAnalysis.objects.create(
+            job=job, user=self.user,
+            matched_skills=['Python'],
+            partial_skills=['Go'],
+            missing_skills=['Kubernetes'],
+            similarity_score=0.67,
+        )
+        block = _build_job_context_block(job)
+        self.assertIn('Gap analysis', block)
+        self.assertIn('67%', block)
+        self.assertIn('Matched: Python', block)
+        self.assertIn('Partial: Go', block)
+        self.assertIn('Missing: Kubernetes', block)
+
+    def test_omits_gap_section_when_no_analysis_cached(self):
+        from core.services.agent_chat import _build_job_context_block
+        job = self._make_job()
+        block = _build_job_context_block(job)
+        self.assertNotIn('Gap analysis', block)
