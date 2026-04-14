@@ -6,6 +6,9 @@ urlpatterns = [
     path('', views.home_view, name='home'),
     # Legacy route — redirect to the canonical profiles dashboard
     path('dashboard/', RedirectView.as_view(pattern_name='dashboard', permanent=False), name='core_dashboard'),
+    # Career-agent surface: full pipeline + cross-cutting insights hub
+    path('applications/', views.applications_view, name='applications'),
+    path('insights/',     views.insights_view,     name='insights'),
     # Internal design-system styleguide
     path('design/', views.design_system_view, name='design_system'),
 ]

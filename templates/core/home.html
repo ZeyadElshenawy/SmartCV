@@ -11,21 +11,21 @@
         <div class="grid lg:grid-cols-12 gap-12 lg:gap-16 items-start">
 
             <div class="lg:col-span-7 space-y-8">
-                {% include "components/section_label.html" with text="A smarter career agent · v1" %}
+                {% include "components/section_label.html" with text="Your AI career agent · v1" %}
 
                 <h1 class="font-display text-5xl sm:text-6xl lg:text-7xl leading-[0.95] tracking-tight text-neutral-900 dark:text-neutral-50"
                     style="font-variation-settings: 'opsz' 144, 'SOFT' 30;">
-                    The résumé that <em class="font-medium text-brand-700 dark:text-brand-400">listens</em>.
+                    The career agent that <em class="font-medium text-brand-700 dark:text-brand-400">knows your evidence</em>.
                 </h1>
 
                 <p class="max-w-xl text-lg sm:text-xl leading-relaxed text-neutral-600 dark:text-neutral-300">
-                    Paste a job posting. We read it, line by line, against your profile —
-                    then rewrite your CV to fit. <span class="font-display italic text-neutral-900 dark:text-neutral-100">Evidence-first.</span>
-                    No buzzword soup. No cookie-cutter templates.
+                    A résumé tailored to every job. <span class="font-display italic text-neutral-900 dark:text-neutral-100">And</span>
+                    a gap analysis. A learning path. A cover letter. A cold email. A salary negotiation.
+                    All grounded in your real work — your repos, your papers, your competitions.
                 </p>
 
                 <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                    {% include "components/button.html" with variant="primary" label="Start free" size="lg" arrow=True href="/accounts/register/" %}
+                    {% include "components/button.html" with variant="primary" label="Meet your agent" size="lg" arrow=True href="/accounts/register/" %}
                     {% include "components/button.html" with variant="ghost" label="See how it works" size="lg" href="#how" %}
                 </div>
 
@@ -265,11 +265,14 @@
             {% include "components/section_label.html" with text="Ready when you are" %}
             <h2 class="font-display text-4xl sm:text-6xl lg:text-7xl leading-[0.95] tracking-tight text-neutral-900 dark:text-neutral-50"
                 style="font-variation-settings: 'opsz' 144, 'SOFT' 30;">
-                Stop sending the <em class="font-medium">same CV</em><br class="hidden sm:block">
-                to <em class="font-medium text-brand-700 dark:text-brand-400">different companies</em>.
+                Stop guessing your way <em class="font-medium">through</em><br class="hidden sm:block">
+                <em class="font-medium text-brand-700 dark:text-brand-400">your career</em>.
             </h2>
+            <p class="text-lg text-neutral-600 dark:text-neutral-400 max-w-2xl mx-auto leading-relaxed">
+                Your agent is paid attention. The résumé is just the first thing it'll do.
+            </p>
             <div class="flex items-center justify-center gap-4 pt-4">
-                {% include "components/button.html" with variant="primary" label="Get started — free" size="lg" arrow=True href="/accounts/register/" %}
+                {% include "components/button.html" with variant="primary" label="Meet your agent" size="lg" arrow=True href="/accounts/register/" %}
                 {% include "components/button.html" with variant="ghost" label="I already have an account" size="lg" href="/accounts/login/" %}
             </div>
         </div>

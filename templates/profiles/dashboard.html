@@ -8,12 +8,12 @@
 
         {# ---- Editorial header ---- #}
         <header class="space-y-3">
-            {% include "components/section_label.html" with text="Dashboard" tone="brand" %}
+            {% include "components/section_label.html" with text=career_stage.label tone=career_stage.tone %}
             <h1 class="font-display text-4xl sm:text-5xl leading-[1.02] tracking-tight text-neutral-900 dark:text-neutral-50"
                 style="font-variation-settings: 'opsz' 80;">
                 Welcome back{% if profile.full_name %}, <em class="font-medium text-brand-700 dark:text-brand-400">{{ profile.full_name|default:"" }}</em>{% endif %}.
             </h1>
-            <p class="text-neutral-500 dark:text-neutral-400 text-sm sm:text-base">{{ total_applications|default:0 }} application{{ total_applications|pluralize }} in flight — pick up where you left off or start a new one.</p>
+            <p class="text-neutral-500 dark:text-neutral-400 text-sm sm:text-base max-w-2xl leading-relaxed">{{ career_stage.detail }}</p>
         </header>
 
         {# ---- Onboarding banner (conditional) ---- #}
@@ -101,15 +101,21 @@
 
                 {# CTA + stats row #}
                 <div class="grid grid-cols-1 sm:grid-cols-5 gap-4">
-                    <a href="{% url 'job_input_view' %}" class="sm:col-span-3 group relative overflow-hidden rounded-2xl bg-brand-600 text-white p-6 hover:bg-brand-700 transition-colors">
+                    {# Stage-aware primary action — reflects what this career
+                       moment actually needs, not just "add a job". #}
+                    <a href="{{ career_stage.primary_href }}" class="sm:col-span-3 group relative overflow-hidden rounded-2xl p-6 transition-colors
+                        {% if career_stage.tone == 'success' %}bg-emerald-600 text-white hover:bg-emerald-700
+                        {% elif career_stage.tone == 'accent' %}bg-accent-600 text-white hover:bg-accent-700
+                        {% elif career_stage.tone == 'neutral' %}bg-neutral-800 text-white hover:bg-neutral-900
+                        {% else %}bg-brand-600 text-white hover:bg-brand-700{% endif %}">
                         <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-white/20"></div>
                         <div aria-hidden="true" class="absolute -right-16 -top-16 w-64 h-64 rounded-full bg-white/10 blur-3xl"></div>
-                        <div class="relative text-[11px] uppercase tracking-[0.16em] font-medium opacity-80">New application</div>
-                        <h3 class="relative mt-2 font-display text-2xl sm:text-3xl leading-tight" style="font-variation-settings: 'opsz' 48;">
-                            Paste a job. <em class="font-medium">Ship a résumé.</em>
+                        <div class="relative text-[11px] uppercase tracking-[0.16em] font-medium opacity-80">{{ career_stage.label }}</div>
+                        <h3 class="relative mt-2 font-display text-xl sm:text-2xl leading-snug max-w-sm" style="font-variation-settings: 'opsz' 36;">
+                            {{ career_stage.detail }}
                         </h3>
                         <div class="relative mt-5 inline-flex items-center gap-1.5 text-sm font-medium">
-                            Start now <span aria-hidden="true" class="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
+                            {{ career_stage.primary_label }} <span aria-hidden="true" class="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
                         </div>
                     </a>
 
