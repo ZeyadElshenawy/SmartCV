@@ -23,6 +23,12 @@
                 </div>
             </div>
         </div>
+        {% if job %}
+        <span class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-50 dark:bg-accent-950/40 ring-1 ring-accent-200 dark:ring-accent-800 text-[11px] font-medium text-accent-800 dark:text-accent-200">
+            Talking about: {{ job.company|default:"this role" }} · {{ job.title }}
+            <a href="{% url 'agent_chat' %}" aria-label="Back to general chat" class="ml-1 text-accent-700 dark:text-accent-300 hover:text-accent-900 dark:hover:text-accent-100">×</a>
+        </span>
+        {% endif %}
         <button @click="reset()" type="button" class="text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400 hover:text-brand-700 dark:hover:text-brand-400 transition-colors">
             New chat
         </button>
@@ -123,12 +129,18 @@ function agentChat() {
         messages: [],
         userInput: '',
         loading: false,
-        seeds: [
+        jobId: '{{ job_id|default_if_none:"" }}',
+        seeds: {% if job %}[
+            "How should I prep for this interview?",
+            "What's my biggest gap on this role?",
+            "Help me negotiate this offer.",
+            "Which of my projects best fits this role?",
+        ]{% else %}[
             "I have two offers — help me compare them.",
             "What should I focus on to switch from backend to ML?",
             "Draft a 30-second pitch from my profile.",
             "How do I explain a 6-month gap in interviews?",
-        ],
+        ]{% endif %},
 
         init() {
             this.$nextTick(() => { if (this.$refs.chatInput) this.$refs.chatInput.focus(); });
@@ -164,7 +176,7 @@ function agentChat() {
                 const resp = await fetch('/agent/api/', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-                    body: JSON.stringify({ history, message: text }),
+                    body: JSON.stringify({ history, message: text, job_id: this.jobId || null }),
                 });
                 const data = await resp.json().catch(() => ({}));
                 if (!resp.ok || data.error) {
