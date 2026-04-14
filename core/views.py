@@ -100,10 +100,10 @@ def agent_chat_api(request):
         try:
             _uuid.UUID(str(raw_job_id))
         except (ValueError, TypeError):
-            return JsonResponse({'error': 'Job not found.'}, status=403)
+            return JsonResponse({'error': "That job couldn't be found."}, status=403)
         job = Job.objects.filter(id=raw_job_id, user=request.user).first()
         if job is None:
-            return JsonResponse({'error': 'Job not found.'}, status=403)
+            return JsonResponse({'error': "That job couldn't be found."}, status=403)
 
     result = chat(request.user, history, message, job=job)
     if result.get('error'):
