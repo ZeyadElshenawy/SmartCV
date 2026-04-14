@@ -12,7 +12,7 @@
         </nav>
 
         <header class="space-y-3 max-w-2xl">
-            {% include "components/section_label.html" with text="AI coach" tone="accent" %}
+            {% include "components/section_label.html" with text="Your agent · learning path" tone="accent" %}
             <h1 class="font-display text-4xl sm:text-5xl leading-[1.02] tracking-tight text-neutral-900 dark:text-neutral-50"
                 style="font-variation-settings: 'opsz' 80;">
                 Personalized <em class="font-medium text-accent-700 dark:text-accent-400">learning path</em>.
@@ -39,7 +39,7 @@
                     </ul>
 
                     {% if not learning_path %}
-                    <form method="POST" onsubmit="showLoading('Generating curriculum — up to 60 seconds.')">
+                    <form method="POST" onsubmit="showLoading('Your agent is building your path — up to 60 seconds.')">
                         {% csrf_token %}
                         <div class="pt-2">
                             {% include "components/button.html" with variant="primary" label="Generate curriculum" arrow=True block=True %}
@@ -106,7 +106,7 @@
                 {% else %}
                 <div class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-12 text-center space-y-4">
                     <div aria-hidden="true" class="mx-auto w-2 h-2 rounded-full bg-accent-500"></div>
-                    <h3 class="font-display text-2xl text-neutral-900 dark:text-neutral-50" style="font-variation-settings: 'opsz' 36;">Your AI coach is ready.</h3>
+                    <h3 class="font-display text-2xl text-neutral-900 dark:text-neutral-50" style="font-variation-settings: 'opsz' 36;">Your agent is ready.</h3>
                     <p class="text-neutral-600 dark:text-neutral-400 max-w-md mx-auto">Generate a curriculum tailored to the skills you're missing across your applications.</p>
                 </div>
                 {% endif %}
