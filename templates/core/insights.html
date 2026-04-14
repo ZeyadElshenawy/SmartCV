@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+{% block title %}Insights — SmartCV{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-neutral-50 dark:bg-neutral-950 py-10 sm:py-14">
+    <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 space-y-10">
+
+        <header class="space-y-3 max-w-2xl">
+            {% include "components/section_label.html" with text="Insights" tone="accent" %}
+            <h1 class="font-display text-4xl sm:text-5xl leading-[1.02] tracking-tight text-neutral-900 dark:text-neutral-50"
+                style="font-variation-settings: 'opsz' 80;">
+                Your <em class="font-medium text-brand-700 dark:text-brand-400">evidence</em>, at a glance.
+            </h1>
+            <p class="text-neutral-600 dark:text-neutral-300 leading-relaxed">
+                The signals your agent uses to corroborate every claim — GitHub, Scholar, Kaggle, and the
+                pattern of skills showing up in your applications.
+            </p>
+        </header>
+
+        {# ---- Evidence confidence headline ---- #}
+        <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+            <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px]
+                {% if evidence.score >= 3 %}bg-brand-500
+                {% elif evidence.score >= 2 %}bg-accent-500
+                {% elif evidence.score >= 1 %}bg-amber-500
+                {% else %}bg-neutral-300 dark:bg-neutral-700{% endif %}"></div>
+            <div class="p-6 sm:p-8 grid grid-cols-1 md:grid-cols-5 gap-6 items-center">
+                <div class="md:col-span-3 space-y-3">
+                    {% include "components/section_label.html" with text="Evidence confidence" %}
+                    <div class="flex items-baseline gap-3">
+                        <span class="font-display italic tabular-nums text-6xl leading-none text-neutral-900 dark:text-neutral-50"
+                              style="font-variation-settings: 'opsz' 80;">{{ evidence.score }}</span>
+                        <span class="text-2xl text-neutral-400 dark:text-neutral-500 not-italic font-medium">/ 3</span>
+                        <span class="inline-flex items-center ml-2 gap-0.5 text-xl leading-none">
+                            {% for _ in "xxx"|make_list %}
+                                {% if forloop.counter <= evidence.score %}
+                                    <span class="text-brand-500" aria-hidden="true">★</span>
+                                {% else %}
+                                    <span class="text-neutral-300 dark:text-neutral-700" aria-hidden="true">★</span>
+                                {% endif %}
+                            {% endfor %}
+                        </span>
+                    </div>
+                    <p class="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">{{ evidence.detail }}</p>
+                </div>
+                <div class="md:col-span-2 md:border-l md:border-neutral-200 md:dark:border-neutral-800 md:pl-6 space-y-2">
+                    {% include "components/section_label.html" with text=evidence.label %}
+                    <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                        Your agent weighs skill matches more confidently when they're backed by public work.
+                        Connect the sources below to strengthen the score.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        {# ---- Signal aggregator tiles ---- #}
+        <section class="space-y-4">
+            {% include "components/section_label.html" with text="External signals" tone="brand" %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% include "components/github_signals.html"   with profile=profile %}
+                {% include "components/scholar_signals.html"  with profile=profile %}
+                {% include "components/kaggle_signals.html"   with profile=profile %}
+                {% include "components/linkedin_signals.html" with profile=profile %}
+            </div>
+        </section>
+
+        {# ---- Top skills in-demand across your applications ---- #}
+        {% if top_skills %}
+        <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-6 space-y-4">
+            <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-neutral-300 dark:bg-neutral-700"></div>
+            {% include "components/section_label.html" with text="In-demand across your applications" %}
+            <p class="text-xs text-neutral-500 dark:text-neutral-400">Skills the jobs you're looking at ask for most — build a learning path on anything you're missing.</p>
+            <div class="flex flex-wrap gap-1.5">
+                {% for skill, count in top_skills %}
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium rounded-md bg-neutral-50 dark:bg-neutral-950/40 text-neutral-800 dark:text-neutral-200 ring-1 ring-neutral-200 dark:ring-neutral-800">
+                    {{ skill }}
+                    <span class="font-display italic tabular-nums opacity-60" style="font-variation-settings: 'opsz' 18;">{{ count }}</span>
+                </span>
+                {% endfor %}
+            </div>
+            <div class="pt-2">
+                {% include "components/button.html" with variant="ghost" label="Open learning path →" size="sm" href="/analysis/learning-path/" %}
+            </div>
+        </section>
+        {% endif %}
+
+        {# ---- Recent gap analyses + resumes, side by side ---- #}
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+                <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-accent-500"></div>
+                <div class="p-6 space-y-4">
+                    {% include "components/section_label.html" with text="Recent gap analyses" tone="accent" %}
+                    {% if recent_gaps %}
+                    <ul class="divide-y divide-neutral-100 dark:divide-neutral-800 -mx-6">
+                        {% for gap in recent_gaps %}
+                        <li class="px-6 py-3 flex items-center justify-between gap-3 hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors">
+                            <a href="{% url 'gap_analysis' gap.job.id %}" class="min-w-0 flex-1">
+                                <div class="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">{{ gap.job.title }}</div>
+                                <div class="text-xs text-neutral-500 dark:text-neutral-400 truncate">{{ gap.job.company|default:"—" }} · {{ gap.created_at|date:"M d" }}</div>
+                            </a>
+                            <span class="font-display italic tabular-nums text-lg leading-none shrink-0
+                                {% if gap.similarity_score >= 0.8 %}text-brand-600 dark:text-brand-400
+                                {% elif gap.similarity_score >= 0.5 %}text-accent-600 dark:text-accent-400
+                                {% else %}text-red-600 dark:text-red-400{% endif %}"
+                                style="font-variation-settings: 'opsz' 24;">
+                                {% widthratio gap.similarity_score 1 100 %}<span class="text-xs not-italic font-medium ml-0.5 opacity-70">%</span>
+                            </span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-xs text-neutral-500 dark:text-neutral-400 italic">No gap analyses yet.</p>
+                    {% endif %}
+                </div>
+            </section>
+
+            <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+                <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
+                <div class="p-6 space-y-4">
+                    <div class="flex items-center justify-between">
+                        {% include "components/section_label.html" with text="Recent tailored résumés" tone="brand" %}
+                        <a href="{% url 'resume_list' %}" class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline">All →</a>
+                    </div>
+                    {% if recent_resumes %}
+                    <ul class="divide-y divide-neutral-100 dark:divide-neutral-800 -mx-6">
+                        {% for resume in recent_resumes %}
+                        <li class="px-6 py-3 flex items-center justify-between gap-3 hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors">
+                            <a href="{% url 'resume_preview' resume.id %}" class="min-w-0 flex-1">
+                                <div class="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">{{ resume.gap_analysis.job.title }}</div>
+                                <div class="text-xs text-neutral-500 dark:text-neutral-400 truncate">{{ resume.gap_analysis.job.company|default:"—" }} · {{ resume.created_at|date:"M d" }}</div>
+                            </a>
+                            <span class="font-display italic tabular-nums text-lg leading-none shrink-0 text-neutral-700 dark:text-neutral-300"
+                                  style="font-variation-settings: 'opsz' 24;">
+                                {{ resume.ats_score|floatformat:0 }}<span class="text-xs not-italic font-medium ml-0.5 opacity-70">%</span>
+                            </span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-xs text-neutral-500 dark:text-neutral-400 italic">No résumés generated yet.</p>
+                    {% endif %}
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+{% endblock %}

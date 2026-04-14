@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+{% block title %}Applications — SmartCV{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-neutral-50 dark:bg-neutral-950 py-10 sm:py-14"
+     x-data="kanbanBoard()" x-init="initBoard()">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8">
+
+        <header class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+            <div class="space-y-3">
+                {% include "components/section_label.html" with text="Pipeline" tone="brand" %}
+                <h1 class="font-display text-4xl sm:text-5xl leading-[1.02] tracking-tight text-neutral-900 dark:text-neutral-50"
+                    style="font-variation-settings: 'opsz' 80;">
+                    Applications.
+                </h1>
+                <p class="text-sm text-neutral-500 dark:text-neutral-400">
+                    <span class="font-display italic tabular-nums text-neutral-900 dark:text-neutral-100" style="font-variation-settings: 'opsz' 20;">{{ total_applications|default:0 }}</span>
+                    in flight — drag between columns to update status.
+                </p>
+            </div>
+            <a href="{% url 'job_input_view' %}" class="inline-flex items-center justify-center gap-1.5 h-11 px-5 text-sm font-medium rounded-lg bg-brand-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-brand-700 transition-colors">
+                <span aria-hidden="true" class="leading-none">+</span>
+                New job
+            </a>
+        </header>
+
+        <div class="hidden md:flex items-center gap-3 text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400">
+            <span class="flex items-center gap-1.5"><span aria-hidden="true" class="h-1.5 w-1.5 rounded-full bg-neutral-400"></span>Saved</span>
+            <span class="flex items-center gap-1.5"><span aria-hidden="true" class="h-1.5 w-1.5 rounded-full bg-brand-500"></span>Applied</span>
+            <span class="flex items-center gap-1.5"><span aria-hidden="true" class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>Interviewing</span>
+            <span class="flex items-center gap-1.5"><span aria-hidden="true" class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>Offer</span>
+            <span class="flex items-center gap-1.5"><span aria-hidden="true" class="h-1.5 w-1.5 rounded-full bg-red-500"></span>Rejected</span>
+        </div>
+
+        <div class="flex gap-4 overflow-x-auto pb-6 snap-x snap-mandatory" style="-webkit-overflow-scrolling: touch;">
+            {% for status, category_jobs in kanban_boards.items %}
+            <div class="relative flex-none w-[85vw] sm:w-[320px] lg:w-[calc(20%-1rem)] snap-center rounded-xl bg-neutral-50 dark:bg-neutral-900/50 ring-1 transition-all flex flex-col"
+                 :class="dragOverStatus === '{{ status }}' ? 'ring-2 ring-brand-400 dark:ring-brand-600' : 'ring-neutral-200 dark:ring-neutral-800'"
+                 data-status="{{ status }}"
+                 @dragover.prevent="onDragOver('{{ status }}')"
+                 @dragleave="onDragLeave('{{ status }}')"
+                 @drop.prevent="onDrop('{{ status }}', $event)">
+
+                <div class="px-4 pt-4 pb-3 flex items-center justify-between border-b border-neutral-200 dark:border-neutral-800">
+                    <div class="flex items-center gap-2">
+                        <span aria-hidden="true" class="h-1.5 w-1.5 rounded-full
+                            {% if status == 'Saved' %}bg-neutral-400
+                            {% elif status == 'Applied' %}bg-brand-500
+                            {% elif status == 'Interviewing' %}bg-amber-500
+                            {% elif status == 'Offer' %}bg-emerald-500
+                            {% elif status == 'Rejected' %}bg-red-500
+                            {% else %}bg-neutral-400{% endif %}"></span>
+                        <h4 class="text-[11px] uppercase tracking-[0.16em] font-medium text-neutral-700 dark:text-neutral-200">{{ status }}</h4>
+                    </div>
+                    <span class="font-display italic tabular-nums text-sm leading-none text-neutral-500 dark:text-neutral-400"
+                          style="font-variation-settings: 'opsz' 18;"
+                          x-text="columnCounts['{{ status }}'] ?? {{ category_jobs|length }}">{{ category_jobs|length }}</span>
+                </div>
+
+                <div class="p-3 flex-1 space-y-2 min-h-[120px] max-h-[75vh] overflow-y-auto">
+                    {% for job in category_jobs %}
+                    <div class="group bg-white dark:bg-neutral-900 rounded-lg p-3 ring-1 ring-neutral-200 dark:ring-neutral-800 hover:ring-brand-300 dark:hover:ring-brand-700 transition-all cursor-move"
+                         draggable="true"
+                         @dragstart="onDragStart($event, '{{ job.id }}')"
+                         @dragend="onDragEnd()"
+                         data-job-id="{{ job.id }}">
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="min-w-0 flex-1 space-y-1">
+                                <div class="text-sm font-medium text-neutral-900 dark:text-neutral-100 leading-snug truncate" title="{{ job.title }}">{{ job.title }}</div>
+                                <div class="text-xs text-neutral-500 dark:text-neutral-400 truncate">{{ job.company }}</div>
+                            </div>
+                            <span class="shrink-0 text-[10px] uppercase tracking-[0.14em] font-medium text-neutral-400 dark:text-neutral-500">{{ job.created_at|date:"M d" }}</span>
+                        </div>
+                        {% if job.extracted_skills %}
+                        <div class="flex flex-wrap gap-1 mt-2">
+                            {% for skill in job.extracted_skills|slice:":3" %}
+                            <span class="px-1.5 py-0 text-[10px] rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400">{{ skill }}</span>
+                            {% endfor %}
+                            {% if job.extracted_skills|length > 3 %}
+                            <span class="text-[10px] text-neutral-400">+{{ job.extracted_skills|length|add:-3 }}</span>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        <div class="flex items-center justify-between gap-2 mt-3 pt-2 border-t border-neutral-100 dark:border-neutral-800">
+                            <div class="flex items-center gap-1">
+                                <a href="{% url 'gap_analysis' job.id %}" class="text-[10px] px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950/60 font-medium transition-colors">Analysis</a>
+                                <a href="{% url 'profile_chatbot' job.id %}" class="text-[10px] px-1.5 py-0.5 rounded bg-accent-50 dark:bg-accent-950/40 text-accent-700 dark:text-accent-300 hover:bg-accent-100 dark:hover:bg-accent-950/60 font-medium transition-colors">Chat</a>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <a href="{% url 'negotiate_salary' job.id %}" class="salary-negotiate-btn hidden text-emerald-600 dark:text-emerald-400 hover:text-emerald-800" title="AI salary negotiator">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                </a>
+                                <a href="{% url 'job_detail' job.id %}" class="text-[11px] font-medium text-brand-700 dark:text-brand-400 hover:underline">View →</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    <div x-show="(columnCounts['{{ status }}'] || 0) === 0" style="display: none;" class="flex flex-col items-center justify-center py-8 text-xs text-neutral-400 dark:text-neutral-500 border-2 border-dashed border-neutral-200 dark:border-neutral-800 rounded-lg">
+                        <span aria-hidden="true" class="text-lg leading-none mb-1">＋</span>
+                        <span class="uppercase tracking-[0.14em]">Drag here</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<style>
+    [data-status="Offer"] .salary-negotiate-btn { display: inline-flex !important; }
+</style>
+
+<script>
+    function kanbanBoard() {
+        return {
+            dragJobId: null, dragFromStatus: null, dragOverStatus: null, columnCounts: {},
+            initBoard() {
+                const columns = document.querySelectorAll('[data-status]');
+                columns.forEach(col => {
+                    const status = col.getAttribute('data-status');
+                    const cards = col.querySelectorAll('[data-job-id]');
+                    this.columnCounts[status] = cards.length;
+                });
+            },
+            onDragStart(event, jobId) {
+                this.dragJobId = jobId;
+                const column = event.currentTarget.closest('[data-status]');
+                this.dragFromStatus = column ? column.getAttribute('data-status') : null;
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', jobId);
+            },
+            onDragEnd() { this.dragJobId = null; this.dragFromStatus = null; this.dragOverStatus = null; },
+            onDragOver(status) { this.dragOverStatus = status; },
+            onDragLeave(status) { if (this.dragOverStatus === status) this.dragOverStatus = null; },
+            async onDrop(toStatus, event) {
+                if (!this.dragJobId || !this.dragFromStatus || this.dragFromStatus === toStatus) {
+                    this.dragOverStatus = null;
+                    return;
+                }
+                const columnEl = event.currentTarget;
+                const cardEl = document.querySelector(`[data-job-id="${this.dragJobId}"]`);
+                const listEl = columnEl.children[1];
+                if (cardEl && listEl && cardEl.parentNode !== listEl) listEl.appendChild(cardEl);
+                this.columnCounts[this.dragFromStatus] = (this.columnCounts[this.dragFromStatus] || 1) - 1;
+                this.columnCounts[toStatus] = (this.columnCounts[toStatus] || 0) + 1;
+                this.dragOverStatus = null;
+                try {
+                    const csrftoken = this.getCookie('csrftoken');
+                    const response = await fetch('{% url "update_job_status" %}', {
+                        method: 'POST',
+                        headers: {'X-CSRFToken': csrftoken},
+                        body: new URLSearchParams({job_id: this.dragJobId, new_status: toStatus.toLowerCase()}),
+                    });
+                    if (!response.ok) this.revert(cardEl, toStatus);
+                } catch (e) {
+                    this.revert(cardEl, toStatus);
+                } finally { this.onDragEnd(); }
+            },
+            revert(cardEl, toStatus) {
+                this.columnCounts[this.dragFromStatus] += 1;
+                this.columnCounts[toStatus] -= 1;
+                const originalCol = document.querySelector(`[data-status="${this.dragFromStatus}"]`);
+                if (originalCol && cardEl) {
+                    const originalList = originalCol.children[1];
+                    if (originalList) originalList.appendChild(cardEl);
+                }
+            },
+            getCookie(name) {
+                if (!document.cookie) return null;
+                const c = document.cookie.split('; ').find(c => c.startsWith(name + '='));
+                return c ? decodeURIComponent(c.split('=')[1]) : null;
+            },
+        }
+    }
+</script>
+{% endblock %}

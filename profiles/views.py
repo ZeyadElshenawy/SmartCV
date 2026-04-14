@@ -16,6 +16,7 @@ from .services.kaggle_aggregator import fetch_kaggle_snapshot
 
 from jobs.models import Job, RecommendedJob
 from core.services.action_planner import get_recommended_actions
+from core.services.career_stage import detect_stage_for_dashboard
 from django.contrib import messages
 import json
 import logging
@@ -479,6 +480,11 @@ def dashboard(request):
     # AI-recommended next steps
     next_actions = get_recommended_actions(request.user)
 
+    # Career stage — drives the stage-aware dashboard hero.
+    # Reframes the dashboard from "here's an artifact you can make" to
+    # "here's what this moment in your career needs next."
+    career_stage = detect_stage_for_dashboard(profile, kanban_boards)
+
     context = {
         'profile': profile,
         'kanban_boards': kanban_boards,
@@ -489,6 +495,7 @@ def dashboard(request):
         'has_jobs': has_jobs,
         'show_onboarding': show_onboarding,
         'next_actions': next_actions,
+        'career_stage': career_stage,
     }
     return render(request, 'profiles/dashboard.html', context)
 
