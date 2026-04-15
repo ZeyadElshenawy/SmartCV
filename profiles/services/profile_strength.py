@@ -298,5 +298,20 @@ def _top_actions(components: list[StrengthComponent]) -> list[StrengthAction]:
 
 
 def compute_profile_strength(profile, user) -> ProfileStrength:
-    """Top-level entry point — stub until subsequent tasks wire up components."""
-    return ProfileStrength(score=0, tier='Weak', components=[], top_actions=[])
+    """Compute 0-100 score, tier label, component breakdown, and top-3 CTAs.
+
+    Pure — no DB writes, no caching. ``user`` is accepted for forward
+    compatibility (future signals may depend on it) but is not currently read.
+    """
+    components = [
+        _score_completeness(profile),
+        _score_evidence(profile),
+        _score_signals(profile),
+    ]
+    score = sum(c['score'] for c in components)
+    return ProfileStrength(
+        score=score,
+        tier=_tier(score),
+        components=components,
+        top_actions=_top_actions(components),
+    )
