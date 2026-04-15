@@ -184,6 +184,8 @@ def insights_view(request):
     from resumes.models import GeneratedResume
 
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    from profiles.services.profile_strength import compute_profile_strength
+    profile_strength = compute_profile_strength(profile, request.user)
     jobs = list(Job.objects.filter(user=request.user).order_by('-created_at'))
 
     # Top skills across applications
@@ -211,4 +213,5 @@ def insights_view(request):
         'recent_gaps': recent_gaps,
         'recent_resumes': recent_resumes,
         'evidence': evidence,
+        'profile_strength': profile_strength,
     })

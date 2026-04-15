@@ -668,3 +668,24 @@ class AgentChatApiJobTests(TestCase):
         with patch('profiles.services.llm_engine.get_llm', return_value=fake_llm):
             resp = self._post({'history': [], 'message': 'Hi'})
         self.assertEqual(resp.status_code, 200)
+
+
+class InsightsViewProfileStrengthTests(TestCase):
+    """/insights/ includes profile_strength in its template context."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        self.user = get_user_model().objects.create_user(
+            username='iv@example.com', email='iv@example.com', password='x'
+        )
+        self.client.force_login(self.user)
+
+    def test_insights_view_injects_profile_strength(self):
+        from profiles.models import UserProfile
+        UserProfile.objects.create(user=self.user, full_name='J', email='j@e.com')
+        resp = self.client.get(reverse('insights'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('profile_strength', resp.context)
+        ps = resp.context['profile_strength']
+        self.assertIn('score', ps)
+        self.assertIn('top_actions', ps)
