@@ -881,3 +881,14 @@ class ProfileStrengthTests(TestCase):
         self.assertIn('tier', ps)
         self.assertIn('components', ps)
         self.assertIn('top_actions', ps)
+
+    def test_dashboard_renders_profile_strength_ring(self):
+        from django.urls import reverse
+        self.client.force_login(self.user)
+        self._make_profile(full_name='Jane', email='jane@e.com')
+        resp = self.client.get(reverse('dashboard'))
+        self.assertEqual(resp.status_code, 200)
+        # Score badge / data attribute visible on page
+        self.assertContains(resp, 'data-profile-strength')
+        # Tier label appears (new empty-ish profile = Weak)
+        self.assertContains(resp, 'Weak')
