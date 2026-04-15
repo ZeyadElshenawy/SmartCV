@@ -868,3 +868,16 @@ class ProfileStrengthTests(TestCase):
             self.assertIn('href', a)
             self.assertIn('label', a)
             self.assertIn('points', a)
+
+    def test_dashboard_view_includes_profile_strength_in_context(self):
+        from django.urls import reverse
+        self.client.force_login(self.user)
+        self._make_profile(full_name='Jane', email='jane@e.com')
+        resp = self.client.get(reverse('dashboard'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('profile_strength', resp.context)
+        ps = resp.context['profile_strength']
+        self.assertIn('score', ps)
+        self.assertIn('tier', ps)
+        self.assertIn('components', ps)
+        self.assertIn('top_actions', ps)
