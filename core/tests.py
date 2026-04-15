@@ -689,3 +689,17 @@ class InsightsViewProfileStrengthTests(TestCase):
         ps = resp.context['profile_strength']
         self.assertIn('score', ps)
         self.assertIn('top_actions', ps)
+
+    def test_insights_renders_profile_strength_breakdown(self):
+        from profiles.models import UserProfile
+        UserProfile.objects.create(
+            user=self.user, full_name='J', email='j@e.com',
+            data_content={'skills': [{'name': s} for s in ['A', 'B', 'C', 'D', 'E']]},
+        )
+        resp = self.client.get(reverse('insights'))
+        # Anchor for hash deep-link from the dashboard ring
+        self.assertContains(resp, 'id="profile-strength"')
+        # All three component labels render
+        self.assertContains(resp, 'Completeness')
+        self.assertContains(resp, 'Evidence depth')
+        self.assertContains(resp, 'External signals')

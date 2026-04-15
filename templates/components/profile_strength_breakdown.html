@@ -1,0 +1,78 @@
+{# Full profile-strength breakdown — /insights/ page.
+   Requires: profile_strength. Fail-closed if missing. #}
+{% if profile_strength %}
+<section id="profile-strength"
+         class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-6"
+         x-data="{ expanded: false }">
+
+    <header class="flex items-start justify-between gap-4">
+        <div>
+            <div class="text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400">
+                Profile strength
+            </div>
+            <div class="mt-1 flex items-baseline gap-3">
+                <span class="font-display text-4xl leading-none text-neutral-900 dark:text-neutral-50"
+                      style="font-variation-settings: 'opsz' 48;">{{ profile_strength.score }}</span>
+                <span class="px-2 py-0.5 rounded-full text-[11px] font-medium
+                             bg-brand-50 dark:bg-brand-950/40 text-brand-800 dark:text-brand-200 ring-1 ring-brand-200 dark:ring-brand-800">
+                    {{ profile_strength.tier }}
+                </span>
+            </div>
+        </div>
+        <button type="button" @click="expanded = !expanded"
+                class="text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400 hover:text-brand-700 dark:hover:text-brand-400">
+            <span x-text="expanded ? 'Hide details' : 'See details'"></span>
+        </button>
+    </header>
+
+    {# Three component bars #}
+    <div class="mt-6 space-y-3">
+        {% for comp in profile_strength.components %}
+        <div>
+            <div class="flex items-baseline justify-between text-xs">
+                <span class="font-medium text-neutral-800 dark:text-neutral-200">{{ comp.label }}</span>
+                <span class="text-neutral-500 dark:text-neutral-400">{{ comp.score }} / {{ comp.max }}</span>
+            </div>
+            <div class="mt-1 h-1.5 rounded-full bg-neutral-100 dark:bg-neutral-800 overflow-hidden">
+                <div class="h-full bg-brand-600 dark:bg-brand-400 rounded-full"
+                     style="width: {% widthratio comp.score comp.max 100 %}%;"></div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {# Expanded per-item list #}
+    <div x-show="expanded" x-transition class="mt-6 space-y-4 border-t border-neutral-200 dark:border-neutral-800 pt-5">
+        {% for comp in profile_strength.components %}
+        <div>
+            <div class="text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400">
+                {{ comp.label }}
+            </div>
+            <ul class="mt-2 space-y-1">
+                {% for item in comp.items %}
+                <li class="flex items-center gap-2 text-sm {% if item.met %}text-neutral-400 dark:text-neutral-500 line-through{% else %}text-neutral-800 dark:text-neutral-200{% endif %}">
+                    <span aria-hidden="true" class="w-1.5 h-1.5 rounded-full {% if item.met %}bg-emerald-500{% else %}bg-neutral-300 dark:bg-neutral-700{% endif %}"></span>
+                    <span>{{ item.label }}</span>
+                    {% if not item.met %}
+                    <span class="ml-auto text-[11px] text-neutral-500 dark:text-neutral-400">+{{ item.points }}</span>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endfor %}
+    </div>
+
+    {# Top 3 CTA chips #}
+    {% if profile_strength.top_actions %}
+    <div class="mt-6 flex flex-wrap gap-2 border-t border-neutral-200 dark:border-neutral-800 pt-5">
+        {% for action in profile_strength.top_actions %}
+        <a href="{{ action.href }}"
+           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-brand-50 dark:bg-brand-950/40 text-brand-800 dark:text-brand-200 ring-1 ring-brand-200 dark:ring-brand-800 hover:bg-brand-100 dark:hover:bg-brand-900/60 transition-colors">
+            {{ action.label }}
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+</section>
+{% endif %}
