@@ -61,6 +61,20 @@ HREF_BY_KEY: dict[str, str] = {
 }
 
 
+def _desc_text(d) -> str:
+    """Normalize a description to a flat string.
+
+    Resume schemas store descriptions as ``List[str]`` (bullet points), but
+    legacy / hand-edited profiles may keep them as plain strings. Both
+    shapes are accepted everywhere scoring reads descriptions.
+    """
+    if isinstance(d, list):
+        return ' '.join(str(x) for x in d if x is not None).strip()
+    if isinstance(d, str):
+        return d.strip()
+    return ''
+
+
 def _score_completeness(profile) -> StrengthComponent:
     """35-point breakdown: identity, experiences, education, skills, summary, contact."""
     data = profile.data_content or {}
@@ -81,7 +95,7 @@ def _score_completeness(profile) -> StrengthComponent:
     has_three_exps = (
         len(experiences) >= 3
         and all(
-            isinstance(exp, dict) and (exp.get('description') or '').strip()
+            isinstance(exp, dict) and _desc_text(exp.get('description'))
             for exp in experiences[:3]
         )
     )
@@ -138,7 +152,7 @@ def _score_evidence(profile) -> StrengthComponent:
 
     items: list[StrengthItem] = []
 
-    descs = [(e.get('description') or '').strip() for e in experiences[:5]]
+    descs = [_desc_text(e.get('description')) for e in experiences[:5]]
     avg_len = (sum(len(d) for d in descs) / len(descs)) if descs else 0
     items.append(StrengthItem(
         key='descriptions_rich',
@@ -150,7 +164,7 @@ def _score_evidence(profile) -> StrengthComponent:
     items.append(StrengthItem(
         key='has_project',
         label='Add at least one described project',
-        met=any((p.get('description') or '').strip() for p in projects),
+        met=any(_desc_text(p.get('description')) for p in projects),
         points=6,
     ))
 
@@ -167,7 +181,7 @@ def _score_evidence(profile) -> StrengthComponent:
     ))
 
     any_metric = any(
-        any(ch.isdigit() for ch in (e.get('description') or ''))
+        any(ch.isdigit() for ch in _desc_text(e.get('description')))
         for e in experiences
     )
     items.append(StrengthItem(

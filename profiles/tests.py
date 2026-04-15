@@ -869,6 +869,33 @@ class ProfileStrengthTests(TestCase):
             self.assertIn('label', a)
             self.assertIn('points', a)
 
+    def test_compute_handles_list_shaped_descriptions(self):
+        """Resume schemas store descriptions as list[str] (bullets).
+        Profile-strength scoring must not crash on them."""
+        from profiles.services.profile_strength import compute_profile_strength
+        profile = self._make_profile(
+            full_name='J', email='j@e.com',
+            data_content={
+                'experiences': [
+                    {'title': 'A', 'description': ['Shipped 3 services', 'Mentored 5 juniors']},
+                    {'title': 'B', 'description': ['Built data pipeline']},
+                    {'title': 'C', 'description': ['Led incident response']},
+                ],
+                'projects': [
+                    {'name': 'X', 'description': ['Open-source tool for X', 'Used by 200+ teams']},
+                ],
+            },
+        )
+        # Must not raise.
+        s = compute_profile_strength(profile, self.user)
+        comps = {c['key']: c for c in s['components']}
+        met = {i['key']: i['met'] for i in comps['completeness']['items']}
+        self.assertTrue(met['has_three_exps'])
+        met_ev = {i['key']: i['met'] for i in comps['evidence']['items']}
+        self.assertTrue(met_ev['has_project'])
+        # Digit in "Shipped 3 services" triggers the metric item.
+        self.assertTrue(met_ev['descriptions_metric'])
+
     def test_dashboard_view_includes_profile_strength_in_context(self):
         from django.urls import reverse
         self.client.force_login(self.user)
