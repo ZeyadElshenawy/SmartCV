@@ -1,0 +1,38 @@
+{# Compact profile-strength ring — dashboard hero sidebar.
+   Requires: profile_strength (dict with score, tier, top_actions).
+   Fail-closed: if profile_strength is missing or None, renders nothing. #}
+{% if profile_strength %}
+<a href="{% url 'insights' %}#profile-strength"
+   data-profile-strength="{{ profile_strength.score }}"
+   class="block rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-4 hover:ring-brand-300 dark:hover:ring-brand-700 transition-all">
+    <div class="flex items-center gap-3">
+        {# SVG ring #}
+        <span class="relative flex items-center justify-center w-14 h-14">
+            <svg viewBox="0 0 36 36" class="w-14 h-14 -rotate-90">
+                <circle cx="18" cy="18" r="15.9155"
+                        fill="none" stroke-width="3"
+                        class="stroke-neutral-200 dark:stroke-neutral-800"></circle>
+                <circle cx="18" cy="18" r="15.9155"
+                        fill="none" stroke-width="3" stroke-linecap="round"
+                        stroke-dasharray="{{ profile_strength.score }},100"
+                        class="stroke-brand-600 dark:stroke-brand-400"></circle>
+            </svg>
+            <span class="absolute text-sm font-semibold text-neutral-900 dark:text-neutral-50">{{ profile_strength.score }}</span>
+        </span>
+        <div class="min-w-0">
+            <div class="text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400">
+                Profile strength
+            </div>
+            <div class="flex items-baseline gap-2 mt-0.5">
+                <span class="font-display text-lg leading-none text-neutral-900 dark:text-neutral-50"
+                      style="font-variation-settings: 'opsz' 20;">{{ profile_strength.tier }}</span>
+            </div>
+            {% if profile_strength.top_actions %}
+            <p class="mt-1 text-[11px] text-neutral-500 dark:text-neutral-400 truncate">
+                {{ profile_strength.top_actions.0.label }}
+            </p>
+            {% endif %}
+        </div>
+    </div>
+</a>
+{% endif %}
