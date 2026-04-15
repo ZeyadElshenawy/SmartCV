@@ -484,6 +484,8 @@ def dashboard(request):
     # Reframes the dashboard from "here's an artifact you can make" to
     # "here's what this moment in your career needs next."
     career_stage = detect_stage_for_dashboard(profile, kanban_boards)
+    from profiles.services.profile_strength import compute_profile_strength
+    profile_strength = compute_profile_strength(profile, request.user)
 
     context = {
         'profile': profile,
@@ -496,6 +498,7 @@ def dashboard(request):
         'show_onboarding': show_onboarding,
         'next_actions': next_actions,
         'career_stage': career_stage,
+        'profile_strength': profile_strength,
     }
     return render(request, 'profiles/dashboard.html', context)
 
