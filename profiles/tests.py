@@ -772,3 +772,60 @@ class ProfileStrengthTests(TestCase):
         c2 = _score_signals(stale_profile)
         met2 = {i['key']: i['met'] for i in c2['items']}
         self.assertFalse(met2['signals_fresh'])
+
+    def test_tier_thresholds_boundary_cases(self):
+        from profiles.services.profile_strength import _tier
+        self.assertEqual(_tier(0), 'Weak')
+        self.assertEqual(_tier(34), 'Weak')
+        self.assertEqual(_tier(35), 'Developing')
+        self.assertEqual(_tier(59), 'Developing')
+        self.assertEqual(_tier(60), 'Solid')
+        self.assertEqual(_tier(79), 'Solid')
+        self.assertEqual(_tier(80), 'Strong')
+        self.assertEqual(_tier(100), 'Strong')
+
+    def test_top_actions_returns_three_highest_point_unmet_items(self):
+        from profiles.services.profile_strength import _top_actions
+        comps = [
+            {'key': 'completeness', 'label': 'C', 'score': 0, 'max': 35, 'items': [
+                {'key': 'has_identity', 'label': 'Add name+email', 'met': False, 'points': 5},
+                {'key': 'has_three_exps', 'label': 'Describe 3 experiences', 'met': False, 'points': 10},
+                {'key': 'has_summary', 'label': 'Summary', 'met': True, 'points': 5},
+            ]},
+            {'key': 'signals', 'label': 'S', 'score': 0, 'max': 35, 'items': [
+                {'key': 'github_connected', 'label': 'Connect GitHub', 'met': False, 'points': 14},
+                {'key': 'has_linkedin', 'label': 'LinkedIn URL', 'met': False, 'points': 4},
+            ]},
+        ]
+        actions = _top_actions(comps)
+        self.assertEqual(len(actions), 3)
+        self.assertEqual(actions[0]['points'], 14)  # GitHub
+        self.assertEqual(actions[1]['points'], 10)  # three exps
+        self.assertEqual(actions[2]['points'], 5)   # identity
+        self.assertIn('+14 points', actions[0]['label'])
+        self.assertEqual(actions[0]['href'], '/insights/')
+        self.assertEqual(actions[1]['href'], '/profiles/setup/review/')
+
+    def test_top_actions_stable_tiebreak_by_key(self):
+        from profiles.services.profile_strength import _top_actions
+        comps = [{
+            'key': 'completeness', 'label': 'C', 'score': 0, 'max': 35,
+            'items': [
+                {'key': 'has_summary',     'label': 'Summary',   'met': False, 'points': 5},
+                {'key': 'has_education',   'label': 'Education', 'met': False, 'points': 5},
+                {'key': 'has_five_skills', 'label': 'Skills',    'met': False, 'points': 5},
+            ],
+        }]
+        actions = _top_actions(comps)
+        # Alphabetical tiebreak on key: has_education, has_five_skills, has_summary
+        self.assertEqual([a['label'].split(' · ')[0] for a in actions], ['Education', 'Skills', 'Summary'])
+
+    def test_top_actions_empty_when_nothing_unmet(self):
+        from profiles.services.profile_strength import _top_actions
+        comps = [{
+            'key': 'completeness', 'label': 'C', 'score': 35, 'max': 35,
+            'items': [
+                {'key': 'has_identity', 'label': 'Identity', 'met': True, 'points': 5},
+            ],
+        }]
+        self.assertEqual(_top_actions(comps), [])

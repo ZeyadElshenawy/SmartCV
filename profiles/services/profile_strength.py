@@ -265,6 +265,38 @@ def _score_signals(profile) -> StrengthComponent:
     )
 
 
+def _tier(score: int) -> Tier:
+    if score >= 80:
+        return 'Strong'
+    if score >= 60:
+        return 'Solid'
+    if score >= 35:
+        return 'Developing'
+    return 'Weak'
+
+
+def _top_actions(components: list[StrengthComponent]) -> list[StrengthAction]:
+    """Flatten all unmet items, sort by points DESC then key ASC, take top 3.
+
+    Labels are formatted as ``"<item label> · +<points> points"`` and
+    routed via ``HREF_BY_KEY``.
+    """
+    unmet: list[StrengthItem] = []
+    for comp in components:
+        for item in comp.get('items') or []:
+            if not item.get('met'):
+                unmet.append(item)
+    unmet.sort(key=lambda i: (-i['points'], i['key']))
+    actions: list[StrengthAction] = []
+    for item in unmet[:3]:
+        actions.append(StrengthAction(
+            label=f"{item['label']} · +{item['points']} points",
+            href=HREF_BY_KEY.get(item['key'], '/profiles/setup/review/'),
+            points=item['points'],
+        ))
+    return actions
+
+
 def compute_profile_strength(profile, user) -> ProfileStrength:
     """Top-level entry point — stub until subsequent tasks wire up components."""
     return ProfileStrength(score=0, tier='Weak', components=[], top_actions=[])
