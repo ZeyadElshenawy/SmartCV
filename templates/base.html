@@ -41,9 +41,7 @@
                           style="font-variation-settings: 'opsz' 24;">SmartCV</span>
                 </a>
 
-                {# Center links (desktop) — reflects that this is a career
-                   agent, not just a résumé tool. "New job" moves to a CTA
-                   on the right; the nav is about where you LIVE. #}
+                {# Center links (desktop) — career agent nav, not résumé-tool nav. "New job" lives as a CTA on the right. #}
                 <div class="hidden md:flex items-center gap-x-6 text-[11px] uppercase tracking-[0.16em] font-medium">
                     {% if user.is_authenticated %}
                     <a href="{% url 'dashboard' %}"              class="text-neutral-600 dark:text-neutral-400 hover:text-brand-700 dark:hover:text-brand-400 transition-colors">Dashboard</a>
@@ -62,8 +60,7 @@
                     </button>
 
                     {% if user.is_authenticated %}
-                        {# Primary action: add a new job. Lives on the right as a CTA
-                           rather than in the nav so it reads as "do" not "go". #}
+                        {# Primary CTA — "do" not "go", so it lives outside the nav. #}
                         <a href="{% url 'job_input_view' %}" class="hidden sm:inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-lg bg-brand-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-brand-700 transition-colors">
                             <span aria-hidden="true" class="leading-none">+</span>
                             New job

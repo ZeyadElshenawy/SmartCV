@@ -1,6 +1,4 @@
-{# Compact profile-strength ring — dashboard hero sidebar.
-   Requires: profile_strength (dict with score, tier, top_actions).
-   Fail-closed: if profile_strength is missing or None, renders nothing. #}
+{# Compact profile-strength ring — needs profile_strength; renders nothing when missing. #}
 {% if profile_strength %}
 <a href="{% url 'insights' %}#profile-strength"
    data-profile-strength="{{ profile_strength.score }}"

@@ -1,5 +1,4 @@
-{# Full profile-strength breakdown — /insights/ page.
-   Requires: profile_strength. Fail-closed if missing. #}
+{# Full profile-strength breakdown — needs profile_strength; renders nothing when missing. #}
 {% if profile_strength %}
 <section id="profile-strength"
          class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-6"

@@ -6,8 +6,7 @@ a full reload.
 
 Required context: `profile` (UserProfile instance).
 {% endcomment %}
-{# Use json_script so the cached snapshot is parsed as proper JSON, not a
-   Python repr (single-quoted dict, which would break JSON.parse). #}
+{# json_script parses the cached snapshot as JSON (not a Python repr). #}
 {{ profile.data_content.github_signals|default:""|json_script:"github-signals-initial" }}
 <section x-data="githubSignals('{{ profile.github_url|default:''|escapejs }}', 'github-signals-initial')"
          class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
