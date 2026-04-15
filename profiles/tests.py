@@ -829,3 +829,42 @@ class ProfileStrengthTests(TestCase):
             ],
         }]
         self.assertEqual(_top_actions(comps), [])
+
+    def test_compute_empty_profile_scores_zero_weak(self):
+        from profiles.services.profile_strength import compute_profile_strength
+        profile = self._make_profile()
+        s = compute_profile_strength(profile, self.user)
+        self.assertEqual(s['score'], 0)
+        self.assertEqual(s['tier'], 'Weak')
+        self.assertEqual(len(s['components']), 3)
+        self.assertEqual([c['key'] for c in s['components']], ['completeness', 'evidence', 'signals'])
+
+    def test_compute_score_is_sum_of_component_scores(self):
+        from profiles.services.profile_strength import compute_profile_strength
+        profile = self._make_profile(
+            full_name='J', email='j@e.com',
+            data_content={
+                'skills': [{'name': s} for s in ['A', 'B', 'C', 'D', 'E']],
+                'github_signals': {
+                    'public_repos': 3,
+                    'fetched_at': '2026-04-10T00:00:00Z',
+                },
+            },
+        )
+        s = compute_profile_strength(profile, self.user)
+        comp_scores = {c['key']: c['score'] for c in s['components']}
+        self.assertEqual(s['score'], sum(comp_scores.values()))
+        self.assertIn('completeness', comp_scores)
+        self.assertIn('evidence', comp_scores)
+        self.assertIn('signals', comp_scores)
+
+    def test_compute_top_actions_present_when_gaps_exist(self):
+        from profiles.services.profile_strength import compute_profile_strength
+        profile = self._make_profile(full_name='J', email='j@e.com')  # mostly empty
+        s = compute_profile_strength(profile, self.user)
+        self.assertGreater(len(s['top_actions']), 0)
+        self.assertLessEqual(len(s['top_actions']), 3)
+        for a in s['top_actions']:
+            self.assertIn('href', a)
+            self.assertIn('label', a)
+            self.assertIn('points', a)
