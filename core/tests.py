@@ -152,6 +152,26 @@ class RegisterRedirectTests(TestCase):
         self.assertTrue(resp.url.endswith('/welcome/'))
 
 
+class AuthPagesRedirectWhenLoggedInTests(TestCase):
+    """Authenticated users shouldn't see /login/ or /register/."""
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username='loggedin@example.com', email='loggedin@example.com', password='pw1234pw',
+        )
+        self.client.force_login(self.user)
+
+    def test_login_redirects_logged_in_user_to_dashboard(self):
+        resp = self.client.get(reverse('login'))
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(resp.url.endswith('/profiles/dashboard/'))
+
+    def test_register_redirects_logged_in_user_to_dashboard(self):
+        resp = self.client.get(reverse('register'))
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(resp.url.endswith('/profiles/dashboard/'))
+
+
 # ============================================================
 # Stage detector — secondary actions + deep-linking
 # ============================================================
