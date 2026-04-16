@@ -18,16 +18,7 @@
                 <form method="post" class="space-y-5">
                     {% csrf_token %}
 
-                    {% if messages %}
-                        {% for message in messages %}
-                        <div role="alert" class="flex items-start gap-3 rounded-xl bg-red-50 dark:bg-red-950/40 ring-1 ring-red-200 dark:ring-red-900 px-4 py-3 text-sm text-red-700 dark:text-red-200">
-                            <svg aria-hidden="true" class="w-4 h-4 flex-shrink-0 mt-0.5 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
-                            <span class="font-medium">{{ message }}</span>
-                        </div>
-                        {% endfor %}
-                    {% endif %}
-
-                    {% include "components/input.html" with name="email" label="Email address" type="email" required=True autocomplete="email" %}
+                    {% include "components/input.html" with name="email" label="Email address" type="email" required=True autocomplete="email" value=email %}
                     {% include "components/input.html" with name="password" label="Password" type="password" required=True autocomplete="current-password" %}
 
                     <div class="flex items-center justify-between pt-1">
