@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 # for now using standard Django forms or manual handling in templates for custom style as requested
 
 def register_view(request):
+    if request.user.is_authenticated:
+        return redirect('dashboard')
     if request.method == 'POST':
         # Custom registration logic to handle email as username
         email = request.POST.get('email')
@@ -39,6 +41,8 @@ def register_view(request):
     return render(request, 'accounts/register.html')
 
 def login_view(request):
+    if request.user.is_authenticated:
+        return redirect('dashboard')
     if request.method == 'POST':
         email = request.POST.get('email')
         password = request.POST.get('password')
