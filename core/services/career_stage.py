@@ -21,6 +21,7 @@ Each stage carries:
 from __future__ import annotations
 
 from typing import TypedDict, Optional
+from django.urls import reverse
 
 
 # Job statuses match jobs.models.Job.STATUS_CHOICES values (lowercase).
@@ -60,31 +61,31 @@ def _latest(jobs: list) -> Optional[object]:
 
 
 def _gap_url(job_id) -> str:
-    return f'/analysis/gap/{job_id}/'
+    return reverse('gap_analysis', kwargs={'job_id': job_id})
 
 
 def _chat_url(job_id) -> str:
-    return f'/profiles/chatbot/{job_id}/'
+    return reverse('profile_chatbot', kwargs={'job_id': job_id})
 
 
 def _salary_url(job_id) -> str:
-    return f'/analysis/salary/{job_id}/'
+    return reverse('negotiate_salary', kwargs={'job_id': job_id})
 
 
 def _cover_letter_url(job_id) -> str:
-    return f'/resumes/cover-letter/{job_id}/'
+    return reverse('generate_cover_letter', kwargs={'job_id': job_id})
 
 
 def _outreach_url(job_id) -> str:
-    return f'/profiles/outreach/{job_id}/'
+    return reverse('generate_outreach', kwargs={'job_id': job_id})
 
 
 def _resume_url(job_id) -> str:
-    return f'/resumes/generate/{job_id}/'
+    return reverse('generate_resume', kwargs={'job_id': job_id})
 
 
 def _agent_url(job_id) -> str:
-    return f'/agent/?job={job_id}'
+    return reverse('agent_chat') + f'?job={job_id}'
 
 
 # ---- Core detector --------------------------------------------

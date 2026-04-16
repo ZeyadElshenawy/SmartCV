@@ -249,8 +249,13 @@ def generate_learning_path_view(request, job_id=None):
 
     learning_path = []
     if request.method == 'POST':
-        # Generate the learning path using LLM
-        learning_path = generate_learning_path(skills_to_learn)
+        try:
+            learning_path = generate_learning_path(skills_to_learn)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).exception("Learning path generation failed: %s", e)
+            from django.contrib import messages as _messages
+            _messages.error(request, "Could not generate learning path — please try again.")
 
     return render(request, 'analysis/learning_path.html', {
         'skills_to_learn': top_missing,
@@ -271,7 +276,13 @@ def negotiate_salary_view(request, job_id):
         target_salary = request.POST.get('target_salary')
         
         if current_offer and target_salary:
-            script = generate_negotiation_script(profile, job, current_offer, target_salary)
+            try:
+                script = generate_negotiation_script(profile, job, current_offer, target_salary)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).exception("Salary negotiation generation failed: %s", e)
+                from django.contrib import messages as _messages
+                _messages.error(request, "Could not generate negotiation script — please try again.")
             
     return render(request, 'analysis/salary_negotiator.html', {
         'job': job,

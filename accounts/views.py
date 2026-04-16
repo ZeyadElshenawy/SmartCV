@@ -53,7 +53,8 @@ def login_view(request):
             return redirect('dashboard')
         else:
             messages.error(request, "Invalid credentials")
-            
+            return render(request, 'accounts/login.html', {'email': email})
+
     return render(request, 'accounts/login.html')
 
 def logout_view(request):
