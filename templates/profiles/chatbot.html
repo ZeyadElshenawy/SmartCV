@@ -229,7 +229,7 @@
                     <template x-for="(proj, i) in (profile.projects || []).slice(0, 4)" :key="i">
                         <li class="text-xs">
                             <span class="font-medium text-neutral-900 dark:text-neutral-100" x-text="proj.name || proj.title || 'Project'"></span>
-                            <span class="text-neutral-400 ml-1" x-show="proj.description" x-text="'— ' + (proj.description || '').substring(0, 60) + '…'"></span>
+                            <span class="text-neutral-400 ml-1" x-show="proj.description && (Array.isArray(proj.description) ? proj.description.length > 0 : true)" x-text="'— ' + (Array.isArray(proj.description) ? proj.description[0] || '' : (proj.description || '')).substring(0, 60) + '…'"></span>
                         </li>
                     </template>
                 </ul>
