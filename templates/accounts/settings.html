@@ -32,18 +32,8 @@
             </div>
         </section>
 
-        {% if messages %}
-        <div class="space-y-2">
-            {% for message in messages %}
-            <div role="alert" class="flex items-start gap-3 rounded-xl px-5 py-4 ring-1
-                {% if message.tags == 'success' %}bg-emerald-50 dark:bg-emerald-950/40 ring-emerald-200 dark:ring-emerald-900 text-emerald-900 dark:text-emerald-200
-                {% elif message.tags == 'error' %}bg-red-50 dark:bg-red-950/40 ring-red-200 dark:ring-red-900 text-red-900 dark:text-red-200
-                {% else %}bg-brand-50 dark:bg-brand-950/40 ring-brand-200 dark:ring-brand-900 text-brand-900 dark:text-brand-200{% endif %}">
-                <span class="text-sm font-medium">{{ message }}</span>
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
+        {# Messages render globally via base.html's toast stack (with per-message
+           auto-dismiss + transitions). Don't re-render them here. #}
 
         <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
             <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-neutral-300 dark:bg-neutral-700"></div>
