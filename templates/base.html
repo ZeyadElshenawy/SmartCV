@@ -120,8 +120,7 @@
 {% if messages %}
     <div class="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-4 space-y-2">
         {% for message in messages %}
-        {# Each message has its own show state + transition so the close and
-           auto-dismiss timer only affect one toast, not the whole stack. #}
+        {% comment %}Per-message state so close + auto-dismiss only affect one toast.{% endcomment %}
         <div role="alert"
              x-data="{ show: true }"
              x-show="show"

@@ -873,6 +873,26 @@ class MessageAutoDismissTests(TestCase):
             resp.content.count(b'Password updated successfully.'), 1,
         )
 
+    def test_no_multiline_django_comments_leak_into_rendered_html(self):
+        """Django's {# #} is single-line only; a comment that wraps to the
+        next line renders as literal text. Scan the post-password-update
+        page for the {# prefix to catch any regressions in templates we
+        hit during the auto-dismiss flow.
+        """
+        from django.urls import reverse
+        self.client.force_login(self.user)
+        resp = self.client.post(
+            reverse('account_settings'),
+            {
+                'action': 'change_password',
+                'current_password': 'oldpass1234',
+                'new_password': 'newpass9876',
+                'confirm_new_password': 'newpass9876',
+            },
+            follow=True,
+        )
+        self.assertNotIn(b'{#', resp.content)
+
     def test_error_message_has_no_auto_dismiss(self):
         """Error-tagged toasts must stick around so the user can read them."""
         from django.urls import reverse
