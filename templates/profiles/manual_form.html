@@ -82,11 +82,11 @@
                         {% include "components/input.html" with name="phone" label="Phone" type="tel" value=profile.phone|default:"" placeholder="+1 (555) 000-0000" %}
                         {% include "components/input.html" with name="location" label="Location" value=profile.location|default:"" placeholder="Cairo, Egypt" %}
 
-                        <div class="md:col-span-2 space-y-2" x-show="hasValue('{{ profile.objective|escapejs }}')">
+                        <div class="md:col-span-2 space-y-2">
                             <label class="block text-xs font-medium uppercase tracking-[0.14em] text-neutral-600 dark:text-neutral-400">Objective</label>
                             <textarea name="objective" rows="3" class="block w-full px-4 py-3 text-sm rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none transition-[box-shadow] duration-150 resize-y">{{ profile.objective|default:'' }}</textarea>
                         </div>
-                        <div class="md:col-span-2 space-y-2" x-show="hasValue('{{ profile.normalized_summary|escapejs }}')">
+                        <div class="md:col-span-2 space-y-2">
                             <label class="block text-xs font-medium uppercase tracking-[0.14em] text-neutral-600 dark:text-neutral-400">Summary</label>
                             <textarea name="normalized_summary" rows="3" class="block w-full px-4 py-3 text-sm rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none transition-[box-shadow] duration-150 resize-y">{{ profile.normalized_summary|default:'' }}</textarea>
                         </div>
@@ -130,42 +130,42 @@
                             </button>
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div class="space-y-1.5" x-show="hasValue(exp.title)">
+                                <div class="space-y-1.5">
                                     <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Job title</label>
                                     <input type="text" x-model="exp.title" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none font-medium text-neutral-900 dark:text-neutral-100" placeholder="Senior Developer">
                                 </div>
-                                <div class="space-y-1.5" x-show="hasValue(exp.company)">
+                                <div class="space-y-1.5">
                                     <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Company</label>
                                     <input type="text" x-model="exp.company" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100" placeholder="Tech Corp">
                                 </div>
-                                <div class="space-y-1.5" x-show="hasValue(exp.duration)">
+                                <div class="space-y-1.5">
                                     <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Duration</label>
                                     <input type="text" x-model="exp.duration" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100" placeholder="Jan 2020 – Present">
                                 </div>
-                                <div class="space-y-1.5" x-show="hasValue(exp.location)">
+                                <div class="space-y-1.5">
                                     <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Location</label>
                                     <input type="text" x-model="exp.location" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
                                 </div>
-                                <div class="space-y-1.5" x-show="hasValue(exp.start_date)">
+                                <div class="space-y-1.5">
                                     <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Start</label>
                                     <input type="text" x-model="exp.start_date" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
                                 </div>
-                                <div class="space-y-1.5" x-show="hasValue(exp.end_date)">
+                                <div class="space-y-1.5">
                                     <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">End</label>
                                     <input type="text" x-model="exp.end_date" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
                                 </div>
-                                <div class="space-y-1.5" x-show="hasValue(exp.industry)">
+                                <div class="space-y-1.5">
                                     <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Industry</label>
                                     <input type="text" x-model="exp.industry" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
                                 </div>
                             </div>
 
-                            <div class="space-y-1.5" x-show="hasValue(exp.description)">
+                            <div class="space-y-1.5">
                                 <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Description</label>
                                 <textarea x-model="exp.description" rows="3" class="block w-full px-3 py-2.5 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none resize-y leading-relaxed text-neutral-900 dark:text-neutral-100" placeholder="Brief summary of the role."></textarea>
                             </div>
 
-                            <div class="space-y-2" x-show="hasValue(exp.highlights)">
+                            <div class="space-y-2">
                                 <div class="flex items-center justify-between">
                                     <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Highlights</label>
                                     <button type="button" @click="if(!exp.highlights) exp.highlights = []; exp.highlights.push('')" class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline">+ Add highlight</button>
@@ -182,7 +182,7 @@
                                 <div x-show="!(exp.highlights && exp.highlights.length > 0)" class="text-xs text-neutral-400 italic">No highlights added.</div>
                             </div>
 
-                            <div class="space-y-2" x-show="hasValue(exp.achievements)">
+                            <div class="space-y-2">
                                 <div class="flex items-center justify-between">
                                     <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Achievements</label>
                                     <button type="button" @click="if(!exp.achievements) exp.achievements = []; exp.achievements.push('')" class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline">+ Add achievement</button>
@@ -216,33 +216,33 @@
                             </button>
 
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div class="space-y-1.5" x-show="hasValue(edu.degree)">
+                                <div class="space-y-1.5">
                                     <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Degree</label>
                                     <input type="text" x-model="edu.degree" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none font-medium text-neutral-900 dark:text-neutral-100" placeholder="BSc Computer Science">
                                 </div>
-                                <div class="space-y-1.5" x-show="hasValue(edu.institution)">
+                                <div class="space-y-1.5">
                                     <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Institution</label>
                                     <input type="text" x-model="edu.institution" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100" placeholder="University">
                                 </div>
-                                <div class="space-y-1.5" x-show="hasValue(edu.year)">
+                                <div class="space-y-1.5">
                                     <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Year</label>
                                     <input type="text" x-model="edu.year" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100" placeholder="2018 – 2022">
                                 </div>
-                                <div class="space-y-1.5" x-show="hasValue(edu.field)">
+                                <div class="space-y-1.5">
                                     <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Field</label>
                                     <input type="text" x-model="edu.field" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
                                 </div>
-                                <div class="space-y-1.5" x-show="hasValue(edu.gpa)">
+                                <div class="space-y-1.5">
                                     <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">GPA</label>
                                     <input type="text" x-model="edu.gpa" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
                                 </div>
-                                <div class="space-y-1.5" x-show="hasValue(edu.location)">
+                                <div class="space-y-1.5">
                                     <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Location</label>
                                     <input type="text" x-model="edu.location" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
                                 </div>
                             </div>
 
-                            <div class="space-y-2" x-show="hasValue(edu.honors)">
+                            <div class="space-y-2">
                                 <div class="flex items-center justify-between">
                                     <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Honors</label>
                                     <button type="button" @click="if(!edu.honors) edu.honors = []; edu.honors.push('')" class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline">+ Add honor</button>
@@ -275,28 +275,28 @@
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                             </button>
 
-                            <div class="space-y-1.5" x-show="hasValue(proj.name)">
+                            <div class="space-y-1.5">
                                 <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Project name</label>
                                 <input type="text" x-model="proj.name" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none font-medium text-neutral-900 dark:text-neutral-100" placeholder="Project title">
                             </div>
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div class="space-y-1.5" x-show="hasValue(proj.role)">
+                                <div class="space-y-1.5">
                                     <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Role</label>
                                     <input type="text" x-model="proj.role" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
                                 </div>
-                                <div class="space-y-1.5" x-show="hasValue(proj.url)">
+                                <div class="space-y-1.5">
                                     <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">URL</label>
                                     <input type="url" x-model="proj.url" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
                                 </div>
                             </div>
 
-                            <div class="space-y-1.5" x-show="hasValue(proj.description)">
+                            <div class="space-y-1.5">
                                 <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Description</label>
                                 <textarea x-model="proj.description" rows="2" class="block w-full px-3 py-2.5 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none resize-y text-neutral-900 dark:text-neutral-100" placeholder="Brief overview of what you built."></textarea>
                             </div>
 
-                            <div class="space-y-2" x-show="hasValue(proj.highlights)">
+                            <div class="space-y-2">
                                 <div class="flex items-center justify-between">
                                     <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Key features</label>
                                     <button type="button" @click="if(!proj.highlights) proj.highlights = []; proj.highlights.push('')" class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline">+ Add feature</button>
@@ -312,7 +312,7 @@
                                 </template>
                             </div>
 
-                            <div class="space-y-2" x-show="hasValue(proj.technologies)">
+                            <div class="space-y-2">
                                 <div class="flex items-center justify-between">
                                     <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Technologies</label>
                                     <button type="button" @click="if(!proj.technologies) proj.technologies = []; proj.technologies.push('')" class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline">+ Add tech</button>
@@ -332,39 +332,39 @@
                     </template>
                 </div>
             </section>
-<section x-show="hasValue(certifications)" class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+<section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
                 <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
                 <div class="p-6 sm:p-8 space-y-5">
                     <div class="flex items-center justify-between flex-wrap gap-2">
                         {% include "components/section_label.html" with text="05 · Certifications" tone="brand" %}
-                        <button type="button" @click="if(!certifications) certifications=[]; certifications.push({name:''})" class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline">+ Add certification</button>
+                        <button type="button" @click="addCertification()" class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline">+ Add certification</button>
                     </div>
 
                     <template x-for="(cert, index) in certifications" :key="index">
                         <div class="relative rounded-xl bg-neutral-50/60 dark:bg-neutral-950/40 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-4 group">
-                            <button type="button" @click="certifications.splice(index, 1)" class="absolute top-3 right-3 w-7 h-7 flex items-center justify-center text-neutral-400 hover:text-red-600 hover:bg-white dark:hover:bg-neutral-900 rounded-full opacity-0 group-hover:opacity-100 transition-all">
+                            <button type="button" @click="removeCertification(index)" class="absolute top-3 right-3 w-7 h-7 flex items-center justify-center text-neutral-400 hover:text-red-600 hover:bg-white dark:hover:bg-neutral-900 rounded-full opacity-0 group-hover:opacity-100 transition-all">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                             </button>
 
-                            <div class="space-y-1.5" x-show="hasValue(cert.name)">
+                            <div class="space-y-1.5">
                                 <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Name</label>
                                 <input type="text" x-model="cert.name" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none font-medium text-neutral-900 dark:text-neutral-100" placeholder="AWS Certified Solutions Architect">
                             </div>
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div class="space-y-1.5" x-show="hasValue(cert.issuer)">
+                                <div class="space-y-1.5">
                                     <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Issuer</label>
                                     <input type="text" x-model="cert.issuer" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
                                 </div>
-                                <div class="space-y-1.5" x-show="hasValue(cert.date)">
+                                <div class="space-y-1.5">
                                     <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Date</label>
                                     <input type="text" x-model="cert.date" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
                                 </div>
-                                <div class="space-y-1.5" x-show="hasValue(cert.duration)">
+                                <div class="space-y-1.5">
                                     <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Duration</label>
                                     <input type="text" x-model="cert.duration" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
                                 </div>
-                                <div class="space-y-1.5" x-show="hasValue(cert.url)">
+                                <div class="space-y-1.5">
                                     <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">URL</label>
                                     <input type="url" x-model="cert.url" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
                                 </div>
@@ -484,14 +484,17 @@
             addLink()     { this.contact_links.push({ platform: '', url: '' }); },
             removeLink(i) { this.contact_links.splice(i, 1); },
 
-            addExperience()    { this.experiences.push({ title: '', company: '', duration: '', description: '' }); },
+            addExperience()    { this.experiences.push({ title: '', company: '', duration: '', location: '', start_date: '', end_date: '', industry: '', description: '', highlights: [], achievements: [] }); },
             removeExperience(i){ this.experiences.splice(i, 1); },
 
-            addEducation()    { this.education.push({ degree: '', institution: '', year: '' }); },
+            addEducation()    { this.education.push({ degree: '', institution: '', year: '', field: '', gpa: '', location: '', honors: [] }); },
             removeEducation(i){ this.education.splice(i, 1); },
 
-            addProject()    { this.projects.push({ name: '', description: '' }); },
+            addProject()    { this.projects.push({ name: '', role: '', url: '', description: '', highlights: [], technologies: [] }); },
             removeProject(i){ this.projects.splice(i, 1); },
+
+            addCertification() { if (!this.certifications) this.certifications = []; this.certifications.push({ name: '', issuer: '', date: '', duration: '', url: '' }); },
+            removeCertification(i){ this.certifications.splice(i, 1); },
 
             addSkill() {
                 if (this.newSkill.trim() !== '') {
