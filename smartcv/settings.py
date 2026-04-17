@@ -167,6 +167,7 @@ CORS_ALLOWED_ORIGINS = [
 
 # Email
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = 'SmartCV <noreply@smartcv.local>'
 
 # OpenAI
 OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
