@@ -9,6 +9,7 @@ urlpatterns = [
     # Master Profile Flows (No Job ID)
     path('setup/upload/', views.upload_master_profile, name='upload_master_profile'),
     path('setup/review/', views.review_master_profile, name='review_master_profile'),
+    path('setup/connect/', views.connect_accounts_view, name='connect_accounts'),
     path('dashboard/', views.dashboard, name='dashboard'),
 
     path('chatbot/<uuid:job_id>/', views.profile_chatbot, name='profile_chatbot'),

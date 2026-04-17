@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}Connect your accounts — SmartCV{% endblock %}
+
+{% block content %}
+<div class="bg-neutral-50 dark:bg-neutral-950 py-12 sm:py-16">
+    <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 space-y-10">
+
+        <header class="space-y-4">
+            {% include "components/section_label.html" with text="Step 2 of 3 · Signals" tone="brand" %}
+            <h1 class="font-display text-4xl sm:text-5xl leading-[1.02] tracking-tight text-neutral-900 dark:text-neutral-50"
+                style="font-variation-settings: 'opsz' 80;">
+                Connect your <em class="font-medium text-brand-700 dark:text-brand-400">external profiles</em>.
+            </h1>
+            <p class="text-base text-neutral-600 dark:text-neutral-300 leading-relaxed max-w-2xl">
+                Paste a link — we'll pull fresh signals so your gap analysis reflects what
+                you actually ship, not just what's on your CV. GitHub for code, LinkedIn for
+                headline, Scholar for publications, Kaggle for competitions. All optional,
+                skip anything that doesn't apply.
+            </p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {% include "components/github_signals.html"   with profile=profile %}
+            {% include "components/linkedin_signals.html" with profile=profile %}
+            {% include "components/scholar_signals.html"  with profile=profile %}
+            {% include "components/kaggle_signals.html"   with profile=profile %}
+        </div>
+
+        <form method="post" class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+            {% csrf_token %}
+            <p class="text-sm text-neutral-500 dark:text-neutral-400">
+                Connected accounts auto-refresh when you run a gap analysis.
+            </p>
+            <button type="submit"
+                    class="group/btn inline-flex items-center gap-1.5 h-12 px-6 text-sm font-medium rounded-xl bg-brand-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-brand-700 hover:-translate-y-px transition-[background-color,transform] duration-150">
+                Continue
+                <span aria-hidden="true" class="transition-transform duration-200 group-hover/btn:translate-x-0.5">→</span>
+            </button>
+        </form>
+
+        {% include "components/onboarding_skip.html" %}
+    </div>
+</div>
+{% endblock %}
