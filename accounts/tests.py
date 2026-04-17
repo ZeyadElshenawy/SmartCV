@@ -91,3 +91,16 @@ class PasswordResetFlowTests(TestCase):
         )
         self.assertRedirects(response, reverse('password_reset_done'))
         self.assertEqual(len(mail.outbox), 0)
+
+    def test_button_component_does_not_leak_form_context(self):
+        """Regression: button.html used to accept `form=` as a param, which
+        collided with Django's CBV `form` context var and caused the entire
+        Django form HTML to get serialized into the <button form="..."> attr.
+        Renamed the param to form_id. Guard against recurrence.
+        """
+        response = self.client.get(reverse('password_reset'))
+        self.assertEqual(response.status_code, 200)
+        # The raw bytes should NOT contain a <button whose form= attr wraps HTML.
+        self.assertNotIn(b'<button type="submit" form="<', response.content)
+        # And the page should contain a clean submit button.
+        self.assertContains(response, 'Send reset link')
