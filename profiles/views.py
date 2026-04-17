@@ -399,8 +399,12 @@ def review_master_profile(request):
 
         profile.save()
         messages.success(request, "Profile saved successfully.")
-        # Natural next step: if the user has no jobs yet, send them to add one.
-        # Otherwise back to dashboard so they can see their pipeline.
+        # Fresh signups get walked through the "connect your external accounts"
+        # step so their first gap analysis has GitHub / Kaggle / Scholar signals
+        # to lean on. Returning users editing their master profile skip straight
+        # to the natural next step.
+        if request.session.get('in_onboarding'):
+            return redirect('connect_accounts')
         has_jobs = Job.objects.filter(user=request.user).exists()
         if not has_jobs:
             return redirect('job_input_view')
@@ -422,6 +426,33 @@ def review_master_profile(request):
     }
     
     return render(request, 'profiles/manual_form.html', context)
+
+
+@login_required
+def connect_accounts_view(request):
+    """Onboarding step 2 of 3: let a fresh signup paste their GitHub /
+    LinkedIn / Scholar / Kaggle handles so the first gap analysis has
+    real external signals to lean on.
+
+    Reached automatically from review_master_profile when the session flag
+    `in_onboarding` is set. Non-onboarding users can still visit this
+    page directly (e.g., from Settings -> Connect accounts), but nothing
+    redirects them through it automatically.
+
+    POST (Continue) routes based on whether the user has any jobs yet —
+    same logic as review_master_profile's success redirect so either flow
+    (CV upload then review, or build-by-form then review) ends in the
+    same place.
+    """
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+
+    if request.method == 'POST':
+        has_jobs = Job.objects.filter(user=request.user).exists()
+        if not has_jobs:
+            return redirect('job_input_view')
+        return redirect('dashboard')
+
+    return render(request, 'profiles/connect_accounts.html', {'profile': profile})
 
 
 @login_required

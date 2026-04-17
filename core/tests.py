@@ -781,7 +781,8 @@ class OnboardingSkipFlowTests(TestCase):
         self.client.force_login(self.user)
         self.client.get(reverse('welcome'))  # sets the flag
 
-        for url_name in ('upload_master_profile', 'review_master_profile', 'job_input_view'):
+        for url_name in ('upload_master_profile', 'review_master_profile',
+                         'connect_accounts', 'job_input_view'):
             resp = self.client.get(reverse(url_name))
             self.assertEqual(resp.status_code, 200, url_name)
             self.assertContains(resp, 'Skip onboarding', msg_prefix=url_name)
@@ -793,7 +794,8 @@ class OnboardingSkipFlowTests(TestCase):
         """Existing user logs in directly, never visits /welcome/ — no skip."""
         from django.urls import reverse
         self.client.force_login(self.user)
-        for url_name in ('upload_master_profile', 'review_master_profile', 'job_input_view'):
+        for url_name in ('upload_master_profile', 'review_master_profile',
+                         'connect_accounts', 'job_input_view'):
             resp = self.client.get(reverse(url_name))
             self.assertEqual(resp.status_code, 200, url_name)
             self.assertNotContains(resp, 'Skip onboarding', msg_prefix=url_name)

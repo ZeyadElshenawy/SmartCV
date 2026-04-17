@@ -1032,6 +1032,64 @@ class ReviewMasterProfileFormTests(TestCase):
         for key in ('name', 'issuer', 'date', 'duration', 'url'):
             self.assertIn(key, m.group(1), f'addCertification missing seed key: {key}')
 
+    def test_review_redirects_onboarding_user_to_connect_accounts(self):
+        """Fresh signup flow: after saving the master profile, the next step
+        is the connect-accounts page (so external signals enrich the first
+        gap analysis). Existing users editing their profile skip straight to
+        job input / dashboard."""
+        from django.urls import reverse
+        session = self.client.session
+        session['in_onboarding'] = True
+        session.save()
+        resp = self.client.post(reverse('review_master_profile'), {
+            'full_name': 'T. Typist', 'email': 't@example.com',
+            'phone': '', 'location': '', 'contact_links_json': '[]',
+            'skills_json': '[]', 'experiences_json': '[]',
+            'education_json': '[]', 'projects_json': '[]',
+            'certifications_json': '[]',
+        })
+        self.assertRedirects(resp, reverse('connect_accounts'))
+
+    def test_review_does_not_route_existing_user_through_connect(self):
+        from django.urls import reverse
+        # No in_onboarding flag set.
+        resp = self.client.post(reverse('review_master_profile'), {
+            'full_name': 'T. Typist', 'email': 't@example.com',
+            'phone': '', 'location': '', 'contact_links_json': '[]',
+            'skills_json': '[]', 'experiences_json': '[]',
+            'education_json': '[]', 'projects_json': '[]',
+            'certifications_json': '[]',
+        })
+        # Either job_input (no jobs) or dashboard — never connect_accounts.
+        self.assertNotEqual(resp['Location'], reverse('connect_accounts'))
+        self.assertIn(resp['Location'], (
+            reverse('job_input_view'), reverse('dashboard'),
+        ))
+
+    def test_connect_accounts_page_renders_all_four_signal_widgets(self):
+        from django.urls import reverse
+        resp = self.client.get(reverse('connect_accounts'))
+        self.assertEqual(resp.status_code, 200)
+        # All four signal aggregation panels must be on the page.
+        self.assertContains(resp, 'githubSignals(')
+        self.assertContains(resp, 'linkedin')
+        self.assertContains(resp, 'scholar')
+        self.assertContains(resp, 'kaggle')
+        # And the Continue button posts back to the same URL.
+        self.assertContains(resp, 'Continue')
+
+    def test_connect_accounts_continue_routes_to_job_input_when_no_jobs(self):
+        from django.urls import reverse
+        resp = self.client.post(reverse('connect_accounts'))
+        self.assertRedirects(resp, reverse('job_input_view'))
+
+    def test_connect_accounts_continue_routes_to_dashboard_when_jobs_exist(self):
+        from django.urls import reverse
+        from jobs.models import Job
+        Job.objects.create(user=self.user, title='Engineer')
+        resp = self.client.post(reverse('connect_accounts'))
+        self.assertRedirects(resp, reverse('dashboard'))
+
     def test_review_page_uses_new_yoe_service(self):
         """The review page's Career Snapshot YoE stat must come from
         experience_math.compute_years_of_experience, not the old inline
