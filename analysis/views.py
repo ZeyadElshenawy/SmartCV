@@ -207,13 +207,27 @@ def update_gap_skills(request, job_id):
     gap.missing_skills = missing
     # soft_skill_gaps not stored on model — we fold them into partial_skills for persistence
     gap.partial_skills = soft
-    gap.save(update_fields=['matched_skills', 'missing_skills', 'partial_skills'])
+
+    # Recompute similarity_score from the new buckets so the header % stays
+    # consistent with what the user just dragged. The Alpine frontend computes
+    # the same value live via an identical formula; persisting here keeps it
+    # stable across page reloads. See analysis/services/skill_score.
+    from analysis.services.skill_score import compute_match_score
+    total = len(matched) + len(missing) + len(soft)
+    save_fields = ['matched_skills', 'missing_skills', 'partial_skills']
+    if total > 0:
+        gap.similarity_score = compute_match_score(
+            len(matched), len(missing), len(soft),
+        )
+        save_fields.append('similarity_score')
+    gap.save(update_fields=save_fields)
 
     return JsonResponse({
         'success': True,
         'matched_count': len(matched),
         'missing_count': len(missing),
         'soft_count': len(soft),
+        'similarity_score': gap.similarity_score,
     })
 
 @login_required

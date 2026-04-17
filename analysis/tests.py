@@ -7,7 +7,7 @@ run fast and don't need an API key.
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, TestCase
 
 from analysis.services.gap_analyzer import compute_gap_analysis
 from profiles.services.schemas import GapAnalysisResult
@@ -369,3 +369,108 @@ class FormatKaggleActivityTests(SimpleTestCase):
         self.assertIn("medals", block)
         # Discussion has 0 count + no medals — should be skipped
         self.assertNotIn("Discussion: 0", block)
+
+
+class ComputeMatchScoreTests(SimpleTestCase):
+    """Formula used by analysis/services/skill_score.compute_match_score.
+
+    Must stay in lockstep with the JS implementation in
+    templates/analysis/gap_analysis.html (the `computedScore` getter on
+    skillDragDrop) so the live-updated % doesn't drift from what the
+    server persists to GapAnalysis.similarity_score.
+    """
+
+    def _score(self, m, mi, s):
+        from analysis.services.skill_score import compute_match_score
+        return compute_match_score(m, mi, s)
+
+    def test_all_zero_returns_zero(self):
+        self.assertEqual(self._score(0, 0, 0), 0.0)
+
+    def test_all_matched_returns_one(self):
+        self.assertEqual(self._score(5, 0, 0), 1.0)
+
+    def test_all_missing_returns_zero(self):
+        self.assertEqual(self._score(0, 5, 0), 0.0)
+
+    def test_all_soft_returns_half(self):
+        self.assertEqual(self._score(0, 0, 5), 0.5)
+
+    def test_matched_and_missing_split_evenly(self):
+        self.assertEqual(self._score(5, 5, 0), 0.5)
+
+    def test_soft_weighted_half(self):
+        # 2 matched + 0 missing + 2 soft = (2 + 1) / 4 = 0.75
+        self.assertEqual(self._score(2, 0, 2), 0.75)
+
+    def test_moving_missing_to_matched_increases_score(self):
+        before = self._score(2, 3, 0)   # 2/5 = 0.4
+        after  = self._score(3, 2, 0)   # 3/5 = 0.6
+        self.assertGreater(after, before)
+        self.assertAlmostEqual(after - before, 0.2, places=4)
+
+    def test_moving_matched_to_missing_decreases_score(self):
+        before = self._score(3, 2, 0)
+        after  = self._score(2, 3, 0)
+        self.assertLess(after, before)
+
+
+class UpdateGapSkillsRecomputesScoreTests(TestCase):
+    """POSTing skill buckets must recompute similarity_score on the server so
+    a page reload shows the same % the user just saw live in the Alpine UI.
+    """
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from jobs.models import Job
+        from analysis.models import GapAnalysis
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='gap@example.com', email='gap@example.com', password='x',
+        )
+        self.client.force_login(self.user)
+        self.job = Job.objects.create(user=self.user, title='Data Scientist')
+        self.gap = GapAnalysis.objects.create(
+            job=self.job, user=self.user,
+            similarity_score=0.30,
+            matched_skills=['Python'],
+            missing_skills=['SQL', 'Airflow'],
+            partial_skills=['Communication'],
+        )
+
+    def test_drag_missing_to_matched_raises_persisted_score(self):
+        from django.urls import reverse
+        import json as _json
+        resp = self.client.post(
+            reverse('update_gap_skills', args=[self.job.id]),
+            data=_json.dumps({
+                'matched_skills': ['Python', 'SQL', 'Airflow'],
+                'missing_skills': [],
+                'soft_skill_gaps': ['Communication'],
+            }),
+            content_type='application/json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        # (3 + 0.5*1) / 4 = 0.875
+        self.assertAlmostEqual(body['similarity_score'], 0.875, places=3)
+        self.gap.refresh_from_db()
+        self.assertAlmostEqual(self.gap.similarity_score, 0.875, places=3)
+
+    def test_empty_buckets_preserve_old_score(self):
+        """Never clobber the LLM-computed baseline with a meaningless 0 just
+        because the user cleared every bucket."""
+        from django.urls import reverse
+        import json as _json
+        resp = self.client.post(
+            reverse('update_gap_skills', args=[self.job.id]),
+            data=_json.dumps({
+                'matched_skills': [],
+                'missing_skills': [],
+                'soft_skill_gaps': [],
+            }),
+            content_type='application/json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.gap.refresh_from_db()
+        self.assertAlmostEqual(self.gap.similarity_score, 0.30, places=3)
