@@ -169,6 +169,9 @@ CORS_ALLOWED_ORIGINS = [
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 DEFAULT_FROM_EMAIL = 'SmartCV <noreply@smartcv.local>'
 
+# Custom CSRF failure page (styled 403 instead of Django's raw dev page)
+CSRF_FAILURE_VIEW = 'core.views.csrf_failure'
+
 # OpenAI
 OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
 

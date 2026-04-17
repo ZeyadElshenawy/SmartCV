@@ -723,3 +723,31 @@ class InsightsViewProfileStrengthTests(TestCase):
         self.assertContains(resp, 'Completeness')
         self.assertContains(resp, 'Evidence depth')
         self.assertContains(resp, 'External signals')
+
+
+class CsrfFailureViewTests(TestCase):
+    """CSRF failures must render our styled 403 page, not Django's dev default.
+
+    Can't rely on the default test Client — it bypasses CSRF. Use
+    enforce_csrf_checks=True and POST without a token to a form endpoint.
+    """
+
+    def test_missing_csrf_token_renders_styled_page(self):
+        from django.test import Client
+        strict = Client(enforce_csrf_checks=True)
+        resp = strict.post('/accounts/login/', {
+            'email': 'x@example.com', 'password': 'y',
+        })
+        self.assertEqual(resp.status_code, 403)
+        self.assertContains(resp, 'session timed out', status_code=403)
+        self.assertContains(resp, 'Back to the form', status_code=403)
+        # Confirm we are NOT serving Django's built-in dev-mode CSRF page.
+        self.assertNotContains(
+            resp, 'CSRF verification failed', status_code=403,
+        )
+
+    def test_csrf_view_is_wired_in_settings(self):
+        from django.conf import settings
+        self.assertEqual(
+            settings.CSRF_FAILURE_VIEW, 'core.views.csrf_failure',
+        )

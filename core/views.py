@@ -23,6 +23,27 @@ def custom_500(request):
     return render(request, '500.html', status=500)
 
 
+def csrf_failure(request, reason=""):
+    """Custom CSRF failure page.
+
+    Django's default is a bare HTML "Forbidden (403) CSRF verification failed"
+    dev page. In practice the cause is almost always a stale session or a
+    stale form (user left a tab open past the session TTL), so we show a
+    friendly page that tells them to refresh and retry, with links back to
+    home / login. The technical reason goes to the log, not the user.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.warning(
+        "CSRF verification failed: %s | path=%s | method=%s | referer=%s",
+        reason,
+        request.path,
+        request.method,
+        request.META.get('HTTP_REFERER', '-'),
+    )
+    return render(request, '403_csrf.html', {'reason': reason}, status=403)
+
+
 def design_system_view(request):
     """Internal styleguide — renders every component primitive under
     templates/components/ in every tone/size so visual regressions show
