@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}Session expired — SmartCV{% endblock %}
+
+{% block content %}
+<div class="min-h-[70vh] flex items-center justify-center px-4 py-16">
+    <div class="max-w-lg text-center space-y-6">
+        <div class="font-display italic text-[10rem] sm:text-[14rem] leading-none tracking-tight text-amber-600/20 dark:text-amber-400/20 tabular-nums"
+             style="font-variation-settings: 'opsz' 144;">403</div>
+
+        {% include "components/section_label.html" with text="Session expired" tone="warning" %}
+
+        <h1 class="font-display text-3xl sm:text-4xl leading-tight text-neutral-900 dark:text-neutral-50"
+            style="font-variation-settings: 'opsz' 80;">
+            Your session timed out.
+        </h1>
+
+        <p class="text-neutral-500 dark:text-neutral-400 leading-relaxed">
+            For your security, the form you just submitted could no longer be verified.
+            This usually happens when a page is left open too long or cookies are blocked.
+            Refresh the previous page and try again.
+        </p>
+
+        <div class="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+            <button onclick="history.back()" class="group/btn inline-flex items-center justify-center gap-2 h-11 px-5 text-sm font-medium rounded-lg bg-brand-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-brand-700 hover:-translate-y-px transition-[background-color,transform] duration-150">
+                ← Back to the form
+            </button>
+            {% if user.is_authenticated %}
+                {% include "components/button.html" with variant="secondary" label="Go to dashboard" href="/profiles/dashboard/" %}
+            {% else %}
+                {% include "components/button.html" with variant="secondary" label="Sign in" href="/accounts/login/" %}
+            {% endif %}
+        </div>
+
+        {% if reason %}
+        <details class="pt-6 text-left">
+            <summary class="text-[11px] uppercase tracking-[0.16em] font-medium text-neutral-400 dark:text-neutral-500 cursor-pointer hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors">
+                Technical detail
+            </summary>
+            <p class="mt-2 font-mono text-xs text-neutral-500 dark:text-neutral-400 break-words">
+                {{ reason }}
+            </p>
+        </details>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
