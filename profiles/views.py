@@ -409,26 +409,10 @@ def review_master_profile(request):
     context = _build_profile_form_context(profile)
     context['is_master'] = True
     
-    # Calculate Career Snapshot summary stats
-    total_yoe = 0
-    try:
-        from datetime import datetime
-        import re
-        current_year = datetime.now().year
-        for exp in (profile.experiences or []):
-            start = exp.get('start_date', '')
-            end = exp.get('end_date', '')
-            
-            s_year = re.search(r'\b(19|20)\d{2}\b', str(start))
-            if s_year:
-                s_y = int(s_year.group(0))
-                e_y = current_year
-                e_year = re.search(r'\b(19|20)\d{2}\b', str(end))
-                if e_year:
-                    e_y = int(e_year.group(0))
-                total_yoe += max(0, e_y - s_y)
-    except Exception as e:
-        logger.error("Error calculating YOE: %s", e)
+    # Career Snapshot stats. YoE uses month-precision parsing + overlap
+    # merging; see profiles/services/experience_math.py for the design.
+    from profiles.services.experience_math import compute_years_of_experience
+    total_yoe = compute_years_of_experience(profile.experiences)
 
     context['summary_stats'] = {
         'total_yoe': total_yoe,

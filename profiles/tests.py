@@ -1032,6 +1032,31 @@ class ReviewMasterProfileFormTests(TestCase):
         for key in ('name', 'issuer', 'date', 'duration', 'url'):
             self.assertIn(key, m.group(1), f'addCertification missing seed key: {key}')
 
+    def test_review_page_uses_new_yoe_service(self):
+        """The review page's Career Snapshot YoE stat must come from
+        experience_math.compute_years_of_experience, not the old inline
+        regex. Validated by feeding Zeyad's CV data and asserting the
+        rendered number is 0 (two single-month internships), which is the
+        answer the old algorithm got famously wrong (it produced 3)."""
+        from django.urls import reverse
+        from profiles.models import UserProfile
+        UserProfile.objects.create(
+            user=self.user,
+            data_content={
+                'experiences': [
+                    {'title': 'Digital Transformation Intern',
+                     'company': 'Almansour Automative',
+                     'start_date': 'August 2025', 'end_date': ''},
+                    {'title': 'Information Technology Intern',
+                     'company': 'Arab Organization for Industrialization',
+                     'start_date': 'July 2024', 'end_date': ''},
+                ],
+            },
+        )
+        resp = self.client.get(reverse('review_master_profile'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context['summary_stats']['total_yoe'], 0)
+
     def test_add_helpers_flash_and_autofocus_new_rows(self):
         """UX affordance: clicking + Add must scroll the new row into view,
         focus its first input, and briefly highlight it. Implemented by a
@@ -1063,3 +1088,147 @@ class ReviewMasterProfileFormTests(TestCase):
         for value in ('experience', 'education', 'project', 'certification', 'link'):
             self.assertIn(f'data-row="{value}"', body,
                           f'Missing data-row="{value}" hook on row card')
+
+
+class ComputeYearsOfExperienceTests(SimpleTestCase):
+    """Month-precision YoE with interval merging.
+
+    Replaces the inline regex-year subtraction that used to live in
+    review_master_profile. That version had three failure modes: it
+    defaulted empty end dates to "this year" (so single-date internships
+    were scored as multi-year ongoing roles), it counted at year granularity
+    only (so Dec 2021 - Jan 2022 scored 1.0 years), and it summed naively
+    across overlapping intervals.
+    """
+
+    _TODAY = __import__('datetime').date(2026, 4, 17)
+
+    def _yoe(self, experiences):
+        from profiles.services.experience_math import compute_years_of_experience
+        return compute_years_of_experience(experiences, today=self._TODAY)
+
+    def test_empty_input_is_zero(self):
+        self.assertEqual(self._yoe([]), 0)
+        self.assertEqual(self._yoe(None), 0)
+
+    def test_single_date_entry_counts_as_one_month(self):
+        """A CV line like 'August 2025' with no end date is a single-month
+        entry. One month floors to 0 years."""
+        self.assertEqual(
+            self._yoe([{'start_date': 'August 2025', 'end_date': ''}]), 0,
+        )
+
+    def test_present_keyword_credits_to_today(self):
+        # Jan 2020 (inclusive) -> Apr 2026 (inclusive) = 76 months = 6 years.
+        self.assertEqual(
+            self._yoe([{'start_date': 'Jan 2020', 'end_date': 'Present'}]), 6,
+        )
+
+    def test_current_keyword_also_ongoing(self):
+        self.assertEqual(
+            self._yoe([{'start_date': 'Jan 2020', 'end_date': 'current'}]), 6,
+        )
+
+    def test_full_year_range(self):
+        # Jan 2020 – Dec 2022 inclusive = 36 months = 3 years.
+        self.assertEqual(
+            self._yoe([{'start_date': 'Jan 2020', 'end_date': 'Dec 2022'}]), 3,
+        )
+
+    def test_overlapping_jobs_merge_not_sum(self):
+        # Job A: Jan 2020 – Dec 2022 (36 months)
+        # Job B: Jan 2021 – Dec 2023 (36 months)
+        # Merged: Jan 2020 – Dec 2023 = 48 months = 4 years (not 6).
+        self.assertEqual(
+            self._yoe([
+                {'start_date': 'Jan 2020', 'end_date': 'Dec 2022'},
+                {'start_date': 'Jan 2021', 'end_date': 'Dec 2023'},
+            ]),
+            4,
+        )
+
+    def test_non_overlapping_jobs_sum(self):
+        # Jan 2019–Dec 2019 (12mo) + Jan 2021–Dec 2022 (24mo) = 36mo = 3yr.
+        self.assertEqual(
+            self._yoe([
+                {'start_date': 'Jan 2019', 'end_date': 'Dec 2019'},
+                {'start_date': 'Jan 2021', 'end_date': 'Dec 2022'},
+            ]),
+            3,
+        )
+
+    def test_back_to_back_months_merge(self):
+        # Jan–Dec 2020 + Jan–Dec 2021 should merge to 24 months = 2 years.
+        # Without merging of adjacent months, sum would also be 24, but merge
+        # avoids drift when there's a 1-day gap in reality.
+        self.assertEqual(
+            self._yoe([
+                {'start_date': 'Jan 2020', 'end_date': 'Dec 2020'},
+                {'start_date': 'Jan 2021', 'end_date': 'Dec 2021'},
+            ]),
+            2,
+        )
+
+    def test_zeyad_cv_scenario(self):
+        """Regression lock: the CV that motivated this rewrite now returns 0."""
+        self.assertEqual(
+            self._yoe([
+                {'title': 'Digital Transformation Intern',
+                 'company': 'Almansour Automative',
+                 'start_date': 'August 2025', 'end_date': ''},
+                {'title': 'Information Technology Intern',
+                 'company': 'Arab Organization for Industrialization',
+                 'start_date': 'July 2024', 'end_date': ''},
+            ]),
+            0,
+        )
+
+    def test_end_before_start_is_skipped(self):
+        self.assertEqual(
+            self._yoe([{'start_date': '2022', 'end_date': '2019'}]), 0,
+        )
+
+    def test_unparseable_dates_skip_safely(self):
+        self.assertEqual(
+            self._yoe([
+                {'start_date': 'whenever', 'end_date': 'later'},
+                {'start_date': 'Jan 2020', 'end_date': 'Dec 2022'},
+            ]),
+            3,
+        )
+
+    def test_year_only_dates(self):
+        # '2020' -> Jan 2020 (month defaults to 1); '2022' -> Jan 2022.
+        # Jan 2020 through Jan 2022 inclusive = 25 months = 2 years.
+        self.assertEqual(
+            self._yoe([{'start_date': '2020', 'end_date': '2022'}]), 2,
+        )
+
+    def test_numeric_month_forms(self):
+        # "2020-05" and "05/2022" should parse identically to "May 2020"
+        # and "May 2022". May 2020 - May 2022 inclusive = 25 months = 2 years.
+        self.assertEqual(
+            self._yoe([{'start_date': '2020-05', 'end_date': '05/2022'}]), 2,
+        )
+
+    def test_duration_field_fallback(self):
+        """Some LLM parses store the range in 'duration' instead of
+        start_date/end_date. Fallback should still work."""
+        self.assertEqual(
+            self._yoe([{'duration': 'Jan 2020 – Present'}]), 6,
+        )
+
+    def test_duration_fallback_with_explicit_range(self):
+        self.assertEqual(
+            self._yoe([{'duration': 'January 2020 – December 2022'}]), 3,
+        )
+
+    def test_short_month_names(self):
+        self.assertEqual(
+            self._yoe([{'start_date': 'Mar 2020', 'end_date': 'Feb 2021'}]), 1,
+        )
+
+    def test_missing_start_date_is_skipped(self):
+        self.assertEqual(
+            self._yoe([{'start_date': '', 'end_date': 'Dec 2022'}]), 0,
+        )
