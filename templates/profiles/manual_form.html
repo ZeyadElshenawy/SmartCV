@@ -100,7 +100,7 @@
                         </div>
                         <div class="space-y-2">
                             <template x-for="(link, index) in contact_links" :key="index">
-                                <div class="flex gap-2 items-start group">
+                                <div data-row="link" class="flex gap-2 items-start group">
                                     <div class="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-2">
                                         <input type="text" x-model="link.platform" class="sm:col-span-1 block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100" placeholder="Platform (e.g., LinkedIn)">
                                         <input type="url" x-model="link.url" class="sm:col-span-2 block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100" placeholder="https://...">
@@ -124,7 +124,7 @@
                     </div>
 
                     <template x-for="(exp, index) in experiences" :key="index">
-                        <div class="relative rounded-xl bg-neutral-50/60 dark:bg-neutral-950/40 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-4 group">
+                        <div data-row="experience" class="relative rounded-xl bg-neutral-50/60 dark:bg-neutral-950/40 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-4 group">
                             <button type="button" @click="removeExperience(index)" class="absolute top-3 right-3 w-7 h-7 flex items-center justify-center text-neutral-400 hover:text-red-600 hover:bg-white dark:hover:bg-neutral-900 rounded-full opacity-0 group-hover:opacity-100 transition-all">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                             </button>
@@ -210,7 +210,7 @@
                     </div>
 
                     <template x-for="(edu, index) in education" :key="index">
-                        <div class="relative rounded-xl bg-neutral-50/60 dark:bg-neutral-950/40 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-4 group">
+                        <div data-row="education" class="relative rounded-xl bg-neutral-50/60 dark:bg-neutral-950/40 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-4 group">
                             <button type="button" @click="removeEducation(index)" class="absolute top-3 right-3 w-7 h-7 flex items-center justify-center text-neutral-400 hover:text-red-600 hover:bg-white dark:hover:bg-neutral-900 rounded-full opacity-0 group-hover:opacity-100 transition-all">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                             </button>
@@ -270,7 +270,7 @@
                     </div>
 
                     <template x-for="(proj, index) in projects" :key="index">
-                        <div class="relative rounded-xl bg-neutral-50/60 dark:bg-neutral-950/40 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-4 group">
+                        <div data-row="project" class="relative rounded-xl bg-neutral-50/60 dark:bg-neutral-950/40 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-4 group">
                             <button type="button" @click="removeProject(index)" class="absolute top-3 right-3 w-7 h-7 flex items-center justify-center text-neutral-400 hover:text-red-600 hover:bg-white dark:hover:bg-neutral-900 rounded-full opacity-0 group-hover:opacity-100 transition-all">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                             </button>
@@ -341,7 +341,7 @@
                     </div>
 
                     <template x-for="(cert, index) in certifications" :key="index">
-                        <div class="relative rounded-xl bg-neutral-50/60 dark:bg-neutral-950/40 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-4 group">
+                        <div data-row="certification" class="relative rounded-xl bg-neutral-50/60 dark:bg-neutral-950/40 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-4 group">
                             <button type="button" @click="removeCertification(index)" class="absolute top-3 right-3 w-7 h-7 flex items-center justify-center text-neutral-400 hover:text-red-600 hover:bg-white dark:hover:bg-neutral-900 rounded-full opacity-0 group-hover:opacity-100 transition-all">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                             </button>
@@ -481,19 +481,44 @@
                 if (!this.extraSections) this.extraSections = {};
             },
 
-            addLink()     { this.contact_links.push({ platform: '', url: '' }); },
+            /**
+             * After a new row has been push()ed, wait for Alpine to render it,
+             * then scroll it into view, focus its first input, and flash a
+             * brief amber highlight so the user immediately sees where to type.
+             * Highlight uses inline box-shadow (not a Tailwind class) so the
+             * JIT scanner doesn't have to know about it.
+             */
+            _flashLastRow(key) {
+                this.$nextTick(() => {
+                    const rows = this.$root.querySelectorAll(`[data-row="${key}"]`);
+                    const row = rows[rows.length - 1];
+                    if (!row) return;
+                    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // Focus after the smooth scroll kicks off so the browser
+                    // doesn't snap the scroll position to the input.
+                    setTimeout(() => {
+                        const first = row.querySelector('input:not([type="hidden"]), textarea, select');
+                        if (first) first.focus({ preventScroll: true });
+                    }, 300);
+                    row.style.transition = 'box-shadow 0.4s ease';
+                    row.style.boxShadow = '0 0 0 3px rgba(251, 191, 36, 0.55)'; // amber-400 @ 55%
+                    setTimeout(() => { row.style.boxShadow = ''; }, 1400);
+                });
+            },
+
+            addLink()     { this.contact_links.push({ platform: '', url: '' }); this._flashLastRow('link'); },
             removeLink(i) { this.contact_links.splice(i, 1); },
 
-            addExperience()    { this.experiences.push({ title: '', company: '', duration: '', location: '', start_date: '', end_date: '', industry: '', description: '', highlights: [], achievements: [] }); },
+            addExperience()    { this.experiences.push({ title: '', company: '', duration: '', location: '', start_date: '', end_date: '', industry: '', description: '', highlights: [], achievements: [] }); this._flashLastRow('experience'); },
             removeExperience(i){ this.experiences.splice(i, 1); },
 
-            addEducation()    { this.education.push({ degree: '', institution: '', year: '', field: '', gpa: '', location: '', honors: [] }); },
+            addEducation()    { this.education.push({ degree: '', institution: '', year: '', field: '', gpa: '', location: '', honors: [] }); this._flashLastRow('education'); },
             removeEducation(i){ this.education.splice(i, 1); },
 
-            addProject()    { this.projects.push({ name: '', role: '', url: '', description: '', highlights: [], technologies: [] }); },
+            addProject()    { this.projects.push({ name: '', role: '', url: '', description: '', highlights: [], technologies: [] }); this._flashLastRow('project'); },
             removeProject(i){ this.projects.splice(i, 1); },
 
-            addCertification() { if (!this.certifications) this.certifications = []; this.certifications.push({ name: '', issuer: '', date: '', duration: '', url: '' }); },
+            addCertification() { if (!this.certifications) this.certifications = []; this.certifications.push({ name: '', issuer: '', date: '', duration: '', url: '' }); this._flashLastRow('certification'); },
             removeCertification(i){ this.certifications.splice(i, 1); },
 
             addSkill() {
