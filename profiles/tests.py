@@ -919,3 +919,115 @@ class ProfileStrengthTests(TestCase):
         self.assertContains(resp, 'data-profile-strength')
         # Tier label appears (new empty-ish profile = Weak)
         self.assertContains(resp, 'Weak')
+
+
+class ReviewMasterProfileFormTests(TestCase):
+    """Guards the "Build by form" (welcome -> Build by form -> /setup/review/) flow.
+
+    The page used to wrap every per-field <input> in x-show="hasValue(exp.X)",
+    so when a fresh user clicked "+ Add position" the new row seeded all-empty
+    strings, every x-show evaluated false, and the row rendered with only a
+    close button — no fields to type into. Same pattern broke Education,
+    Projects, Certifications, and the Objective/Summary textareas.
+
+    These tests pin both the server round-trip AND the page structure, so the
+    pattern can't be reintroduced without a red test.
+    """
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username='rev@example.com', email='rev@example.com', password='x',
+        )
+        self.client.force_login(self.user)
+
+    def test_empty_profile_renders_without_hasvalue_guards(self):
+        """Regression: per-field inputs must NEVER be wrapped in
+        x-show="hasValue(exp.*|edu.*|proj.*|cert.*)". If they are, a fresh
+        user who clicks + Add sees a row with no editable fields."""
+        from django.urls import reverse
+        resp = self.client.get(reverse('review_master_profile'))
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode('utf-8')
+
+        # No x-show="hasValue(...)" on elements anywhere in the rendered HTML
+        # (the JS function definition `hasValue(val) {` does not match this pattern).
+        import re
+        offenders = re.findall(r'x-show="hasValue\([^"]*\)"', body)
+        self.assertEqual(offenders, [], f'Unexpected x-show guards: {offenders}')
+
+        # The fresh page must expose the Objective + Summary textareas so
+        # a fresh user can fill them in.
+        self.assertIn('name="objective"', body)
+        self.assertIn('name="normalized_summary"', body)
+
+        # The certifications section must be reachable (its <section> used to
+        # be x-show="hasValue(certifications)", which hid the "+ Add certification"
+        # button itself for fresh users).
+        self.assertIn('+ Add certification', body)
+
+    def test_post_round_trips_experiences_education_projects(self):
+        """Saving the form from the client must persist the JSON arrays.
+
+        This is the "Build by form, then click Save" path. We simulate what
+        Alpine would submit — hidden JSON fields wired via x-model.
+        """
+        from django.urls import reverse
+        from profiles.models import UserProfile
+        payload = {
+            'full_name': 'Taylor Typist',
+            'email': 'taylor@example.com',
+            'phone': '+1-555-0000',
+            'location': 'Cairo, Egypt',
+            'contact_links_json': '[]',
+            'skills_json': '["Python", "Django"]',
+            'experiences_json': '[{"title":"Engineer","company":"Acme","duration":"2020-2024","description":"Built things"}]',
+            'education_json': '[{"degree":"BSc CS","institution":"KSIU","year":"2026"}]',
+            'projects_json': '[{"name":"SmartCV","description":"CV tailoring tool"}]',
+            'certifications_json': '[{"name":"AWS SAA"}]',
+        }
+        resp = self.client.post(reverse('review_master_profile'), payload)
+        # View redirects to either job_input_view (no jobs) or dashboard.
+        self.assertEqual(resp.status_code, 302)
+
+        profile = UserProfile.objects.get(user=self.user)
+        self.assertEqual(profile.full_name, 'Taylor Typist')
+        self.assertEqual(profile.location, 'Cairo, Egypt')
+        # Skills stored as list of raw strings.
+        self.assertIn('Python', profile.skills)
+        # Nested structures round-trip intact.
+        self.assertEqual(profile.experiences[0]['company'], 'Acme')
+        self.assertEqual(profile.education[0]['institution'], 'KSIU')
+        self.assertEqual(profile.projects[0]['name'], 'SmartCV')
+        self.assertEqual(profile.certifications[0]['name'], 'AWS SAA')
+
+    def test_add_helpers_seed_every_field_the_template_renders(self):
+        """Regression: addExperience used to seed only 4 of the 10 fields the
+        template displays, so freshly-added rows had undefined keys for
+        location/start_date/end_date/industry/highlights/achievements. Alpine
+        auto-vivifies on type, but the inconsistency is brittle — pin that
+        the JS seeds match the template field set."""
+        import re
+        from django.urls import reverse
+        resp = self.client.get(reverse('review_master_profile'))
+        body = resp.content.decode('utf-8')
+
+        # Extract each add helper's seed object and assert required keys are present.
+        m = re.search(r'addExperience\(\)\s*\{[^}]*this\.experiences\.push\(\{([^}]*)\}', body)
+        self.assertIsNotNone(m, 'addExperience not found')
+        for key in ('title', 'company', 'duration', 'location', 'start_date', 'end_date', 'industry', 'description', 'highlights', 'achievements'):
+            self.assertIn(key, m.group(1), f'addExperience missing seed key: {key}')
+
+        m = re.search(r'addEducation\(\)\s*\{[^}]*this\.education\.push\(\{([^}]*)\}', body)
+        self.assertIsNotNone(m, 'addEducation not found')
+        for key in ('degree', 'institution', 'year', 'field', 'gpa', 'location', 'honors'):
+            self.assertIn(key, m.group(1), f'addEducation missing seed key: {key}')
+
+        m = re.search(r'addProject\(\)\s*\{[^}]*this\.projects\.push\(\{([^}]*)\}', body)
+        self.assertIsNotNone(m, 'addProject not found')
+        for key in ('name', 'role', 'url', 'description', 'highlights', 'technologies'):
+            self.assertIn(key, m.group(1), f'addProject missing seed key: {key}')
+
+        m = re.search(r'addCertification\(\)\s*\{[^}]*this\.certifications\.push\(\{([^}]*)\}', body)
+        self.assertIsNotNone(m, 'addCertification not found')
+        for key in ('name', 'issuer', 'date', 'duration', 'url'):
+            self.assertIn(key, m.group(1), f'addCertification missing seed key: {key}')
