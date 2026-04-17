@@ -93,6 +93,7 @@
             <span>No CV yet?</span>
             <a href="{% url 'review_master_profile' %}" class="font-medium text-brand-700 dark:text-brand-400 hover:underline">Start from a blank profile</a>
         </div>
+        {% include "components/onboarding_skip.html" %}
         {% endif %}
     </div>
 </div>

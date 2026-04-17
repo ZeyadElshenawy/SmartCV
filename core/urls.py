@@ -8,6 +8,8 @@ urlpatterns = [
     path('dashboard/', RedirectView.as_view(pattern_name='dashboard', permanent=False), name='core_dashboard'),
     # First-run welcome (shown once after signup, then skips to dashboard)
     path('welcome/',      views.welcome_view,      name='welcome'),
+    # Exit the onboarding flow early from any step after /welcome/
+    path('skip-onboarding/', views.skip_onboarding_view, name='skip_onboarding'),
     # Career-agent surface: full pipeline + cross-cutting insights hub + general chat
     path('applications/', views.applications_view, name='applications'),
     path('insights/',     views.insights_view,     name='insights'),

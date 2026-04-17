@@ -443,6 +443,12 @@ def review_master_profile(request):
 @login_required
 def dashboard(request):
     """Phase 2: The Command Center with Analytics & Kanban"""
+    # Reaching the dashboard naturally ends the onboarding journey — drop
+    # the session flag so subsequent pages (job input etc.) stop showing
+    # the "Skip onboarding" button.
+    if request.session.get('in_onboarding'):
+        request.session.pop('in_onboarding', None)
+
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
     
     # Fetch all jobs for the user ONCE
