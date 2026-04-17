@@ -751,3 +751,84 @@ class CsrfFailureViewTests(TestCase):
         self.assertEqual(
             settings.CSRF_FAILURE_VIEW, 'core.views.csrf_failure',
         )
+
+
+class OnboardingSkipFlowTests(TestCase):
+    """Freshly-signed-up users see a "Skip onboarding" button on every step
+    after /welcome/ (upload, review, job input). Existing users — who log
+    in directly without ever visiting /welcome/ — do not.
+
+    The flag lives in request.session['in_onboarding'], set by welcome_view
+    when the chooser is rendered and cleared by skip_onboarding_view or on
+    natural arrival at /profiles/dashboard/.
+    """
+
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='onb@example.com', email='onb@example.com', password='x',
+        )
+
+    def test_welcome_view_sets_in_onboarding_flag(self):
+        from django.urls import reverse
+        self.client.force_login(self.user)
+        resp = self.client.get(reverse('welcome'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(self.client.session.get('in_onboarding'))
+
+    def test_skip_shows_on_onboarding_pages_when_flag_set(self):
+        from django.urls import reverse
+        self.client.force_login(self.user)
+        self.client.get(reverse('welcome'))  # sets the flag
+
+        for url_name in ('upload_master_profile', 'review_master_profile', 'job_input_view'):
+            resp = self.client.get(reverse(url_name))
+            self.assertEqual(resp.status_code, 200, url_name)
+            self.assertContains(resp, 'Skip onboarding', msg_prefix=url_name)
+            self.assertContains(
+                resp, reverse('skip_onboarding'), msg_prefix=url_name,
+            )
+
+    def test_skip_hidden_when_flag_not_set(self):
+        """Existing user logs in directly, never visits /welcome/ — no skip."""
+        from django.urls import reverse
+        self.client.force_login(self.user)
+        for url_name in ('upload_master_profile', 'review_master_profile', 'job_input_view'):
+            resp = self.client.get(reverse(url_name))
+            self.assertEqual(resp.status_code, 200, url_name)
+            self.assertNotContains(resp, 'Skip onboarding', msg_prefix=url_name)
+
+    def test_skip_endpoint_clears_flag_and_redirects(self):
+        from django.urls import reverse
+        self.client.force_login(self.user)
+        self.client.get(reverse('welcome'))
+        self.assertTrue(self.client.session.get('in_onboarding'))
+
+        resp = self.client.post(reverse('skip_onboarding'))
+        self.assertRedirects(resp, reverse('dashboard'))
+        self.assertFalse(self.client.session.get('in_onboarding'))
+
+    def test_skip_endpoint_rejects_get(self):
+        """Guard against prefetchers / link previews triggering the skip."""
+        from django.urls import reverse
+        self.client.force_login(self.user)
+        self.client.get(reverse('welcome'))
+        self.assertTrue(self.client.session.get('in_onboarding'))
+
+        resp = self.client.get(reverse('skip_onboarding'))
+        # Don't fetch the target — dashboard clears the flag as a side effect.
+        self.assertRedirects(
+            resp, reverse('dashboard'), fetch_redirect_response=False,
+        )
+        # GET to /skip-onboarding/ itself must NOT clear the flag.
+        self.assertTrue(self.client.session.get('in_onboarding'))
+
+    def test_dashboard_naturally_clears_flag(self):
+        from django.urls import reverse
+        self.client.force_login(self.user)
+        self.client.get(reverse('welcome'))
+        self.assertTrue(self.client.session.get('in_onboarding'))
+
+        resp = self.client.get(reverse('dashboard'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(self.client.session.get('in_onboarding'))

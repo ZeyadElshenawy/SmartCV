@@ -171,7 +171,26 @@ def welcome_view(request):
     data['has_seen_welcome'] = True
     profile.data_content = data
     profile.save(update_fields=['data_content', 'updated_at'])
+    # Mark the session as mid-onboarding — every page the user visits next
+    # (upload_master_profile, review_master_profile, job_input_view) will
+    # show a "Skip onboarding" button. Cleared by skip_onboarding_view or
+    # on natural arrival at the dashboard.
+    request.session['in_onboarding'] = True
     return render(request, 'core/welcome.html', {'user_email': request.user.email})
+
+
+@login_required
+def skip_onboarding_view(request):
+    """Exit the onboarding flow early and go straight to the dashboard.
+
+    Shown as a "Skip onboarding" button on every step after /welcome/.
+    Only accepts POST so the skip isn't triggered by prefetchers or
+    accidental link previews.
+    """
+    if request.method != 'POST':
+        return redirect('dashboard')
+    request.session.pop('in_onboarding', None)
+    return redirect('dashboard')
 
 
 @login_required
