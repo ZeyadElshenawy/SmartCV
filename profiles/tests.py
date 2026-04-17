@@ -1031,3 +1031,35 @@ class ReviewMasterProfileFormTests(TestCase):
         self.assertIsNotNone(m, 'addCertification not found')
         for key in ('name', 'issuer', 'date', 'duration', 'url'):
             self.assertIn(key, m.group(1), f'addCertification missing seed key: {key}')
+
+    def test_add_helpers_flash_and_autofocus_new_rows(self):
+        """UX affordance: clicking + Add must scroll the new row into view,
+        focus its first input, and briefly highlight it. Implemented by a
+        shared _flashLastRow(key) helper that each add method calls after
+        pushing. Pin both the helper and the call sites + data-row hooks.
+        """
+        from django.urls import reverse
+        resp = self.client.get(reverse('review_master_profile'))
+        body = resp.content.decode('utf-8')
+
+        # The helper exists and does what it says.
+        self.assertIn('_flashLastRow(key)', body)
+        self.assertIn('scrollIntoView', body)
+        self.assertIn("behavior: 'smooth'", body)
+        # Auto-focus the first real input inside the new row.
+        self.assertIn("first.focus", body)
+
+        # Every add helper calls the flash with its section key.
+        for call in (
+            "this._flashLastRow('experience')",
+            "this._flashLastRow('education')",
+            "this._flashLastRow('project')",
+            "this._flashLastRow('certification')",
+            "this._flashLastRow('link')",
+        ):
+            self.assertIn(call, body, f'Missing flash call: {call}')
+
+        # Each row card carries the data-row hook the helper queries on.
+        for value in ('experience', 'education', 'project', 'certification', 'link'):
+            self.assertIn(f'data-row="{value}"', body,
+                          f'Missing data-row="{value}" hook on row card')
