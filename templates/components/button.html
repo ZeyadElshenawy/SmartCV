@@ -15,14 +15,14 @@ Params (all optional except label):
   arrow    — True to add an arrow that transits on hover (primary only)
   block    — True for full-width
   disabled — True to disable (button only)
-  form     — optional form id (button only)
+  form_id  — optional form id to associate button with an out-of-tree <form> (button only)
   extra    — extra utility classes appended to the end
 
 Note: intentionally no outer {with variant=variant|default:...}. Django's
 context-push for include recurses when the with-var shadows the include-var
 of the same name; use inline else-branches for defaults instead.
 {% endcomment %}
-{% if href %}<a href="{{ href }}"{% else %}<button type="{{ type|default:'submit' }}"{% if form %} form="{{ form }}"{% endif %}{% if disabled %} disabled{% endif %}{% endif %}
+{% if href %}<a href="{{ href }}"{% else %}<button type="{{ type|default:'submit' }}"{% if form_id %} form="{{ form_id }}"{% endif %}{% if disabled %} disabled{% endif %}{% endif %}
     class="group/btn relative inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium tracking-tight transition-[background-color,color,border-color,transform,box-shadow] duration-150 ease-out focus-visible:outline-none focus-visible:ring-4 disabled:cursor-not-allowed disabled:opacity-50 select-none
     {% if block %}w-full{% endif %}
     {% if size == 'sm' %}h-9 px-3.5 text-xs rounded-lg
