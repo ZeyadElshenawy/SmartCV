@@ -832,3 +832,69 @@ class OnboardingSkipFlowTests(TestCase):
         resp = self.client.get(reverse('dashboard'))
         self.assertEqual(resp.status_code, 200)
         self.assertFalse(self.client.session.get('in_onboarding'))
+
+
+class MessageAutoDismissTests(TestCase):
+    """Success toasts auto-dismiss after 2s; errors/warnings stick until
+    the user clicks the X. We can't run JS in these tests, but we can pin
+    that the x-init timer is attached to the right message tags.
+    """
+
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='msg@example.com', email='msg@example.com', password='oldpass1234',
+        )
+
+    def test_success_message_carries_2s_auto_dismiss_timer(self):
+        """Trigger a genuine success flash by updating the password in
+        /accounts/settings/, then follow the redirect and assert the
+        rendered toast has the setTimeout wired in."""
+        from django.urls import reverse
+        self.client.force_login(self.user)
+        resp = self.client.post(
+            reverse('account_settings'),
+            {
+                'action': 'change_password',
+                'current_password': 'oldpass1234',
+                'new_password': 'newpass9876',
+                'confirm_new_password': 'newpass9876',
+            },
+            follow=True,
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Password updated successfully.')
+        # Django does NOT html-escape arrow syntax inside attribute values;
+        # the 2000ms timer must land in the DOM verbatim.
+        self.assertContains(resp, 'setTimeout(() => show = false, 2000)')
+        # And the success toast must not be rendered twice (settings.html used
+        # to have its own messages block, duplicating the toast).
+        self.assertEqual(
+            resp.content.count(b'Password updated successfully.'), 1,
+        )
+
+    def test_error_message_has_no_auto_dismiss(self):
+        """Error-tagged toasts must stick around so the user can read them."""
+        from django.urls import reverse
+        self.client.force_login(self.user)
+        resp = self.client.post(
+            reverse('account_settings'),
+            {
+                'action': 'change_password',
+                'current_password': 'wrong-pw',
+                'new_password': 'newpass9876',
+                'confirm_new_password': 'newpass9876',
+            },
+            follow=True,
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Current password is incorrect.')
+        # The error toast's own alert div must NOT carry the timer.
+        import re
+        alerts = re.findall(
+            r'<div[^>]*role="alert"[^>]*>.*?Current password is incorrect\.',
+            resp.content.decode('utf-8'),
+            re.DOTALL,
+        )
+        self.assertTrue(alerts, 'error toast not found')
+        self.assertNotIn('setTimeout', alerts[0])
