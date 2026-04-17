@@ -61,17 +61,6 @@ def logout_view(request):
     logout(request)
     return redirect('home')
 
-def password_reset_request(request):
-    # Simplified for dev
-    if request.method == 'POST':
-        messages.success(request, "Password reset link sent (console)")
-        return redirect('login')
-    return render(request, 'accounts/password_reset.html')
-
-def password_reset_confirm(request, uidb64, token):
-    # Simplified placeholder
-    return render(request, 'accounts/password_reset_confirm.html')
-
 @login_required
 def account_settings_view(request):
     """Account settings page — change password, view account info."""
