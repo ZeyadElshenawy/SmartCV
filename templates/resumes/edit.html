@@ -365,32 +365,53 @@
 
             <div class="mx-auto w-full max-w-[480px] aspect-[1/1.414] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_40px_-16px_rgba(15,23,42,0.18)] rounded-sm p-5 text-left select-none overflow-y-auto ring-1 ring-neutral-200" style="overflow-x: hidden;">
                 <style>
+                    /* Defaults = Standard template. Template-specific modifiers
+                       (.pdf-preview--executive etc.) override these CSS vars so
+                       the live preview shifts when the user picks a template. */
                     .pdf-preview {
-                        font-family: 'Helvetica', 'Arial', sans-serif;
-                        color: #1a1a1a;
-                        font-size: 7.5pt;
+                        --p-font: 'Helvetica', 'Arial', sans-serif;
+                        --p-text: #1a1a1a;
+                        --p-body-size: 7.5pt;
+                        --p-header-align: center;
+                        --p-header-border: 1.5px solid #3b82f6;
+                        --p-title-size: 13pt;
+                        --p-title-color: #1e3a8a;
+                        --p-title-weight: bold;
+                        --p-title-case: uppercase;
+                        --p-title-spacing: 0.5px;
+                        --p-section-title-color: #1e3a8a;
+                        --p-section-title-weight: bold;
+                        --p-section-title-case: uppercase;
+                        --p-section-title-spacing: normal;
+                        --p-section-title-border: 1px solid #cbd5e1;
+                        --p-subtitle-color: #2563eb;
+                        --p-section-gap: 10px;
+                        font-family: var(--p-font);
+                        color: var(--p-text);
+                        font-size: var(--p-body-size);
                     }
                     .pdf-preview .p-header {
-                        text-align: center;
+                        text-align: var(--p-header-align);
                         margin-bottom: 12px;
                         padding-bottom: 8px;
-                        border-bottom: 1.5px solid #3b82f6;
+                        border-bottom: var(--p-header-border);
                     }
                     .pdf-preview .p-professional-title {
-                        font-size: 13pt;
-                        font-weight: bold;
-                        color: #1e3a8a;
+                        font-size: var(--p-title-size);
+                        font-weight: var(--p-title-weight);
+                        color: var(--p-title-color);
                         margin-bottom: 4px;
-                        text-transform: uppercase;
-                        letter-spacing: 0.5px;
+                        text-transform: var(--p-title-case);
+                        letter-spacing: var(--p-title-spacing);
                     }
-                    .pdf-preview .p-section { margin-bottom: 10px; }
+                    .pdf-preview .p-section { margin-bottom: var(--p-section-gap); }
                     .pdf-preview .p-section-title {
                         font-size: 9pt;
-                        font-weight: bold;
-                        color: #1e3a8a;
-                        text-transform: uppercase;
-                        border-bottom: 1px solid #cbd5e1;
+                        font-weight: var(--p-section-title-weight);
+                        color: var(--p-section-title-color);
+                        text-transform: var(--p-section-title-case);
+                        letter-spacing: var(--p-section-title-spacing);
+                        border-bottom: var(--p-section-title-border);
                         padding-bottom: 2px;
                         margin-bottom: 5px;
                     }
@@ -399,11 +420,77 @@
                     .pdf-preview .p-item-header { display: flex; justify-content: space-between; align-items: flex-end; }
                     .pdf-preview .p-item-title { font-weight: bold; font-size: 8pt; }
                     .pdf-preview .p-item-date { font-size: 6.5pt; color: #475569; font-weight: bold; }
-                    .pdf-preview .p-item-subtitle { font-weight: bold; color: #2563eb; font-size: 7pt; margin-top: 1px; margin-bottom: 2px; }
+                    .pdf-preview .p-item-subtitle { font-weight: bold; color: var(--p-subtitle-color); font-size: 7pt; margin-top: 1px; margin-bottom: 2px; }
                     .pdf-preview .p-item-description { font-size: 6.5pt; line-height: 1.3; color: #333; white-space: pre-wrap; }
+
+                    /* Standard — no overrides; base .pdf-preview defaults apply.
+                       Declared so the regression test finds one rule per
+                       template_choices value. */
+                    .pdf-preview--standard { /* inherits defaults */ }
+
+                    /* Executive — Georgia serif, letter-spaced uppercase header, black throughout */
+                    .pdf-preview--executive {
+                        --p-font: 'Georgia', 'Times New Roman', Times, serif;
+                        --p-header-border: 1.5px solid #000;
+                        --p-title-color: #000;
+                        --p-title-weight: normal;
+                        --p-title-spacing: 4px;
+                        --p-section-title-color: #000;
+                        --p-section-title-border: 1px solid #000;
+                        --p-subtitle-color: #000;
+                    }
+                    /* Minimalist — clean whitespace, no borders, left-aligned header */
+                    .pdf-preview--minimalist {
+                        --p-header-align: left;
+                        --p-header-border: 0;
+                        --p-title-color: #000;
+                        --p-title-case: none;
+                        --p-title-spacing: -0.3px;
+                        --p-section-title-color: #555;
+                        --p-section-title-weight: 600;
+                        --p-section-title-border: 0;
+                        --p-subtitle-color: #555;
+                        --p-section-gap: 16px;
+                    }
+                    /* Compact — dense one-pager, black everything */
+                    .pdf-preview--compact {
+                        --p-body-size: 7pt;
+                        --p-title-size: 11pt;
+                        --p-title-spacing: -0.2px;
+                        --p-header-border: 1px solid #000;
+                        --p-title-color: #000;
+                        --p-subtitle-color: #000;
+                        --p-section-title-color: #000;
+                        --p-section-title-border: 1px solid #000;
+                        --p-section-gap: 6px;
+                    }
+                    /* Accent (danette) — blue highlights, left-aligned */
+                    .pdf-preview--danette {
+                        --p-header-align: left;
+                        --p-title-size: 14pt;
+                        --p-title-color: #000;
+                        --p-section-title-color: #2563eb;
+                        --p-section-title-border: 0;
+                        --p-subtitle-color: #2563eb;
+                    }
+                    /* Modern (zeyad) — bold sans-serif, dark grey subtitles */
+                    .pdf-preview--zeyad {
+                        --p-font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                        --p-header-align: left;
+                        --p-header-border: 2px solid #333;
+                        --p-title-size: 14pt;
+                        --p-title-color: #111;
+                        --p-title-weight: 800;
+                        --p-title-case: none;
+                        --p-title-spacing: -0.5px;
+                        --p-section-title-color: #444;
+                        --p-section-title-spacing: 1px;
+                        --p-section-title-border: 0;
+                        --p-subtitle-color: #555;
+                    }
                 </style>
 
-                <div class="pdf-preview">
+                <div class="pdf-preview pdf-preview--{{ resume.content.template_name|default:'standard' }}">
                     <div class="p-header">
                         <div id="preview-title" class="p-professional-title">{{ resume.content.professional_title }}</div>
                     </div>
@@ -706,6 +793,18 @@
         });
         radioNode.parentElement.classList.remove('ring-1', 'ring-neutral-200', 'dark:ring-neutral-800');
         radioNode.parentElement.classList.add('ring-2', 'ring-brand-500', 'bg-brand-50/40', 'dark:bg-brand-950/30');
+
+        // Swap the modifier class on the live preview so the new template's
+        // CSS vars take effect. The full set of modifier class names must match
+        // template_choices.value in resumes/views.py.
+        const preview = document.querySelector('.pdf-preview');
+        if (preview) {
+            preview.className = preview.className
+                .split(/\s+/)
+                .filter(cls => !cls.startsWith('pdf-preview--'))
+                .join(' ');
+            preview.classList.add('pdf-preview--' + radioNode.value);
+        }
     }
 
     function resumeEditor() {
