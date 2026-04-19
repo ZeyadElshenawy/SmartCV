@@ -277,3 +277,67 @@ class ComputeEvidenceConfidenceTests(SimpleTestCase):
         self.assertEqual(out["score"], 3)
         self.assertEqual(out["label"], "Strong")
         self.assertEqual(set(out["sources"]), {"github", "scholar", "kaggle"})
+
+
+from django.test import TestCase
+from django.contrib.auth import get_user_model
+from django.urls import reverse
+
+
+class ResumeEditPreviewTemplateClassTests(TestCase):
+    """Live preview on /resumes/edit/<id>/ must carry a pdf-preview--<template>
+    modifier class so each template choice shifts the preview's CSS vars.
+    If it doesn't render server-side, the page opens mismatched with the
+    saved template, and the first radio click would be the first thing to
+    shape the preview (jarring UX).
+    """
+
+    def setUp(self):
+        from jobs.models import Job
+        from analysis.models import GapAnalysis
+        from resumes.models import GeneratedResume
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='rt@example.com', email='rt@example.com', password='x',
+        )
+        self.client.force_login(self.user)
+        job = Job.objects.create(user=self.user, title='Data Scientist')
+        self.gap = GapAnalysis.objects.create(
+            user=self.user, job=job, similarity_score=0.5,
+        )
+        self.resume = GeneratedResume.objects.create(
+            gap_analysis=self.gap,
+            content={
+                'professional_title': 'Data Scientist',
+                'professional_summary': 'Lorem ipsum.',
+                'template_name': 'executive',
+            },
+        )
+
+    def test_preview_carries_saved_template_modifier(self):
+        resp = self.client.get(reverse('resume_edit', args=[self.resume.id]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'pdf-preview pdf-preview--executive')
+
+    def test_preview_falls_back_to_standard_when_template_missing(self):
+        self.resume.content = {'professional_title': 'X', 'professional_summary': 'Y'}
+        self.resume.save()
+        resp = self.client.get(reverse('resume_edit', args=[self.resume.id]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'pdf-preview pdf-preview--standard')
+
+    def test_every_template_choice_has_matching_css_modifier(self):
+        """Regression: if a new template is added to template_choices in the
+        view but the CSS block is forgotten, the preview silently falls back
+        to the default. Compare the view's choices against CSS selectors in
+        the rendered page and fail if any are missing."""
+        import re
+        resp = self.client.get(reverse('resume_edit', args=[self.resume.id]))
+        body = resp.content.decode('utf-8')
+        values = re.findall(r'value="([^"]+)"\s+class="sr-only"', body)
+        self.assertTrue(values, 'Template radio values not found in page.')
+        for v in values:
+            self.assertIn(
+                f'.pdf-preview--{v}', body,
+                f'No .pdf-preview--{v} rule in the page for template "{v}".',
+            )
