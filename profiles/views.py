@@ -526,19 +526,17 @@ def dashboard(request):
 
 @login_required
 def get_current_profile(request):
-    """API endpoint to fetch current user profile for live updates"""
+    """API endpoint to fetch current user profile for live updates.
+
+    Includes a `profile_strength` object from the same
+    `compute_profile_strength` service that drives /profiles/dashboard/
+    and /insights/, so every place in the UI sees one canonical score
+    (instead of the chatbot's old 9-field checklist that maxed at 100
+    as soon as the basics were filled in).
+    """
+    from profiles.services.profile_strength import compute_profile_strength
     try:
         profile = UserProfile.objects.get(user=request.user)
-        return JsonResponse({
-            'full_name': profile.full_name or '',
-            'email': profile.email or '',
-            'phone': profile.phone or '',
-            'location': profile.location or '',
-            'skills': profile.skills or [],
-            'experiences': profile.experiences or [],
-            'education': profile.education or [],
-            'projects': profile.projects or [],
-        })
     except UserProfile.DoesNotExist:
         return JsonResponse({
             'full_name': '',
@@ -547,7 +545,24 @@ def get_current_profile(request):
             'experiences': [],
             'education': [],
             'projects': [],
+            'profile_strength': {'score': 0, 'tier': 'Weak'},
         })
+
+    strength = compute_profile_strength(profile, request.user)
+    return JsonResponse({
+        'full_name': profile.full_name or '',
+        'email': profile.email or '',
+        'phone': profile.phone or '',
+        'location': profile.location or '',
+        'skills': profile.skills or [],
+        'experiences': profile.experiences or [],
+        'education': profile.education or [],
+        'projects': profile.projects or [],
+        'profile_strength': {
+            'score': strength['score'],
+            'tier': strength['tier'],
+        },
+    })
 
 
 @login_required

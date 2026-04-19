@@ -345,19 +345,15 @@ function careerAgent() {
         completionRedirectUrl: '',
         scopeLoading: false,
 
+        // Reads the server-computed profile strength from
+        // /profiles/api/current/. This is the same score driving the
+        // dashboard ring and the insights page, so the chatbot no longer
+        // shows a different number than the rest of the app. The old
+        // 9-field "has any data" checklist used to max at 100 the moment
+        // a user had a name, an email, 5 skills, and one job.
         get completeness() {
-            let score = 0;
-            const p = this.profile;
-            if (p.full_name) score += 15;
-            if (p.email) score += 10;
-            if (p.phone) score += 5;
-            if (p.location) score += 5;
-            if (p.skills && p.skills.length > 0) score += 20;
-            if (p.skills && p.skills.length >= 5) score += 5;
-            if (p.experiences && p.experiences.length > 0) score += 20;
-            if (p.education && p.education.length > 0) score += 10;
-            if (p.projects && p.projects.length > 0) score += 10;
-            return Math.min(100, score);
+            const s = this.profile && this.profile.profile_strength;
+            return s ? s.score : 0;
         },
 
         init() {
