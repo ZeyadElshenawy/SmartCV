@@ -326,6 +326,24 @@ class ResumeEditPreviewTemplateClassTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'pdf-preview pdf-preview--standard')
 
+    def test_every_card_has_a_thumbnail_preview(self):
+        """Each template radio card must render a .template-thumb miniature
+        styled with the same pdf-preview--<value> modifier the big right-side
+        preview uses, so users can eyeball the style before picking."""
+        import re
+        resp = self.client.get(reverse('resume_edit', args=[self.resume.id]))
+        body = resp.content.decode('utf-8')
+        values = re.findall(r'value="([^"]+)"\s+class="sr-only"', body)
+        self.assertTrue(values, 'Template radio values not found in page.')
+        for v in values:
+            needle = f'class="template-thumb pdf-preview pdf-preview--{v}"'
+            self.assertIn(
+                needle, body,
+                f'Template "{v}" radio card is missing its thumbnail div.',
+            )
+        # And the thumbnail stylesheet must exist.
+        self.assertIn('.template-thumb {', body)
+
     def test_every_template_choice_has_matching_css_modifier(self):
         """Regression: if a new template is added to template_choices in the
         view but the CSS block is forgotten, the preview silently falls back
