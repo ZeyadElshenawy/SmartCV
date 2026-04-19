@@ -1032,6 +1032,30 @@ class ReviewMasterProfileFormTests(TestCase):
         for key in ('name', 'issuer', 'date', 'duration', 'url'):
             self.assertIn(key, m.group(1), f'addCertification missing seed key: {key}')
 
+    def test_current_profile_api_exposes_profile_strength(self):
+        """The /profiles/api/current/ endpoint must include a profile_strength
+        {score, tier} so the chatbot Completeness tile reads the same number
+        the dashboard ring shows — fixing the old 9-field checklist that
+        maxed at 100 whenever the basics were filled.
+        """
+        from django.urls import reverse
+        from profiles.models import UserProfile
+        UserProfile.objects.create(
+            user=self.user, full_name='Jane', email='jane@e.com',
+            data_content={'skills': [{'name': 'Python'}]},
+        )
+        resp = self.client.get(reverse('get_current_profile'))
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        self.assertIn('profile_strength', body)
+        self.assertIn('score', body['profile_strength'])
+        self.assertIn('tier', body['profile_strength'])
+        self.assertIsInstance(body['profile_strength']['score'], int)
+        # A bare profile with just name/email/1 skill should score well under
+        # 100 — guards against any future bug where the API shortcuts the
+        # score back to the old "has any data = 100" behavior.
+        self.assertLess(body['profile_strength']['score'], 100)
+
     def test_review_redirects_onboarding_user_to_connect_accounts(self):
         """Fresh signup flow: after saving the master profile, the next step
         is the connect-accounts page (so external signals enrich the first
