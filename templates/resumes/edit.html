@@ -140,10 +140,17 @@
                                         <div class="thumb-sub">Senior Data Scientist · jane@example.com · San Francisco</div>
                                     </div>
                                     <div class="p-section">
+                                        <div class="p-section-title">Summary</div>
+                                        <div class="tt-line tt-line--long"></div>
+                                        <div class="tt-line tt-line--long"></div>
+                                        <div class="tt-line tt-line--med"></div>
+                                    </div>
+                                    <div class="p-section">
                                         <div class="p-section-title">Experience</div>
                                         <div class="thumb-item">
                                             <div class="thumb-item-title">Senior Data Scientist</div>
                                             <div class="p-item-subtitle">Tech Corp · 2022 – Present</div>
+                                            <div class="tt-line tt-line--long"></div>
                                             <div class="tt-line tt-line--long"></div>
                                             <div class="tt-line tt-line--med"></div>
                                         </div>
@@ -151,19 +158,29 @@
                                             <div class="thumb-item-title">Data Analyst</div>
                                             <div class="p-item-subtitle">Insight Labs · 2020 – 2022</div>
                                             <div class="tt-line tt-line--long"></div>
+                                            <div class="tt-line tt-line--short"></div>
                                         </div>
                                     </div>
                                     <div class="p-section">
                                         <div class="p-section-title">Education</div>
                                         <div class="thumb-item">
                                             <div class="thumb-item-title">BSc Computer Science</div>
-                                            <div class="p-item-subtitle">Stanford University · 2020</div>
+                                            <div class="p-item-subtitle">Stanford University · 2016 – 2020</div>
+                                            <div class="tt-line tt-line--med"></div>
+                                        </div>
+                                    </div>
+                                    <div class="p-section">
+                                        <div class="p-section-title">Projects</div>
+                                        <div class="thumb-item">
+                                            <div class="thumb-item-title">Forecasting Engine</div>
+                                            <div class="tt-line tt-line--long"></div>
+                                            <div class="tt-line tt-line--short"></div>
                                         </div>
                                     </div>
                                     <div class="p-section">
                                         <div class="p-section-title">Skills</div>
                                         <div class="tt-line tt-line--long"></div>
-                                        <div class="tt-line tt-line--short"></div>
+                                        <div class="tt-line tt-line--med"></div>
                                     </div>
                                 </div>
 
@@ -596,7 +613,7 @@
                     }
                 </style>
 
-                <div class="pdf-preview pdf-preview--{{ resume.content.template_name|default:'standard' }}">
+                <div id="live-preview" class="pdf-preview pdf-preview--{{ resume.content.template_name|default:'standard' }}">
                     <div class="p-header">
                         <div id="preview-title" class="p-professional-title">{{ resume.content.professional_title }}</div>
                     </div>
@@ -900,10 +917,10 @@
         radioNode.parentElement.classList.remove('ring-1', 'ring-neutral-200', 'dark:ring-neutral-800');
         radioNode.parentElement.classList.add('ring-2', 'ring-brand-500', 'bg-brand-50/40', 'dark:bg-brand-950/30');
 
-        // Swap the modifier class on the live preview so the new template's
-        // CSS vars take effect. The full set of modifier class names must match
-        // template_choices.value in resumes/views.py.
-        const preview = document.querySelector('.pdf-preview');
+        // Swap the modifier class on the LIVE preview (target by ID because
+        // every template thumbnail also carries .pdf-preview, so a class-based
+        // querySelector would pick the first thumb instead).
+        const preview = document.getElementById('live-preview');
         if (preview) {
             preview.className = preview.className
                 .split(/\s+/)
