@@ -66,6 +66,24 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+# django-debug-toolbar (dev only, never in production).
+# Off automatically in the test runner and when DEBUG=False.
+if DEBUG:
+    import sys as _sys
+    _is_test_run = 'test' in _sys.argv or 'pytest' in _sys.argv[0]
+    if not _is_test_run:
+        INSTALLED_APPS.append('debug_toolbar')
+        MIDDLEWARE.insert(
+            MIDDLEWARE.index("whitenoise.middleware.WhiteNoiseMiddleware") + 1,
+            'debug_toolbar.middleware.DebugToolbarMiddleware',
+        )
+        INTERNAL_IPS = ['127.0.0.1', 'localhost']
+        DEBUG_TOOLBAR_CONFIG = {
+            # Skip the 500ms+ panel that eats the page on every nav.
+            'SHOW_TEMPLATE_CONTEXT': True,
+            'RESULTS_CACHE_SIZE': 10,
+        }
+
 ROOT_URLCONF = 'smartcv.urls'
 
 TEMPLATES = [
