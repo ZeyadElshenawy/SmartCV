@@ -18,28 +18,32 @@ Required context: `profile` (UserProfile instance).
                 <svg aria-hidden="true" class="w-4 h-4 text-neutral-700 dark:text-neutral-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.207 11.387.6.113.793-.26.793-.577v-2.234c-3.338.726-4.033-1.415-4.033-1.415-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.085 1.838 1.236 1.838 1.236 1.07 1.834 2.808 1.304 3.49.997.108-.776.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.93 0-1.31.467-2.382 1.236-3.222-.124-.303-.535-1.523.117-3.176 0 0 1.008-.322 3.3 1.23a11.49 11.49 0 0 1 3.005-.404c1.02.005 2.045.137 3.005.404 2.29-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.873.118 3.176.77.84 1.235 1.913 1.235 3.222 0 4.61-2.806 5.62-5.479 5.92.43.372.815 1.103.815 2.222v3.293c0 .32.192.694.8.576C20.565 21.796 24 17.298 24 12c0-6.63-5.37-12-12-12z"/></svg>
                 {% include "components/section_label.html" with text="GitHub signals" %}
             </div>
-            <button type="button" @click="refresh"
-                    :disabled="loading"
-                    class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline disabled:opacity-50">
-                <span x-show="!loading" x-text="hasData ? 'Refresh' : 'Connect'"></span>
-                <span x-show="loading">Fetching…</span>
-            </button>
+            <div class="flex items-center gap-3 text-[11px] uppercase tracking-[0.14em] font-medium">
+                <span x-show="loading" class="text-neutral-500 dark:text-neutral-400">Fetching…</span>
+                <button x-show="hasData && !editing && !loading" type="button" @click="refresh"
+                        class="text-brand-700 dark:text-brand-400 hover:underline">Refresh</button>
+                <button x-show="hasData && !editing && !loading" type="button" @click="startEdit"
+                        class="text-neutral-500 dark:text-neutral-400 hover:underline">Edit</button>
+                <button x-show="editing && !loading" type="button" @click="cancelEdit"
+                        class="text-neutral-500 dark:text-neutral-400 hover:underline">Cancel</button>
+            </div>
         </div>
 
-        {# ---- Empty state — no GitHub URL yet ---- #}
-        <div x-show="!hasData && !error" x-cloak class="space-y-3">
-            <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
-                Show evidence the CV doesn't capture — top repos, language mix, recent activity. Public data only.
-            </p>
-            <form @submit.prevent="refresh" class="flex gap-2">
-                <input type="text" x-model="urlInput" placeholder="github.com/your-username"
-                       class="flex-1 h-9 px-3 text-xs rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
-                <button type="submit" :disabled="loading || !urlInput.trim()"
-                        class="inline-flex items-center justify-center h-9 px-3 text-xs font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-40 transition-colors">
-                    Pull
-                </button>
-            </form>
-        </div>
+        {# ---- Empty-state promo (hidden once editing or already connected) ---- #}
+        <p x-show="!hasData && !editing && !error" x-cloak
+           class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+            Show evidence the CV doesn't capture — top repos, language mix, recent activity. Public data only.
+        </p>
+
+        {# ---- Input form (shown on empty state OR when editing; survives errors) ---- #}
+        <form x-show="!hasData || editing" x-cloak @submit.prevent="refresh" class="flex gap-2">
+            <input type="text" x-model="urlInput" x-ref="input" placeholder="github.com/your-username"
+                   class="flex-1 h-9 px-3 text-xs rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+            <button type="submit" :disabled="loading || !urlInput.trim()"
+                    class="inline-flex items-center justify-center h-9 px-3 text-xs font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-40 transition-colors">
+                <span x-text="hasData ? 'Save' : 'Pull'"></span>
+            </button>
+        </form>
 
         {# ---- Error state ---- #}
         <div x-show="error" x-cloak class="rounded-lg bg-red-50 dark:bg-red-950/40 ring-1 ring-red-200 dark:ring-red-900 px-3 py-2 text-xs text-red-700 dark:text-red-300">
@@ -47,7 +51,7 @@ Required context: `profile` (UserProfile instance).
         </div>
 
         {# ---- Loaded snapshot ---- #}
-        <template x-if="hasData">
+        <template x-if="hasData && !editing">
             <div class="space-y-4">
                 {# Header counts #}
                 <div class="flex items-baseline justify-between gap-3 pt-1">
@@ -124,12 +128,25 @@ function githubSignals(initialUrl, snapshotElementId) {
 
     return {
         urlInput: initialUrl || '',
+        _savedUrl: initialUrl || '',
         snapshot: initialSnapshot,
         loading: false,
         error: null,
+        editing: false,
 
         get hasData() {
             return this.snapshot && this.snapshot.username && !this.snapshot.error;
+        },
+
+        startEdit() {
+            this.editing = true;
+            this.error = null;
+            this.$nextTick(() => this.$refs.input?.focus());
+        },
+        cancelEdit() {
+            this.editing = false;
+            this.error = null;
+            this.urlInput = this._savedUrl;
         },
 
         formatFetched(iso) {
@@ -169,7 +186,10 @@ function githubSignals(initialUrl, snapshotElementId) {
                 this.snapshot = data.snapshot;
                 if (data.snapshot && data.snapshot.error) {
                     this.error = data.snapshot.error;
+                    return;
                 }
+                this._savedUrl = this.urlInput;
+                this.editing = false;
             } catch (e) {
                 this.error = e.message || 'Network error';
             } finally {

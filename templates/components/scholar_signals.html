@@ -12,30 +12,36 @@ Required context: `profile`.
                 <svg aria-hidden="true" class="w-4 h-4 text-[#4285F4]" fill="currentColor" viewBox="0 0 24 24"><path d="M5.242 13.769L0 9.5 12 0l12 9.5-5.242 4.269C17.548 11.249 14.978 9.5 12 9.5c-2.977 0-5.548 1.748-6.758 4.269zM12 10a7 7 0 1 0 0 14 7 7 0 0 0 0-14z"/></svg>
                 {% include "components/section_label.html" with text="Google Scholar" %}
             </div>
-            <button type="button" @click="refresh" :disabled="loading"
-                    class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline disabled:opacity-50">
-                <span x-show="!loading" x-text="hasData ? 'Refresh' : 'Connect'"></span>
-                <span x-show="loading">Fetching…</span>
-            </button>
+            <div class="flex items-center gap-3 text-[11px] uppercase tracking-[0.14em] font-medium">
+                <span x-show="loading" class="text-neutral-500 dark:text-neutral-400">Fetching…</span>
+                <button x-show="hasData && !editing && !loading" type="button" @click="refresh"
+                        class="text-brand-700 dark:text-brand-400 hover:underline">Refresh</button>
+                <button x-show="hasData && !editing && !loading" type="button" @click="startEdit"
+                        class="text-neutral-500 dark:text-neutral-400 hover:underline">Edit</button>
+                <button x-show="editing && !loading" type="button" @click="cancelEdit"
+                        class="text-neutral-500 dark:text-neutral-400 hover:underline">Cancel</button>
+            </div>
         </div>
 
-        <div x-show="!hasData && !error" x-cloak class="space-y-3">
-            <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
-                Pulls citations, h-index, and top publications from your public Scholar profile.
-            </p>
-            <form @submit.prevent="refresh" class="flex gap-2">
-                <input type="text" x-model="urlInput" placeholder="scholar.google.com/citations?user=ABC123XY"
-                       class="flex-1 h-9 px-3 text-xs rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
-                <button type="submit" :disabled="loading || !urlInput.trim()"
-                        class="inline-flex items-center justify-center h-9 px-3 text-xs font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-40 transition-colors">Pull</button>
-            </form>
-        </div>
+        <p x-show="!hasData && !editing && !error" x-cloak
+           class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+            Pulls citations, h-index, and top publications from your public Scholar profile.
+        </p>
+
+        <form x-show="!hasData || editing" x-cloak @submit.prevent="refresh" class="flex gap-2">
+            <input type="text" x-model="urlInput" x-ref="input" placeholder="scholar.google.com/citations?user=ABC123XY"
+                   class="flex-1 h-9 px-3 text-xs rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+            <button type="submit" :disabled="loading || !urlInput.trim()"
+                    class="inline-flex items-center justify-center h-9 px-3 text-xs font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-40 transition-colors">
+                <span x-text="hasData ? 'Save' : 'Pull'"></span>
+            </button>
+        </form>
 
         <div x-show="error" x-cloak class="rounded-lg bg-red-50 dark:bg-red-950/40 ring-1 ring-red-200 dark:ring-red-900 px-3 py-2 text-xs text-red-700 dark:text-red-300">
             <span x-text="error"></span>
         </div>
 
-        <template x-if="hasData">
+        <template x-if="hasData && !editing">
             <div class="space-y-4">
                 <div class="space-y-1">
                     <a :href="snapshot.profile_url" target="_blank" rel="noopener"
@@ -88,12 +94,25 @@ function scholarSignals(snapshotElementId) {
         const raw = el ? el.textContent.trim() : '';
         if (raw && raw !== '""') initialSnapshot = JSON.parse(raw);
     } catch (_) { initialSnapshot = null; }
+    const initialUrl = initialSnapshot ? initialSnapshot.profile_url || '' : '';
     return {
-        urlInput: initialSnapshot ? initialSnapshot.profile_url || '' : '',
+        urlInput: initialUrl,
+        _savedUrl: initialUrl,
         snapshot: initialSnapshot,
         loading: false,
         error: null,
+        editing: false,
         get hasData() { return this.snapshot && this.snapshot.user_id && !this.snapshot.error; },
+        startEdit() {
+            this.editing = true;
+            this.error = null;
+            this.$nextTick(() => this.$refs.input?.focus());
+        },
+        cancelEdit() {
+            this.editing = false;
+            this.error = null;
+            this.urlInput = this._savedUrl;
+        },
         async refresh() {
             this.loading = true; this.error = null;
             try {
@@ -108,7 +127,9 @@ function scholarSignals(snapshotElementId) {
                 const data = await resp.json();
                 if (!resp.ok || data.error) { this.error = data.error || ('Server returned ' + resp.status); return; }
                 this.snapshot = data.snapshot;
-                if (data.snapshot && data.snapshot.error) this.error = data.snapshot.error;
+                if (data.snapshot && data.snapshot.error) { this.error = data.snapshot.error; return; }
+                this._savedUrl = this.urlInput;
+                this.editing = false;
             } catch (e) { this.error = e.message || 'Network error'; }
             finally { this.loading = false; }
         },

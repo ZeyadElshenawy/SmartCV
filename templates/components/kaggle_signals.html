@@ -12,30 +12,36 @@ Required context: `profile`.
                 <svg aria-hidden="true" class="w-4 h-4 text-[#20BEFF]" fill="currentColor" viewBox="0 0 24 24"><path d="M18.825 23.859c-.022.092-.117.141-.281.141h-3.139c-.187 0-.351-.082-.492-.248l-5.178-6.589-1.448 1.374v5.111c0 .235-.117.352-.351.352H5.505c-.236 0-.354-.117-.354-.352V.353c0-.233.118-.353.354-.353h2.431c.234 0 .351.12.351.353v14.343l6.203-6.272c.165-.165.33-.246.495-.246h3.239c.144 0 .236.06.285.18.046.149.034.255-.036.315l-6.555 6.344 6.952 8.595c.095.104.117.208.07.346"/></svg>
                 {% include "components/section_label.html" with text="Kaggle" %}
             </div>
-            <button type="button" @click="refresh" :disabled="loading"
-                    class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline disabled:opacity-50">
-                <span x-show="!loading" x-text="hasData ? 'Refresh' : 'Connect'"></span>
-                <span x-show="loading">Fetching…</span>
-            </button>
+            <div class="flex items-center gap-3 text-[11px] uppercase tracking-[0.14em] font-medium">
+                <span x-show="loading" class="text-neutral-500 dark:text-neutral-400">Fetching…</span>
+                <button x-show="hasData && !editing && !loading" type="button" @click="refresh"
+                        class="text-brand-700 dark:text-brand-400 hover:underline">Refresh</button>
+                <button x-show="hasData && !editing && !loading" type="button" @click="startEdit"
+                        class="text-neutral-500 dark:text-neutral-400 hover:underline">Edit</button>
+                <button x-show="editing && !loading" type="button" @click="cancelEdit"
+                        class="text-neutral-500 dark:text-neutral-400 hover:underline">Cancel</button>
+            </div>
         </div>
 
-        <div x-show="!hasData && !error" x-cloak class="space-y-3">
-            <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
-                Pulls tier, competitions/datasets/notebooks counts, and medal totals.
-            </p>
-            <form @submit.prevent="refresh" class="flex gap-2">
-                <input type="text" x-model="urlInput" placeholder="kaggle.com/your-username"
-                       class="flex-1 h-9 px-3 text-xs rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
-                <button type="submit" :disabled="loading || !urlInput.trim()"
-                        class="inline-flex items-center justify-center h-9 px-3 text-xs font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-40 transition-colors">Pull</button>
-            </form>
-        </div>
+        <p x-show="!hasData && !editing && !error" x-cloak
+           class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+            Pulls tier, competitions/datasets/notebooks counts, and medal totals.
+        </p>
+
+        <form x-show="!hasData || editing" x-cloak @submit.prevent="refresh" class="flex gap-2">
+            <input type="text" x-model="urlInput" x-ref="input" placeholder="kaggle.com/your-username"
+                   class="flex-1 h-9 px-3 text-xs rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+            <button type="submit" :disabled="loading || !urlInput.trim()"
+                    class="inline-flex items-center justify-center h-9 px-3 text-xs font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-40 transition-colors">
+                <span x-text="hasData ? 'Save' : 'Pull'"></span>
+            </button>
+        </form>
 
         <div x-show="error" x-cloak class="rounded-lg bg-red-50 dark:bg-red-950/40 ring-1 ring-red-200 dark:ring-red-900 px-3 py-2 text-xs text-red-700 dark:text-red-300">
             <span x-text="error"></span>
         </div>
 
-        <template x-if="hasData">
+        <template x-if="hasData && !editing">
             <div class="space-y-4">
                 <div class="flex items-baseline justify-between gap-2">
                     <a :href="snapshot.profile_url" target="_blank" rel="noopener"
@@ -75,11 +81,14 @@ function kaggleSignals(snapshotElementId) {
         const raw = el ? el.textContent.trim() : '';
         if (raw && raw !== '""') initialSnapshot = JSON.parse(raw);
     } catch (_) { initialSnapshot = null; }
+    const initialUrl = initialSnapshot ? initialSnapshot.profile_url || '' : '';
     return {
-        urlInput: initialSnapshot ? initialSnapshot.profile_url || '' : '',
+        urlInput: initialUrl,
+        _savedUrl: initialUrl,
         snapshot: initialSnapshot,
         loading: false,
         error: null,
+        editing: false,
         categories: [
             { key: 'competitions', label: 'Competitions' },
             { key: 'datasets', label: 'Datasets' },
@@ -87,6 +96,16 @@ function kaggleSignals(snapshotElementId) {
             { key: 'discussion', label: 'Discussion' },
         ],
         get hasData() { return this.snapshot && this.snapshot.username && !this.snapshot.error; },
+        startEdit() {
+            this.editing = true;
+            this.error = null;
+            this.$nextTick(() => this.$refs.input?.focus());
+        },
+        cancelEdit() {
+            this.editing = false;
+            this.error = null;
+            this.urlInput = this._savedUrl;
+        },
         medalTotal(key) {
             const m = this.snapshot[key]?.medals; if (!m) return 0;
             return (m.gold || 0) + (m.silver || 0) + (m.bronze || 0);
@@ -105,7 +124,9 @@ function kaggleSignals(snapshotElementId) {
                 const data = await resp.json();
                 if (!resp.ok || data.error) { this.error = data.error || ('Server returned ' + resp.status); return; }
                 this.snapshot = data.snapshot;
-                if (data.snapshot && data.snapshot.error) this.error = data.snapshot.error;
+                if (data.snapshot && data.snapshot.error) { this.error = data.snapshot.error; return; }
+                this._savedUrl = this.urlInput;
+                this.editing = false;
             } catch (e) { this.error = e.message || 'Network error'; }
             finally { this.loading = false; }
         },
