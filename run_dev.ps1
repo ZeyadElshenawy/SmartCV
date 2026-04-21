@@ -1,5 +1,18 @@
 # The ultimate fix for Windows Django runserver issues
 
+# Activate the project-local venv so `python` and `pip` resolve to .venv\Scripts\
+# regardless of the user's PATH. The venv was created with --system-site-packages,
+# so it inherits Django and other globally installed deps without re-installing.
+# To run other commands inside the same venv (tests, migrate, shell):
+#   . .\.venv\Scripts\Activate.ps1 ; python manage.py test
+$venvActivate = Join-Path $PSScriptRoot ".venv\Scripts\Activate.ps1"
+if (Test-Path $venvActivate) {
+    . $venvActivate
+    Write-Host "=> Activated .venv ($((Get-Command python).Source))." -ForegroundColor Green
+} else {
+    Write-Host "=> No .venv found at $venvActivate; using system python." -ForegroundColor Yellow
+}
+
 Write-Host "Cleaning up dangling background processes..." -ForegroundColor Yellow
 
 # Kill ALL old Python processes that could be ghost servers
