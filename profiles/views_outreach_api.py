@@ -21,7 +21,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from jobs.models import Job
-from profiles.models import OutreachAction, OutreachCampaign
+from profiles.models import DiscoveredTarget, OutreachAction, OutreachCampaign
 from profiles.services.outreach_dispatcher import (
     claim_next_action,
     invites_sent_today,
@@ -107,7 +107,73 @@ def outreach_result(request, action_id):
     return JsonResponse({'ok': True, 'status': action.status})
 
 
+@require_http_methods(['POST'])
+@extension_token_required
+def discovery_push(request):
+    """Extension dumps profiles scraped from a logged-in LinkedIn job page.
+
+    Body: {"linkedin_job_id": "4380331386",
+           "targets": [{"handle": "...", "name": "...", "role": "...", "source": "..."}]}
+
+    We match the LinkedIn job ID against the user's saved Job rows by URL
+    substring (Job.url is the cleaned canonical URL post-fix 1ff8c96 so the
+    match is exact). Targets for jobs the user doesn't have on file are
+    silently ignored — no point storing dangling rows.
+    """
+    try:
+        body = json.loads(request.body or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'bad_json'}, status=400)
+
+    linkedin_job_id = (body.get('linkedin_job_id') or '').strip()
+    targets = body.get('targets') or []
+    if not linkedin_job_id or not isinstance(targets, list):
+        return JsonResponse({'error': 'missing_job_id_or_targets'}, status=400)
+
+    job = Job.objects.filter(
+        user=request.outreach_user,
+        url__icontains=f'/jobs/view/{linkedin_job_id}',
+    ).first()
+    if not job:
+        return JsonResponse({'ok': True, 'matched_job': False, 'stored': 0})
+
+    stored = 0
+    for raw in targets:
+        handle = (raw.get('handle') or '').strip().lower()
+        if not handle:
+            continue
+        name = (raw.get('name') or '').strip()[:128]
+        role = (raw.get('role') or '').strip()[:128]
+        source = raw.get('source') or 'people_you_know'
+        if source not in {'hiring_team', 'people_you_know', 'company_people'}:
+            source = 'people_you_know'
+        _, created = DiscoveredTarget.objects.update_or_create(
+            user=request.outreach_user,
+            job=job,
+            handle=handle,
+            defaults={'name': name, 'role': role, 'source': source},
+        )
+        if created:
+            stored += 1
+
+    return JsonResponse({'ok': True, 'matched_job': True, 'stored': stored, 'job_id': str(job.id)})
+
+
 # ─── Session-authed (web UI) endpoints ─────────────────────────────────────
+
+@login_required
+@require_http_methods(['GET'])
+def discovery_list(request, job_id):
+    """Web UI polls this every few seconds to pick up extension-pushed targets."""
+    job = get_object_or_404(Job, id=job_id, user=request.user)
+    targets = list(
+        DiscoveredTarget.objects.filter(user=request.user, job=job)
+        .values('handle', 'name', 'role', 'source', 'discovered_at')
+    )
+    for t in targets:
+        t['discovered_at'] = t['discovered_at'].isoformat() if t['discovered_at'] else None
+    return JsonResponse({'targets': targets, 'count': len(targets)})
+
 
 @login_required
 @require_http_methods(['POST'])
