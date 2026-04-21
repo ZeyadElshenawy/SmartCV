@@ -84,22 +84,17 @@
     }
 
     async function pushToSmartCV(linkedinJobId, targets) {
-        const cfg = await chrome.storage.local.get(['smartcv_host', 'smartcv_token']);
-        if (!cfg.smartcv_host || !cfg.smartcv_token) {
-            console.log('[smartcv-discovery] not paired; skipping push');
-            return;
-        }
+        // Chrome's Private Network Access policy blocks linkedin.com (public
+        // origin) from fetch()ing 127.0.0.1 directly. Send the data to the
+        // extension's background service worker via chrome.runtime instead —
+        // the SW runs as chrome-extension://... origin and can reach loopback.
         try {
-            const res = await fetch(`${cfg.smartcv_host.replace(/\/+$/, '')}/profiles/api/outreach/discovery/push/`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Token ${cfg.smartcv_token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ linkedin_job_id: linkedinJobId, targets }),
+            const res = await chrome.runtime.sendMessage({
+                type: 'pushDiscovery',
+                linkedinJobId,
+                targets,
             });
-            const data = await res.json().catch(() => ({}));
-            console.log('[smartcv-discovery] pushed', targets.length, 'targets ->', data);
+            console.log('[smartcv-discovery] pushed', targets.length, 'targets ->', res);
         } catch (err) {
             console.log('[smartcv-discovery] push failed:', err);
         }
