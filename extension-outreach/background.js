@@ -31,6 +31,39 @@ function scheduleNextPoll() {
 chrome.runtime.onInstalled.addListener(() => scheduleNextPoll());
 chrome.runtime.onStartup.addListener(() => scheduleNextPoll());
 
+// Bridge for content_discover.js — content scripts inherit the page's origin
+// (linkedin.com) which Chrome's Private Network Access blocks from reaching
+// 127.0.0.1. The service worker runs as the extension origin and can.
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    if (msg && msg.type === 'pushDiscovery') {
+        (async () => {
+            const { host, token } = await getConfig();
+            if (!host || !token) {
+                sendResponse({ ok: false, error: 'not_paired' });
+                return;
+            }
+            try {
+                const res = await fetch(`${host}/profiles/api/outreach/discovery/push/`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Token ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        linkedin_job_id: msg.linkedinJobId,
+                        targets: msg.targets || [],
+                    }),
+                });
+                const data = await res.json().catch(() => ({}));
+                sendResponse({ ok: res.ok, status: res.status, data });
+            } catch (err) {
+                sendResponse({ ok: false, error: String(err && err.message || err) });
+            }
+        })();
+        return true;  // keep the message channel open for async sendResponse
+    }
+});
+
 chrome.alarms.onAlarm.addListener(async (alarm) => {
     if (alarm.name !== POLL_ALARM) return;
     try {
