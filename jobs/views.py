@@ -70,10 +70,14 @@ def job_input_view(request):
                 skills = extract_skills(job_data['description'])
                 logger.info("Extracted %d skills", len(skills))
 
-                # Save to database
+                # Save to database. Prefer the scraper's cleaned canonical URL
+                # over the raw user-pasted one — strips LinkedIn tracking
+                # tokens (eBP, trk, refId, trackingId) that bloat the row and
+                # defeat dedup, and keeps us under URL max_length even when
+                # the source URL is monstrous.
                 job = Job.objects.create(
                     user=request.user,
-                    url=url,
+                    url=job_data.get('cleaned_url') or url,
                     title=job_data['title'],
                     company=job_data['company'],
                     description=job_data['description'],
