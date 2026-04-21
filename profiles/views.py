@@ -708,10 +708,21 @@ def outreach_campaign_view(request, job_id):
         google_search_url,
     )
     from profiles.services.outreach_generator import generate_outreach_for_target
-    from profiles.models import OutreachCampaign
+    from profiles.models import DiscoveredTarget, OutreachCampaign
 
     job = get_object_or_404(Job, id=job_id, user=request.user)
     profile = get_object_or_404(UserProfile, user=request.user)
+
+    # v2: targets the paired Chrome extension scraped from a logged-in
+    # LinkedIn job page. Independent of the (broken) server-side discovery —
+    # they're a separate "candidate" pool the user can promote to drafts via
+    # the existing "Add manually" path with one click.
+    extension_targets = list(
+        DiscoveredTarget.objects.filter(user=request.user, job=job)
+        .values('handle', 'name', 'role', 'source', 'discovered_at')
+    )
+    for t in extension_targets:
+        t['discovered_at'] = t['discovered_at'].isoformat() if t['discovered_at'] else None
 
     # POST = "discover + draft" round trip (sync). Campaign creation itself
     # goes through the JSON endpoint /api/outreach/campaigns/.
@@ -764,6 +775,7 @@ def outreach_campaign_view(request, job_id):
         'fallback_search_url': fallback_search_url,
         'active_campaign': active_campaign,
         'diagnostics': diagnostics,
+        'extension_targets': extension_targets,
     })
 
 

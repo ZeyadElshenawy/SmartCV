@@ -139,6 +139,38 @@ class OutreachCampaign(models.Model):
         ordering = ['-created_at']
 
 
+class DiscoveredTarget(models.Model):
+    """A LinkedIn profile the paired Chrome extension scraped from a logged-in
+    LinkedIn job page on the user's behalf. Survives until the user explicitly
+    discards it or it ages out via cleanup. NOT the same as OutreachAction —
+    these are *candidate* targets the user hasn't queued yet.
+    """
+    SOURCE_CHOICES = [
+        ('hiring_team', 'Meet the hiring team'),
+        ('people_you_know', 'People you can reach out to'),
+        ('company_people', 'Company employees'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='discovered_targets')
+    job = models.ForeignKey('jobs.Job', on_delete=models.CASCADE, related_name='discovered_targets')
+    handle = models.CharField(max_length=128)
+    name = models.CharField(max_length=128, blank=True)
+    role = models.CharField(max_length=128, blank=True)
+    source = models.CharField(max_length=32, choices=SOURCE_CHOICES)
+    discovered_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'discovered_targets'
+        ordering = ['-discovered_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'job', 'handle'],
+                name='unique_discovered_target_per_user_job',
+            ),
+        ]
+
+
 class OutreachAction(models.Model):
     KIND_CHOICES = [
         ('connect', 'Connect with note'),

@@ -6,13 +6,16 @@
     <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 space-y-8"
          x-data="outreachCampaign({
              jobId: '{{ job.id }}',
+             jobLinkedinUrl: '{{ job.url|escapejs }}',
              discovered: {{ discovered|safe|default:'[]' }},
              drafts: {{ drafts|safe|default:'{}' }},
+             extensionTargets: {{ extension_targets|safe|default:'[]' }},
              fallbackSearchUrl: '{{ fallback_search_url|escapejs }}',
              activeCampaignId: '{% if active_campaign %}{{ active_campaign.id }}{% endif %}',
              statusUrl: '{% url "outreach_campaign_status" "00000000-0000-0000-0000-000000000000" %}',
              createUrl: '{% url "outreach_create_campaign" %}',
              draftManualUrl: '{% url "outreach_draft_manual_target" %}',
+             discoveryListUrl: '{% url "outreach_discovery_list" job.id %}',
              pauseUrl: '{% url "outreach_pause_campaign" "00000000-0000-0000-0000-000000000000" %}',
              pairUrl: '{% url "outreach_pairing" %}',
              csrfToken: '{{ csrf_token }}'
@@ -39,10 +42,21 @@
                     review the drafts, hit Send. Your paired Chrome extension delivers each connect-with-note from inside your own LinkedIn tab — capped at your daily limit.
                 </p>
             </div>
-            <form method="POST" onsubmit="showLoading('Discovering people and drafting messages — 30–60s.')">
-                {% csrf_token %}
-                {% include "components/button.html" with variant="primary" label="Find people + draft" arrow=True %}
-            </form>
+            <div class="flex flex-col gap-2 items-stretch md:items-end">
+                {% if job.url %}
+                <button type="button" @click="openLinkedInForDiscovery()"
+                        class="h-10 px-4 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium">
+                    Open LinkedIn → auto-discover ↗
+                </button>
+                <a href="{% url 'outreach_pairing' %}" target="_blank" rel="noopener" class="text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400 hover:text-brand-700 text-right">
+                    Need to pair the extension? ↗
+                </a>
+                {% endif %}
+                <form method="POST" onsubmit="showLoading('Discovering people and drafting messages — 30–60s.')" class="mt-1">
+                    {% csrf_token %}
+                    {% include "components/button.html" with variant="ghost" label="Or run server discovery" %}
+                </form>
+            </div>
         </header>
 
         {# ─── Disclosure: ToS + automation honesty ─────────────────────────────────────────── #}
@@ -50,6 +64,53 @@
             <strong class="font-medium">Heads up.</strong>
             This automates actions on your LinkedIn account. LinkedIn may rate-limit or restrict accounts that exceed normal usage. SmartCV defaults to ≤15 invites/day to stay within human-plausible bounds. You can pause any campaign at any time.
         </aside>
+
+        {# ─── Extension-discovered targets — appears once the extension scrapes a LinkedIn job page ─── #}
+        <section x-show="extensionTargets.length > 0" class="rounded-2xl bg-emerald-50 dark:bg-emerald-950/20 ring-1 ring-emerald-200 dark:ring-emerald-900/60 overflow-hidden">
+            <div class="px-5 pt-5 pb-3 flex items-center justify-between">
+                {% include "components/section_label.html" with text="Extension found" tone="brand" %}
+                <span class="text-[11px] uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-300" x-text="`${extensionTargets.length} from your LinkedIn tab`"></span>
+            </div>
+            <div class="px-5 pb-5 space-y-2">
+                <p class="text-xs text-emerald-800 dark:text-emerald-200 leading-relaxed">
+                    These came from "Meet the hiring team" / "People you can reach out to" on the LinkedIn job page while you were logged in. Click <em class="not-italic font-medium">Add to drafts</em> to generate a personalized message and queue them.
+                </p>
+                <table class="w-full text-sm mt-2">
+                    <thead class="text-[11px] uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-300">
+                        <tr>
+                            <th class="text-left py-2">Name</th>
+                            <th class="text-left py-2">Role</th>
+                            <th class="text-left py-2">Source</th>
+                            <th class="text-right py-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-emerald-200 dark:divide-emerald-900/50">
+                        <template x-for="t in extensionTargets" :key="t.handle">
+                            <tr>
+                                <td class="py-2 font-medium text-neutral-900 dark:text-neutral-100">
+                                    <a :href="`https://www.linkedin.com/in/${t.handle}/`" target="_blank" rel="noopener" class="hover:underline" x-text="t.name || t.handle"></a>
+                                </td>
+                                <td class="py-2 text-neutral-600 dark:text-neutral-300" x-text="t.role"></td>
+                                <td class="py-2 text-neutral-500 dark:text-neutral-400 capitalize" x-text="t.source.replace(/_/g,' ')"></td>
+                                <td class="py-2 text-right">
+                                    <button @click="promoteExtensionTarget(t)" :disabled="t._adding || alreadyAdded(t.handle)"
+                                            class="h-8 px-3 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed">
+                                        <span x-show="!t._adding && !alreadyAdded(t.handle)">Add to drafts</span>
+                                        <span x-show="alreadyAdded(t.handle)">In drafts ✓</span>
+                                        <span x-show="t._adding">…</span>
+                                    </button>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        {# Waiting state — shown while we've opened LinkedIn and are polling for results #}
+        <section x-show="waitingForExtension" class="rounded-2xl bg-amber-50 dark:bg-amber-950/30 ring-1 ring-amber-200 dark:ring-amber-900/60 px-5 py-4 text-sm text-amber-900 dark:text-amber-200">
+            Waiting for the SmartCV extension to scrape the LinkedIn job tab… (this usually takes 5–10 s after the page finishes loading). Make sure that tab stays open.
+        </section>
 
         {# ─── 1. Targets ────────────────────────────────────────────────────────────────────── #}
         <section class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 overflow-hidden">
@@ -204,8 +265,10 @@
 function outreachCampaign(cfg) {
     return {
         jobId: cfg.jobId,
+        jobLinkedinUrl: cfg.jobLinkedinUrl,
         discovered: cfg.discovered.map(t => ({...t, _selected: true})),
         drafts: cfg.drafts,
+        extensionTargets: (cfg.extensionTargets || []).map(t => ({...t, _adding: false})),
         fallbackSearchUrl: cfg.fallbackSearchUrl,
         dailyCap: 15,
         campaignId: cfg.activeCampaignId || null,
@@ -216,6 +279,7 @@ function outreachCampaign(cfg) {
         pauseUrlTpl: cfg.pauseUrl,
         createUrl: cfg.createUrl,
         draftManualUrl: cfg.draftManualUrl,
+        discoveryListUrl: cfg.discoveryListUrl,
         pairUrl: cfg.pairUrl,
         csrfToken: cfg.csrfToken,
         manualHandle: '',
@@ -223,9 +287,78 @@ function outreachCampaign(cfg) {
         manualRole: '',
         manualError: '',
         addingManual: false,
+        waitingForExtension: false,
+        discoveryTimer: null,
 
         init() {
             if (this.campaignId) this.startPolling();
+            // Poll discovery in the background regardless — the user may have
+            // already opened LinkedIn earlier and we just need to pick up
+            // newly-pushed targets without a refresh.
+            this.startDiscoveryPolling();
+        },
+
+        openLinkedInForDiscovery() {
+            if (!this.jobLinkedinUrl) return;
+            window.open(this.jobLinkedinUrl, '_blank', 'noopener');
+            this.waitingForExtension = true;
+            // Stop showing "waiting" once we get any new target, or after 60s.
+            const startCount = this.extensionTargets.length;
+            const timeout = setTimeout(() => { this.waitingForExtension = false; }, 60000);
+            const watcher = setInterval(() => {
+                if (this.extensionTargets.length > startCount) {
+                    this.waitingForExtension = false;
+                    clearTimeout(timeout);
+                    clearInterval(watcher);
+                }
+            }, 1000);
+        },
+
+        startDiscoveryPolling() {
+            this.fetchDiscovered();
+            this.discoveryTimer = setInterval(() => this.fetchDiscovered(), 5000);
+        },
+        async fetchDiscovered() {
+            try {
+                const res = await fetch(this.discoveryListUrl);
+                if (!res.ok) return;
+                const data = await res.json();
+                // Preserve _adding flag on rows we already have
+                const existingByHandle = Object.fromEntries(
+                    this.extensionTargets.map(t => [t.handle, t])
+                );
+                this.extensionTargets = (data.targets || []).map(t => ({
+                    ...t,
+                    _adding: existingByHandle[t.handle]?._adding || false,
+                }));
+            } catch {}
+        },
+
+        alreadyAdded(handle) {
+            return this.discovered.some(t => t.handle === handle);
+        },
+
+        async promoteExtensionTarget(t) {
+            if (this.alreadyAdded(t.handle)) return;
+            t._adding = true;
+            try {
+                const res = await fetch(this.draftManualUrl, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': this.csrfToken},
+                    body: JSON.stringify({
+                        job_id: this.jobId,
+                        handle_or_url: t.handle,
+                        name: t.name,
+                        role: t.role,
+                    }),
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                this.discovered.push({...data.target, _selected: true});
+                this.drafts[data.target.handle] = data.draft;
+            } finally {
+                t._adding = false;
+            }
         },
         selectedTargets() { return this.discovered.filter(t => t._selected); },
         selectedCount() { return this.selectedTargets().length; },

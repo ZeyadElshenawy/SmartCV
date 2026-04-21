@@ -1,11 +1,13 @@
 {
   "manifest_version": 3,
   "name": "SmartCV Outreach",
-  "description": "Sends queued LinkedIn connection requests for your SmartCV outreach campaigns from inside your own browser tab.",
-  "version": "0.1.0",
+  "description": "Sends queued LinkedIn connection requests for your SmartCV outreach campaigns from inside your own browser tab, and auto-discovers targets from the logged-in LinkedIn job page.",
+  "version": "0.2.0",
   "permissions": ["storage", "alarms", "scripting", "tabs"],
   "host_permissions": [
-    "https://www.linkedin.com/*"
+    "https://www.linkedin.com/*",
+    "http://127.0.0.1/*",
+    "http://localhost/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -15,5 +17,12 @@
     "default_popup": "popup.html",
     "default_title": "SmartCV Outreach"
   },
-  "options_page": "options.html"
+  "options_page": "options.html",
+  "content_scripts": [
+    {
+      "matches": ["https://www.linkedin.com/jobs/view/*"],
+      "js": ["content_discover.js"],
+      "run_at": "document_idle"
+    }
+  ]
 }

@@ -5,6 +5,8 @@ urlpatterns = [
     # Outreach automation API (token-authed for the Chrome extension; session-authed for the web UI)
     path('api/outreach/next', outreach_api.outreach_next, name='outreach_next'),
     path('api/outreach/result/<uuid:action_id>/', outreach_api.outreach_result, name='outreach_result'),
+    path('api/outreach/discovery/push/', outreach_api.discovery_push, name='outreach_discovery_push'),
+    path('api/outreach/discovery/<uuid:job_id>/', outreach_api.discovery_list, name='outreach_discovery_list'),
     path('api/outreach/campaigns/', outreach_api.create_campaign, name='outreach_create_campaign'),
     path('api/outreach/draft-target/', outreach_api.draft_manual_target, name='outreach_draft_manual_target'),
     path('api/outreach/campaigns/<uuid:campaign_id>/pause/', outreach_api.pause_campaign, name='outreach_pause_campaign'),
