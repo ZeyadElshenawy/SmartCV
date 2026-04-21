@@ -28,8 +28,10 @@ declare their handle. Required context: `profile`.
             Just stores your link — LinkedIn doesn't allow public profile scraping.
         </p>
 
-        {# Input form. Visible when there's no data yet OR when the user is
-           explicitly editing. Stays visible on error so the user can retry. #}
+        {% comment %}
+          Input form. Visible when there's no data yet OR when the user is
+          explicitly editing. Stays visible on error so the user can retry.
+        {% endcomment %}
         <form x-show="!hasData || editing" x-cloak @submit.prevent="refresh" class="flex gap-2">
             <input type="text" x-model="urlInput" x-ref="input" placeholder="linkedin.com/in/your-handle"
                    class="flex-1 h-9 px-3 text-xs rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
