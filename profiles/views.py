@@ -670,6 +670,35 @@ def generate_outreach_view(request, job_id):
     })
 
 
+_TITLE_STOPWORDS = {
+    'senior', 'sr', 'junior', 'jr', 'lead', 'principal', 'staff',
+    'engineer', 'developer', 'manager', 'analyst', 'specialist', 'associate',
+    'and', '&', 'the', 'of', 'for', 'with', 'a', 'an',
+    'i', 'ii', 'iii', 'iv',
+}
+
+
+def _role_keywords(title: str, max_kw: int = 2) -> list:
+    """Pull the meaningful nouns out of a job title for SERP filtering.
+
+    'AI & Tooling Engineer, LIGHT' -> ['AI', 'Tooling']  (drops Engineer, &, LIGHT)
+    Using too many keywords narrows Google results to zero on small companies,
+    so cap at 2.
+    """
+    if not title:
+        return []
+    cleaned = ''.join(c if c.isalnum() or c.isspace() else ' ' for c in title)
+    out = []
+    for word in cleaned.split():
+        lw = word.lower()
+        if lw in _TITLE_STOPWORDS or len(word) <= 1 or word.isdigit():
+            continue
+        out.append(word)
+        if len(out) >= max_kw:
+            break
+    return out
+
+
 @login_required
 def outreach_campaign_view(request, job_id):
     """Render the outreach automation campaign builder for a single job."""
@@ -688,15 +717,30 @@ def outreach_campaign_view(request, job_id):
     # goes through the JSON endpoint /api/outreach/campaigns/.
     discovered = []
     drafts = {}
+    diagnostics = None  # {'ran': bool, 'hiring_team_count': N, 'google_count': N}
     if request.method == 'POST':
-        if job.url:
-            discovered.extend(find_hiring_team(job.url))
-        role_keywords = [job.title.split()[0]] if job.title else []
-        discovered.extend(find_peers_via_google(job.company or '', role_keywords, n=8))
-        # de-dupe on handle
+        hiring_team = find_hiring_team(job.url) if job.url else []
+        role_keywords = _role_keywords(job.title or '')
+        google_results = find_peers_via_google(job.company or '', role_keywords, n=8)
+        # If specific keywords return nothing, retry once with company-only —
+        # narrow searches kill recall on small companies more often than helps
+        # signal at SmartCV scale.
+        if not google_results and role_keywords:
+            google_results = find_peers_via_google(job.company or '', [], n=8)
+
+        diagnostics = {
+            'ran': True,
+            'job_url_present': bool(job.url),
+            'hiring_team_count': len(hiring_team),
+            'google_count': len(google_results),
+            'role_keywords': role_keywords,
+        }
+
+        # de-dupe on handle, hiring_team first so it wins on ties
+        combined = list(hiring_team) + list(google_results)
         seen = set()
         unique = []
-        for target in discovered:
+        for target in combined:
             if target.handle in seen:
                 continue
             seen.add(target.handle)
@@ -705,7 +749,9 @@ def outreach_campaign_view(request, job_id):
         for target in discovered:
             drafts[target.handle] = generate_outreach_for_target(profile, job, target)
 
-    fallback_search_url = google_search_url(job.company or '', [job.title or ''])
+    fallback_search_url = google_search_url(
+        job.company or '', _role_keywords(job.title or '') or [job.title or ''],
+    )
     active_campaign = OutreachCampaign.objects.filter(
         user=request.user, job=job, status__in=['running', 'paused']
     ).order_by('-created_at').first()
@@ -717,6 +763,7 @@ def outreach_campaign_view(request, job_id):
         'drafts': drafts,
         'fallback_search_url': fallback_search_url,
         'active_campaign': active_campaign,
+        'diagnostics': diagnostics,
     })
 
 
