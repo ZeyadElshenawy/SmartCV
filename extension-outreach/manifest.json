@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "SmartCV Outreach",
+  "description": "Sends queued LinkedIn connection requests for your SmartCV outreach campaigns from inside your own browser tab.",
+  "version": "0.1.0",
+  "permissions": ["storage", "alarms", "scripting", "tabs"],
+  "host_permissions": [
+    "https://www.linkedin.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "SmartCV Outreach"
+  },
+  "options_page": "options.html"
+}

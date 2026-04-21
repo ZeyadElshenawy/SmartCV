@@ -104,15 +104,78 @@ class JobProfileSnapshot(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     profile = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='job_snapshots')
     job = models.OneToOneField('jobs.Job', on_delete=models.CASCADE, related_name='profile_snapshot')
-    
+
     # Snapshot of data_content at the moment the chatbot updated the profile for THIS job
     data_content = models.JSONField(default=dict)
-    
+
     # The pre-chatbot state — used to revert the master profile when user chose "this job only"
     pre_chatbot_data = models.JSONField(default=dict)
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         db_table = 'job_profile_snapshots'
+
+
+class OutreachCampaign(models.Model):
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('running', 'Running'),
+        ('paused', 'Paused'),
+        ('done', 'Done'),
+        ('failed', 'Failed'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='outreach_campaigns')
+    job = models.ForeignKey('jobs.Job', on_delete=models.CASCADE, related_name='outreach_campaigns')
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default='draft')
+    daily_invite_cap = models.PositiveSmallIntegerField(default=15)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'outreach_campaigns'
+        ordering = ['-created_at']
+
+
+class OutreachAction(models.Model):
+    KIND_CHOICES = [
+        ('connect', 'Connect with note'),
+        ('message', 'Direct message'),
+    ]
+    STATUS_CHOICES = [
+        ('queued', 'Queued'),
+        ('in_flight', 'In flight'),
+        ('sent', 'Sent'),
+        ('accepted', 'Accepted'),
+        ('failed', 'Failed'),
+        ('skipped', 'Skipped'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    campaign = models.ForeignKey(OutreachCampaign, on_delete=models.CASCADE, related_name='actions')
+    target_handle = models.CharField(max_length=128)
+    target_name = models.CharField(max_length=128, blank=True)
+    target_role = models.CharField(max_length=128, blank=True)
+    kind = models.CharField(max_length=16, choices=KIND_CHOICES)
+    payload = models.TextField()
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default='queued')
+    attempts = models.PositiveSmallIntegerField(default=0)
+    last_error = models.TextField(blank=True)
+    queued_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'outreach_actions'
+        ordering = ['queued_at']
+        indexes = [
+            models.Index(fields=['campaign', 'status']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['campaign', 'target_handle', 'kind'],
+                name='unique_action_per_target_per_campaign',
+            ),
+        ]
 

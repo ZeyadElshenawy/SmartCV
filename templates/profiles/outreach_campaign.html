@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+{% block title %}Outreach campaign — {{ job.company }} — SmartCV{% endblock %}
+
+{% block content %}
+<div class="bg-neutral-50 dark:bg-neutral-950 py-10 sm:py-14">
+    <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 space-y-8"
+         x-data="outreachCampaign({
+             jobId: '{{ job.id }}',
+             discovered: {{ discovered|safe|default:'[]' }},
+             drafts: {{ drafts|safe|default:'{}' }},
+             fallbackSearchUrl: '{{ fallback_search_url|escapejs }}',
+             activeCampaignId: '{% if active_campaign %}{{ active_campaign.id }}{% endif %}',
+             statusUrl: '{% url "outreach_campaign_status" "00000000-0000-0000-0000-000000000000" %}',
+             createUrl: '{% url "outreach_create_campaign" %}',
+             pauseUrl: '{% url "outreach_pause_campaign" "00000000-0000-0000-0000-000000000000" %}',
+             pairUrl: '{% url "outreach_pairing" %}',
+             csrfToken: '{{ csrf_token }}'
+         })"
+         x-init="init()">
+
+        <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] font-medium text-neutral-500 dark:text-neutral-400">
+            <a href="{% url 'dashboard' %}" class="hover:text-brand-700 dark:hover:text-brand-400 transition-colors">Dashboard</a>
+            <span aria-hidden="true" class="text-neutral-300 dark:text-neutral-700">/</span>
+            <a href="{% url 'job_detail' job.id %}" class="hover:text-brand-700 dark:hover:text-brand-400 transition-colors truncate max-w-[200px]">{{ job.title }}</a>
+            <span aria-hidden="true" class="text-neutral-300 dark:text-neutral-700">/</span>
+            <span class="text-neutral-900 dark:text-neutral-100">Outreach campaign</span>
+        </nav>
+
+        <header class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+            <div class="space-y-3 max-w-2xl">
+                {% include "components/section_label.html" with text="Automated outreach" tone="brand" %}
+                <h1 class="font-display text-4xl sm:text-5xl leading-[1.02] tracking-tight text-neutral-900 dark:text-neutral-50"
+                    style="font-variation-settings: 'opsz' 80;">
+                    Run a <em class="font-medium text-brand-700 dark:text-brand-400">campaign</em>.
+                </h1>
+                <p class="text-neutral-600 dark:text-neutral-300 leading-relaxed">
+                    Find people at <span class="font-medium text-neutral-900 dark:text-neutral-100">{{ job.company|default:"the company" }}</span>,
+                    review the drafts, hit Send. Your paired Chrome extension delivers each connect-with-note from inside your own LinkedIn tab — capped at your daily limit.
+                </p>
+            </div>
+            <form method="POST" onsubmit="showLoading('Discovering people and drafting messages — 30–60s.')">
+                {% csrf_token %}
+                {% include "components/button.html" with variant="primary" label="Find people + draft" arrow=True %}
+            </form>
+        </header>
+
+        {# ─── Disclosure: ToS + automation honesty ─────────────────────────────────────────── #}
+        <aside class="rounded-2xl bg-amber-50 dark:bg-amber-950/30 ring-1 ring-amber-200 dark:ring-amber-900/60 p-5 text-sm text-amber-900 dark:text-amber-200 leading-relaxed">
+            <strong class="font-medium">Heads up.</strong>
+            This automates actions on your LinkedIn account. LinkedIn may rate-limit or restrict accounts that exceed normal usage. SmartCV defaults to ≤15 invites/day to stay within human-plausible bounds. You can pause any campaign at any time.
+        </aside>
+
+        {# ─── 1. Targets ────────────────────────────────────────────────────────────────────── #}
+        <section class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 overflow-hidden">
+            <div class="px-5 pt-5 pb-3 flex items-center justify-between">
+                {% include "components/section_label.html" with text="1 · Targets" tone="brand" %}
+                <span class="text-[11px] uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400" x-text="`${selectedCount()}/${discovered.length} selected`"></span>
+            </div>
+
+            <template x-if="discovered.length === 0">
+                <div class="px-5 pb-5 text-sm text-neutral-600 dark:text-neutral-300 leading-relaxed">
+                    No targets yet. Hit <em class="not-italic font-medium text-neutral-900 dark:text-neutral-100">Find people + draft</em> above to discover people at this company.
+                    If we come up empty, you can <a class="text-brand-700 dark:text-brand-400 underline" :href="fallbackSearchUrl" target="_blank" rel="noopener">search Google manually</a>.
+                </div>
+            </template>
+
+            <table x-show="discovered.length > 0" class="w-full text-sm">
+                <thead class="bg-neutral-50 dark:bg-neutral-950/40 text-[11px] uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">
+                    <tr>
+                        <th class="px-5 py-3 text-left w-10"></th>
+                        <th class="px-2 py-3 text-left">Name</th>
+                        <th class="px-2 py-3 text-left">Role</th>
+                        <th class="px-2 py-3 text-left">Source</th>
+                        <th class="px-5 py-3 text-right">Profile</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
+                    <template x-for="t in discovered" :key="t.handle">
+                        <tr>
+                            <td class="px-5 py-3"><input type="checkbox" x-model="t._selected"></td>
+                            <td class="px-2 py-3 font-medium text-neutral-900 dark:text-neutral-100" x-text="t.name"></td>
+                            <td class="px-2 py-3 text-neutral-600 dark:text-neutral-300" x-text="t.role"></td>
+                            <td class="px-2 py-3 text-neutral-500 dark:text-neutral-400" x-text="t.source"></td>
+                            <td class="px-5 py-3 text-right">
+                                <a class="text-brand-700 dark:text-brand-400 hover:underline" :href="`https://www.linkedin.com/in/${t.handle}/`" target="_blank" rel="noopener">Open ↗</a>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </section>
+
+        {# ─── 2. Drafts ─────────────────────────────────────────────────────────────────────── #}
+        <section x-show="discovered.length > 0" class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 overflow-hidden">
+            <div class="px-5 pt-5 pb-3">
+                {% include "components/section_label.html" with text="2 · Drafts" tone="accent" %}
+            </div>
+            <div class="px-5 pb-5 space-y-4">
+                <template x-for="t in selectedTargets()" :key="t.handle">
+                    <div class="rounded-xl bg-neutral-50 dark:bg-neutral-950/40 ring-1 ring-neutral-200 dark:ring-neutral-800 p-4 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="font-medium text-neutral-900 dark:text-neutral-100" x-text="t.name"></span>
+                            <span class="text-[11px] uppercase tracking-[0.14em] tabular-nums" :class="(drafts[t.handle]?.connect_message || '').length > 280 ? 'text-amber-600' : 'text-neutral-500 dark:text-neutral-400'">
+                                <span x-text="(drafts[t.handle]?.connect_message || '').length"></span>/300
+                            </span>
+                        </div>
+                        <textarea x-model="drafts[t.handle].connect_message"
+                                  rows="3" maxlength="300"
+                                  class="w-full rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3 text-sm text-neutral-800 dark:text-neutral-100"></textarea>
+                    </div>
+                </template>
+            </div>
+        </section>
+
+        {# ─── 3. Send ───────────────────────────────────────────────────────────────────────── #}
+        <section x-show="discovered.length > 0" class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-4">
+            <div class="flex items-center justify-between">
+                {% include "components/section_label.html" with text="3 · Send" tone="brand" %}
+                <a :href="pairUrl" target="_blank" rel="noopener" class="text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400 hover:text-brand-700 dark:hover:text-brand-400">Pair extension ↗</a>
+            </div>
+            <div class="flex items-center gap-4">
+                <label class="text-sm text-neutral-700 dark:text-neutral-200">Daily invite cap</label>
+                <input type="number" min="1" max="25" x-model.number="dailyCap" class="w-20 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-2 text-sm">
+                <button @click="startCampaign()" :disabled="selectedCount() === 0 || launching"
+                        class="ml-auto h-10 px-5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed">
+                    <span x-show="!launching">Start campaign</span>
+                    <span x-show="launching">Starting…</span>
+                </button>
+            </div>
+
+            <template x-if="campaignStatus">
+                <div class="border-t border-neutral-200 dark:border-neutral-800 pt-4 space-y-3">
+                    <div class="flex items-center gap-3 text-sm text-neutral-700 dark:text-neutral-200">
+                        <span class="font-medium">Status:</span>
+                        <span class="capitalize" x-text="campaignStatus.campaign.status"></span>
+                        <span class="text-neutral-500 dark:text-neutral-400" x-text="`· ${campaignStatus.campaign.sent_today}/${campaignStatus.campaign.daily_invite_cap} sent today`"></span>
+                        <button @click="togglePause()" class="ml-auto text-[11px] uppercase tracking-[0.14em] text-brand-700 dark:text-brand-400 hover:underline">
+                            <span x-text="campaignStatus.campaign.status === 'running' ? 'Pause' : 'Resume'"></span>
+                        </button>
+                    </div>
+                    <ul class="text-sm space-y-1">
+                        <template x-for="a in campaignStatus.actions" :key="a.id">
+                            <li class="flex items-center gap-3">
+                                <span class="inline-block w-2 h-2 rounded-full"
+                                      :class="{
+                                        'bg-neutral-300': a.status === 'queued',
+                                        'bg-amber-500': a.status === 'in_flight',
+                                        'bg-emerald-500': a.status === 'sent' || a.status === 'accepted',
+                                        'bg-red-500': a.status === 'failed',
+                                        'bg-neutral-400': a.status === 'skipped',
+                                      }"></span>
+                                <span class="text-neutral-900 dark:text-neutral-100" x-text="a.target_name || a.target_handle"></span>
+                                <span class="text-neutral-500 dark:text-neutral-400" x-text="a.status"></span>
+                                <span x-show="a.last_error" class="text-red-500 text-xs" x-text="a.last_error"></span>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+            </template>
+        </section>
+    </div>
+</div>
+
+<script>
+function outreachCampaign(cfg) {
+    return {
+        jobId: cfg.jobId,
+        discovered: cfg.discovered.map(t => ({...t, _selected: true})),
+        drafts: cfg.drafts,
+        fallbackSearchUrl: cfg.fallbackSearchUrl,
+        dailyCap: 15,
+        campaignId: cfg.activeCampaignId || null,
+        campaignStatus: null,
+        launching: false,
+        statusTimer: null,
+        statusUrlTpl: cfg.statusUrl,
+        pauseUrlTpl: cfg.pauseUrl,
+        createUrl: cfg.createUrl,
+        pairUrl: cfg.pairUrl,
+        csrfToken: cfg.csrfToken,
+
+        init() {
+            if (this.campaignId) this.startPolling();
+        },
+        selectedTargets() { return this.discovered.filter(t => t._selected); },
+        selectedCount() { return this.selectedTargets().length; },
+
+        async startCampaign() {
+            this.launching = true;
+            const targets = this.selectedTargets().map(t => ({
+                handle: t.handle, name: t.name, role: t.role,
+                message: this.drafts[t.handle]?.connect_message || '',
+            })).filter(t => t.message);
+            const res = await fetch(this.createUrl, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': this.csrfToken},
+                body: JSON.stringify({job_id: this.jobId, targets, daily_invite_cap: this.dailyCap}),
+            });
+            this.launching = false;
+            if (!res.ok) { alert('Failed to start campaign'); return; }
+            const data = await res.json();
+            this.campaignId = data.campaign_id;
+            this.startPolling();
+        },
+
+        startPolling() {
+            this.fetchStatus();
+            this.statusTimer = setInterval(() => this.fetchStatus(), 5000);
+        },
+        async fetchStatus() {
+            const url = this.statusUrlTpl.replace('00000000-0000-0000-0000-000000000000', this.campaignId);
+            const res = await fetch(url);
+            if (res.ok) this.campaignStatus = await res.json();
+        },
+        async togglePause() {
+            const url = this.pauseUrlTpl.replace('00000000-0000-0000-0000-000000000000', this.campaignId);
+            await fetch(url, {method: 'POST', headers: {'X-CSRFToken': this.csrfToken}});
+            this.fetchStatus();
+        },
+    };
+}
+</script>
+{% endblock %}

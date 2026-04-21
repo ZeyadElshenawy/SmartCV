@@ -1,7 +1,16 @@
 from django.urls import path
-from . import views
+from . import views, views_outreach_api as outreach_api
 
 urlpatterns = [
+    # Outreach automation API (token-authed for the Chrome extension; session-authed for the web UI)
+    path('api/outreach/next', outreach_api.outreach_next, name='outreach_next'),
+    path('api/outreach/result/<uuid:action_id>/', outreach_api.outreach_result, name='outreach_result'),
+    path('api/outreach/campaigns/', outreach_api.create_campaign, name='outreach_create_campaign'),
+    path('api/outreach/campaigns/<uuid:campaign_id>/pause/', outreach_api.pause_campaign, name='outreach_pause_campaign'),
+    path('api/outreach/campaigns/<uuid:campaign_id>/status/', outreach_api.campaign_status, name='outreach_campaign_status'),
+    path('extension/pair/', outreach_api.pairing_view, name='outreach_pairing'),
+
+
     # Job-Specific Flows
     path('upload/<uuid:job_id>/', views.profile_upload_cv, name='profile_upload_cv'),
     path('form/<uuid:job_id>/', views.profile_manual_form, name='profile_manual_form'),
@@ -22,6 +31,7 @@ urlpatterns = [
     
     # Advanced AI Features
     path('outreach/<uuid:job_id>/', views.generate_outreach_view, name='generate_outreach'),
+    path('outreach/<uuid:job_id>/campaign/', views.outreach_campaign_view, name='outreach_campaign'),
 
     # External signal aggregation
     path('refresh-github/',   views.refresh_github_signals,   name='refresh_github_signals'),
