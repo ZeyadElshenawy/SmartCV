@@ -6,6 +6,7 @@ urlpatterns = [
     path('api/outreach/next', outreach_api.outreach_next, name='outreach_next'),
     path('api/outreach/result/<uuid:action_id>/', outreach_api.outreach_result, name='outreach_result'),
     path('api/outreach/campaigns/', outreach_api.create_campaign, name='outreach_create_campaign'),
+    path('api/outreach/draft-target/', outreach_api.draft_manual_target, name='outreach_draft_manual_target'),
     path('api/outreach/campaigns/<uuid:campaign_id>/pause/', outreach_api.pause_campaign, name='outreach_pause_campaign'),
     path('api/outreach/campaigns/<uuid:campaign_id>/status/', outreach_api.campaign_status, name='outreach_campaign_status'),
     path('extension/pair/', outreach_api.pairing_view, name='outreach_pairing'),

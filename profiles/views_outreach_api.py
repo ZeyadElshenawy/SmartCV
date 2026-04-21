@@ -111,6 +111,51 @@ def outreach_result(request, action_id):
 
 @login_required
 @require_http_methods(['POST'])
+def draft_manual_target(request):
+    """Generate a connect-message draft for a single user-supplied target.
+
+    Used by the "Add target manually" path on the campaign builder when the
+    server-side discovery (Google + public hiring team) returns nothing —
+    the user copies a LinkedIn profile URL out of their own logged-in tab
+    and pastes it in. We extract the handle, run the per-target LLM, and
+    return the draft + dataclass-shaped target dict that the Alpine UI
+    appends to its discovered list.
+    """
+    from jobs.services.people_finder import _extract_handle, Target
+    from profiles.services.outreach_generator import generate_outreach_for_target
+    from profiles.models import UserProfile
+
+    try:
+        body = json.loads(request.body or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'bad_json'}, status=400)
+
+    job_id = body.get('job_id')
+    raw = (body.get('handle_or_url') or '').strip()
+    name = (body.get('name') or '').strip()[:128]
+    role = (body.get('role') or '').strip()[:128]
+    if not job_id or not raw:
+        return JsonResponse({'error': 'missing_job_or_handle'}, status=400)
+
+    job = get_object_or_404(Job, id=job_id, user=request.user)
+    profile = get_object_or_404(UserProfile, user=request.user)
+
+    # Accept either a vanity slug or any /in/<slug>/ URL
+    handle = _extract_handle(raw) or raw.lower().strip('/').split('/')[-1]
+    if not handle or '/' in handle or len(handle) > 128:
+        return JsonResponse({'error': 'unparseable_handle'}, status=400)
+
+    target = Target(handle=handle, name=name or handle, role=role or 'someone at the company', source='manual')
+    drafts = generate_outreach_for_target(profile, job, target)
+
+    return JsonResponse({
+        'target': target.to_dict(),
+        'draft': drafts,
+    })
+
+
+@login_required
+@require_http_methods(['POST'])
 def create_campaign(request):
     """Create a campaign + queued OutreachAction rows from the web UI."""
     try:
