@@ -14,7 +14,7 @@ class Job(models.Model):
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='jobs')
-    url = models.URLField(max_length=500, null=True, blank=True)
+    url = models.URLField(max_length=2000, null=True, blank=True)
     title = models.CharField(max_length=200)
     company = models.CharField(max_length=200, null=True, blank=True)
     description = models.TextField()
@@ -31,7 +31,7 @@ class Job(models.Model):
 class RecommendedJob(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='recommendations')
-    url = models.URLField(max_length=500)
+    url = models.URLField(max_length=2000)
     title = models.CharField(max_length=200)
     company = models.CharField(max_length=200, null=True, blank=True)
     description = models.TextField()
