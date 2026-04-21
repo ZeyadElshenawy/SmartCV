@@ -671,6 +671,56 @@ def generate_outreach_view(request, job_id):
 
 
 @login_required
+def outreach_campaign_view(request, job_id):
+    """Render the outreach automation campaign builder for a single job."""
+    from jobs.services.people_finder import (
+        find_hiring_team,
+        find_peers_via_google,
+        google_search_url,
+    )
+    from profiles.services.outreach_generator import generate_outreach_for_target
+    from profiles.models import OutreachCampaign
+
+    job = get_object_or_404(Job, id=job_id, user=request.user)
+    profile = get_object_or_404(UserProfile, user=request.user)
+
+    # POST = "discover + draft" round trip (sync). Campaign creation itself
+    # goes through the JSON endpoint /api/outreach/campaigns/.
+    discovered = []
+    drafts = {}
+    if request.method == 'POST':
+        if job.url:
+            discovered.extend(find_hiring_team(job.url))
+        role_keywords = [job.title.split()[0]] if job.title else []
+        discovered.extend(find_peers_via_google(job.company or '', role_keywords, n=8))
+        # de-dupe on handle
+        seen = set()
+        unique = []
+        for target in discovered:
+            if target.handle in seen:
+                continue
+            seen.add(target.handle)
+            unique.append(target)
+        discovered = unique[:10]
+        for target in discovered:
+            drafts[target.handle] = generate_outreach_for_target(profile, job, target)
+
+    fallback_search_url = google_search_url(job.company or '', [job.title or ''])
+    active_campaign = OutreachCampaign.objects.filter(
+        user=request.user, job=job, status__in=['running', 'paused']
+    ).order_by('-created_at').first()
+
+    return render(request, 'profiles/outreach_campaign.html', {
+        'job': job,
+        'profile': profile,
+        'discovered': [t.to_dict() for t in discovered],
+        'drafts': drafts,
+        'fallback_search_url': fallback_search_url,
+        'active_campaign': active_campaign,
+    })
+
+
+@login_required
 def refresh_github_signals(request):
     """Fetch a fresh GitHub snapshot for the user's profile and cache it.
 

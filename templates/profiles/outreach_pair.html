@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}Pair the SmartCV outreach extension{% endblock %}
+
+{% block content %}
+<div class="bg-neutral-50 dark:bg-neutral-950 py-10 sm:py-14">
+    <div class="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8 space-y-8">
+
+        <header class="space-y-3">
+            {% include "components/section_label.html" with text="Extension pairing" tone="brand" %}
+            <h1 class="font-display text-4xl leading-[1.05] tracking-tight text-neutral-900 dark:text-neutral-50">
+                Pair your <em class="font-medium text-brand-700 dark:text-brand-400">extension</em>.
+            </h1>
+            <p class="text-neutral-600 dark:text-neutral-300 leading-relaxed">
+                Paste this token into the SmartCV outreach Chrome extension's options page. The extension uses it to fetch your queued actions — it never holds your SmartCV password or session cookie.
+            </p>
+        </header>
+
+        {% if rotated %}
+        <div class="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 ring-1 ring-emerald-200 dark:ring-emerald-900/60 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-200">
+            Token regenerated. Update your extension's options page — the old token is now revoked.
+        </div>
+        {% endif %}
+
+        <section class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-4">
+            <label class="block text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400">Your token</label>
+            <div class="flex gap-2">
+                <input type="text" readonly value="{{ token }}" id="outreach-token"
+                       class="flex-1 h-11 px-3 font-mono text-sm rounded-lg bg-neutral-50 dark:bg-neutral-950/40 ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-800 dark:text-neutral-100">
+                <button type="button"
+                        onclick="navigator.clipboard.writeText(document.getElementById('outreach-token').value)"
+                        class="h-11 px-4 text-[11px] uppercase tracking-[0.14em] font-medium rounded-lg ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800">
+                    Copy
+                </button>
+            </div>
+
+            <form method="POST" class="pt-2">
+                {% csrf_token %}
+                <button type="submit" class="text-[11px] uppercase tracking-[0.14em] font-medium text-red-600 dark:text-red-400 hover:underline">
+                    Regenerate token (revokes old one)
+                </button>
+            </form>
+        </section>
+
+        <section class="rounded-2xl bg-neutral-100 dark:bg-neutral-900/40 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 text-sm text-neutral-700 dark:text-neutral-300 space-y-2 leading-relaxed">
+            <p class="font-medium text-neutral-900 dark:text-neutral-100">How to install the extension</p>
+            <ol class="list-decimal list-inside space-y-1">
+                <li>Download the SmartCV outreach extension folder.</li>
+                <li>Open <code class="font-mono">chrome://extensions</code> in Chrome and enable Developer mode.</li>
+                <li>Click <em class="not-italic font-medium">Load unpacked</em> and pick the extension folder.</li>
+                <li>Open the extension's options page and paste the token above.</li>
+                <li>Make sure you're logged into LinkedIn in the same browser.</li>
+            </ol>
+        </section>
+    </div>
+</div>
+{% endblock %}

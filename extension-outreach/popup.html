@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>SmartCV Outreach</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; width: 320px; padding: 14px; margin: 0; color: #111827; }
+        h1 { margin: 0 0 10px; font-size: 15px; font-weight: 600; }
+        .row { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 8px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .dot-green { background: #10b981; }
+        .dot-amber { background: #f59e0b; }
+        .dot-red { background: #ef4444; }
+        a { color: #2563eb; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .muted { color: #6b7280; font-size: 12px; }
+        button { background: #2563eb; color: #fff; border: 0; padding: 6px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+        button:hover { background: #1d4ed8; }
+    </style>
+</head>
+<body>
+    <h1>SmartCV Outreach</h1>
+    <div class="row"><span class="dot" id="paired-dot"></span><span id="paired-text">…</span></div>
+    <div class="row"><span class="muted" id="paused-text"></span></div>
+    <p class="muted">The extension polls SmartCV every ~90 s with jitter and runs queued LinkedIn invites in your own tab. Daily cap is enforced server-side.</p>
+    <div class="row">
+        <a href="#" id="open-options">Options</a>
+        <button id="poll-now" style="margin-left: auto;">Poll now</button>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>
