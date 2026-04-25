@@ -557,6 +557,60 @@ class FetchKaggleSnapshotTests(SimpleTestCase):
 # Profile strength scoring
 # ============================================================
 
+from profiles.services.cv_parser import _is_plausible_skill_name
+
+
+class IsPlausibleSkillNameTests(SimpleTestCase):
+    """Junk filter applied to every skill before it leaves parse_cv.
+
+    Every rejected pattern was an actual hit in benchmarks/results/2026-04-25
+    on cv_frontend_senior_react_vue (24 garbage strings extracted) — the
+    filter exists to defend against PDF-extraction noise leaking into the
+    profile's skills list, not against hypothetical inputs.
+    """
+
+    def test_real_skills_pass(self):
+        for s in ("Python", "React.js", "PostgreSQL", "CI/CD", "Power BI",
+                  "scikit-learn", "Machine Learning", "Vue", "Node.js"):
+            self.assertTrue(_is_plausible_skill_name(s), f"rejected real skill: {s!r}")
+
+    def test_blank_or_too_short_rejected(self):
+        for s in ("", " ", "X"):
+            self.assertFalse(_is_plausible_skill_name(s))
+
+    def test_too_long_rejected(self):
+        # 41+ chars — typical of a glued-on bullet body
+        self.assertFalse(_is_plausible_skill_name("Developing a high-traffic e-commerce platform"))
+
+    def test_sentence_fragment_rejected(self):
+        # Trailing period: bullet body, not a skill.
+        self.assertFalse(_is_plausible_skill_name("Mentoring Junior Developers."))
+        self.assertFalse(_is_plausible_skill_name("increased sales by 40%."))
+
+    def test_percent_phrase_rejected(self):
+        # Real benchmark hit: "increased sales by 40%."
+        self.assertFalse(_is_plausible_skill_name("increased sales by 40%"))
+        self.assertFalse(_is_plausible_skill_name("growth 25%"))
+
+    def test_url_fragments_rejected(self):
+        for s in ("www.enhancv.com", "https://github.com", "http://x"):
+            self.assertFalse(_is_plausible_skill_name(s))
+
+    def test_embedded_link_marker_rejected(self):
+        # PDF embed artifacts come through as "[Embedded Link: '<glyph>"
+        self.assertFalse(_is_plausible_skill_name("[Embedded Link: '"))
+
+    def test_more_than_four_words_rejected(self):
+        # Real hit: "completion of several high"  (5 words and a fragment).
+        self.assertFalse(_is_plausible_skill_name("completion of several high profile"))
+
+    def test_non_alpha_leading_rejected(self):
+        # "(React)", "/python", "-Vue" — bullet artifacts.
+        self.assertFalse(_is_plausible_skill_name("(React)"))
+        self.assertFalse(_is_plausible_skill_name("- Vue"))
+        self.assertFalse(_is_plausible_skill_name("123 Skills"))
+
+
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 

@@ -914,22 +914,62 @@ class CVExtractor:
             return initial_data
 
 # Wrapper for existing app integration
+# Patterns that mark a "skill" string as PDF noise rather than a real skill.
+# Hit list comes from benchmarks/results/2026-04-25 — strings like
+# "increased sales by 40%.", "[Embedded Link: '", "www.enhancv.com",
+# "Developing a High", "Powered by'" leaked through regex splitting on PDFs
+# whose skills text was glued onto bullet content.
+_SKILL_NOISE_SUBSTRINGS = (
+    '[embedded',     # "[Embedded Link: ..." artifacts
+    'www.', 'http',  # URL fragments
+    '\\u',           # PUA glyphs picked up from icon fonts
+)
+_SKILL_PERCENT_RE = re.compile(r'\d+\s*%')
+
+
+def _is_plausible_skill_name(name: str) -> bool:
+    """Conservative filter that keeps real skills and drops PDF/bullet noise.
+
+    Tuned against the parser_eval fixtures: each rejected pattern was an
+    actual hit in the 2026-04-25 results, not a hypothetical.
+    """
+    if not name:
+        return False
+    s = name.strip()
+    if len(s) < 2 or len(s) > 40:
+        return False
+    if s.endswith('.'):                      # sentence fragment
+        return False
+    if not s[0].isalpha():                   # "(React)" / digit-leading noise
+        return False
+    if len(s.split()) > 4:                   # bullet body, not a skill
+        return False
+    low = s.lower()
+    if any(token in low for token in _SKILL_NOISE_SUBSTRINGS):
+        return False
+    if _SKILL_PERCENT_RE.search(s):          # "increased sales by 40%"
+        return False
+    return True
+
+
 def parse_cv(file_path):
     """
     Wrapper function compatible with the existing view logic.
-    LLM refinement is handled downstream by llm_validator — 
+    LLM refinement is handled downstream by llm_validator —
     skipping it here avoids redundant API calls and token waste.
     """
     extractor = CVExtractor(use_llm=True)
     data = extractor.parse(file_path, use_llm_refinement=False)
-    
+
     # Flatten skills for view compatibility
     flat_skills = []
     if 'skills' in data and isinstance(data['skills'], dict):
         for category, skills in data['skills'].items():
             if isinstance(skills, list):
                 for skill in skills:
-                    flat_skills.append({"name": skill, "proficiency": None, "category": category})
+                    if not _is_plausible_skill_name(skill):
+                        continue
+                    flat_skills.append({"name": skill.strip(), "proficiency": None, "category": category})
             
     personal_info = data.get('personal_information', {})
 
