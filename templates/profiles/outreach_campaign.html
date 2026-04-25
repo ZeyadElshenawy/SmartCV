@@ -331,7 +331,16 @@ function outreachCampaign(cfg) {
 
         startDiscoveryPolling() {
             this.fetchDiscovered();
-            this.discoveryTimer = setInterval(() => this.fetchDiscovered(), 5000);
+            // Poll every 10s by default. When the user explicitly opened LinkedIn
+            // and we're actively waiting for the extension to push targets, use
+            // a shorter 3s interval so the UI feels responsive during that window.
+            const pickInterval = () => (this.waitingForExtension ? 3000 : 10000);
+            const tick = () => {
+                this.fetchDiscovered();
+                clearInterval(this.discoveryTimer);
+                this.discoveryTimer = setInterval(tick, pickInterval());
+            };
+            this.discoveryTimer = setInterval(tick, pickInterval());
         },
         async fetchDiscovered() {
             try {

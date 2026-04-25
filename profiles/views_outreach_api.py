@@ -15,6 +15,7 @@ from functools import wraps
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.csrf import csrf_exempt
@@ -156,6 +157,10 @@ def discovery_push(request):
         if created:
             stored += 1
 
+    if stored:
+        # Bust the discovery_list cache so the next UI poll sees the new rows
+        # immediately instead of waiting up to 5s for the cached payload.
+        cache.delete(f"discovery_list:{request.outreach_user.id}:{job.id}")
     return JsonResponse({'ok': True, 'matched_job': True, 'stored': stored, 'job_id': str(job.id)})
 
 
@@ -164,7 +169,18 @@ def discovery_push(request):
 @login_required
 @require_http_methods(['GET'])
 def discovery_list(request, job_id):
-    """Web UI polls this every few seconds to pick up extension-pushed targets."""
+    """Web UI polls this every few seconds to pick up extension-pushed targets.
+
+    Cached for 5s per (user, job): the campaign page polls every 10s, so a hot
+    cache turns every other poll into a free in-process hit instead of a
+    Supabase round trip. The discovery_push endpoint busts this key on write,
+    so freshness on actual new targets stays at the push-latency floor.
+    """
+    cache_key = f"discovery_list:{request.user.id}:{job_id}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return JsonResponse(cached)
+
     job = get_object_or_404(Job, id=job_id, user=request.user)
     targets = list(
         DiscoveredTarget.objects.filter(user=request.user, job=job)
@@ -172,7 +188,9 @@ def discovery_list(request, job_id):
     )
     for t in targets:
         t['discovered_at'] = t['discovered_at'].isoformat() if t['discovered_at'] else None
-    return JsonResponse({'targets': targets, 'count': len(targets)})
+    payload = {'targets': targets, 'count': len(targets)}
+    cache.set(cache_key, payload, timeout=5)
+    return JsonResponse(payload)
 
 
 @login_required

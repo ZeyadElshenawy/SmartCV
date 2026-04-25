@@ -13,7 +13,10 @@ ENV/
 media/
 test_cvs2/
 test cvs2/
+test cvs/
 batch_results.json
+.coverage
+htmlcov/
 .vscode/
 .idea/
 .claude/

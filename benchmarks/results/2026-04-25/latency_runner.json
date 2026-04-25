@@ -1,0 +1,222 @@
+{
+  "benchmark": "latency_runner",
+  "version": 1,
+  "requests_per_route": 30,
+  "n_routes": 5,
+  "total_requests_issued": 150,
+  "wall_seconds": 5.61,
+  "platform": {
+    "python": "3.13.9",
+    "system": "Windows",
+    "release": "11",
+    "machine": "AMD64",
+    "debug": true,
+    "database_engine": "django.db.backends.postgresql"
+  },
+  "results": [
+    {
+      "path": "/",
+      "requests": 30,
+      "statuses": {
+        "200": 30
+      },
+      "errors": [],
+      "error_count": 0,
+      "latency_ms": {
+        "n": 30,
+        "min": 11.122,
+        "mean": 121.8742,
+        "median": 12.088,
+        "p95": 14.24,
+        "max": 3297.503,
+        "std": 589.7,
+        "p50": 12.09,
+        "p99": 2345.39
+      },
+      "cold_warm": {
+        "cold_n": 5,
+        "cold_mean": 668.922,
+        "cold_max": 3297.503,
+        "warm_n": 25,
+        "warm_mean": 12.465,
+        "warm_p95": 14.1
+      },
+      "label": "home"
+    },
+    {
+      "path": "/healthz/",
+      "requests": 30,
+      "statuses": {
+        "200": 30
+      },
+      "errors": [],
+      "error_count": 0,
+      "latency_ms": {
+        "n": 30,
+        "min": 6.74,
+        "mean": 7.4676,
+        "median": 7.288,
+        "p95": 8.46,
+        "max": 8.514,
+        "std": 0.5611,
+        "p50": 7.29,
+        "p99": 8.51
+      },
+      "cold_warm": {
+        "cold_n": 5,
+        "cold_mean": 7.861,
+        "cold_max": 8.513,
+        "warm_n": 25,
+        "warm_mean": 7.389,
+        "warm_p95": 8.4
+      },
+      "label": "healthz"
+    },
+    {
+      "path": "/healthz/deep/",
+      "requests": 30,
+      "statuses": {
+        "200": 30
+      },
+      "errors": [],
+      "error_count": 0,
+      "latency_ms": {
+        "n": 30,
+        "min": 7.98,
+        "mean": 37.3546,
+        "median": 9.533,
+        "p95": 14.9,
+        "max": 836.434,
+        "std": 148.3936,
+        "p50": 9.53,
+        "p99": 598.39
+      },
+      "cold_warm": {
+        "cold_n": 5,
+        "cold_mean": 174.408,
+        "cold_max": 836.434,
+        "warm_n": 25,
+        "warm_mean": 9.944,
+        "warm_p95": 13.56
+      },
+      "label": "healthz_deep"
+    },
+    {
+      "path": "/accounts/login/",
+      "requests": 30,
+      "statuses": {
+        "200": 30
+      },
+      "errors": [],
+      "error_count": 0,
+      "latency_ms": {
+        "n": 30,
+        "min": 7.826,
+        "mean": 10.167,
+        "median": 9.1075,
+        "p95": 10.98,
+        "max": 38.101,
+        "std": 5.2272,
+        "p50": 9.11,
+        "p99": 30.36
+      },
+      "cold_warm": {
+        "cold_n": 5,
+        "cold_mean": 14.854,
+        "cold_max": 38.101,
+        "warm_n": 25,
+        "warm_mean": 9.23,
+        "warm_p95": 10.39
+      },
+      "label": "login_form"
+    },
+    {
+      "path": "/accounts/register/",
+      "requests": 30,
+      "statuses": {
+        "200": 30
+      },
+      "errors": [],
+      "error_count": 0,
+      "latency_ms": {
+        "n": 30,
+        "min": 8.101,
+        "mean": 9.9624,
+        "median": 9.096,
+        "p95": 10.91,
+        "max": 29.059,
+        "std": 3.6198,
+        "p50": 9.1,
+        "p99": 23.8
+      },
+      "cold_warm": {
+        "cold_n": 5,
+        "cold_mean": 13.259,
+        "cold_max": 29.059,
+        "warm_n": 25,
+        "warm_mean": 9.303,
+        "warm_p95": 10.83
+      },
+      "label": "register_form"
+    }
+  ],
+  "middleware_snapshot": {
+    "delta_requests_recorded": 90,
+    "post_run": {
+      "total": {
+        "requests": 90,
+        "errors_4xx": 0,
+        "errors_5xx": 0,
+        "error_rate": 0.0
+      },
+      "routes": {
+        "GET home": {
+          "count": 30,
+          "by_status": {
+            "200": 30
+          },
+          "errors_4xx": 0,
+          "errors_5xx": 0,
+          "error_rate": 0.0,
+          "latency_ms": {
+            "p50": 1.64,
+            "p95": 2.22,
+            "p99": 89.83,
+            "samples": 30
+          }
+        },
+        "GET login": {
+          "count": 30,
+          "by_status": {
+            "200": 30
+          },
+          "errors_4xx": 0,
+          "errors_5xx": 0,
+          "error_rate": 0.0,
+          "latency_ms": {
+            "p50": 0.74,
+            "p95": 1.14,
+            "p99": 20.58,
+            "samples": 30
+          }
+        },
+        "GET register": {
+          "count": 30,
+          "by_status": {
+            "200": 30
+          },
+          "errors_4xx": 0,
+          "errors_5xx": 0,
+          "error_rate": 0.0,
+          "latency_ms": {
+            "p50": 0.8,
+            "p95": 2.03,
+            "p99": 15.88,
+            "samples": 30
+          }
+        }
+      }
+    }
+  },
+  "disclosure": "Latencies measured in-process via django.test.Client (no network hop). Numbers reflect view + middleware + DB access cost on the developer machine; production WAN latency is not included. First N=5 samples per route are reported separately as 'cold' to expose lazy-import / connection-warmup cost."
+}
