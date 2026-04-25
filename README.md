@@ -14,8 +14,8 @@ same services everywhere instead of one-off scripts.
 Built with Django 5.2, PostgreSQL (Supabase + pgvector), Tailwind CSS v4,
 and Groq (`meta-llama/llama-4-scout-17b-16e-instruct`).
 
-<!-- TODO(screenshot): dashboard hero shot — master profile, profile-strength score, quick links to job tailoring. Save to docs/images/dashboard.png and uncomment the line below. -->
-<!-- ![SmartCV dashboard — master profile, profile-strength score, and quick links to job tailoring](docs/images/dashboard.png) -->
+
+![SmartCV dashboard — master profile, profile-strength score, and quick links to job tailoring](docs/images/dashboard.png)
 
 ## Highlights
 
@@ -36,16 +36,16 @@ and Groq (`meta-llama/llama-4-scout-17b-16e-instruct`).
 
 ### Resume editor with live preview and ATS score
 
-<!-- TODO(screenshot): resume editor split-pane (form on left, print preview on right, ATS score recomputing). Save to docs/images/resume-editor.png and uncomment the line below. -->
-<!-- ![Resume editor with live preview and ATS score](docs/images/resume-editor.png) -->
+
+![Resume editor with live preview and ATS score](docs/images/resume-editor.png)
 
 Edit a tailored resume on the left, watch the print-ready preview update on
 the right, and see the ATS score recompute as you type.
 
 ### Gap analysis
 
-<!-- TODO(screenshot): gap analysis page showing matched / partial / missing skill columns plus the action plan. Save to docs/images/gap-analysis.png and uncomment the line below. -->
-<!-- ![Gap analysis output — matched / partial / missing skills, with action plan](docs/images/gap-analysis.png) -->
+
+![Gap analysis output — Matched / Critical missing / Soft gaps, with action plan](docs/images/gap-analysis.png)
 
 Two-phase pipeline: an LLM categorises every JD skill, then programmatic
 fuzzy reconciliation guarantees every skill lands in `matched`, `partial`,
@@ -53,8 +53,8 @@ or `missing` — no silent drops.
 
 ### Outreach campaign builder
 
-<!-- TODO(screenshot): outreach campaign page paired with the Chrome extension popup. Save to docs/images/outreach-campaign.png and uncomment the line below. -->
-<!-- ![Outreach campaign builder — Run a campaign at <Company>, paired with the Chrome extension](docs/images/outreach-campaign.png) -->
+
+![Outreach campaign builder — Run a campaign at <Company>, paired with the Chrome extension](docs/images/outreach-campaign.png)
 
 Per-job campaign page that pairs with a Chrome extension. The extension
 discovers reachable people from inside your own LinkedIn tab and queues
