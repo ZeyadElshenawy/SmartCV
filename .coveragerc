@@ -1,0 +1,39 @@
+[run]
+source = .
+branch = False
+parallel = False
+omit =
+    */migrations/*
+    */tests.py
+    */tests/*
+    */test_*.py
+    manage.py
+    smartcv/asgi.py
+    smartcv/wsgi.py
+    create_superuser.py
+    smoke_*.py
+    benchmarks/*
+    rewrite.py
+    rewrite2.py
+    smartcv/settings_constants.py
+    */tasks.py
+    .venv/*
+    venv/*
+    env/*
+    */__init__.py
+    */apps.py
+    */admin.py
+
+[report]
+precision = 1
+show_missing = False
+skip_covered = False
+exclude_lines =
+    pragma: no cover
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    @abstractmethod
+
+[html]
+directory = .coverage_html

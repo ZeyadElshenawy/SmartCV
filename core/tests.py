@@ -189,31 +189,34 @@ class CareerStageSecondaryActionsTests(SimpleTestCase):
     """The stage detector returns contextual secondary actions — verified here."""
 
     def test_offer_deep_links_to_specific_job_negotiator(self):
-        job = _JobStub('abc-123', company='Stripe')
+        # URL pattern requires UUID format; use a fixed UUID so the test is deterministic.
+        job_id = '11111111-1111-4111-8111-111111111111'
+        job = _JobStub(job_id, company='Stripe')
         s = detect_career_stage(
             has_profile=True,
             status_counts={'offer': 1},
             jobs_by_status={'offer': [job]},
         )
         self.assertEqual(s['key'], 'offer_in_hand')
-        self.assertIn('abc-123', s['primary_href'])
-        self.assertIn('salary', s['primary_href'])
+        self.assertIn(job_id, s['primary_href'])
+        self.assertIn('negotiate', s['primary_href'])
         self.assertIn('Stripe', s['primary_label'])
 
     def test_interviewing_deep_links_to_specific_job_chatbot(self):
-        job = _JobStub('iv-42', company='Airbnb')
+        job_id = '22222222-2222-4222-8222-222222222222'
+        job = _JobStub(job_id, company='Airbnb')
         s = detect_career_stage(
             has_profile=True,
             status_counts={'interviewing': 1},
             jobs_by_status={'interviewing': [job]},
         )
         self.assertEqual(s['key'], 'interviewing')
-        self.assertIn('iv-42', s['primary_href'])
+        self.assertIn(job_id, s['primary_href'])
         self.assertIn('chatbot', s['primary_href'])
         self.assertIn('Airbnb', s['primary_label'])
 
     def test_actively_applying_secondary_points_to_recent_job(self):
-        job = _JobStub('app-99', company='Notion')
+        job = _JobStub('33333333-3333-4333-8333-333333333333', company='Notion')
         s = detect_career_stage(
             has_profile=True,
             status_counts={'applied': 1},
@@ -233,13 +236,13 @@ class CareerStageSecondaryActionsTests(SimpleTestCase):
             detect_career_stage(has_profile=False, status_counts={}, jobs_by_status={}),
             detect_career_stage(has_profile=True,  status_counts={}, jobs_by_status={}),
             detect_career_stage(has_profile=True,  status_counts={'saved': 1},
-                                jobs_by_status={'saved': [_JobStub('s1', 'X')]}),
+                                jobs_by_status={'saved': [_JobStub('44444444-4444-4444-8444-444444444444', 'X')]}),
             detect_career_stage(has_profile=True,  status_counts={'interviewing': 1},
-                                jobs_by_status={'interviewing': [_JobStub('i1', 'Y')]}),
+                                jobs_by_status={'interviewing': [_JobStub('55555555-5555-4555-8555-555555555555', 'Y')]}),
             detect_career_stage(has_profile=True,  status_counts={'offer': 1},
-                                jobs_by_status={'offer': [_JobStub('o1', 'Z')]}),
+                                jobs_by_status={'offer': [_JobStub('66666666-6666-4666-8666-666666666666', 'Z')]}),
             detect_career_stage(has_profile=True,  status_counts={'rejected': 1},
-                                jobs_by_status={'rejected': [_JobStub('r1', 'W')]}),
+                                jobs_by_status={'rejected': [_JobStub('77777777-7777-4777-8777-777777777777', 'W')]}),
         ]
         for s in stages:
             with self.subTest(key=s['key']):

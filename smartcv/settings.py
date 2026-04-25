@@ -109,13 +109,16 @@ WSGI_APPLICATION = 'smartcv.wsgi.application'
 
 
 # Database
-# `conn_health_checks` adds a round-trip on every request and worsens cold-start
-# pool pressure against Supabase PgBouncer; only enable it in production.
+# Persistent connections + health-check ping is Django's blessed pattern for
+# PgBouncer in transaction mode: Supabase kills idle client connections, so
+# we MUST validate the connection at request start (cheap SELECT) instead of
+# blindly reusing it (which throws `InterfaceError: connection already closed`).
+# Without conn_max_age the cold TCP+TLS handshake makes every request 2-11s.
 DATABASES = {
     'default': dj_database_url.config(
         default=os.getenv('DATABASE_URL'),
-        conn_max_age=0,
-        conn_health_checks=not DEBUG,
+        conn_max_age=60,
+        conn_health_checks=True,
     )
 }
 
