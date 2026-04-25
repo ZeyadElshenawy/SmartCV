@@ -1,0 +1,18 @@
+{
+  "cv_id": "cv_frontend_jquery_legacy",
+  "personal_info": {
+    "name": "First Last",
+    "email": null,
+    "phone": null,
+    "location": "London, United Kingdom"
+  },
+  "education_count": 0,
+  "experience_count": 2,
+  "skills_canonical": [
+    "HTML", "CSS", "JavaScript", "jQuery", "SEO",
+    "Responsive Design", "Web Maintenance"
+  ],
+  "section_presence": {
+    "summary": false, "experience": true, "education": false, "projects": false, "skills": false
+  }
+}

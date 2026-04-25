@@ -1,0 +1,18 @@
+{
+  "cv_id": "cv_frontend_diploma_react",
+  "personal_info": {
+    "name": "Sara Ahmed",
+    "email": "sarahmedd72@gmail.com",
+    "phone": "01068726072",
+    "location": null
+  },
+  "education_count": 1,
+  "experience_count": 0,
+  "skills_canonical": [
+    "HTML", "CSS", "JavaScript", "Bootstrap", "React", "React Hooks",
+    "React Router", "Axios", "Tailwind CSS", "Local Storage", "Figma"
+  ],
+  "section_presence": {
+    "summary": true, "experience": false, "education": false, "projects": true, "skills": false
+  }
+}

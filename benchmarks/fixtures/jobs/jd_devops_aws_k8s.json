@@ -1,0 +1,32 @@
+{
+  "id": "jd_devops_aws_k8s",
+  "title": "DevOps Engineer (AWS / Kubernetes)",
+  "company": "Vertex Cloud Systems",
+  "url": "https://example.com/jobs/devops",
+  "description": "Vertex Cloud Systems is hiring a DevOps Engineer to evolve our cloud infrastructure on AWS. You'll own the Kubernetes platform our product teams ship on, run CI/CD across dozens of services, and enforce infrastructure-as-code as our default delivery mechanism.\n\nResponsibilities:\n- Manage AWS infrastructure (EKS, EC2, RDS, S3, IAM, CloudWatch).\n- Operate production Kubernetes clusters; manage Helm charts and Argo CD deployments.\n- Author and maintain Terraform modules covering networking, IAM, and managed services.\n- Build CI/CD pipelines with GitHub Actions and Jenkins; enforce trunk-based delivery.\n- Containerize applications with Docker; define multi-stage builds.\n- Implement observability (Prometheus, Grafana, Loki) and SLO-driven alerting.\n- Coach product engineers on incident response, on-call hygiene, and runbook quality.\n\nMust-have skills:\n- 4+ years operating production cloud infrastructure on AWS.\n- Kubernetes administration experience (EKS preferred).\n- Terraform fluency for IaC.\n- Strong Bash and at least one of Python or Go.\n- Docker and container best practices.\n- CI/CD pipeline ownership (GitHub Actions, Jenkins, or GitLab CI).\n- Linux systems experience.\n\nNice to have:\n- Argo CD or Flux GitOps experience.\n- Helm chart authoring.\n- Service mesh (Istio, Linkerd) exposure.\n- Prometheus / Grafana observability stack.\n- Vault or AWS Secrets Manager background.",
+  "expected_skills": [
+    "AWS",
+    "Kubernetes",
+    "Docker",
+    "Terraform",
+    "Bash",
+    "Python",
+    "Go",
+    "Linux",
+    "GitHub Actions",
+    "Jenkins",
+    "CI/CD",
+    "Helm",
+    "Argo CD",
+    "Prometheus",
+    "Grafana",
+    "EKS",
+    "EC2",
+    "RDS",
+    "S3",
+    "IAM"
+  ],
+  "expected_skills_must_have": [
+    "AWS", "Kubernetes", "Docker", "Terraform", "Bash", "Linux", "CI/CD"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "cv_id": "cv_frontend_mid_react",
+  "personal_info": {
+    "name": "Enrique Veragoza",
+    "email": "e.veragoza@email.com",
+    "phone": "(123) 456-7890",
+    "location": "Stockton, CA"
+  },
+  "education_count": 1,
+  "experience_count": 3,
+  "skills_canonical": [
+    "Front-End Development", "Code Review", "Mentorship", "UI/UX",
+    "Reusable Components", "Automated Testing", "Performance Optimization"
+  ],
+  "section_presence": {
+    "summary": false, "experience": true, "education": true, "projects": false, "skills": false
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "jd_backend_python_node",
+  "title": "Backend Engineer (Python / Node.js)",
+  "company": "Northwind Data",
+  "url": "https://example.com/jobs/backend-eng",
+  "description": "Northwind Data is looking for a Backend Engineer to design and build the APIs powering our analytics platform. Our stack is primarily Python (Django and FastAPI) with some Node.js services for streaming workloads. You'll work close to the data layer (PostgreSQL, Redis) and own services end-to-end from design through on-call.\n\nResponsibilities:\n- Design, build, and operate REST and gRPC APIs in Python (Django / FastAPI).\n- Write performant SQL against PostgreSQL; tune indexes and query plans.\n- Use Redis for caching and rate limiting.\n- Containerize services with Docker and deploy via Kubernetes.\n- Implement authentication and authorization (OAuth2, JWT).\n- Write unit and integration tests with pytest.\n- Participate in code review, on-call rotation, and architectural design discussions.\n\nMust-have skills:\n- 3+ years of backend development with Python.\n- Strong Django or FastAPI experience.\n- PostgreSQL and SQL fluency.\n- REST API design.\n- Docker and Linux familiarity.\n- Git, GitHub, code-review collaboration.\n- pytest or equivalent test framework.\n\nNice to have:\n- Node.js for streaming or auxiliary services.\n- Kubernetes operations experience.\n- Redis, Kafka, or message queue background.\n- Cloud experience on AWS or GCP.\n- gRPC API experience.",
+  "expected_skills": [
+    "Python",
+    "Django",
+    "FastAPI",
+    "Node.js",
+    "PostgreSQL",
+    "SQL",
+    "REST API",
+    "gRPC",
+    "Redis",
+    "Docker",
+    "Kubernetes",
+    "Linux",
+    "Git",
+    "OAuth2",
+    "JWT",
+    "pytest",
+    "AWS",
+    "Kafka"
+  ],
+  "expected_skills_must_have": [
+    "Python", "Django", "FastAPI", "PostgreSQL", "SQL", "REST API",
+    "Docker", "Linux", "Git", "pytest"
+  ]
+}

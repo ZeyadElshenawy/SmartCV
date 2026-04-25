@@ -1,0 +1,19 @@
+{
+  "cv_id": "cv_backend_jr_rust",
+  "personal_info": {
+    "name": "Ahmed Mahmoud Abbas",
+    "email": "ahmedabbass871@gmail.com",
+    "phone": "+20 1114993108",
+    "location": "Egypt, Cairo"
+  },
+  "education_count": 1,
+  "experience_count": 1,
+  "skills_canonical": [
+    "Rust", "C++", "Node.js", "MySQL", "TCP", "Multithreading",
+    "Windows Server", "Active Directory", "DHCP", "VLANs", "VPNs",
+    "Sophos", "FortiGate"
+  ],
+  "section_presence": {
+    "summary": true, "experience": true, "education": true, "projects": true, "skills": true
+  }
+}

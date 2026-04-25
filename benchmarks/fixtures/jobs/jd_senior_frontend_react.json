@@ -1,0 +1,34 @@
+{
+  "id": "jd_senior_frontend_react",
+  "title": "Senior Frontend Engineer (React)",
+  "company": "Acme Web Studio",
+  "url": "https://example.com/jobs/senior-fe-react",
+  "description": "We're hiring a Senior Frontend Engineer to lead the development of our customer-facing React applications. You'll own architecture decisions across a TypeScript codebase, mentor mid-level engineers, and partner with product and design to ship polished, accessible UIs.\n\nResponsibilities:\n- Build and maintain large-scale React applications with TypeScript.\n- Design reusable UI component libraries with attention to accessibility (WCAG 2.1).\n- Drive performance work: bundle analysis, code-splitting, lazy loading, Core Web Vitals.\n- Lead front-end testing strategy with Jest, React Testing Library, and Cypress.\n- Collaborate with backend engineers on REST and GraphQL API contracts.\n- Mentor mid- and junior-level frontend engineers in code review and pairing sessions.\n\nMust-have skills:\n- 5+ years of professional frontend development.\n- Deep React experience including Hooks, Context, and modern patterns.\n- Strong JavaScript and TypeScript fundamentals.\n- HTML5, CSS3, responsive layout, and CSS-in-JS or utility-first CSS (Tailwind).\n- Webpack or Vite, Babel, npm/yarn build pipelines.\n- Git, GitHub workflows, code review experience.\n- Experience with React state management (Redux, Zustand, or Context).\n\nNice to have:\n- Vue.js or other component framework background.\n- Storybook for component documentation.\n- E2E testing with Cypress or Playwright.\n- Familiarity with CI/CD pipelines (GitHub Actions).\n- Figma or design-system collaboration experience.",
+  "expected_skills": [
+    "React",
+    "TypeScript",
+    "JavaScript",
+    "HTML5",
+    "CSS3",
+    "Tailwind",
+    "Webpack",
+    "Vite",
+    "Redux",
+    "Jest",
+    "React Testing Library",
+    "Cypress",
+    "REST API",
+    "GraphQL",
+    "Git",
+    "Accessibility",
+    "Responsive Design",
+    "Storybook",
+    "Vue",
+    "GitHub Actions",
+    "Figma"
+  ],
+  "expected_skills_must_have": [
+    "React", "TypeScript", "JavaScript", "HTML5", "CSS3", "Tailwind",
+    "Webpack", "Redux", "Jest", "REST API", "Git", "Responsive Design"
+  ]
+}

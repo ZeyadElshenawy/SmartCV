@@ -1,0 +1,26 @@
+{
+  "id": "jd_junior_web_dev",
+  "title": "Junior Web Developer",
+  "company": "BrightPage Agency",
+  "url": "https://example.com/jobs/junior-web-dev",
+  "description": "BrightPage Agency builds marketing websites and small web apps for SMB clients. We're hiring a Junior Web Developer to grow alongside our senior team. You'll mostly work in HTML, CSS, JavaScript, and React, with help available from day one.\n\nResponsibilities:\n- Build responsive web pages from Figma designs using HTML, CSS, and JavaScript.\n- Implement React components for client web apps.\n- Use Tailwind CSS or Bootstrap for styling consistency.\n- Connect simple REST APIs from the frontend.\n- Use Git and GitHub for daily workflow.\n- Test work across browsers and screen sizes.\n\nMust-have skills:\n- Comfortable with HTML5, CSS3, and JavaScript fundamentals.\n- Hands-on with React (components, props, state, hooks).\n- Responsive design experience.\n- Git and GitHub basics.\n- Willingness to learn and accept feedback.\n\nNice to have:\n- Tailwind CSS or Bootstrap experience.\n- TypeScript exposure.\n- Familiarity with Figma.\n- Any portfolio of personal projects.\n- Bonus: familiarity with React Router or Axios.",
+  "expected_skills": [
+    "HTML5",
+    "CSS3",
+    "JavaScript",
+    "React",
+    "Responsive Design",
+    "Git",
+    "GitHub",
+    "Tailwind",
+    "Bootstrap",
+    "TypeScript",
+    "Figma",
+    "REST API",
+    "React Router",
+    "Axios"
+  ],
+  "expected_skills_must_have": [
+    "HTML5", "CSS3", "JavaScript", "React", "Responsive Design", "Git"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "cv_id": "cv_frontend_jr_react",
+  "personal_info": {
+    "name": "Ahmed Mahmoud Abbas",
+    "email": "ahmedabbass871@gmail.com",
+    "phone": "+20 1114993108",
+    "location": "Egypt, Cairo"
+  },
+  "education_count": 1,
+  "experience_count": 1,
+  "skills_canonical": [
+    "HTML", "CSS", "JavaScript", "React", "Responsive Design", "C++",
+    "Windows Server", "Active Directory"
+  ],
+  "section_presence": {
+    "summary": true, "experience": true, "education": true, "projects": true, "skills": true
+  }
+}
