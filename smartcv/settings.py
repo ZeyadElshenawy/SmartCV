@@ -5,6 +5,7 @@ Django settings for smartcv project.
 from pathlib import Path
 from decouple import config
 import os
+import sys
 import dj_database_url
 from dotenv import load_dotenv
 from django.core.exceptions import ImproperlyConfigured
@@ -21,10 +22,20 @@ SECRET_KEY = config('SECRET_KEY', default=_DEFAULT_SECRET)
 
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-if not DEBUG and SECRET_KEY == _DEFAULT_SECRET:
+# Reject the insecure default in any non-test invocation. The previous guard
+# only fired when DEBUG=False, which left an `manage.py runserver` started
+# with DEBUG=True silently using the placeholder key — masking missing .env
+# config in dev and risking leakage if the same process were ever reused
+# behind a reverse proxy.
+_is_test_invocation = (
+    'test' in sys.argv
+    or sys.argv[0].endswith('pytest')
+    or os.environ.get('PYTEST_CURRENT_TEST')
+)
+if SECRET_KEY == _DEFAULT_SECRET and not _is_test_invocation:
     raise ImproperlyConfigured(
-        "SECRET_KEY must be set to a secure value in production. "
-        "Set the SECRET_KEY environment variable."
+        "SECRET_KEY must be set to a secure value. "
+        "Add SECRET_KEY=... to your .env (or environment) before running."
     )
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
@@ -72,8 +83,7 @@ MIDDLEWARE = [
 # django-debug-toolbar (dev only, never in production).
 # Off automatically in the test runner and when DEBUG=False.
 if DEBUG:
-    import sys as _sys
-    _is_test_run = 'test' in _sys.argv or 'pytest' in _sys.argv[0]
+    _is_test_run = 'test' in sys.argv or 'pytest' in sys.argv[0]
     if not _is_test_run:
         INSTALLED_APPS.append('debug_toolbar')
         MIDDLEWARE.insert(
@@ -133,8 +143,7 @@ DATABASES['default']['OPTIONS'] = {'sslmode': 'require', 'connect_timeout': 10}
 # open which blocks CREATE DATABASE test_... with "database is being accessed
 # by other users". SQLite keeps tests fast (no network) and side-steps the
 # pooler entirely. Trigger: any `manage.py test ...` invocation.
-import sys as _sys
-if 'test' in _sys.argv:
+if 'test' in sys.argv:
     DATABASES['default'] = {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': ':memory:',
