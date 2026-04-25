@@ -26,7 +26,6 @@ urlpatterns = [
 
     path('chatbot/<uuid:job_id>/', views.profile_chatbot, name='profile_chatbot'),
     path('chatbot/api/', views.chatbot_api, name='chatbot_api'),
-    path('chatbot/complete/<uuid:job_id>/', views.chatbot_complete, name='chatbot_complete'),
     path('chatbot/scope/<uuid:job_id>/', views.chatbot_scope_decision, name='chatbot_scope_decision'),
     
     # API Endpoints
