@@ -4,7 +4,7 @@
   "fixture_kind": "real_anonymized_cv",
   "n_cvs": 10,
   "repeats_per_cv": 1,
-  "wall_seconds": 1.24,
+  "wall_seconds": 1.29,
   "aggregate": {
     "personal_info_accuracy": {
       "n": 10,
@@ -44,12 +44,12 @@
     },
     "latency_ms": {
       "n": 10,
-      "min": 13.58,
-      "mean": 115.372,
-      "median": 78.185,
-      "p95": 334.26,
-      "max": 446.99,
-      "std": 122.8049
+      "min": 14.86,
+      "mean": 120.776,
+      "median": 83.04,
+      "p95": 353.95,
+      "max": 469.65,
+      "std": 129.4118
     }
   },
   "rows": [
@@ -136,30 +136,30 @@
               "FortiGate"
             ],
             "extra": [
-              "REST",
-              "JavaScript",
-              "DevOps & Deployment: CI/CD",
-              "Kubernetes",
-              "basic",
-              "CLI Tools",
-              "Python",
-              "Fedora)",
-              "NAT",
-              "Wireshark",
-              "Bash",
-              "upcoming",
-              "Design Thinking",
-              "DNS",
-              "VirtualBox",
-              "Self",
-              "APIs",
-              "Firewalls",
-              "System",
-              "Packet Tracer",
-              "Ansible",
-              "Clean Code",
               "Jenkins",
+              "basic",
+              "Design Thinking",
+              "Self",
+              "NAT",
               "Learner",
+              "Bash",
+              "Wireshark",
+              "Clean Code",
+              "Python",
+              "CLI Tools",
+              "Fedora)",
+              "Ansible",
+              "upcoming",
+              "System",
+              "REST",
+              "Packet Tracer",
+              "DNS",
+              "Kubernetes",
+              "DevOps & Deployment: CI/CD",
+              "Firewalls",
+              "JavaScript",
+              "VirtualBox",
+              "APIs",
               "Git",
               "Systems & Infrastructure: Linux (Ubuntu",
               "Docker"
@@ -175,7 +175,7 @@
               "parsed": 1
             }
           },
-          "latency_ms": 116.93,
+          "latency_ms": 114.9,
           "error": null
         }
       ]
@@ -255,44 +255,44 @@
             "jaccard": 0.1702,
             "missed": [],
             "extra": [
-              "VLANs",
-              "Backend & DevOps",
-              "(Ubuntu",
-              "Kubernetes",
               "basic",
-              "Accessibility",
-              "MySQL",
-              "Frontend: DOM manipulation",
-              "Networking & Security: TCP/IP",
+              "Self",
+              "Learner",
+              "NAT",
+              "starting soon",
+              "(Ubuntu",
+              "Wireshark",
+              "Adaptability",
+              "Cisco",
+              "Node.js",
+              "DHCP",
               "Python",
               "Fedora)",
-              "Cisco",
-              "Learning",
-              "NAT",
-              "DHCP",
-              "Wireshark",
-              "Flexbox/Grid",
-              "Administration:",
-              "Bash scripting",
-              "Adaptability",
-              "DNS",
-              "VirtualBox",
-              "Self",
-              "Node.js",
-              "Firewalls",
-              "Terraform",
-              "System",
-              "Rust",
-              "Packet Tracer",
+              "Backend & DevOps",
               "Ansible",
-              "starting soon",
-              "Learner",
+              "VLANs",
+              "MySQL",
+              "Administration:",
+              "System",
+              "Flexbox/Grid",
+              "Packet Tracer",
+              "Learning",
+              "Bash scripting",
+              "Networking & Security: TCP/IP",
+              "DNS",
+              "Kubernetes",
+              "Firewalls",
+              "Rust",
+              "VirtualBox",
+              "Terraform",
+              "Frontend: DOM manipulation",
+              "Accessibility",
               "Teamwork",
-              "Tools & Platforms: Git",
               "Docker",
-              "Linux",
+              "GitHub",
               "GitHub Pages",
-              "GitHub"
+              "Linux",
+              "Tools & Platforms: Git"
             ]
           },
           "counts": {
@@ -305,7 +305,7 @@
               "parsed": 1
             }
           },
-          "latency_ms": 119.73,
+          "latency_ms": 122.17,
           "error": null
         }
       ]
@@ -389,38 +389,38 @@
               "Active Directory"
             ],
             "extra": [
-              "Problem Solving",
-              "JavaScript",
-              "Kubernetes",
-              "basic",
-              "pfSense",
-              "Subnetting",
-              "Python",
-              "Nmap",
-              "Fedora)",
-              "FortiGate",
-              "NAT",
-              "Cisco Packet Tracer",
-              "Wireshark",
-              "Bash",
-              "C++",
-              "Adaptability",
-              "DNS",
-              "VirtualBox",
-              "Self",
-              "Networking: TCP/IP",
-              "Terraform",
-              "Sophos",
-              "Ansible",
-              "Burp Suite",
-              "fundamentals",
               "Jenkins",
+              "basic",
+              "Self",
               "Learner",
-              "AWS",
+              "NAT",
+              "C++",
+              "Bash",
+              "Wireshark",
+              "Adaptability",
+              "Subnetting",
+              "Sophos",
+              "fundamentals",
+              "Cisco Packet Tracer",
+              "Python",
+              "Fedora)",
+              "Problem Solving",
+              "Ansible",
+              "FortiGate",
+              "Networking: TCP/IP",
+              "Burp Suite",
+              "DNS",
+              "Kubernetes",
+              "pfSense",
+              "Nmap",
+              "JavaScript",
+              "VirtualBox",
+              "Terraform",
               "Tools: Git",
-              "Infrastructure & Security: Linux (Ubuntu",
               "Docker",
-              "GitHub"
+              "AWS",
+              "GitHub",
+              "Infrastructure & Security: Linux (Ubuntu"
             ]
           },
           "counts": {
@@ -433,7 +433,7 @@
               "parsed": 1
             }
           },
-          "latency_ms": 101.83,
+          "latency_ms": 108.4,
           "error": null
         }
       ]
@@ -515,46 +515,46 @@
               "Agile"
             ],
             "extra": [
-              "Problem Solving",
-              "[Embedded Link: 'Mohamed Abd Elghany'",
-              "elghany",
-              "Dio",
-              "SOLID Principles",
-              "[Embedded Link: https://drive.google.com/file/d/1",
-              "> https://www.facebook.com/fcismans]",
-              "portfolio.netlify.app/]",
-              "49upJFtv9U_SWc5Crxd7",
-              "Postman",
-              "Ghany]",
-              "[Embedded Link: https://drive.google.com/file/d/1hSeMAabfPdRNMTIx8PuXFgJqUbwMHADx/view?usp=drivesdk]",
-              "Hive",
-              "> https://api.whatsapp.com/send?phone=201287002189]",
-              "[Embedded Link: '01287002189'",
-              "[Embedded Link: 'Bachelor of Computer Science'",
-              "aLrjlug92F/view?usp=sharing]",
-              "MVVM",
-              "elghany7/]",
-              "Abd",
               "VS Code",
-              "> https://www.linkedin.com/in/mohamed",
-              "Adaptability",
-              "Dependency Injection",
               "Data & Storage: Firebase",
-              "SQLite",
-              "Shared Preferences",
-              "Localization",
-              "El",
-              "abd",
-              "Payment Gateway Integration",
-              "[Embedded Link: 'My Portfolio'",
-              "[Embedded Link: 'Faculty of Computer & Information Sciences",
+              "Abd",
+              "Hive",
               "[Embedded Link: 'Mohamed",
+              "Payment Gateway Integration",
+              "[Embedded Link: '01287002189'",
+              "Ghany]",
+              "> https://www.facebook.com/fcismans]",
+              "Localization",
+              "49upJFtv9U_SWc5Crxd7",
+              "Adaptability",
+              "elghany7/]",
+              "Problem Solving",
+              "SOLID Principles",
               "Elghany'",
+              "MVVM",
+              "> https://www.linkedin.com/in/mohamed",
+              "[Embedded Link: https://drive.google.com/file/d/1",
+              "Shared Preferences",
+              "Android Studio",
+              "Postman",
+              "> https://api.whatsapp.com/send?phone=201287002189]",
+              "[Embedded Link: 'Bachelor of Computer Science'",
+              "portfolio.netlify.app/]",
+              "Dio",
+              "elghany",
+              "[Embedded Link: https://drive.google.com/file/d/1hSeMAabfPdRNMTIx8PuXFgJqUbwMHADx/view?usp=drivesdk]",
+              "SQLite",
               "Local Notifications",
               "> https://mohamed",
-              "Others: Google Maps",
+              "aLrjlug92F/view?usp=sharing]",
+              "abd",
+              "El",
+              "Dependency Injection",
+              "[Embedded Link: 'My Portfolio'",
               "HTTP",
-              "Android Studio",
+              "Others: Google Maps",
+              "[Embedded Link: 'Mohamed Abd Elghany'",
+              "[Embedded Link: 'Faculty of Computer & Information Sciences",
               "Communication",
               "Tools & DevOps: Git",
               "GitHub",
@@ -571,7 +571,7 @@
               "parsed": 2
             }
           },
-          "latency_ms": 446.99,
+          "latency_ms": 469.65,
           "error": null
         }
       ]
@@ -653,21 +653,21 @@
               "Local Storage"
             ],
             "extra": [
-              "Courses & Diplomas",
-              "Completed",
               "UX Design Fundamental in Mahara",
-              "end Development Diploma \u2013 Mentality Academy",
-              "Python",
-              "Tech and Edraak.",
-              "Routing)",
-              "Front",
-              "UI/ UX principles",
-              "C++",
               "C#",
-              "> https://miro.com/welcomeonboard/bm42cDY2eE1XYnA4Y2xTUnZoaGRGcWpPMGE5RlZLRlZHMXZlbjZONEMzNnJ1QThKV0lVWVZIVklncUhxckMwVHwzNDU4NzY0NTQ0OTgzODQwNzI0fDI=?share_link_id=580285487695]",
-              "Project Link",
-              "Responsive designs",
+              "C++",
+              "Completed",
+              "Courses & Diplomas",
+              "Routing)",
+              "end Development Diploma \u2013 Mentality Academy",
+              "Tech and Edraak.",
+              "Python",
               "[Embedded Link: '",
+              "> https://miro.com/welcomeonboard/bm42cDY2eE1XYnA4Y2xTUnZoaGRGcWpPMGE5RlZLRlZHMXZlbjZONEMzNnJ1QThKV0lVWVZIVklncUhxckMwVHwzNDU4NzY0NTQ0OTgzODQwNzI0fDI=?share_link_id=580285487695]",
+              "UI/ UX principles",
+              "Project Link",
+              "Front",
+              "Responsive designs",
               "GitHub"
             ]
           },
@@ -681,7 +681,7 @@
               "parsed": 0
             }
           },
-          "latency_ms": 196.49,
+          "latency_ms": 212.55,
           "error": null
         }
       ]
@@ -768,30 +768,30 @@
               "User Testing"
             ],
             "extra": [
-              "Developing a High",
+              "commerce Website",
+              "Mentoring Junior Developers",
+              "over 100",
+              "profile projects and increased",
+              "Traffic E",
+              "www.enhancv.com",
+              "Achievements",
+              "Provided guidance and",
+              "Powered by'",
+              "completion of several high",
               "Led the frontend development",
+              "Powered by",
+              "commerce website that handled",
               "increased sales by 40%.",
               "[Embedded Link: '\ue06d",
-              "profile projects and increased",
-              "over 100",
+              "Developing a High",
               "> https://enhancv.com/resume]",
-              "completion of several high",
-              "Provided guidance and",
-              "commerce website that handled",
-              "resulting in their successful",
-              "Mentoring Junior Developers",
-              "Cross",
-              "Powered by",
-              "mentorship to junior developers",
-              "commerce Website",
-              "Achievements",
               "browser compatibility Version control systems",
-              "www.enhancv.com",
-              "Powered by'",
-              "Traffic E",
               "000 daily users and",
-              "team productivity.",
-              "team in building a robust e"
+              "Cross",
+              "mentorship to junior developers",
+              "resulting in their successful",
+              "team in building a robust e",
+              "team productivity."
             ]
           },
           "counts": {
@@ -804,7 +804,7 @@
               "parsed": 2
             }
           },
-          "latency_ms": 54.54,
+          "latency_ms": 57.68,
           "error": null
         }
       ]
@@ -892,8 +892,8 @@
               "Performance Optimization"
             ],
             "extra": [
-              "JavaScript",
               "CSS",
+              "JavaScript",
               "HTML",
               "React.js"
             ]
@@ -908,7 +908,7 @@
               "parsed": 1
             }
           },
-          "latency_ms": 22.52,
+          "latency_ms": 25.56,
           "error": null
         }
       ]
@@ -1008,7 +1008,7 @@
               "parsed": 2
             }
           },
-          "latency_ms": 49.94,
+          "latency_ms": 49.76,
           "error": null
         }
       ]
@@ -1091,26 +1091,26 @@
               "Web Maintenance"
             ],
             "extra": [
-              "Web Development",
-              "Vue.js",
+              "AJAX",
+              "Agile Methodologies",
+              "Romanian",
+              "Browser Development",
+              "__________________________",
               "Spanish",
-              "Testing",
+              "Vue.js",
+              "Native",
+              "Techniques:",
               "English",
+              "Debugging",
               "Languages:",
               "Command Line",
-              "Browser Development",
-              "Debugging",
-              "__________________________",
-              "Conversational",
-              "AJAX",
-              "Cross",
-              "Techniques:",
               "Tools and Software:",
-              "TypeScript",
+              "Testing",
               "Troubleshooting",
-              "Native",
-              "Agile Methodologies",
-              "Romanian"
+              "Cross",
+              "Web Development",
+              "TypeScript",
+              "Conversational"
             ]
           },
           "counts": {
@@ -1123,7 +1123,7 @@
               "parsed": 0
             }
           },
-          "latency_ms": 13.58,
+          "latency_ms": 14.86,
           "error": null
         }
       ]
@@ -1202,9 +1202,9 @@
             "jaccard": 0.6667,
             "missed": [],
             "extra": [
+              "engaging web solutions for the company's diverse clientele.",
               "Aspiring junior front",
               "with the latest web development practices and offering responsive and",
-              "engaging web solutions for the company's diverse clientele.",
               "CAREER OBJECTIVE",
               "enthusiasm to the dynamic team at WEBii. Committed to staying current"
             ]
@@ -1219,7 +1219,7 @@
               "parsed": 2
             }
           },
-          "latency_ms": 31.17,
+          "latency_ms": 32.23,
           "error": null
         }
       ]
