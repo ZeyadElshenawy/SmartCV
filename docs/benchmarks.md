@@ -231,7 +231,8 @@ folder under `benchmarks/results/`.
 | ATS matched-vs-mismatched separation | matched **100.0** vs mismatched **11.0** (Cohen's d = **6.267**) | 3 matched, 6 mismatched | benchmarks/ats_eval.py |
 | Endpoint warm p95 (max across routes) | **12.58 ms** | 5 routes x 60 req | benchmarks/latency_runner.py |
 | CV parser personal-info accuracy | **0.942** | 10 CVs | benchmarks/parser_eval.py |
-| CV parser skills F1 | **0.278** (Jaccard 0.176) | 10 CVs | benchmarks/parser_eval.py |
+| CV parser skills F1 (CVs with explicit skills section) | **0.429** (Jaccard 0.303) | 5/10 CVs | benchmarks/parser_eval.py |
+| CV parser skills F1 (all CVs, incl. those without a skills section) | 0.296 (Jaccard 0.197) | 10 CVs | benchmarks/parser_eval.py |
 | Skill extractor F1 | **0.772** (P=0.693, R=0.893, halluc=0.307) | 5 JDs x 1 runs | benchmarks/skill_extractor_eval.py |
 | Gap analyzer coverage (Phase 2 reconciliation) | **0.999** (49/50 pairs at 100%) | 50 (CV,JD) pairs | benchmarks/gap_eval.py |
 | Gap analyzer separation (similarity score) | strong **0.55** / partial **0.4933** / weak **0.1882** (Cohen's d strong-vs-weak = **1.594**) | 50 pairs | benchmarks/gap_eval.py |
