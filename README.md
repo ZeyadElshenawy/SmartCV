@@ -1,5 +1,11 @@
 # SmartCV
 
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
+[![Django 5.2](https://img.shields.io/badge/django-5.2-092e20.svg)](https://www.djangoproject.com/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Tests: 281 passing](https://img.shields.io/badge/tests-281%20passing-brightgreen.svg)](#benchmarks--test-results)
+[![Coverage: 53%](https://img.shields.io/badge/coverage-53%25-yellow.svg)](#benchmarks--test-results)
+
 AI-powered career assistant for job seekers. Upload a CV, paste a job
 description, and get a gap analysis, an ATS-scored tailored resume, and
 an outreach campaign plan — backed by an LLM pipeline that reuses the
@@ -7,6 +13,8 @@ same services everywhere instead of one-off scripts.
 
 Built with Django 5.2, PostgreSQL (Supabase + pgvector), Tailwind CSS v4,
 and Groq (`meta-llama/llama-4-scout-17b-16e-instruct`).
+
+![SmartCV dashboard — your master profile, profile-strength score, and quick links to job tailoring](docs/images/dashboard.png)
 
 ## Highlights
 
@@ -21,6 +29,31 @@ and Groq (`meta-llama/llama-4-scout-17b-16e-instruct`).
   LinkedIn targets and drafts personalised messages.
 - **Built-in observability** — per-route latency middleware,
   `/healthz/metrics` endpoint, structured request logging.
+
+## Screenshots
+
+### Resume editor with live preview and ATS score
+
+![Resume editor with live preview and ATS score](docs/images/resume-editor.png)
+
+Edit a tailored resume on the left, watch the print-ready preview update on
+the right, and see the ATS score recompute as you type.
+
+### Gap analysis
+
+![Gap analysis output — matched / partial / missing skills, with action plan](docs/images/gap-analysis.png)
+
+Two-phase pipeline: an LLM categorises every JD skill, then programmatic
+fuzzy reconciliation guarantees every skill lands in `matched`, `partial`,
+or `missing` — no silent drops.
+
+### Outreach campaign builder
+
+![Outreach campaign builder — Run a campaign at <Company>, paired with the Chrome extension](docs/images/outreach-campaign.png)
+
+Per-job campaign page that pairs with a Chrome extension. The extension
+discovers reachable people from inside your own LinkedIn tab and queues
+personalised connect-with-note drafts for review — never automated sending.
 
 ## Benchmarks & Test Results
 
@@ -64,10 +97,12 @@ source .venv/bin/activate              # or .venv\Scripts\activate on Windows
 pip install -r requirements.txt
 npm install                            # Tailwind CLI
 
-# Configure (.env at repo root)
-DATABASE_URL=postgres://...            # Supabase PgBouncer URL on port 6543
-GROQ_API_KEY=gsk_...
-SECRET_KEY=...                         # required when DEBUG=False
+# Configure (copy .env.example -> .env, fill in values)
+cp .env.example .env
+# then edit .env to set:
+#   DATABASE_URL  (Supabase PgBouncer URL on port 6543, sslmode=require)
+#   GROQ_API_KEY  (https://console.groq.com)
+#   SECRET_KEY    (required when DEBUG=False)
 
 # Migrate + run
 python manage.py migrate
@@ -102,3 +137,7 @@ Pydantic-validated output. All Pydantic schemas live in
 - [`docs/gap_analysis_system.md`](docs/gap_analysis_system.md) — gap-analyzer design notes
 - [`docs/implementation_plan.md`](docs/implementation_plan.md) — high-level roadmap
 - [`CLAUDE.md`](CLAUDE.md) — guidance for Claude Code when working in this repo
+
+## License
+
+[MIT](LICENSE) — see the LICENSE file for full terms.
