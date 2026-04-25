@@ -202,13 +202,6 @@ DEFAULT_FROM_EMAIL = 'SmartCV <noreply@smartcv.local>'
 # Custom CSRF failure page (styled 403 instead of Django's raw dev page)
 CSRF_FAILURE_VIEW = 'core.views.csrf_failure'
 
-# OpenAI
-OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
-
-# Celery
-CELERY_BROKER_URL = config('REDIS_URL', default='redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = config('REDIS_URL', default='redis://localhost:6379/0')
-
 # Logging
 LOGGING = {
     'version': 1,

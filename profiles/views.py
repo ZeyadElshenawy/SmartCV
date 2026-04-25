@@ -5,7 +5,6 @@ from django.urls import reverse
 from django.db import close_old_connections, transaction
 from .models import UserProfile, JobProfileSnapshot
 from .services.cv_parser import parse_cv
-from .services.chatbot import chat_with_user, extract_profile_from_conversation
 from .services.llm_validator import validate_and_map_cv_data, get_missing_fields
 from .services.interviewer import process_chat_turn
 from .services.outreach_generator import generate_outreach_campaign
@@ -563,39 +562,6 @@ def get_current_profile(request):
             'tier': strength['tier'],
         },
     })
-
-
-@login_required
-def chatbot_complete(request, job_id):
-    """Complete chatbot conversation and extract profile"""
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            conversation_history = data.get('conversation', [])
-            
-            # Extract profile from conversation
-            profile_data = extract_profile_from_conversation(conversation_history)
-            
-            # Save to database
-            profile, _ = UserProfile.objects.get_or_create(user=request.user)
-            profile.input_method = 'chatbot'
-            
-            # Update fields
-            profile.full_name = profile_data.get('full_name', '')
-            profile.email = profile_data.get('email', request.user.email)
-            profile.phone = profile_data.get('phone', '')
-            profile.location = profile_data.get('location', '')
-            profile.skills = profile_data.get('skills', [])
-            profile.experiences = profile_data.get('experiences', [])
-            profile.education = profile_data.get('education', [])
-            
-            profile.save()
-            
-            return JsonResponse({'success': True, 'redirect_url': f'/analysis/gap/{job_id}/'})
-        except Exception as e:
-            logger.exception(f"Chatbot complete error: {e}")
-            return JsonResponse({'error': 'Failed to extract profile. Please try again.'}, status=500)
-    return JsonResponse({'error': 'Invalid request'}, status=400)
 
 
 @login_required
