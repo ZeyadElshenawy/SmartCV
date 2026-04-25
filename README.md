@@ -76,7 +76,7 @@ fabricated numbers. Latest run (2026-04-25):
 | CV parser personal-info accuracy | **0.94** | 10 CVs |
 | CV parser skills F1 (CVs with explicit skills section) | **0.43** (Jaccard 0.30) | 5 of 10 CVs |
 | CV parser skills F1 (all 10 CVs, incl. those without a skills section) | 0.30 (Jaccard 0.20) | 10 CVs |
-| Skill extractor F1 | **0.78** (P=0.71, R=0.88, hallucination 0.29) | 5 JDs × 1 run |
+| Skill extractor F1 | **0.81** (P=0.76, R=0.87, hallucination 0.24) | 5 JDs × 3 runs |
 | Gap analyzer coverage | **0.997** (48/50 pairs at 100%) | 50 (CV, JD) pairs |
 | Gap analyzer separation (similarity score) | strong **0.55** / partial **0.49** / weak **0.19** (Cohen's d strong-vs-weak = **1.59**) | 50 pairs |
 | Tailored resume — LLM-judged (1-10) | factuality **8.0** / relevance **6.8** / ats_fit **5.6** / human_voice **5.6** | 10 strong pairs |
