@@ -3,7 +3,7 @@
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
 [![Django 5.2](https://img.shields.io/badge/django-5.2-092e20.svg)](https://www.djangoproject.com/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests: 305 passing](https://img.shields.io/badge/tests-305%20passing-brightgreen.svg)](#benchmarks--test-results)
+[![Tests: 337 passing](https://img.shields.io/badge/tests-337%20passing-brightgreen.svg)](#benchmarks--test-results)
 [![Coverage: 53%](https://img.shields.io/badge/coverage-53%25-yellow.svg)](#benchmarks--test-results)
 
 AI-powered career assistant for job seekers. Upload a CV, paste a job
@@ -62,7 +62,7 @@ personalised connect-with-note drafts for review — never automated sending.
 
 ## Benchmarks & Test Results
 
-305 Django tests passing. Coverage 53% overall (76.9% in `core/`).
+337 Django tests passing. Coverage 53% overall (76.9% in `core/`).
 
 The repo ships a small, real evaluation suite under `benchmarks/` — every
 metric has a sample size, a re-run command, and a JSON artifact. No
@@ -77,7 +77,7 @@ fabricated numbers. Latest run (2026-04-25):
 | CV parser skills F1 (CVs with explicit skills section) | **0.43** (Jaccard 0.30) | 5 of 10 CVs |
 | CV parser skills F1 (all 10 CVs, incl. those without a skills section) | 0.30 (Jaccard 0.20) | 10 CVs |
 | Skill extractor F1 | **0.81** (P=0.76, R=0.87, hallucination 0.24) | 5 JDs × 3 runs |
-| Gap analyzer coverage | **0.997** (48/50 pairs at 100%) | 50 (CV, JD) pairs |
+| Gap analyzer coverage | **0.999** (49/50 pairs at 100%) | 50 (CV, JD) pairs |
 | Gap analyzer separation (similarity score) | strong **0.55** / partial **0.49** / weak **0.19** (Cohen's d strong-vs-weak = **1.59**) | 50 pairs |
 | Tailored resume — LLM-judged (1-10) | factuality **8.0** / relevance **6.8** / ats_fit **5.6** / human_voice **5.6** | 10 strong pairs |
 | Tailored resume — programmatic entity grounding | **0.875** of generated companies/schools appear verbatim in source CV | 10 pairs |
