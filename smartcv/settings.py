@@ -64,6 +64,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Last so it observes the final status code & duration of the actual response.
+    # Defensive: any failure inside is swallowed (see core/middleware.py).
+    'core.middleware.RequestObservabilityMiddleware',
 ]
 
 # django-debug-toolbar (dev only, never in production).
@@ -106,17 +109,22 @@ WSGI_APPLICATION = 'smartcv.wsgi.application'
 
 
 # Database
+# `conn_health_checks` adds a round-trip on every request and worsens cold-start
+# pool pressure against Supabase PgBouncer; only enable it in production.
 DATABASES = {
     'default': dj_database_url.config(
         default=os.getenv('DATABASE_URL'),
         conn_max_age=0,
-        conn_health_checks=True,
+        conn_health_checks=not DEBUG,
     )
 }
 
-# Supabase PgBouncer (Transaction pooling on port 6543) requires disabling server-side cursors
+# Supabase PgBouncer (Transaction pooling on port 6543) requires disabling server-side cursors.
+# `connect_timeout=10` makes a saturated pool raise OperationalError instead of hanging
+# the runserver boot indefinitely (which happens when previous Python processes were
+# killed -force and their PgBouncer client slots haven't been reaped yet).
 DATABASES['default']['DISABLE_SERVER_SIDE_CURSORS'] = True
-DATABASES['default']['OPTIONS'] = {'sslmode': 'require'}
+DATABASES['default']['OPTIONS'] = {'sslmode': 'require', 'connect_timeout': 10}
 
 # Tests get an in-memory SQLite DB. Supabase's PgBouncer holds connections
 # open which blocks CREATE DATABASE test_... with "database is being accessed

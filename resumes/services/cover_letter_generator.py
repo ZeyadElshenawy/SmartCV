@@ -1,5 +1,6 @@
 import logging
 from profiles.services.llm_engine import get_llm
+from profiles.services.prompt_guards import HUMAN_VOICE_RULE
 from langchain_core.messages import HumanMessage
 
 logger = logging.getLogger(__name__)
@@ -79,15 +80,16 @@ RULES for the Cover Letter:
 7. Do NOT close with a signature line or name — the app appends the name separately.
 
 === LANGUAGE & STYLE RULES ===
+- See the HUMAN VOICE block at the end for the full banned-word list and sentence-structure rules.
 - Replace these words: Spearheaded -> Led, Leveraged -> Used/Applied, Utilized -> Used, Synergized -> Collaborated, Streamlined -> Simplified/Improved, Robust -> Strong, Demonstrated -> Showed/Proved, Facilitated -> Helped/Enabled.
-- Remove completely: Dynamic, Innovative, Passionate, Results-driven, Go-getter, Thought leader.
-- Replace em dashes (—) with a comma or delete them.
 - Vary sentence length. Avoid starting consecutive sentences with the same word.
 
 === STRICT ANTI-HALLUCINATION RULE (CRITICAL) ===
 - Never invent skills, job titles, company names, certifications, or metrics not present in the candidate profile.
 - If the candidate has NO relevant experience for a job requirement, address it honestly (transferable skills) rather than fabricating.
 - Do not name specific hiring managers, interviewers, or team members unless the job description names them.
+
+{HUMAN_VOICE_RULE}
 
 Output ONLY the text of the cover letter, nothing else."""
 

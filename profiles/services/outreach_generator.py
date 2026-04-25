@@ -1,5 +1,9 @@
+import json
 import logging
-from profiles.services.llm_engine import get_structured_llm
+import re
+
+from profiles.services.llm_engine import get_llm, get_structured_llm
+from profiles.services.prompt_guards import HUMAN_VOICE_RULE
 from profiles.services.schemas import OutreachCampaignResult
 
 logger = logging.getLogger(__name__)
@@ -16,6 +20,96 @@ def _get_skill_names(skills) -> list:
         elif isinstance(s, str) and s.strip():
             names.append(s.strip())
     return names
+
+
+def _extract_failed_generation_payload(exc) -> dict | None:
+    """Groq returns tool_use_failed with the raw model output in
+    `error.failed_generation`. The model sometimes wraps the tool call in a
+    list: `[{"name": "...", "parameters": {...}}]`. Try to recover the
+    parameters dict so one good call isn't wasted on a 400.
+    """
+    body = getattr(exc, 'body', None) or {}
+    err = body.get('error', {}) if isinstance(body, dict) else {}
+    raw = err.get('failed_generation')
+    if not raw or not isinstance(raw, str):
+        return None
+    try:
+        parsed = json.loads(raw)
+    except Exception:
+        return None
+    if isinstance(parsed, list) and parsed:
+        parsed = parsed[0]
+    if isinstance(parsed, dict) and isinstance(parsed.get('parameters'), dict):
+        return parsed['parameters']
+    if isinstance(parsed, dict):
+        return parsed
+    return None
+
+
+_JSON_FENCE_RE = re.compile(r'```(?:json)?\s*(\{.*?\})\s*```', re.DOTALL)
+
+
+def _parse_json_object(text: str) -> dict | None:
+    """Pull the first JSON object out of a model's plain-text reply."""
+    if not text:
+        return None
+    m = _JSON_FENCE_RE.search(text)
+    if m:
+        text = m.group(1)
+    else:
+        start = text.find('{')
+        end = text.rfind('}')
+        if start == -1 or end == -1 or end < start:
+            return None
+        text = text[start:end + 1]
+    try:
+        return json.loads(text)
+    except Exception:
+        return None
+
+
+def _fallback_plaintext_json(prompt: str) -> dict | None:
+    """Retry with plain-text output and strict JSON instructions — bypasses
+    Groq's tool-use serializer, which is the source of the wrapping bug.
+    """
+    json_prompt = (
+        prompt
+        + "\n\nReturn ONLY a single JSON object with the exact keys: "
+        '"linkedin_message" (string, ≤300 chars), '
+        '"cold_email_subject" (string, ≤8 words), '
+        '"cold_email_body" (string). '
+        "No prose, no markdown, no arrays — just the JSON object."
+    )
+    try:
+        llm = get_llm(temperature=0.7, max_tokens=1024)
+        reply = llm.invoke(json_prompt)
+        text = getattr(reply, 'content', None) or str(reply)
+        return _parse_json_object(text)
+    except Exception:
+        logger.exception("Outreach JSON fallback failed")
+        return None
+
+
+def _invoke_with_fallback(prompt: str) -> dict:
+    """Run the structured call; on Groq tool-use failure, try to recover the
+    payload from `failed_generation`, then fall back to a plain-text JSON call.
+    Returns a dict matching OutreachCampaignResult fields (possibly empty).
+    """
+    try:
+        structured_llm = get_structured_llm(OutreachCampaignResult, temperature=0.7, max_tokens=1024)
+        result = structured_llm.invoke(prompt)
+        return result.model_dump()
+    except Exception as exc:
+        logger.warning("Structured outreach call failed, attempting recovery: %s", exc)
+        recovered = _extract_failed_generation_payload(exc)
+        if recovered:
+            logger.info("Recovered outreach payload from failed_generation")
+            return recovered
+        fallback = _fallback_plaintext_json(prompt)
+        if fallback:
+            logger.info("Recovered outreach payload via plaintext JSON fallback")
+            return fallback
+        raise
 
 
 def generate_outreach_campaign(profile, job):
@@ -39,16 +133,14 @@ Generate two variations of networking messages:
 
 === STRICT ANTI-HALLUCINATION RULE (CRITICAL) ===
 - Never invent, add, or imply skills, keywords, achievements, metrics, job titles, or any other content not present in the original USER PROFILE.
-- Only construct messages based on what already exists."""
+- Only construct messages based on what already exists.
+
+{HUMAN_VOICE_RULE}"""
 
     try:
-        structured_llm = get_structured_llm(OutreachCampaignResult, temperature=0.7, max_tokens=1024)
-        result = structured_llm.invoke(prompt)
-
-        campaign = result.model_dump()
+        campaign = _invoke_with_fallback(prompt)
         logger.info(f"Generated outreach campaign for {job.id}")
         return campaign
-
     except Exception as e:
         logger.exception(f"Outreach generation failed: {e}")
         return {}
@@ -89,12 +181,12 @@ Generate two messages addressed personally to this target:
 === STRICT ANTI-HALLUCINATION RULE (CRITICAL) ===
 - Never invent, add, or imply skills, keywords, achievements, metrics, job titles, or any other content not present in the original USER PROFILE.
 - Never invent details about the target person beyond the name and role given above.
-- Only construct messages based on what already exists."""
+- Only construct messages based on what already exists.
+
+{HUMAN_VOICE_RULE}"""
 
     try:
-        structured_llm = get_structured_llm(OutreachCampaignResult, temperature=0.7, max_tokens=1024)
-        result = structured_llm.invoke(prompt)
-        data = result.model_dump()
+        data = _invoke_with_fallback(prompt)
         connect = (data.get('linkedin_message') or '').strip()[:300]
         follow_up = (data.get('cold_email_body') or '').strip()
         logger.info("Generated per-target outreach for %s -> %s", job.id, target_name)

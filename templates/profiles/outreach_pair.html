@@ -16,8 +16,12 @@
         </header>
 
         {% if rotated %}
-        <div class="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 ring-1 ring-emerald-200 dark:ring-emerald-900/60 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-200">
-            Token regenerated. Update your extension's options page — the old token is now revoked.
+        <div class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-emerald-300 dark:ring-emerald-800 p-4 flex items-start gap-3">
+            <span aria-hidden="true" class="mt-1 inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            <p class="text-sm text-neutral-800 dark:text-neutral-100 leading-relaxed">
+                <span class="font-medium text-emerald-700 dark:text-emerald-400">Token regenerated.</span>
+                Update your extension's options page — the old token is now revoked.
+            </p>
         </div>
         {% endif %}
 
@@ -25,7 +29,7 @@
             <label class="block text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400">Your token</label>
             <div class="flex gap-2">
                 <input type="text" readonly value="{{ token }}" id="outreach-token"
-                       class="flex-1 h-11 px-3 font-mono text-sm rounded-lg bg-neutral-50 dark:bg-neutral-950/40 ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-800 dark:text-neutral-100">
+                       class="flex-1 h-11 px-3 font-mono text-sm rounded-lg bg-neutral-50 dark:bg-neutral-950 ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-800 dark:text-neutral-100">
                 <button type="button"
                         onclick="navigator.clipboard.writeText(document.getElementById('outreach-token').value)"
                         class="h-11 px-4 text-[11px] uppercase tracking-[0.14em] font-medium rounded-lg ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800">
@@ -41,12 +45,26 @@
             </form>
         </section>
 
-        <section class="rounded-2xl bg-neutral-100 dark:bg-neutral-900/40 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 text-sm text-neutral-700 dark:text-neutral-300 space-y-2 leading-relaxed">
-            <p class="font-medium text-neutral-900 dark:text-neutral-100">How to install the extension</p>
-            <ol class="list-decimal list-inside space-y-1">
+        <section class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-3">
+            {% include "components/section_label.html" with text="How to install" tone="neutral" %}
+            <ol class="list-decimal pl-5 space-y-1.5 text-sm text-neutral-700 dark:text-neutral-200 leading-relaxed marker:text-neutral-400 dark:marker:text-neutral-500">
                 <li>Download the SmartCV outreach extension folder.</li>
-                <li>Open <code class="font-mono">chrome://extensions</code> in Chrome and enable Developer mode.</li>
-                <li>Click <em class="not-italic font-medium">Load unpacked</em> and pick the extension folder.</li>
+                <li>
+                    Open
+                    <a href="chrome://extensions"
+                       x-data="{ copied: false }"
+                       @click="navigator.clipboard.writeText('chrome://extensions'); copied = true; setTimeout(() => copied = false, 1500)"
+                       class="relative inline-flex items-center gap-1 font-mono text-[13px] text-brand-700 dark:text-brand-400 hover:text-brand-800 dark:hover:text-brand-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded px-1.5 py-0.5 underline decoration-brand-300 dark:decoration-brand-700 underline-offset-2 transition-colors"
+                       title="Link copied to clipboard — paste into a new Chrome tab (chrome:// can't open from web pages)">
+                        chrome://extensions
+                        <span x-show="copied" x-transition
+                              class="absolute left-1/2 -translate-x-1/2 -top-7 whitespace-nowrap text-[10px] uppercase tracking-[0.14em] font-medium text-emerald-700 dark:text-emerald-400 bg-white dark:bg-neutral-900 ring-1 ring-emerald-300 dark:ring-emerald-800 rounded px-2 py-0.5">
+                            Copied — paste in a new tab
+                        </span>
+                    </a>
+                    in Chrome and enable Developer mode.
+                </li>
+                <li>Click <em class="not-italic font-medium text-neutral-900 dark:text-neutral-100">Load unpacked</em> and pick the extension folder.</li>
                 <li>Open the extension's options page and paste the token above.</li>
                 <li>Make sure you're logged into LinkedIn in the same browser.</li>
             </ol>

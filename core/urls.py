@@ -1,8 +1,14 @@
 from django.urls import path
 from django.views.generic import RedirectView
 from . import views
+from . import health
 
 urlpatterns = [
+    # Health & observability — see core/health.py
+    path('healthz/',         health.healthz,         name='healthz'),
+    path('healthz/deep/',    health.healthz_deep,    name='healthz_deep'),
+    path('healthz/metrics/', health.healthz_metrics, name='healthz_metrics'),
+
     path('', views.home_view, name='home'),
     # Legacy route — redirect to the canonical profiles dashboard
     path('dashboard/', RedirectView.as_view(pattern_name='dashboard', permanent=False), name='core_dashboard'),

@@ -4,6 +4,7 @@ import re
 from typing import Dict, Any, Optional
 from profiles.services.llm_engine import get_structured_llm, get_llm
 from profiles.services.schemas import ResumeContentResult
+from profiles.services.prompt_guards import HUMAN_VOICE_RULE
 
 logger = logging.getLogger(__name__)
 
@@ -200,10 +201,8 @@ MATCHED SKILLS (high priority): {', '.join(gap_analysis.matched_skills if hasatt
 - First-person "I" statements
 
 === LANGUAGE & STYLE ===
+- See the HUMAN VOICE block at the end of this prompt for the full banned-word list and sentence-structure rules.
 - Replace these words: Spearheaded -> Led, Leveraged -> Used/Applied, Utilized -> Used, Synergized -> Collaborated, Streamlined -> Simplified/Improved, Robust -> Strong, Demonstrated -> Showed/Proved, Facilitated -> Helped/Enabled.
-- Remove completely: Dynamic, Innovative, Passionate, Results-driven.
-- Replace em dashes (—) with a comma or delete them.
-- Avoid repetitive sentence structure across bullet points.
 
 === BULLET POINT STANDARDS (CRITICAL for resume quality) ===
 - Each experience role: 3-5 bullets. Never more, never fewer if data exists.
@@ -238,7 +237,9 @@ MATCHED SKILLS (high priority): {', '.join(gap_analysis.matched_skills if hasatt
 
 {domain_section}
 
-Make it PROFESSIONAL and ATS-OPTIMIZED."""
+Make it PROFESSIONAL and ATS-OPTIMIZED.
+
+{HUMAN_VOICE_RULE}"""
 
     try:
         structured_llm = get_structured_llm(ResumeContentResult, temperature=0.7, max_tokens=8192)
