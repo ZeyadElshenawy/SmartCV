@@ -1,10 +1,10 @@
 {
   "benchmark": "latency_runner",
   "version": 1,
-  "requests_per_route": 30,
+  "requests_per_route": 60,
   "n_routes": 5,
-  "total_requests_issued": 150,
-  "wall_seconds": 5.61,
+  "total_requests_issued": 300,
+  "wall_seconds": 6.53,
   "platform": {
     "python": "3.13.9",
     "system": "Windows",
@@ -16,203 +16,203 @@
   "results": [
     {
       "path": "/",
-      "requests": 30,
+      "requests": 60,
       "statuses": {
-        "200": 30
+        "200": 60
       },
       "errors": [],
       "error_count": 0,
       "latency_ms": {
-        "n": 30,
-        "min": 11.122,
-        "mean": 121.8742,
-        "median": 12.088,
-        "p95": 14.24,
-        "max": 3297.503,
-        "std": 589.7,
-        "p50": 12.09,
-        "p99": 2345.39
+        "n": 60,
+        "min": 9.832,
+        "mean": 62.3957,
+        "median": 10.8635,
+        "p95": 12.63,
+        "max": 3091.901,
+        "std": 394.4088,
+        "p50": 10.86,
+        "p99": 1276.16
       },
       "cold_warm": {
         "cold_n": 5,
-        "cold_mean": 668.922,
-        "cold_max": 3297.503,
-        "warm_n": 25,
-        "warm_mean": 12.465,
-        "warm_p95": 14.1
+        "cold_mean": 627.533,
+        "cold_max": 3091.901,
+        "warm_n": 55,
+        "warm_mean": 11.02,
+        "warm_p95": 12.36
       },
       "label": "home"
     },
     {
       "path": "/healthz/",
-      "requests": 30,
+      "requests": 60,
       "statuses": {
-        "200": 30
+        "200": 60
       },
       "errors": [],
       "error_count": 0,
       "latency_ms": {
-        "n": 30,
-        "min": 6.74,
-        "mean": 7.4676,
-        "median": 7.288,
-        "p95": 8.46,
-        "max": 8.514,
-        "std": 0.5611,
-        "p50": 7.29,
+        "n": 60,
+        "min": 5.717,
+        "mean": 6.5879,
+        "median": 6.4435,
+        "p95": 7.71,
+        "max": 9.025,
+        "std": 0.647,
+        "p50": 6.44,
         "p99": 8.51
       },
       "cold_warm": {
         "cold_n": 5,
-        "cold_mean": 7.861,
-        "cold_max": 8.513,
-        "warm_n": 25,
-        "warm_mean": 7.389,
-        "warm_p95": 8.4
+        "cold_mean": 6.269,
+        "cold_max": 6.589,
+        "warm_n": 55,
+        "warm_mean": 6.617,
+        "warm_p95": 7.76
       },
       "label": "healthz"
     },
     {
       "path": "/healthz/deep/",
-      "requests": 30,
+      "requests": 60,
       "statuses": {
-        "200": 30
+        "200": 60
       },
       "errors": [],
       "error_count": 0,
       "latency_ms": {
-        "n": 30,
-        "min": 7.98,
-        "mean": 37.3546,
-        "median": 9.533,
-        "p95": 14.9,
-        "max": 836.434,
-        "std": 148.3936,
-        "p50": 9.53,
-        "p99": 598.39
+        "n": 60,
+        "min": 7.611,
+        "mean": 19.9835,
+        "median": 8.724,
+        "p95": 10.37,
+        "max": 676.239,
+        "std": 85.4403,
+        "p50": 8.72,
+        "p99": 283.7
       },
       "cold_warm": {
         "cold_n": 5,
-        "cold_mean": 174.408,
-        "cold_max": 836.434,
-        "warm_n": 25,
-        "warm_mean": 9.944,
-        "warm_p95": 13.56
+        "cold_mean": 142.698,
+        "cold_max": 676.239,
+        "warm_n": 55,
+        "warm_mean": 8.828,
+        "warm_p95": 10.28
       },
       "label": "healthz_deep"
     },
     {
       "path": "/accounts/login/",
-      "requests": 30,
+      "requests": 60,
       "statuses": {
-        "200": 30
+        "200": 60
       },
       "errors": [],
       "error_count": 0,
       "latency_ms": {
-        "n": 30,
-        "min": 7.826,
-        "mean": 10.167,
-        "median": 9.1075,
-        "p95": 10.98,
-        "max": 38.101,
-        "std": 5.2272,
-        "p50": 9.11,
-        "p99": 30.36
+        "n": 60,
+        "min": 7.815,
+        "mean": 9.1677,
+        "median": 8.758,
+        "p95": 12.0,
+        "max": 15.609,
+        "std": 1.2785,
+        "p50": 8.76,
+        "p99": 13.55
       },
       "cold_warm": {
         "cold_n": 5,
-        "cold_mean": 14.854,
-        "cold_max": 38.101,
-        "warm_n": 25,
-        "warm_mean": 9.23,
-        "warm_p95": 10.39
+        "cold_mean": 9.225,
+        "cold_max": 11.204,
+        "warm_n": 55,
+        "warm_mean": 9.163,
+        "warm_p95": 12.02
       },
       "label": "login_form"
     },
     {
       "path": "/accounts/register/",
-      "requests": 30,
+      "requests": 60,
       "statuses": {
-        "200": 30
+        "200": 60
       },
       "errors": [],
       "error_count": 0,
       "latency_ms": {
-        "n": 30,
-        "min": 8.101,
-        "mean": 9.9624,
-        "median": 9.096,
-        "p95": 10.91,
-        "max": 29.059,
-        "std": 3.6198,
-        "p50": 9.1,
-        "p99": 23.8
+        "n": 60,
+        "min": 7.442,
+        "mean": 10.7017,
+        "median": 8.5855,
+        "p95": 10.04,
+        "max": 127.34,
+        "std": 15.2006,
+        "p50": 8.59,
+        "p99": 58.49
       },
       "cold_warm": {
         "cold_n": 5,
-        "cold_mean": 13.259,
-        "cold_max": 29.059,
-        "warm_n": 25,
-        "warm_mean": 9.303,
-        "warm_p95": 10.83
+        "cold_mean": 9.079,
+        "cold_max": 9.402,
+        "warm_n": 55,
+        "warm_mean": 10.849,
+        "warm_p95": 10.15
       },
       "label": "register_form"
     }
   ],
   "middleware_snapshot": {
-    "delta_requests_recorded": 90,
+    "delta_requests_recorded": 180,
     "post_run": {
       "total": {
-        "requests": 90,
+        "requests": 180,
         "errors_4xx": 0,
         "errors_5xx": 0,
         "error_rate": 0.0
       },
       "routes": {
         "GET home": {
-          "count": 30,
+          "count": 60,
           "by_status": {
-            "200": 30
+            "200": 60
           },
           "errors_4xx": 0,
           "errors_5xx": 0,
           "error_rate": 0.0,
           "latency_ms": {
-            "p50": 1.64,
-            "p95": 2.22,
-            "p99": 89.83,
-            "samples": 30
+            "p50": 1.48,
+            "p95": 1.92,
+            "p99": 11.67,
+            "samples": 60
           }
         },
         "GET login": {
-          "count": 30,
+          "count": 60,
           "by_status": {
-            "200": 30
+            "200": 60
+          },
+          "errors_4xx": 0,
+          "errors_5xx": 0,
+          "error_rate": 0.0,
+          "latency_ms": {
+            "p50": 0.71,
+            "p95": 1.23,
+            "p99": 1.73,
+            "samples": 60
+          }
+        },
+        "GET register": {
+          "count": 60,
+          "by_status": {
+            "200": 60
           },
           "errors_4xx": 0,
           "errors_5xx": 0,
           "error_rate": 0.0,
           "latency_ms": {
             "p50": 0.74,
-            "p95": 1.14,
-            "p99": 20.58,
-            "samples": 30
-          }
-        },
-        "GET register": {
-          "count": 30,
-          "by_status": {
-            "200": 30
-          },
-          "errors_4xx": 0,
-          "errors_5xx": 0,
-          "error_rate": 0.0,
-          "latency_ms": {
-            "p50": 0.8,
-            "p95": 2.03,
-            "p99": 15.88,
-            "samples": 30
+            "p95": 1.15,
+            "p99": 1.66,
+            "samples": 60
           }
         }
       }
