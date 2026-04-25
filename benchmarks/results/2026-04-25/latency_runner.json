@@ -4,7 +4,7 @@
   "requests_per_route": 60,
   "n_routes": 5,
   "total_requests_issued": 300,
-  "wall_seconds": 6.53,
+  "wall_seconds": 6.57,
   "platform": {
     "python": "3.13.9",
     "system": "Windows",
@@ -24,22 +24,22 @@
       "error_count": 0,
       "latency_ms": {
         "n": 60,
-        "min": 9.832,
-        "mean": 62.3957,
-        "median": 10.8635,
-        "p95": 12.63,
-        "max": 3091.901,
-        "std": 394.4088,
-        "p50": 10.86,
-        "p99": 1276.16
+        "min": 9.409,
+        "mean": 62.345,
+        "median": 10.6465,
+        "p95": 13.15,
+        "max": 3100.608,
+        "std": 395.5495,
+        "p50": 10.65,
+        "p99": 1279.18
       },
       "cold_warm": {
         "cold_n": 5,
-        "cold_mean": 627.533,
-        "cold_max": 3091.901,
+        "cold_mean": 629.038,
+        "cold_max": 3100.608,
         "warm_n": 55,
-        "warm_mean": 11.02,
-        "warm_p95": 12.36
+        "warm_mean": 10.827,
+        "warm_p95": 12.58
       },
       "label": "home"
     },
@@ -53,22 +53,22 @@
       "error_count": 0,
       "latency_ms": {
         "n": 60,
-        "min": 5.717,
-        "mean": 6.5879,
-        "median": 6.4435,
-        "p95": 7.71,
-        "max": 9.025,
-        "std": 0.647,
-        "p50": 6.44,
-        "p99": 8.51
+        "min": 5.701,
+        "mean": 6.5316,
+        "median": 6.2055,
+        "p95": 7.91,
+        "max": 8.386,
+        "std": 0.6621,
+        "p50": 6.21,
+        "p99": 8.26
       },
       "cold_warm": {
         "cold_n": 5,
-        "cold_mean": 6.269,
-        "cold_max": 6.589,
+        "cold_mean": 6.223,
+        "cold_max": 6.712,
         "warm_n": 55,
-        "warm_mean": 6.617,
-        "warm_p95": 7.76
+        "warm_mean": 6.56,
+        "warm_p95": 7.93
       },
       "label": "healthz"
     },
@@ -82,22 +82,22 @@
       "error_count": 0,
       "latency_ms": {
         "n": 60,
-        "min": 7.611,
-        "mean": 19.9835,
-        "median": 8.724,
-        "p95": 10.37,
-        "max": 676.239,
-        "std": 85.4403,
-        "p50": 8.72,
-        "p99": 283.7
+        "min": 7.562,
+        "mean": 21.0393,
+        "median": 8.6825,
+        "p95": 10.18,
+        "max": 738.74,
+        "std": 93.4402,
+        "p50": 8.68,
+        "p99": 309.34
       },
       "cold_warm": {
         "cold_n": 5,
-        "cold_mean": 142.698,
-        "cold_max": 676.239,
+        "cold_mean": 155.089,
+        "cold_max": 738.74,
         "warm_n": 55,
-        "warm_mean": 8.828,
-        "warm_p95": 10.28
+        "warm_mean": 8.853,
+        "warm_p95": 10.08
       },
       "label": "healthz_deep"
     },
@@ -111,22 +111,22 @@
       "error_count": 0,
       "latency_ms": {
         "n": 60,
-        "min": 7.815,
-        "mean": 9.1677,
-        "median": 8.758,
-        "p95": 12.0,
-        "max": 15.609,
-        "std": 1.2785,
-        "p50": 8.76,
-        "p99": 13.55
+        "min": 7.825,
+        "mean": 8.8568,
+        "median": 8.7175,
+        "p95": 10.05,
+        "max": 11.253,
+        "std": 0.6588,
+        "p50": 8.72,
+        "p99": 10.66
       },
       "cold_warm": {
         "cold_n": 5,
-        "cold_mean": 9.225,
-        "cold_max": 11.204,
+        "cold_mean": 8.983,
+        "cold_max": 11.253,
         "warm_n": 55,
-        "warm_mean": 9.163,
-        "warm_p95": 12.02
+        "warm_mean": 8.845,
+        "warm_p95": 10.02
       },
       "label": "login_form"
     },
@@ -140,21 +140,21 @@
       "error_count": 0,
       "latency_ms": {
         "n": 60,
-        "min": 7.442,
-        "mean": 10.7017,
-        "median": 8.5855,
-        "p95": 10.04,
-        "max": 127.34,
-        "std": 15.2006,
-        "p50": 8.59,
-        "p99": 58.49
+        "min": 7.574,
+        "mean": 10.7776,
+        "median": 8.771,
+        "p95": 10.15,
+        "max": 121.297,
+        "std": 14.4052,
+        "p50": 8.77,
+        "p99": 55.98
       },
       "cold_warm": {
         "cold_n": 5,
-        "cold_mean": 9.079,
-        "cold_max": 9.402,
+        "cold_mean": 9.294,
+        "cold_max": 9.685,
         "warm_n": 55,
-        "warm_mean": 10.849,
+        "warm_mean": 10.913,
         "warm_p95": 10.15
       },
       "label": "register_form"
@@ -179,9 +179,9 @@
           "errors_5xx": 0,
           "error_rate": 0.0,
           "latency_ms": {
-            "p50": 1.48,
-            "p95": 1.92,
-            "p99": 11.67,
+            "p50": 1.4,
+            "p95": 1.96,
+            "p99": 11.25,
             "samples": 60
           }
         },
@@ -195,8 +195,8 @@
           "error_rate": 0.0,
           "latency_ms": {
             "p50": 0.71,
-            "p95": 1.23,
-            "p99": 1.73,
+            "p95": 0.97,
+            "p99": 1.32,
             "samples": 60
           }
         },
@@ -210,8 +210,8 @@
           "error_rate": 0.0,
           "latency_ms": {
             "p50": 0.74,
-            "p95": 1.15,
-            "p99": 1.66,
+            "p95": 1.36,
+            "p99": 1.98,
             "samples": 60
           }
         }

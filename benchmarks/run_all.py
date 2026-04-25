@@ -41,7 +41,8 @@ from typing import Iterable
 from benchmarks._io import REPO_ROOT, RESULTS_DIR, write_section
 
 
-PHASES = ("ats_eval", "latency_runner", "parser_eval", "skill_extractor_eval", "gap_eval")
+PHASES = ("ats_eval", "latency_runner", "parser_eval", "skill_extractor_eval",
+          "gap_eval", "tailoring_eval")
 
 
 def _import_phase(name: str):
@@ -55,6 +56,8 @@ def _import_phase(name: str):
         from benchmarks import skill_extractor_eval as m
     elif name == "gap_eval":
         from benchmarks import gap_eval as m
+    elif name == "tailoring_eval":
+        from benchmarks import tailoring_eval as m
     else:
         raise ValueError(f"unknown phase: {name}")
     return m
@@ -135,6 +138,21 @@ def _headlines(results: dict) -> dict:
             "hallucination_rate": agg["hallucination_rate"]["mean"],
         }
 
+    tailor = results.get("tailoring_eval", {}).get("payload")
+    if tailor:
+        a = tailor["axes"]
+        prog = tailor["programmatic"]
+        h["tailoring"] = {
+            "n_pairs": tailor["n_pairs"],
+            "buckets": tailor["buckets_evaluated"],
+            "factuality_mean": a["factuality"]["mean"],
+            "relevance_mean": a["relevance"]["mean"],
+            "ats_fit_mean": a["ats_fit"]["mean"],
+            "human_voice_mean": a["human_voice"]["mean"],
+            "entity_grounding_mean": prog["entity_grounding_ratio"]["mean"],
+            "banned_voice_hits_mean": prog["banned_voice_hits_per_resume"]["mean"],
+        }
+
     gap = results.get("gap_eval", {}).get("payload")
     if gap:
         h["gap"] = {
@@ -212,6 +230,20 @@ def _format_md(combined: dict) -> str:
                      f"(Cohen's d strong-vs-weak = **{g['cohens_d_strong_vs_weak']}**) "
                      f"| {g['n_pairs']} pairs | benchmarks/gap_eval.py |")
 
+    if "tailoring" in h:
+        t = h["tailoring"]
+        lines.append(f"| Tailored resume — judge axes (1-10) | "
+                     f"factuality **{t['factuality_mean']}** / "
+                     f"relevance **{t['relevance_mean']}** / "
+                     f"ats_fit **{t['ats_fit_mean']}** / "
+                     f"human_voice **{t['human_voice_mean']}** "
+                     f"| {t['n_pairs']} pairs ({'+'.join(t['buckets'])}) "
+                     f"| benchmarks/tailoring_eval.py |")
+        lines.append(f"| Tailored resume — programmatic entity grounding | "
+                     f"**{t['entity_grounding_mean']}** of generated entities "
+                     f"appear verbatim in source CV "
+                     f"| {t['n_pairs']} pairs | benchmarks/tailoring_eval.py |")
+
     lines += [
         "",
         "## Phase Wall Times",
@@ -280,7 +312,9 @@ def _sync_docs(md: str) -> Path | None:
 # ─── Entrypoint ─────────────────────────────────────────────────────────────
 
 def run(skip: Iterable[str] = (), *, gap_repeats: int = 1, sx_repeats: int = 1,
-        parser_repeats: int = 1, latency_requests: int = 100) -> dict:
+        parser_repeats: int = 1, latency_requests: int = 100,
+        with_tailoring: bool = False,
+        tailoring_buckets: tuple[str, ...] = ("strong",)) -> dict:
     skip_set = set(skip)
     phases_run: list[str] = []
     phase_info: dict[str, dict] = {}
@@ -295,6 +329,8 @@ def run(skip: Iterable[str] = (), *, gap_repeats: int = 1, sx_repeats: int = 1,
         ("skill_extractor_eval", {"repeats": sx_repeats}),
         ("gap_eval", {"repeats": gap_repeats}),
     ]
+    if with_tailoring:
+        plan.append(("tailoring_eval", {"buckets": tailoring_buckets}))
 
     for phase, kwargs in plan:
         if phase in skip_set:
@@ -351,6 +387,11 @@ def _parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     p.add_argument("--parser-repeats", type=int, default=1)
     p.add_argument("--latency-requests", type=int, default=100,
                    help="requests per route for latency_runner")
+    p.add_argument("--with-tailoring", action="store_true",
+                   help="include the LLM-judged tailoring eval (Phase D5; ~3 min, more LLM calls)")
+    p.add_argument("--tailoring-buckets", nargs="+", default=["strong"],
+                   choices=["strong", "partial", "weak"],
+                   help="manifest buckets to evaluate for tailoring (default: strong only)")
     return p.parse_args(list(argv) if argv is not None else None)
 
 
@@ -362,6 +403,8 @@ if __name__ == "__main__":
         sx_repeats=args.sx_repeats,
         parser_repeats=args.parser_repeats,
         latency_requests=args.latency_requests,
+        with_tailoring=args.with_tailoring,
+        tailoring_buckets=tuple(args.tailoring_buckets),
     )
     print(f"-- run_all complete in {out['wall_seconds']}s --")
     print(f"  JSON     : {out['written_to']['json']}")

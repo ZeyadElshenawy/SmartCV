@@ -1,8 +1,8 @@
 {
   "benchmark": "run_all",
   "version": 1,
-  "run_at_utc": "2026-04-25T10:44:11Z",
-  "wall_seconds": 157.0,
+  "run_at_utc": "2026-04-25T11:02:31Z",
+  "wall_seconds": 272.36,
   "platform": {
     "python": "3.13.9",
     "system": "Windows",
@@ -14,7 +14,8 @@
     "latency_runner",
     "parser_eval",
     "skill_extractor_eval",
-    "gap_eval"
+    "gap_eval",
+    "tailoring_eval"
   ],
   "phase_info": {
     "ats_eval": {
@@ -25,22 +26,27 @@
     "latency_runner": {
       "phase": "latency_runner",
       "ok": true,
-      "wall_seconds": 6.53
+      "wall_seconds": 6.58
     },
     "parser_eval": {
       "phase": "parser_eval",
       "ok": true,
-      "wall_seconds": 1.3
+      "wall_seconds": 1.29
     },
     "skill_extractor_eval": {
       "phase": "skill_extractor_eval",
       "ok": true,
-      "wall_seconds": 5.19
+      "wall_seconds": 7.27
     },
     "gap_eval": {
       "phase": "gap_eval",
       "ok": true,
-      "wall_seconds": 143.98
+      "wall_seconds": 123.11
+    },
+    "tailoring_eval": {
+      "phase": "tailoring_eval",
+      "ok": true,
+      "wall_seconds": 134.11
     }
   },
   "headlines": {
@@ -54,8 +60,8 @@
     "latency": {
       "n_routes": 5,
       "requests_per_route": 60,
-      "warm_p95_max_ms": 12.36,
-      "warm_p95_median_ms": 10.28
+      "warm_p95_max_ms": 12.58,
+      "warm_p95_median_ms": 10.08
     },
     "parser": {
       "n_cvs": 10,
@@ -67,20 +73,32 @@
     "skill_extractor": {
       "n_jds": 5,
       "repeats_per_jd": 1,
-      "f1": 0.7807,
-      "precision": 0.7116,
-      "recall": 0.8822,
-      "hallucination_rate": 0.2884
+      "f1": 0.7718,
+      "precision": 0.6926,
+      "recall": 0.8933,
+      "hallucination_rate": 0.3074
+    },
+    "tailoring": {
+      "n_pairs": 10,
+      "buckets": [
+        "strong"
+      ],
+      "factuality_mean": 8.0,
+      "relevance_mean": 6.8,
+      "ats_fit_mean": 5.6,
+      "human_voice_mean": 5.6,
+      "entity_grounding_mean": 0.875,
+      "banned_voice_hits_mean": 0.2
     },
     "gap": {
       "n_pairs": 50,
       "repeats_per_pair": 1,
-      "coverage_mean": 0.9971,
-      "perfect_coverage_pairs": 48,
-      "strong_mean": 0.582,
-      "partial_mean": 0.4517,
-      "weak_mean": 0.2147,
-      "cohens_d_strong_vs_weak": 1.635
+      "coverage_mean": 0.999,
+      "perfect_coverage_pairs": 49,
+      "strong_mean": 0.55,
+      "partial_mean": 0.4933,
+      "weak_mean": 0.1882,
+      "cohens_d_strong_vs_weak": 1.594
     }
   },
   "phase_payloads": {
@@ -182,7 +200,7 @@
       "requests_per_route": 60,
       "n_routes": 5,
       "total_requests_issued": 300,
-      "wall_seconds": 6.53,
+      "wall_seconds": 6.57,
       "platform": {
         "python": "3.13.9",
         "system": "Windows",
@@ -202,22 +220,22 @@
           "error_count": 0,
           "latency_ms": {
             "n": 60,
-            "min": 9.832,
-            "mean": 62.3957,
-            "median": 10.8635,
-            "p95": 12.63,
-            "max": 3091.901,
-            "std": 394.4088,
-            "p50": 10.86,
-            "p99": 1276.16
+            "min": 9.409,
+            "mean": 62.345,
+            "median": 10.6465,
+            "p95": 13.15,
+            "max": 3100.608,
+            "std": 395.5495,
+            "p50": 10.65,
+            "p99": 1279.18
           },
           "cold_warm": {
             "cold_n": 5,
-            "cold_mean": 627.533,
-            "cold_max": 3091.901,
+            "cold_mean": 629.038,
+            "cold_max": 3100.608,
             "warm_n": 55,
-            "warm_mean": 11.02,
-            "warm_p95": 12.36
+            "warm_mean": 10.827,
+            "warm_p95": 12.58
           },
           "label": "home"
         },
@@ -231,22 +249,22 @@
           "error_count": 0,
           "latency_ms": {
             "n": 60,
-            "min": 5.717,
-            "mean": 6.5879,
-            "median": 6.4435,
-            "p95": 7.71,
-            "max": 9.025,
-            "std": 0.647,
-            "p50": 6.44,
-            "p99": 8.51
+            "min": 5.701,
+            "mean": 6.5316,
+            "median": 6.2055,
+            "p95": 7.91,
+            "max": 8.386,
+            "std": 0.6621,
+            "p50": 6.21,
+            "p99": 8.26
           },
           "cold_warm": {
             "cold_n": 5,
-            "cold_mean": 6.269,
-            "cold_max": 6.589,
+            "cold_mean": 6.223,
+            "cold_max": 6.712,
             "warm_n": 55,
-            "warm_mean": 6.617,
-            "warm_p95": 7.76
+            "warm_mean": 6.56,
+            "warm_p95": 7.93
           },
           "label": "healthz"
         },
@@ -260,22 +278,22 @@
           "error_count": 0,
           "latency_ms": {
             "n": 60,
-            "min": 7.611,
-            "mean": 19.9835,
-            "median": 8.724,
-            "p95": 10.37,
-            "max": 676.239,
-            "std": 85.4403,
-            "p50": 8.72,
-            "p99": 283.7
+            "min": 7.562,
+            "mean": 21.0393,
+            "median": 8.6825,
+            "p95": 10.18,
+            "max": 738.74,
+            "std": 93.4402,
+            "p50": 8.68,
+            "p99": 309.34
           },
           "cold_warm": {
             "cold_n": 5,
-            "cold_mean": 142.698,
-            "cold_max": 676.239,
+            "cold_mean": 155.089,
+            "cold_max": 738.74,
             "warm_n": 55,
-            "warm_mean": 8.828,
-            "warm_p95": 10.28
+            "warm_mean": 8.853,
+            "warm_p95": 10.08
           },
           "label": "healthz_deep"
         },
@@ -289,22 +307,22 @@
           "error_count": 0,
           "latency_ms": {
             "n": 60,
-            "min": 7.815,
-            "mean": 9.1677,
-            "median": 8.758,
-            "p95": 12.0,
-            "max": 15.609,
-            "std": 1.2785,
-            "p50": 8.76,
-            "p99": 13.55
+            "min": 7.825,
+            "mean": 8.8568,
+            "median": 8.7175,
+            "p95": 10.05,
+            "max": 11.253,
+            "std": 0.6588,
+            "p50": 8.72,
+            "p99": 10.66
           },
           "cold_warm": {
             "cold_n": 5,
-            "cold_mean": 9.225,
-            "cold_max": 11.204,
+            "cold_mean": 8.983,
+            "cold_max": 11.253,
             "warm_n": 55,
-            "warm_mean": 9.163,
-            "warm_p95": 12.02
+            "warm_mean": 8.845,
+            "warm_p95": 10.02
           },
           "label": "login_form"
         },
@@ -318,21 +336,21 @@
           "error_count": 0,
           "latency_ms": {
             "n": 60,
-            "min": 7.442,
-            "mean": 10.7017,
-            "median": 8.5855,
-            "p95": 10.04,
-            "max": 127.34,
-            "std": 15.2006,
-            "p50": 8.59,
-            "p99": 58.49
+            "min": 7.574,
+            "mean": 10.7776,
+            "median": 8.771,
+            "p95": 10.15,
+            "max": 121.297,
+            "std": 14.4052,
+            "p50": 8.77,
+            "p99": 55.98
           },
           "cold_warm": {
             "cold_n": 5,
-            "cold_mean": 9.079,
-            "cold_max": 9.402,
+            "cold_mean": 9.294,
+            "cold_max": 9.685,
             "warm_n": 55,
-            "warm_mean": 10.849,
+            "warm_mean": 10.913,
             "warm_p95": 10.15
           },
           "label": "register_form"
@@ -357,9 +375,9 @@
               "errors_5xx": 0,
               "error_rate": 0.0,
               "latency_ms": {
-                "p50": 1.48,
-                "p95": 1.92,
-                "p99": 11.67,
+                "p50": 1.4,
+                "p95": 1.96,
+                "p99": 11.25,
                 "samples": 60
               }
             },
@@ -373,8 +391,8 @@
               "error_rate": 0.0,
               "latency_ms": {
                 "p50": 0.71,
-                "p95": 1.23,
-                "p99": 1.73,
+                "p95": 0.97,
+                "p99": 1.32,
                 "samples": 60
               }
             },
@@ -388,8 +406,8 @@
               "error_rate": 0.0,
               "latency_ms": {
                 "p50": 0.74,
-                "p95": 1.15,
-                "p99": 1.66,
+                "p95": 1.36,
+                "p99": 1.98,
                 "samples": 60
               }
             }
@@ -445,12 +463,12 @@
         },
         "latency_ms": {
           "n": 10,
-          "min": 14.86,
-          "mean": 120.776,
-          "median": 83.04,
-          "p95": 353.95,
-          "max": 469.65,
-          "std": 129.4118
+          "min": 13.75,
+          "mean": 119.654,
+          "median": 82.195,
+          "p95": 356.44,
+          "max": 480.08,
+          "std": 132.4712
         }
       },
       "rows": [
@@ -537,30 +555,30 @@
                   "FortiGate"
                 ],
                 "extra": [
-                  "Jenkins",
-                  "basic",
-                  "Design Thinking",
-                  "Self",
-                  "NAT",
-                  "Learner",
-                  "Bash",
-                  "Wireshark",
-                  "Clean Code",
-                  "Python",
-                  "CLI Tools",
-                  "Fedora)",
-                  "Ansible",
-                  "upcoming",
-                  "System",
-                  "REST",
-                  "Packet Tracer",
-                  "DNS",
                   "Kubernetes",
-                  "DevOps & Deployment: CI/CD",
-                  "Firewalls",
-                  "JavaScript",
+                  "Jenkins",
+                  "DNS",
+                  "System",
                   "VirtualBox",
+                  "Bash",
+                  "Design Thinking",
+                  "basic",
                   "APIs",
+                  "Ansible",
+                  "Wireshark",
+                  "CLI Tools",
+                  "Python",
+                  "DevOps & Deployment: CI/CD",
+                  "Clean Code",
+                  "Fedora)",
+                  "NAT",
+                  "Self",
+                  "JavaScript",
+                  "upcoming",
+                  "Packet Tracer",
+                  "Learner",
+                  "Firewalls",
+                  "REST",
                   "Git",
                   "Systems & Infrastructure: Linux (Ubuntu",
                   "Docker"
@@ -576,7 +594,7 @@
                   "parsed": 1
                 }
               },
-              "latency_ms": 114.9,
+              "latency_ms": 112.6,
               "error": null
             }
           ]
@@ -656,44 +674,44 @@
                 "jaccard": 0.1702,
                 "missed": [],
                 "extra": [
-                  "basic",
-                  "Self",
-                  "Learner",
-                  "NAT",
-                  "starting soon",
-                  "(Ubuntu",
-                  "Wireshark",
-                  "Adaptability",
-                  "Cisco",
-                  "Node.js",
-                  "DHCP",
-                  "Python",
-                  "Fedora)",
-                  "Backend & DevOps",
-                  "Ansible",
-                  "VLANs",
-                  "MySQL",
-                  "Administration:",
-                  "System",
-                  "Flexbox/Grid",
-                  "Packet Tracer",
-                  "Learning",
-                  "Bash scripting",
-                  "Networking & Security: TCP/IP",
-                  "DNS",
                   "Kubernetes",
-                  "Firewalls",
-                  "Rust",
+                  "VLANs",
+                  "DNS",
+                  "System",
+                  "starting soon",
                   "VirtualBox",
+                  "Cisco",
+                  "(Ubuntu",
+                  "basic",
+                  "Ansible",
+                  "Wireshark",
+                  "Flexbox/Grid",
+                  "Backend & DevOps",
+                  "Python",
                   "Terraform",
-                  "Frontend: DOM manipulation",
+                  "DHCP",
+                  "Fedora)",
+                  "NAT",
+                  "MySQL",
+                  "Self",
+                  "Rust",
+                  "Learning",
+                  "Administration:",
+                  "Node.js",
+                  "Packet Tracer",
                   "Accessibility",
+                  "Learner",
+                  "Firewalls",
+                  "Frontend: DOM manipulation",
+                  "Bash scripting",
+                  "Adaptability",
+                  "Networking & Security: TCP/IP",
                   "Teamwork",
-                  "Docker",
-                  "GitHub",
                   "GitHub Pages",
+                  "Docker",
                   "Linux",
-                  "Tools & Platforms: Git"
+                  "Tools & Platforms: Git",
+                  "GitHub"
                 ]
               },
               "counts": {
@@ -706,7 +724,7 @@
                   "parsed": 1
                 }
               },
-              "latency_ms": 122.17,
+              "latency_ms": 121.04,
               "error": null
             }
           ]
@@ -790,38 +808,38 @@
                   "Active Directory"
                 ],
                 "extra": [
+                  "Kubernetes",
+                  "Burp Suite",
                   "Jenkins",
-                  "basic",
-                  "Self",
-                  "Learner",
-                  "NAT",
+                  "DNS",
+                  "VirtualBox",
                   "C++",
                   "Bash",
-                  "Wireshark",
-                  "Adaptability",
+                  "Cisco Packet Tracer",
+                  "basic",
                   "Subnetting",
                   "Sophos",
-                  "fundamentals",
-                  "Cisco Packet Tracer",
-                  "Python",
-                  "Fedora)",
-                  "Problem Solving",
-                  "Ansible",
-                  "FortiGate",
-                  "Networking: TCP/IP",
-                  "Burp Suite",
-                  "DNS",
-                  "Kubernetes",
-                  "pfSense",
                   "Nmap",
-                  "JavaScript",
-                  "VirtualBox",
+                  "Ansible",
+                  "Wireshark",
+                  "Networking: TCP/IP",
+                  "Python",
                   "Terraform",
+                  "Fedora)",
+                  "NAT",
+                  "Self",
+                  "JavaScript",
+                  "Problem Solving",
+                  "Learner",
+                  "pfSense",
+                  "FortiGate",
+                  "Adaptability",
+                  "fundamentals",
+                  "Infrastructure & Security: Linux (Ubuntu",
                   "Tools: Git",
                   "Docker",
                   "AWS",
-                  "GitHub",
-                  "Infrastructure & Security: Linux (Ubuntu"
+                  "GitHub"
                 ]
               },
               "counts": {
@@ -834,7 +852,7 @@
                   "parsed": 1
                 }
               },
-              "latency_ms": 108.4,
+              "latency_ms": 108.78,
               "error": null
             }
           ]
@@ -916,50 +934,50 @@
                   "Agile"
                 ],
                 "extra": [
-                  "VS Code",
-                  "Data & Storage: Firebase",
+                  "SQLite",
+                  "abd",
                   "Abd",
-                  "Hive",
-                  "[Embedded Link: 'Mohamed",
-                  "Payment Gateway Integration",
-                  "[Embedded Link: '01287002189'",
-                  "Ghany]",
-                  "> https://www.facebook.com/fcismans]",
-                  "Localization",
-                  "49upJFtv9U_SWc5Crxd7",
-                  "Adaptability",
-                  "elghany7/]",
-                  "Problem Solving",
-                  "SOLID Principles",
-                  "Elghany'",
-                  "MVVM",
+                  "Dependency Injection",
                   "> https://www.linkedin.com/in/mohamed",
+                  "Others: Google Maps",
+                  "Elghany'",
+                  "> https://www.facebook.com/fcismans]",
+                  "[Embedded Link: '01287002189'",
+                  "VS Code",
+                  "elghany7/]",
+                  "MVVM",
+                  "Data & Storage: Firebase",
+                  "Local Notifications",
+                  "elghany",
+                  "SOLID Principles",
+                  "Localization",
+                  "aLrjlug92F/view?usp=sharing]",
                   "[Embedded Link: https://drive.google.com/file/d/1",
-                  "Shared Preferences",
+                  "HTTP",
+                  "Ghany]",
+                  "[Embedded Link: 'My Portfolio'",
+                  "[Embedded Link: https://drive.google.com/file/d/1hSeMAabfPdRNMTIx8PuXFgJqUbwMHADx/view?usp=drivesdk]",
+                  "49upJFtv9U_SWc5Crxd7",
+                  "Problem Solving",
                   "Android Studio",
+                  "Hive",
+                  "> https://mohamed",
+                  "[Embedded Link: 'Faculty of Computer & Information Sciences",
+                  "[Embedded Link: 'Mohamed",
+                  "Shared Preferences",
+                  "portfolio.netlify.app/]",
+                  "[Embedded Link: 'Mohamed Abd Elghany'",
+                  "El",
                   "Postman",
                   "> https://api.whatsapp.com/send?phone=201287002189]",
+                  "Adaptability",
                   "[Embedded Link: 'Bachelor of Computer Science'",
-                  "portfolio.netlify.app/]",
                   "Dio",
-                  "elghany",
-                  "[Embedded Link: https://drive.google.com/file/d/1hSeMAabfPdRNMTIx8PuXFgJqUbwMHADx/view?usp=drivesdk]",
-                  "SQLite",
-                  "Local Notifications",
-                  "> https://mohamed",
-                  "aLrjlug92F/view?usp=sharing]",
-                  "abd",
-                  "El",
-                  "Dependency Injection",
-                  "[Embedded Link: 'My Portfolio'",
-                  "HTTP",
-                  "Others: Google Maps",
-                  "[Embedded Link: 'Mohamed Abd Elghany'",
-                  "[Embedded Link: 'Faculty of Computer & Information Sciences",
+                  "Payment Gateway Integration",
                   "Communication",
+                  "> https://github.com/Mohamed",
                   "Tools & DevOps: Git",
-                  "GitHub",
-                  "> https://github.com/Mohamed"
+                  "GitHub"
                 ]
               },
               "counts": {
@@ -972,7 +990,7 @@
                   "parsed": 2
                 }
               },
-              "latency_ms": 469.65,
+              "latency_ms": 480.08,
               "error": null
             }
           ]
@@ -1054,21 +1072,21 @@
                   "Local Storage"
                 ],
                 "extra": [
+                  "Tech and Edraak.",
                   "UX Design Fundamental in Mahara",
                   "C#",
                   "C++",
-                  "Completed",
-                  "Courses & Diplomas",
-                  "Routing)",
                   "end Development Diploma \u2013 Mentality Academy",
-                  "Tech and Edraak.",
+                  "Courses & Diplomas",
+                  "> https://miro.com/welcomeonboard/bm42cDY2eE1XYnA4Y2xTUnZoaGRGcWpPMGE5RlZLRlZHMXZlbjZONEMzNnJ1QThKV0lVWVZIVklncUhxckMwVHwzNDU4NzY0NTQ0OTgzODQwNzI0fDI=?share_link_id=580285487695]",
+                  "Responsive designs",
                   "Python",
                   "[Embedded Link: '",
-                  "> https://miro.com/welcomeonboard/bm42cDY2eE1XYnA4Y2xTUnZoaGRGcWpPMGE5RlZLRlZHMXZlbjZONEMzNnJ1QThKV0lVWVZIVklncUhxckMwVHwzNDU4NzY0NTQ0OTgzODQwNzI0fDI=?share_link_id=580285487695]",
                   "UI/ UX principles",
+                  "Completed",
                   "Project Link",
                   "Front",
-                  "Responsive designs",
+                  "Routing)",
                   "GitHub"
                 ]
               },
@@ -1082,7 +1100,7 @@
                   "parsed": 0
                 }
               },
-              "latency_ms": 212.55,
+              "latency_ms": 205.33,
               "error": null
             }
           ]
@@ -1169,28 +1187,28 @@
                   "User Testing"
                 ],
                 "extra": [
-                  "commerce Website",
+                  "Cross",
+                  "Developing a High",
+                  "Powered by'",
+                  "Traffic E",
+                  "completion of several high",
+                  "Provided guidance and",
+                  "increased sales by 40%.",
+                  "mentorship to junior developers",
+                  "browser compatibility Version control systems",
+                  "[Embedded Link: '\ue06d",
+                  "Achievements",
+                  "Led the frontend development",
+                  "profile projects and increased",
+                  "www.enhancv.com",
                   "Mentoring Junior Developers",
                   "over 100",
-                  "profile projects and increased",
-                  "Traffic E",
-                  "www.enhancv.com",
-                  "Achievements",
-                  "Provided guidance and",
-                  "Powered by'",
-                  "completion of several high",
-                  "Led the frontend development",
-                  "Powered by",
-                  "commerce website that handled",
-                  "increased sales by 40%.",
-                  "[Embedded Link: '\ue06d",
-                  "Developing a High",
-                  "> https://enhancv.com/resume]",
-                  "browser compatibility Version control systems",
-                  "000 daily users and",
-                  "Cross",
-                  "mentorship to junior developers",
                   "resulting in their successful",
+                  "> https://enhancv.com/resume]",
+                  "000 daily users and",
+                  "Powered by",
+                  "commerce Website",
+                  "commerce website that handled",
                   "team in building a robust e",
                   "team productivity."
                 ]
@@ -1205,7 +1223,7 @@
                   "parsed": 2
                 }
               },
-              "latency_ms": 57.68,
+              "latency_ms": 55.61,
               "error": null
             }
           ]
@@ -1293,9 +1311,9 @@
                   "Performance Optimization"
                 ],
                 "extra": [
+                  "HTML",
                   "CSS",
                   "JavaScript",
-                  "HTML",
                   "React.js"
                 ]
               },
@@ -1309,7 +1327,7 @@
                   "parsed": 1
                 }
               },
-              "latency_ms": 25.56,
+              "latency_ms": 23.29,
               "error": null
             }
           ]
@@ -1409,7 +1427,7 @@
                   "parsed": 2
                 }
               },
-              "latency_ms": 49.76,
+              "latency_ms": 46.42,
               "error": null
             }
           ]
@@ -1492,26 +1510,26 @@
                   "Web Maintenance"
                 ],
                 "extra": [
-                  "AJAX",
-                  "Agile Methodologies",
-                  "Romanian",
                   "Browser Development",
-                  "__________________________",
+                  "Web Development",
+                  "Cross",
+                  "Debugging",
                   "Spanish",
-                  "Vue.js",
+                  "Agile Methodologies",
+                  "__________________________",
+                  "Conversational",
+                  "Romanian",
+                  "TypeScript",
                   "Native",
                   "Techniques:",
-                  "English",
-                  "Debugging",
-                  "Languages:",
                   "Command Line",
-                  "Tools and Software:",
+                  "Vue.js",
                   "Testing",
+                  "AJAX",
+                  "English",
                   "Troubleshooting",
-                  "Cross",
-                  "Web Development",
-                  "TypeScript",
-                  "Conversational"
+                  "Languages:",
+                  "Tools and Software:"
                 ]
               },
               "counts": {
@@ -1524,7 +1542,7 @@
                   "parsed": 0
                 }
               },
-              "latency_ms": 14.86,
+              "latency_ms": 13.75,
               "error": null
             }
           ]
@@ -1603,10 +1621,10 @@
                 "jaccard": 0.6667,
                 "missed": [],
                 "extra": [
-                  "engaging web solutions for the company's diverse clientele.",
-                  "Aspiring junior front",
-                  "with the latest web development practices and offering responsive and",
                   "CAREER OBJECTIVE",
+                  "Aspiring junior front",
+                  "engaging web solutions for the company's diverse clientele.",
+                  "with the latest web development practices and offering responsive and",
                   "enthusiasm to the dynamic team at WEBii. Committed to staying current"
                 ]
               },
@@ -1620,7 +1638,7 @@
                   "parsed": 2
                 }
               },
-              "latency_ms": 32.23,
+              "latency_ms": 29.64,
               "error": null
             }
           ]
@@ -1644,52 +1662,52 @@
       "fixture_kind": "real_anonymized_jd",
       "n_jds": 5,
       "repeats_per_jd": 1,
-      "wall_seconds": 5.19,
+      "wall_seconds": 7.27,
       "aggregate": {
         "f1": {
           "n": 5,
-          "min": 0.6531,
-          "mean": 0.7807,
-          "median": 0.8,
-          "p95": 0.89,
-          "max": 0.8947,
-          "std": 0.1043
+          "min": 0.5862,
+          "mean": 0.7718,
+          "median": 0.7755,
+          "p95": 0.9,
+          "max": 0.9,
+          "std": 0.1172
         },
         "precision": {
           "n": 5,
-          "min": 0.5517,
-          "mean": 0.7116,
-          "median": 0.6667,
-          "p95": 0.91,
+          "min": 0.4595,
+          "mean": 0.6926,
+          "median": 0.6552,
+          "p95": 0.9,
           "max": 0.9231,
-          "std": 0.15
+          "std": 0.1625
         },
         "recall": {
           "n": 5,
-          "min": 0.8,
-          "mean": 0.8822,
+          "min": 0.8095,
+          "mean": 0.8933,
           "median": 0.8571,
           "p95": 0.99,
           "max": 1.0,
-          "std": 0.078
+          "std": 0.0704
         },
         "hallucination_rate": {
           "n": 5,
           "min": 0.0769,
-          "mean": 0.2884,
-          "median": 0.3333,
-          "p95": 0.45,
-          "max": 0.4483,
-          "std": 0.15
+          "mean": 0.3074,
+          "median": 0.3448,
+          "p95": 0.51,
+          "max": 0.5405,
+          "std": 0.1625
         },
         "latency_ms": {
           "n": 5,
-          "min": 842.09,
-          "mean": 1030.254,
-          "median": 1002.25,
-          "p95": 1269.37,
-          "max": 1329.08,
-          "std": 162.7073
+          "min": 1051.51,
+          "mean": 1447.038,
+          "median": 1151.38,
+          "p95": 2227.02,
+          "max": 2402.91,
+          "std": 505.9135
         }
       },
       "per_job": [
@@ -1698,19 +1716,19 @@
           "title": "Senior Frontend Engineer (React)",
           "expected_skills_count": 21,
           "repeats": 1,
-          "f1_mean": 0.6667,
+          "f1_mean": 0.5862,
           "f1_std": 0.0,
-          "precision_mean": 0.5667,
+          "precision_mean": 0.4595,
           "recall_mean": 0.8095,
-          "hallucination_mean": 0.4333,
+          "hallucination_mean": 0.5405,
           "runs": [
             {
-              "n_extracted": 30,
+              "n_extracted": 37,
               "n_labeled": 21,
-              "precision": 0.5667,
+              "precision": 0.4595,
               "recall": 0.8095,
-              "f1": 0.6667,
-              "hallucination_rate": 0.4333,
+              "f1": 0.5862,
+              "hallucination_rate": 0.5405,
               "missed": [
                 "REST API",
                 "Accessibility",
@@ -1730,7 +1748,14 @@
                 "Playwright",
                 "CI/CD pipelines",
                 "Technical Leadership",
-                "Problem Solving"
+                "Problem Solving",
+                "Code Review",
+                "Pairing Sessions",
+                "Accessibility (WCAG 2.1)",
+                "Core Web Vitals",
+                "Bundle Analysis",
+                "Code-Splitting",
+                "Lazy Loading"
               ],
               "extracted_raw": [
                 "React",
@@ -1762,9 +1787,16 @@
                 "GitHub Actions",
                 "Figma",
                 "Technical Leadership",
-                "Problem Solving"
+                "Problem Solving",
+                "Code Review",
+                "Pairing Sessions",
+                "Accessibility (WCAG 2.1)",
+                "Core Web Vitals",
+                "Bundle Analysis",
+                "Code-Splitting",
+                "Lazy Loading"
               ],
-              "latency_ms": 1329.08,
+              "latency_ms": 1523.46,
               "error": null
             }
           ]
@@ -1774,26 +1806,25 @@
           "title": "Backend Engineer (Python / Node.js)",
           "expected_skills_count": 18,
           "repeats": 1,
-          "f1_mean": 0.8947,
+          "f1_mean": 0.9,
           "f1_std": 0.0,
-          "precision_mean": 0.85,
-          "recall_mean": 0.9444,
-          "hallucination_mean": 0.15,
+          "precision_mean": 0.8182,
+          "recall_mean": 1.0,
+          "hallucination_mean": 0.1818,
           "runs": [
             {
-              "n_extracted": 20,
+              "n_extracted": 22,
               "n_labeled": 18,
-              "precision": 0.85,
-              "recall": 0.9444,
-              "f1": 0.8947,
-              "hallucination_rate": 0.15,
-              "missed": [
-                "REST API"
-              ],
+              "precision": 0.8182,
+              "recall": 1.0,
+              "f1": 0.9,
+              "hallucination_rate": 0.1818,
+              "missed": [],
               "extra": [
-                "REST API design",
+                "GCP",
                 "GitHub",
-                "GCP"
+                "Technical Leadership",
+                "Problem Solving"
               ],
               "extracted_raw": [
                 "Python",
@@ -1802,22 +1833,24 @@
                 "PostgreSQL",
                 "SQL",
                 "Redis",
-                "REST API design",
                 "Docker",
+                "Kubernetes",
+                "REST API",
+                "gRPC",
+                "OAuth2",
+                "JWT",
+                "pytest",
+                "Node.js",
+                "AWS",
+                "GCP",
+                "Kafka",
                 "Linux",
                 "Git",
                 "GitHub",
-                "pytest",
-                "Node.js",
-                "Kubernetes",
-                "OAuth2",
-                "JWT",
-                "gRPC",
-                "AWS",
-                "GCP",
-                "Kafka"
+                "Technical Leadership",
+                "Problem Solving"
               ],
-              "latency_ms": 947.3,
+              "latency_ms": 1105.93,
               "error": null
             }
           ]
@@ -1827,20 +1860,22 @@
           "title": "DevOps Engineer (AWS / Kubernetes)",
           "expected_skills_count": 20,
           "repeats": 1,
-          "f1_mean": 0.8,
+          "f1_mean": 0.7755,
           "f1_std": 0.0,
-          "precision_mean": 0.6667,
-          "recall_mean": 1.0,
-          "hallucination_mean": 0.3333,
+          "precision_mean": 0.6552,
+          "recall_mean": 0.95,
+          "hallucination_mean": 0.3448,
           "runs": [
             {
-              "n_extracted": 30,
+              "n_extracted": 29,
               "n_labeled": 20,
-              "precision": 0.6667,
-              "recall": 1.0,
-              "f1": 0.8,
-              "hallucination_rate": 0.3333,
-              "missed": [],
+              "precision": 0.6552,
+              "recall": 0.95,
+              "f1": 0.7755,
+              "hallucination_rate": 0.3448,
+              "missed": [
+                "CI/CD"
+              ],
               "extra": [
                 "CloudWatch",
                 "Loki",
@@ -1855,16 +1890,16 @@
               ],
               "extracted_raw": [
                 "AWS",
-                "Kubernetes",
                 "EKS",
                 "EC2",
                 "RDS",
                 "S3",
                 "IAM",
                 "CloudWatch",
-                "Terraform",
+                "Kubernetes",
                 "Helm",
                 "Argo CD",
+                "Terraform",
                 "GitHub Actions",
                 "Jenkins",
                 "Docker",
@@ -1875,7 +1910,6 @@
                 "Python",
                 "Go",
                 "Linux",
-                "CI/CD",
                 "GitLab CI",
                 "Flux",
                 "Istio",
@@ -1885,7 +1919,7 @@
                 "Technical Leadership",
                 "Problem Solving"
               ],
-              "latency_ms": 1030.55,
+              "latency_ms": 2402.91,
               "error": null
             }
           ]
@@ -1895,23 +1929,22 @@
           "title": "Flutter Mobile Engineer",
           "expected_skills_count": 20,
           "repeats": 1,
-          "f1_mean": 0.6531,
+          "f1_mean": 0.7083,
           "f1_std": 0.0,
-          "precision_mean": 0.5517,
-          "recall_mean": 0.8,
-          "hallucination_mean": 0.4483,
+          "precision_mean": 0.6071,
+          "recall_mean": 0.85,
+          "hallucination_mean": 0.3929,
           "runs": [
             {
-              "n_extracted": 29,
+              "n_extracted": 28,
               "n_labeled": 20,
-              "precision": 0.5517,
-              "recall": 0.8,
-              "f1": 0.6531,
-              "hallucination_rate": 0.4483,
+              "precision": 0.6071,
+              "recall": 0.85,
+              "f1": 0.7083,
+              "hallucination_rate": 0.3929,
               "missed": [
                 "Git",
                 "Responsive UI",
-                "OOP",
                 "Animations"
               ],
               "extra": [
@@ -1920,11 +1953,9 @@
                 "http",
                 "Git workflows",
                 "Code review",
-                "OOP fundamentals",
                 "Shared preferences",
                 "Kotlin",
                 "Swift",
-                "Auth",
                 "Firestore",
                 "Cloud Messaging",
                 "Unit testing"
@@ -1944,7 +1975,7 @@
                 "http",
                 "Git workflows",
                 "Code review",
-                "OOP fundamentals",
+                "OOP",
                 "Figma",
                 "Hive",
                 "SQLite",
@@ -1954,13 +1985,12 @@
                 "Kotlin",
                 "Swift",
                 "Firebase",
-                "Auth",
                 "Firestore",
                 "Cloud Messaging",
                 "Unit testing",
                 "Widget testing"
               ],
-              "latency_ms": 1002.25,
+              "latency_ms": 1051.51,
               "error": null
             }
           ]
@@ -2005,7 +2035,7 @@
                 "React Router",
                 "Axios"
               ],
-              "latency_ms": 842.09,
+              "latency_ms": 1151.38,
               "error": null
             }
           ]
@@ -2027,77 +2057,77 @@
       "n_jds": 5,
       "n_pairs_evaluated": 50,
       "repeats_per_pair": 1,
-      "parse_wall_seconds": 1.19,
-      "wall_seconds": 142.79,
+      "parse_wall_seconds": 1.18,
+      "wall_seconds": 121.93,
       "parse_errors": [],
       "buckets": {
         "strong": {
           "n": 10,
-          "min": 0.2,
-          "mean": 0.582,
+          "min": 0.14,
+          "mean": 0.55,
           "median": 0.6,
           "p95": 0.9,
           "max": 0.9,
-          "std": 0.224,
+          "std": 0.2577,
           "scores": [
             0.6,
             0.9,
             0.8,
             0.6,
-            0.6,
+            0.4,
             0.2,
             0.36,
             0.9,
-            0.5,
-            0.36
+            0.6,
+            0.14
           ]
         },
         "partial": {
           "n": 6,
-          "min": 0.1,
-          "mean": 0.4517,
-          "median": 0.48,
-          "p95": 0.67,
+          "min": 0.2,
+          "mean": 0.4933,
+          "median": 0.5,
+          "p95": 0.7,
           "max": 0.7,
-          "std": 0.2033,
+          "std": 0.1776,
           "scores": [
-            0.6,
-            0.35,
             0.7,
-            0.6,
-            0.1,
+            0.5,
+            0.7,
+            0.5,
+            0.2,
             0.36
           ]
         },
         "weak": {
           "n": 34,
           "min": 0.0,
-          "mean": 0.2147,
-          "median": 0.15,
+          "mean": 0.1882,
+          "median": 0.1,
           "p95": 0.63,
           "max": 0.7,
-          "std": 0.2248,
+          "std": 0.2178,
           "scores": [
             0.2,
+            0.35,
+            0.05,
+            0.2,
             0.6,
-            0.1,
-            0.3,
             0.6,
-            0.5,
-            0.1,
+            0.05,
             0.1,
             0.6,
             0.05,
-            0.3,
+            0.2,
             0.2,
             0.1,
+            0.05,
+            0.14,
+            0.06,
+            0.1,
+            0.05,
+            0.2,
             0.0,
-            0.45,
-            0.2,
-            0.1,
-            0.2,
-            0.2,
-            0.1,
             0.2,
             0.0,
             0.0,
@@ -2105,7 +2135,7 @@
             0.7,
             0.7,
             0.5,
-            0.0,
+            0.2,
             0.0,
             0.0,
             0.2,
@@ -2116,27 +2146,27 @@
         }
       },
       "separation": {
-        "strong_vs_weak_cohens_d": 1.635,
+        "strong_vs_weak_cohens_d": 1.594,
         "strong_mean_gt_weak_mean": true
       },
       "coverage": {
         "n": 50,
-        "min": 0.9286,
-        "mean": 0.9971,
+        "min": 0.9524,
+        "mean": 0.999,
         "median": 1.0,
         "p95": 1.0,
         "max": 1.0,
-        "std": 0.014,
-        "perfect_coverage_pairs": 48
+        "std": 0.0067,
+        "perfect_coverage_pairs": 49
       },
       "latency_ms": {
         "n": 50,
-        "min": 950.53,
-        "mean": 2855.7424,
-        "median": 3171.94,
-        "p95": 4448.14,
-        "max": 5066.27,
-        "std": 1341.7289
+        "min": 976.96,
+        "mean": 2438.4804,
+        "median": 2553.285,
+        "p95": 4228.81,
+        "max": 4729.43,
+        "std": 1204.7392
       },
       "rows": [
         {
@@ -2148,8 +2178,8 @@
           "runs": [
             {
               "similarity_score": 0.2,
-              "n_matched": 3,
-              "n_missing": 18,
+              "n_matched": 5,
+              "n_missing": 16,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
@@ -2158,7 +2188,7 @@
                 "n_covered_of_job": 21,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 1106.51,
+              "latency_ms": 1699.29,
               "error": null
             }
           ]
@@ -2167,13 +2197,13 @@
           "cv_id": "cv_backend_jr_rust",
           "jd_id": "jd_backend_python_node",
           "expected": "partial",
-          "similarity_mean": 0.6,
+          "similarity_mean": 0.7,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.6,
-              "n_matched": 9,
-              "n_missing": 9,
+              "similarity_score": 0.7,
+              "n_matched": 10,
+              "n_missing": 8,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
@@ -2182,7 +2212,7 @@
                 "n_covered_of_job": 18,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 1082.66,
+              "latency_ms": 992.68,
               "error": null
             }
           ]
@@ -2191,78 +2221,6 @@
           "cv_id": "cv_backend_jr_rust",
           "jd_id": "jd_devops_aws_k8s",
           "expected": "weak",
-          "similarity_mean": 0.6,
-          "similarity_std": 0.0,
-          "runs": [
-            {
-              "similarity_score": 0.6,
-              "n_matched": 8,
-              "n_missing": 13,
-              "n_partial": 0,
-              "analysis_method": "llm",
-              "coverage": {
-                "n_job_skills": 20,
-                "n_accounted": 21,
-                "n_covered_of_job": 20,
-                "coverage_ratio": 1.0
-              },
-              "latency_ms": 1101.86,
-              "error": null
-            }
-          ]
-        },
-        {
-          "cv_id": "cv_backend_jr_rust",
-          "jd_id": "jd_flutter_mobile",
-          "expected": "weak",
-          "similarity_mean": 0.1,
-          "similarity_std": 0.0,
-          "runs": [
-            {
-              "similarity_score": 0.1,
-              "n_matched": 3,
-              "n_missing": 17,
-              "n_partial": 0,
-              "analysis_method": "llm",
-              "coverage": {
-                "n_job_skills": 20,
-                "n_accounted": 20,
-                "n_covered_of_job": 20,
-                "coverage_ratio": 1.0
-              },
-              "latency_ms": 1048.05,
-              "error": null
-            }
-          ]
-        },
-        {
-          "cv_id": "cv_backend_jr_rust",
-          "jd_id": "jd_junior_web_dev",
-          "expected": "weak",
-          "similarity_mean": 0.3,
-          "similarity_std": 0.0,
-          "runs": [
-            {
-              "similarity_score": 0.3,
-              "n_matched": 7,
-              "n_missing": 11,
-              "n_partial": 0,
-              "analysis_method": "llm",
-              "coverage": {
-                "n_job_skills": 14,
-                "n_accounted": 18,
-                "n_covered_of_job": 14,
-                "coverage_ratio": 1.0
-              },
-              "latency_ms": 1009.45,
-              "error": null
-            }
-          ]
-        },
-        {
-          "cv_id": "cv_frontend_jr_react",
-          "jd_id": "jd_senior_frontend_react",
-          "expected": "partial",
           "similarity_mean": 0.35,
           "similarity_std": 0.0,
           "runs": [
@@ -2273,12 +2231,84 @@
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
+                "n_job_skills": 20,
+                "n_accounted": 21,
+                "n_covered_of_job": 20,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 1050.19,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_backend_jr_rust",
+          "jd_id": "jd_flutter_mobile",
+          "expected": "weak",
+          "similarity_mean": 0.05,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.05,
+              "n_matched": 1,
+              "n_missing": 19,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 20,
+                "n_accounted": 20,
+                "n_covered_of_job": 20,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 1870.57,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_backend_jr_rust",
+          "jd_id": "jd_junior_web_dev",
+          "expected": "weak",
+          "similarity_mean": 0.2,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.2,
+              "n_matched": 4,
+              "n_missing": 11,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 14,
+                "n_accounted": 15,
+                "n_covered_of_job": 14,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 1263.92,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_jr_react",
+          "jd_id": "jd_senior_frontend_react",
+          "expected": "partial",
+          "similarity_mean": 0.5,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.5,
+              "n_matched": 8,
+              "n_missing": 13,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
                 "n_job_skills": 21,
                 "n_accounted": 21,
                 "n_covered_of_job": 21,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 1035.09,
+              "latency_ms": 1266.05,
               "error": null
             }
           ]
@@ -2302,7 +2332,7 @@
                 "n_covered_of_job": 18,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 991.9,
+              "latency_ms": 1118.81,
               "error": null
             }
           ]
@@ -2311,11 +2341,11 @@
           "cv_id": "cv_frontend_jr_react",
           "jd_id": "jd_devops_aws_k8s",
           "expected": "weak",
-          "similarity_mean": 0.5,
+          "similarity_mean": 0.6,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.5,
+              "similarity_score": 0.6,
               "n_matched": 8,
               "n_missing": 14,
               "n_partial": 0,
@@ -2326,7 +2356,7 @@
                 "n_covered_of_job": 20,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 1079.09,
+              "latency_ms": 2474.88,
               "error": null
             }
           ]
@@ -2335,22 +2365,22 @@
           "cv_id": "cv_frontend_jr_react",
           "jd_id": "jd_flutter_mobile",
           "expected": "weak",
-          "similarity_mean": 0.1,
+          "similarity_mean": 0.05,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.1,
-              "n_matched": 7,
+              "similarity_score": 0.05,
+              "n_matched": 1,
               "n_missing": 19,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
                 "n_job_skills": 20,
-                "n_accounted": 26,
+                "n_accounted": 20,
                 "n_covered_of_job": 20,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 1100.97,
+              "latency_ms": 1040.31,
               "error": null
             }
           ]
@@ -2374,7 +2404,7 @@
                 "n_covered_of_job": 14,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 950.53,
+              "latency_ms": 976.96,
               "error": null
             }
           ]
@@ -2388,8 +2418,8 @@
           "runs": [
             {
               "similarity_score": 0.1,
-              "n_matched": 3,
-              "n_missing": 18,
+              "n_matched": 2,
+              "n_missing": 19,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
@@ -2398,7 +2428,7 @@
                 "n_covered_of_job": 21,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 1087.67,
+              "latency_ms": 1893.57,
               "error": null
             }
           ]
@@ -2422,7 +2452,7 @@
                 "n_covered_of_job": 18,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 1043.8,
+              "latency_ms": 1146.85,
               "error": null
             }
           ]
@@ -2446,7 +2476,7 @@
                 "n_covered_of_job": 20,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 1140.0,
+              "latency_ms": 1060.58,
               "error": null
             }
           ]
@@ -2470,7 +2500,7 @@
                 "n_covered_of_job": 20,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3139.08,
+              "latency_ms": 1103.88,
               "error": null
             }
           ]
@@ -2479,11 +2509,11 @@
           "cv_id": "cv_devops_jr",
           "jd_id": "jd_junior_web_dev",
           "expected": "weak",
-          "similarity_mean": 0.3,
+          "similarity_mean": 0.2,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.3,
+              "similarity_score": 0.2,
               "n_matched": 3,
               "n_missing": 11,
               "n_partial": 0,
@@ -2494,7 +2524,7 @@
                 "n_covered_of_job": 14,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 1312.3,
+              "latency_ms": 1659.63,
               "error": null
             }
           ]
@@ -2508,8 +2538,8 @@
           "runs": [
             {
               "similarity_score": 0.2,
-              "n_matched": 5,
-              "n_missing": 16,
+              "n_matched": 6,
+              "n_missing": 15,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
@@ -2518,7 +2548,7 @@
                 "n_covered_of_job": 21,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 1423.81,
+              "latency_ms": 1102.61,
               "error": null
             }
           ]
@@ -2533,16 +2563,16 @@
             {
               "similarity_score": 0.1,
               "n_matched": 3,
-              "n_missing": 17,
+              "n_missing": 15,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
                 "n_job_skills": 18,
-                "n_accounted": 20,
+                "n_accounted": 18,
                 "n_covered_of_job": 18,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 1333.38,
+              "latency_ms": 1011.96,
               "error": null
             }
           ]
@@ -2551,22 +2581,22 @@
           "cv_id": "cv_flutter_intern",
           "jd_id": "jd_devops_aws_k8s",
           "expected": "weak",
-          "similarity_mean": 0.0,
+          "similarity_mean": 0.05,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.0,
-              "n_matched": 2,
+              "similarity_score": 0.05,
+              "n_matched": 1,
               "n_missing": 20,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
                 "n_job_skills": 20,
-                "n_accounted": 22,
+                "n_accounted": 21,
                 "n_covered_of_job": 20,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 1284.56,
+              "latency_ms": 1407.88,
               "error": null
             }
           ]
@@ -2590,7 +2620,7 @@
                 "n_covered_of_job": 20,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 2094.47,
+              "latency_ms": 1205.63,
               "error": null
             }
           ]
@@ -2599,22 +2629,22 @@
           "cv_id": "cv_flutter_intern",
           "jd_id": "jd_junior_web_dev",
           "expected": "weak",
-          "similarity_mean": 0.45,
+          "similarity_mean": 0.14,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.45,
-              "n_matched": 5,
-              "n_missing": 9,
+              "similarity_score": 0.14,
+              "n_matched": 2,
+              "n_missing": 12,
               "n_partial": 0,
-              "analysis_method": "llm",
+              "analysis_method": "fallback",
               "coverage": {
                 "n_job_skills": 14,
                 "n_accounted": 14,
                 "n_covered_of_job": 14,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 5066.27,
+              "latency_ms": 2642.1,
               "error": null
             }
           ]
@@ -2623,22 +2653,22 @@
           "cv_id": "cv_frontend_diploma_react",
           "jd_id": "jd_senior_frontend_react",
           "expected": "partial",
-          "similarity_mean": 0.6,
+          "similarity_mean": 0.5,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.6,
-              "n_matched": 9,
-              "n_missing": 12,
+              "similarity_score": 0.5,
+              "n_matched": 13,
+              "n_missing": 15,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
                 "n_job_skills": 21,
-                "n_accounted": 21,
+                "n_accounted": 28,
                 "n_covered_of_job": 21,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4092.81,
+              "latency_ms": 1123.84,
               "error": null
             }
           ]
@@ -2647,22 +2677,22 @@
           "cv_id": "cv_frontend_diploma_react",
           "jd_id": "jd_backend_python_node",
           "expected": "weak",
-          "similarity_mean": 0.2,
+          "similarity_mean": 0.06,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.2,
-              "n_matched": 5,
-              "n_missing": 14,
+              "similarity_score": 0.06,
+              "n_matched": 1,
+              "n_missing": 17,
               "n_partial": 0,
-              "analysis_method": "llm",
+              "analysis_method": "fallback",
               "coverage": {
                 "n_job_skills": 18,
-                "n_accounted": 19,
+                "n_accounted": 18,
                 "n_covered_of_job": 18,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3392.45,
+              "latency_ms": 1692.31,
               "error": null
             }
           ]
@@ -2686,7 +2716,7 @@
                 "n_covered_of_job": 20,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4174.34,
+              "latency_ms": 1084.76,
               "error": null
             }
           ]
@@ -2695,22 +2725,22 @@
           "cv_id": "cv_frontend_diploma_react",
           "jd_id": "jd_flutter_mobile",
           "expected": "weak",
-          "similarity_mean": 0.2,
+          "similarity_mean": 0.05,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.2,
-              "n_matched": 10,
-              "n_missing": 16,
+              "similarity_score": 0.05,
+              "n_matched": 1,
+              "n_missing": 19,
               "n_partial": 0,
-              "analysis_method": "llm",
+              "analysis_method": "fallback",
               "coverage": {
                 "n_job_skills": 20,
-                "n_accounted": 26,
+                "n_accounted": 20,
                 "n_covered_of_job": 20,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4176.99,
+              "latency_ms": 2646.43,
               "error": null
             }
           ]
@@ -2734,7 +2764,7 @@
                 "n_covered_of_job": 14,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4187.64,
+              "latency_ms": 2080.42,
               "error": null
             }
           ]
@@ -2748,8 +2778,8 @@
           "runs": [
             {
               "similarity_score": 0.6,
-              "n_matched": 8,
-              "n_missing": 13,
+              "n_matched": 12,
+              "n_missing": 9,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
@@ -2758,7 +2788,7 @@
                 "n_covered_of_job": 21,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3041.56,
+              "latency_ms": 3721.44,
               "error": null
             }
           ]
@@ -2772,17 +2802,17 @@
           "runs": [
             {
               "similarity_score": 0.2,
-              "n_matched": 8,
-              "n_missing": 17,
+              "n_matched": 6,
+              "n_missing": 18,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
                 "n_job_skills": 18,
-                "n_accounted": 25,
+                "n_accounted": 24,
                 "n_covered_of_job": 18,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4204.43,
+              "latency_ms": 3147.91,
               "error": null
             }
           ]
@@ -2791,22 +2821,22 @@
           "cv_id": "cv_frontend_senior_react_vue",
           "jd_id": "jd_devops_aws_k8s",
           "expected": "weak",
-          "similarity_mean": 0.1,
+          "similarity_mean": 0.0,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.1,
-              "n_matched": 5,
+              "similarity_score": 0.0,
+              "n_matched": 0,
               "n_missing": 20,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
                 "n_job_skills": 20,
-                "n_accounted": 25,
+                "n_accounted": 20,
                 "n_covered_of_job": 20,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4214.3,
+              "latency_ms": 4203.76,
               "error": null
             }
           ]
@@ -2820,17 +2850,17 @@
           "runs": [
             {
               "similarity_score": 0.2,
-              "n_matched": 4,
+              "n_matched": 8,
               "n_missing": 16,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
                 "n_job_skills": 20,
-                "n_accounted": 20,
+                "n_accounted": 24,
                 "n_covered_of_job": 20,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4463.84,
+              "latency_ms": 4249.3,
               "error": null
             }
           ]
@@ -2839,13 +2869,13 @@
           "cv_id": "cv_frontend_senior_react_vue",
           "jd_id": "jd_junior_web_dev",
           "expected": "strong",
-          "similarity_mean": 0.6,
+          "similarity_mean": 0.4,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.6,
-              "n_matched": 10,
-              "n_missing": 9,
+              "similarity_score": 0.4,
+              "n_matched": 8,
+              "n_missing": 11,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
@@ -2854,7 +2884,7 @@
                 "n_covered_of_job": 14,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3027.49,
+              "latency_ms": 4130.85,
               "error": null
             }
           ]
@@ -2878,7 +2908,7 @@
                 "n_covered_of_job": 21,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3862.12,
+              "latency_ms": 3123.09,
               "error": null
             }
           ]
@@ -2902,7 +2932,7 @@
                 "n_covered_of_job": 18,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4103.12,
+              "latency_ms": 3173.48,
               "error": null
             }
           ]
@@ -2926,7 +2956,7 @@
                 "n_covered_of_job": 20,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3389.2,
+              "latency_ms": 4130.86,
               "error": null
             }
           ]
@@ -2943,14 +2973,14 @@
               "n_matched": 0,
               "n_missing": 20,
               "n_partial": 0,
-              "analysis_method": "llm",
+              "analysis_method": "fallback",
               "coverage": {
                 "n_job_skills": 20,
                 "n_accounted": 20,
                 "n_covered_of_job": 20,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3188.9,
+              "latency_ms": 2915.98,
               "error": null
             }
           ]
@@ -2965,16 +2995,16 @@
             {
               "similarity_score": 0.36,
               "n_matched": 4,
-              "n_missing": 12,
+              "n_missing": 10,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
                 "n_job_skills": 14,
-                "n_accounted": 16,
-                "n_covered_of_job": 13,
-                "coverage_ratio": 0.9286
+                "n_accounted": 14,
+                "n_covered_of_job": 14,
+                "coverage_ratio": 1.0
               },
-              "latency_ms": 4213.49,
+              "latency_ms": 1017.72,
               "error": null
             }
           ]
@@ -2998,7 +3028,7 @@
                 "n_covered_of_job": 21,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3414.52,
+              "latency_ms": 3150.97,
               "error": null
             }
           ]
@@ -3022,7 +3052,7 @@
                 "n_covered_of_job": 18,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4277.45,
+              "latency_ms": 4019.22,
               "error": null
             }
           ]
@@ -3046,7 +3076,7 @@
                 "n_covered_of_job": 20,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3044.46,
+              "latency_ms": 3062.16,
               "error": null
             }
           ]
@@ -3070,7 +3100,7 @@
                 "n_covered_of_job": 20,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3007.46,
+              "latency_ms": 3120.76,
               "error": null
             }
           ]
@@ -3079,13 +3109,13 @@
           "cv_id": "cv_frontend_senior_react_vue_v2",
           "jd_id": "jd_junior_web_dev",
           "expected": "strong",
-          "similarity_mean": 0.5,
+          "similarity_mean": 0.6,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.5,
-              "n_matched": 7,
-              "n_missing": 7,
+              "similarity_score": 0.6,
+              "n_matched": 8,
+              "n_missing": 6,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
@@ -3094,7 +3124,7 @@
                 "n_covered_of_job": 14,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4533.22,
+              "latency_ms": 3985.02,
               "error": null
             }
           ]
@@ -3103,22 +3133,22 @@
           "cv_id": "cv_frontend_jquery_legacy",
           "jd_id": "jd_senior_frontend_react",
           "expected": "partial",
-          "similarity_mean": 0.1,
+          "similarity_mean": 0.2,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.1,
-              "n_matched": 6,
-              "n_missing": 20,
+              "similarity_score": 0.2,
+              "n_matched": 14,
+              "n_missing": 19,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
                 "n_job_skills": 21,
-                "n_accounted": 26,
-                "n_covered_of_job": 21,
-                "coverage_ratio": 1.0
+                "n_accounted": 33,
+                "n_covered_of_job": 20,
+                "coverage_ratio": 0.9524
               },
-              "latency_ms": 3268.32,
+              "latency_ms": 3260.59,
               "error": null
             }
           ]
@@ -3127,22 +3157,22 @@
           "cv_id": "cv_frontend_jquery_legacy",
           "jd_id": "jd_backend_python_node",
           "expected": "weak",
-          "similarity_mean": 0.0,
+          "similarity_mean": 0.2,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.0,
-              "n_matched": 0,
+              "similarity_score": 0.2,
+              "n_matched": 12,
               "n_missing": 18,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
                 "n_job_skills": 18,
-                "n_accounted": 18,
+                "n_accounted": 30,
                 "n_covered_of_job": 18,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3666.85,
+              "latency_ms": 4567.61,
               "error": null
             }
           ]
@@ -3166,7 +3196,7 @@
                 "n_covered_of_job": 20,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3125.64,
+              "latency_ms": 4089.67,
               "error": null
             }
           ]
@@ -3190,7 +3220,7 @@
                 "n_covered_of_job": 20,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4428.95,
+              "latency_ms": 3198.66,
               "error": null
             }
           ]
@@ -3199,22 +3229,22 @@
           "cv_id": "cv_frontend_jquery_legacy",
           "jd_id": "jd_junior_web_dev",
           "expected": "strong",
-          "similarity_mean": 0.36,
+          "similarity_mean": 0.14,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.36,
-              "n_matched": 4,
-              "n_missing": 10,
+              "similarity_score": 0.14,
+              "n_matched": 2,
+              "n_missing": 12,
               "n_partial": 0,
-              "analysis_method": "llm",
+              "analysis_method": "fallback",
               "coverage": {
                 "n_job_skills": 14,
                 "n_accounted": 14,
-                "n_covered_of_job": 13,
-                "coverage_ratio": 0.9286
+                "n_covered_of_job": 14,
+                "coverage_ratio": 1.0
               },
-              "latency_ms": 3154.98,
+              "latency_ms": 2631.69,
               "error": null
             }
           ]
@@ -3228,17 +3258,17 @@
           "runs": [
             {
               "similarity_score": 0.2,
-              "n_matched": 5,
+              "n_matched": 6,
               "n_missing": 16,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
                 "n_job_skills": 21,
-                "n_accounted": 21,
+                "n_accounted": 22,
                 "n_covered_of_job": 21,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4132.24,
+              "latency_ms": 1296.76,
               "error": null
             }
           ]
@@ -3262,7 +3292,7 @@
                 "n_covered_of_job": 18,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4255.3,
+              "latency_ms": 3606.97,
               "error": null
             }
           ]
@@ -3286,7 +3316,7 @@
                 "n_covered_of_job": 20,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3316.51,
+              "latency_ms": 4729.43,
               "error": null
             }
           ]
@@ -3310,7 +3340,7 @@
                 "n_covered_of_job": 20,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3997.78,
+              "latency_ms": 3564.73,
               "error": null
             }
           ]
@@ -3334,7 +3364,7 @@
                 "n_covered_of_job": 14,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3999.31,
+              "latency_ms": 3209.28,
               "error": null
             }
           ]
@@ -3346,6 +3376,327 @@
       },
       "disclosure": "LLM-driven (Groq llama-4-scout). Mean of 1 run(s) per pair. Per-skill ground-truth labels not provided \u2014 separation is measured by similarity_score across hand-graded strong/partial/weak buckets, and coverage validates the analyzer's '100% reconciliation' claim.",
       "written_to": "G:\\New folder\\SmartCV\\benchmarks\\results\\2026-04-25\\gap_eval.json"
+    },
+    "tailoring_eval": {
+      "benchmark": "tailoring_eval",
+      "version": 1,
+      "fixture_kind": "real_anonymized_cv_x_jd",
+      "buckets_evaluated": [
+        "strong"
+      ],
+      "n_pairs": 10,
+      "parse_wall_seconds": 0.94,
+      "eval_wall_seconds": 133.17,
+      "wall_seconds": 134.11,
+      "axes": {
+        "factuality": {
+          "n": 5,
+          "min": 6,
+          "mean": 8.0,
+          "median": 8,
+          "p95": 9.6,
+          "max": 10,
+          "std": 1.2649
+        },
+        "relevance": {
+          "n": 5,
+          "min": 5,
+          "mean": 6.8,
+          "median": 7,
+          "p95": 8.6,
+          "max": 9,
+          "std": 1.3266
+        },
+        "ats_fit": {
+          "n": 5,
+          "min": 3,
+          "mean": 5.6,
+          "median": 6,
+          "p95": 8.4,
+          "max": 9,
+          "std": 2.0591
+        },
+        "human_voice": {
+          "n": 5,
+          "min": 2,
+          "mean": 5.6,
+          "median": 6,
+          "p95": 7.8,
+          "max": 8,
+          "std": 2.0591
+        }
+      },
+      "programmatic": {
+        "entity_grounding_ratio": {
+          "n": 4,
+          "min": 0.5,
+          "mean": 0.875,
+          "median": 1.0,
+          "p95": 1.0,
+          "max": 1.0,
+          "std": 0.2165
+        },
+        "banned_voice_hits_per_resume": {
+          "n": 5,
+          "min": 0,
+          "mean": 0.2,
+          "median": 0,
+          "p95": 0.8,
+          "max": 1,
+          "std": 0.4
+        }
+      },
+      "rows": [
+        {
+          "cv_id": "cv_frontend_jr_react",
+          "jd_id": "jd_junior_web_dev",
+          "bucket": "strong",
+          "stage": "judge",
+          "error": "RateLimitError: Error code: 429 - {'error': {'message': 'Rate limit reached for model `meta-llama/llama-4-scout-17b-16e-instruct` in organization `org_01kna6r09efdtbc9px359kqn33` service tier `on_demand` on tokens per minute (TPM): Limit 30000, Used 25811, Requested 4253. Please try again in 128ms. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}",
+          "programmatic_factuality": {
+            "n_entities": 2,
+            "n_grounded": 1,
+            "ratio": 0.5,
+            "ungrounded": [
+              "Not Provided"
+            ]
+          },
+          "voice_hits": []
+        },
+        {
+          "cv_id": "cv_flutter_intern",
+          "jd_id": "jd_flutter_mobile",
+          "bucket": "strong",
+          "judge": {
+            "factuality": {
+              "score": 10,
+              "rationale": "The GENERATED RESUME claims 2+ years of Flutter experience and lists projects and skills that are present in the SOURCE CV, with no fabricated employers or degrees. Hence, factuality score is 10."
+            },
+            "relevance": {
+              "score": 9,
+              "rationale": "The GENERATED RESUME directly addresses the TARGET JOB's requirements, mentioning Flutter, Dart, Clean Architecture, BLoC, Cubit, REST API, and responsive UI, which are all must-have skills. Hence, relevance score is 9."
+            },
+            "ats_fit": {
+              "score": 9,
+              "rationale": "The GENERATED RESUME effectively uses job keywords like Flutter, Dart, Clean Architecture, BLoC, Cubit, and REST API. It varies action verbs across bullets, enhancing ATS fit. Hence, ATS fit score is 9."
+            },
+            "human_voice": {
+              "score": 8,
+              "rationale": "The GENERATED RESUME avoids AI-tell phrases and uses plain English. It varies sentence structures and does not use banned words or templates. Hence, human voice score is 8."
+            },
+            "overall_summary": ""
+          },
+          "programmatic_factuality": {
+            "n_entities": 2,
+            "n_grounded": 1,
+            "ratio": 0.5,
+            "ungrounded": [
+              "Apr 2025 - Feb 2025"
+            ]
+          },
+          "voice_hits": [],
+          "voice_hit_count": 0
+        },
+        {
+          "cv_id": "cv_frontend_diploma_react",
+          "jd_id": "jd_junior_web_dev",
+          "bucket": "strong",
+          "judge": {
+            "factuality": {
+              "score": 8,
+              "rationale": "The GENERATED RESUME contains skills that are not present in the SOURCE CV, such as TypeScript. However, it does not include any concrete claims about companies, schools, years, certifications, or named projects that are not present in the SOURCE CV. But since some skills are added that are not in SOURCE CV, it scores lower."
+            },
+            "relevance": {
+              "score": 7,
+              "rationale": "The GENERATED RESUME lists relevant skills such as HTML5, CSS3, JavaScript, React, Responsive Design, Git, GitHub, Tailwind, Bootstrap, which align with the TARGET JOB requirements. However, it lacks specific experience or project details that directly address the job responsibilities."
+            },
+            "ats_fit": {
+              "score": 6,
+              "rationale": "The GENERATED RESUME uses some of the job's keywords like HTML5, CSS3, JavaScript, React, Git, GitHub, Tailwind, and Bootstrap. However, it misses other important keywords such as Figma, REST API, React Router, Axios, and TypeScript is included which is a nice to have. The keyword usage is relevant but not comprehensive."
+            },
+            "human_voice": {
+              "score": 5,
+              "rationale": "The GENERATED RESUME uses a professional title and summary that could be seen as somewhat generic and AI-like. The language is formal but lacks a personal touch or specific details that would make it sound more human. There are no obvious banned words, but the structure and phrasing are quite standard."
+            },
+            "overall_summary": ""
+          },
+          "programmatic_factuality": {
+            "n_entities": 0,
+            "n_grounded": 0,
+            "ratio": null,
+            "ungrounded": []
+          },
+          "voice_hits": [],
+          "voice_hit_count": 0
+        },
+        {
+          "cv_id": "cv_frontend_senior_react_vue",
+          "jd_id": "jd_senior_frontend_react",
+          "bucket": "strong",
+          "judge": {
+            "factuality": {
+              "score": 6,
+              "rationale": "The GENERATED RESUME contains factual claims that mostly appear in the SOURCE CV, but some details are missing or altered, such as specific job titles, company names, and achievements. Overall, it seems to be a paraphrased version but scores low due to incomplete information."
+            },
+            "relevance": {
+              "score": 5,
+              "rationale": "The GENERATED RESUME lists relevant skills such as React, TypeScript, and JavaScript, which align with the TARGET JOB requirements. However, it lacks specific examples or bullets that directly address the job responsibilities, resulting in a mediocre score."
+            },
+            "ats_fit": {
+              "score": 3,
+              "rationale": "The GENERATED RESUME uses some of the job's keywords like React, TypeScript, and JavaScript. However, it misses many required skills and does not vary action verbs across bullets, as it doesn't provide any bullet points. This results in a low score."
+            },
+            "human_voice": {
+              "score": 2,
+              "rationale": "The GENERATED RESUME lacks a human voice, as it seems to be a direct extraction of information without varied sentence structure or specific achievements. It also misses concrete results and uses a very formal tone, which is typical of AI-generated content."
+            },
+            "overall_summary": ""
+          },
+          "programmatic_factuality": {
+            "n_entities": 5,
+            "n_grounded": 5,
+            "ratio": 1.0,
+            "ungrounded": []
+          },
+          "voice_hits": [],
+          "voice_hit_count": 0
+        },
+        {
+          "cv_id": "cv_frontend_senior_react_vue",
+          "jd_id": "jd_junior_web_dev",
+          "bucket": "strong",
+          "judge": {
+            "factuality": {
+              "score": 8,
+              "rationale": "The GENERATED RESUME contains factual claims that mostly appear in the SOURCE CV, with some discrepancies in company and duration information. The overall factuality score is 8."
+            },
+            "relevance": {
+              "score": 7,
+              "rationale": "The GENERATED RESUME addresses several requirements stated in the TARGET JOB, including HTML5, CSS3, JavaScript, React, Responsive Design, Git, and GitHub. However, it lacks specific examples directly related to the job's responsibilities, resulting in a score of 7."
+            },
+            "ats_fit": {
+              "score": 6,
+              "rationale": "The GENERATED RESUME uses several job keywords, including HTML5, CSS3, JavaScript, React, and Git. However, it misses some keywords like REST API, React Router, and Axios, and uses a few generic terms. The ATS fit score is 6."
+            },
+            "human_voice": {
+              "score": 6,
+              "rationale": "The GENERATED RESUME exhibits some AI-tell characteristics, such as using generic phrases and similar sentence structures. However, it does not contain banned words and has a relatively natural tone, resulting in a score of 6."
+            },
+            "overall_summary": ""
+          },
+          "programmatic_factuality": {
+            "n_entities": 4,
+            "n_grounded": 4,
+            "ratio": 1.0,
+            "ungrounded": []
+          },
+          "voice_hits": [
+            "seamless"
+          ],
+          "voice_hit_count": 1
+        },
+        {
+          "cv_id": "cv_frontend_mid_react",
+          "jd_id": "jd_senior_frontend_react",
+          "bucket": "strong",
+          "judge": {
+            "factuality": {
+              "score": 8,
+              "rationale": "The GENERATED RESUME contains factual claims that mostly appear in the SOURCE CV, but some details are missing or incomplete, such as specific years and durations for experiences. The education institution and degree are present but lack specific details. Overall, it scores an 8 for factuality."
+            },
+            "relevance": {
+              "score": 6,
+              "rationale": "The GENERATED RESUME lists relevant skills for the Senior Frontend Engineer (React) position, including React, TypeScript, JavaScript, and others. However, it lacks specific bullets addressing the TARGET JOB requirements, such as building large-scale React applications, designing reusable UI component libraries, and driving performance work. It scores a 6 for relevance."
+            },
+            "ats_fit": {
+              "score": 4,
+              "rationale": "The GENERATED RESUME uses some of the job's keywords but misses many required skills like GraphQL, GitHub Actions, Figma, and Vue. It also lacks variation in action verbs across bullets. It scores a 4 for ATS fit."
+            },
+            "human_voice": {
+              "score": 7,
+              "rationale": "The GENERATED RESUME uses a professional but somewhat generic tone. It avoids obvious AI-tell phrases but lacks variation in sentence structure and uses a somewhat formulaic approach. It scores a 7 for human voice."
+            },
+            "overall_summary": ""
+          },
+          "programmatic_factuality": {
+            "n_entities": 4,
+            "n_grounded": 4,
+            "ratio": 1.0,
+            "ungrounded": []
+          },
+          "voice_hits": [],
+          "voice_hit_count": 0
+        },
+        {
+          "cv_id": "cv_frontend_mid_react",
+          "jd_id": "jd_junior_web_dev",
+          "bucket": "strong",
+          "stage": "judge",
+          "error": "RateLimitError: Error code: 429 - {'error': {'message': 'Rate limit reached for model `meta-llama/llama-4-scout-17b-16e-instruct` in organization `org_01kna6r09efdtbc9px359kqn33` service tier `on_demand` on tokens per day (TPD): Limit 500000, Used 497033, Requested 3457. Please try again in 1m24.672s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}",
+          "programmatic_factuality": {
+            "n_entities": 4,
+            "n_grounded": 4,
+            "ratio": 1.0,
+            "ungrounded": []
+          },
+          "voice_hits": []
+        },
+        {
+          "cv_id": "cv_frontend_senior_react_vue_v2",
+          "jd_id": "jd_senior_frontend_react",
+          "bucket": "strong",
+          "stage": "judge",
+          "error": "RateLimitError: Error code: 429 - {'error': {'message': 'Rate limit reached for model `meta-llama/llama-4-scout-17b-16e-instruct` in organization `org_01kna6r09efdtbc9px359kqn33` service tier `on_demand` on tokens per day (TPD): Limit 500000, Used 498820, Requested 3520. Please try again in 6m44.352s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}",
+          "programmatic_factuality": {
+            "n_entities": 5,
+            "n_grounded": 5,
+            "ratio": 1.0,
+            "ungrounded": []
+          },
+          "voice_hits": []
+        },
+        {
+          "cv_id": "cv_frontend_senior_react_vue_v2",
+          "jd_id": "jd_junior_web_dev",
+          "bucket": "strong",
+          "stage": "judge",
+          "error": "RateLimitError: Error code: 429 - {'error': {'message': 'Rate limit reached for model `meta-llama/llama-4-scout-17b-16e-instruct` in organization `org_01kna6r09efdtbc9px359kqn33` service tier `on_demand` on tokens per day (TPD): Limit 500000, Used 498810, Requested 3722. Please try again in 7m17.5296s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}",
+          "programmatic_factuality": {
+            "n_entities": 5,
+            "n_grounded": 5,
+            "ratio": 1.0,
+            "ungrounded": []
+          },
+          "voice_hits": []
+        },
+        {
+          "cv_id": "cv_frontend_jquery_legacy",
+          "jd_id": "jd_junior_web_dev",
+          "bucket": "strong",
+          "stage": "judge",
+          "error": "RateLimitError: Error code: 429 - {'error': {'message': 'Rate limit reached for model `meta-llama/llama-4-scout-17b-16e-instruct` in organization `org_01kna6r09efdtbc9px359kqn33` service tier `on_demand` on tokens per day (TPD): Limit 500000, Used 498795, Requested 3555. Please try again in 6m46.08s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}",
+          "programmatic_factuality": {
+            "n_entities": 0,
+            "n_grounded": 0,
+            "ratio": null,
+            "ungrounded": []
+          },
+          "voice_hits": []
+        }
+      ],
+      "method": {
+        "generator": "resumes.services.resume_generator.generate_resume_content",
+        "judge_module": "benchmarks.llm_judge",
+        "judge_axes": [
+          "factuality",
+          "relevance",
+          "ats_fit",
+          "human_voice"
+        ],
+        "judge_scale": "1-10 per axis"
+      },
+      "disclosure": "LLM-judged metric \u2014 both the resume generator and the judge are Groq llama-4-scout. Judge temperature=0.0 so its scores are near-deterministic; the generator runs at the production temp (0.7 default) so per-pair scores will vary across runs. Single judge model: not human-validated; treat absolute numbers as a smoke test, relative trends across pairs as more reliable. Programmatic entity-grounding and voice-hit checks are independent of the LLM judge and provide a non-LLM cross-check.",
+      "written_to": "G:\\New folder\\SmartCV\\benchmarks\\results\\2026-04-25\\tailoring_eval.json"
     }
   }
 }

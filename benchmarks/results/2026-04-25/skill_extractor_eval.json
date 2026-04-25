@@ -4,52 +4,52 @@
   "fixture_kind": "real_anonymized_jd",
   "n_jds": 5,
   "repeats_per_jd": 1,
-  "wall_seconds": 5.19,
+  "wall_seconds": 7.27,
   "aggregate": {
     "f1": {
       "n": 5,
-      "min": 0.6531,
-      "mean": 0.7807,
-      "median": 0.8,
-      "p95": 0.89,
-      "max": 0.8947,
-      "std": 0.1043
+      "min": 0.5862,
+      "mean": 0.7718,
+      "median": 0.7755,
+      "p95": 0.9,
+      "max": 0.9,
+      "std": 0.1172
     },
     "precision": {
       "n": 5,
-      "min": 0.5517,
-      "mean": 0.7116,
-      "median": 0.6667,
-      "p95": 0.91,
+      "min": 0.4595,
+      "mean": 0.6926,
+      "median": 0.6552,
+      "p95": 0.9,
       "max": 0.9231,
-      "std": 0.15
+      "std": 0.1625
     },
     "recall": {
       "n": 5,
-      "min": 0.8,
-      "mean": 0.8822,
+      "min": 0.8095,
+      "mean": 0.8933,
       "median": 0.8571,
       "p95": 0.99,
       "max": 1.0,
-      "std": 0.078
+      "std": 0.0704
     },
     "hallucination_rate": {
       "n": 5,
       "min": 0.0769,
-      "mean": 0.2884,
-      "median": 0.3333,
-      "p95": 0.45,
-      "max": 0.4483,
-      "std": 0.15
+      "mean": 0.3074,
+      "median": 0.3448,
+      "p95": 0.51,
+      "max": 0.5405,
+      "std": 0.1625
     },
     "latency_ms": {
       "n": 5,
-      "min": 842.09,
-      "mean": 1030.254,
-      "median": 1002.25,
-      "p95": 1269.37,
-      "max": 1329.08,
-      "std": 162.7073
+      "min": 1051.51,
+      "mean": 1447.038,
+      "median": 1151.38,
+      "p95": 2227.02,
+      "max": 2402.91,
+      "std": 505.9135
     }
   },
   "per_job": [
@@ -58,19 +58,19 @@
       "title": "Senior Frontend Engineer (React)",
       "expected_skills_count": 21,
       "repeats": 1,
-      "f1_mean": 0.6667,
+      "f1_mean": 0.5862,
       "f1_std": 0.0,
-      "precision_mean": 0.5667,
+      "precision_mean": 0.4595,
       "recall_mean": 0.8095,
-      "hallucination_mean": 0.4333,
+      "hallucination_mean": 0.5405,
       "runs": [
         {
-          "n_extracted": 30,
+          "n_extracted": 37,
           "n_labeled": 21,
-          "precision": 0.5667,
+          "precision": 0.4595,
           "recall": 0.8095,
-          "f1": 0.6667,
-          "hallucination_rate": 0.4333,
+          "f1": 0.5862,
+          "hallucination_rate": 0.5405,
           "missed": [
             "REST API",
             "Accessibility",
@@ -90,7 +90,14 @@
             "Playwright",
             "CI/CD pipelines",
             "Technical Leadership",
-            "Problem Solving"
+            "Problem Solving",
+            "Code Review",
+            "Pairing Sessions",
+            "Accessibility (WCAG 2.1)",
+            "Core Web Vitals",
+            "Bundle Analysis",
+            "Code-Splitting",
+            "Lazy Loading"
           ],
           "extracted_raw": [
             "React",
@@ -122,9 +129,16 @@
             "GitHub Actions",
             "Figma",
             "Technical Leadership",
-            "Problem Solving"
+            "Problem Solving",
+            "Code Review",
+            "Pairing Sessions",
+            "Accessibility (WCAG 2.1)",
+            "Core Web Vitals",
+            "Bundle Analysis",
+            "Code-Splitting",
+            "Lazy Loading"
           ],
-          "latency_ms": 1329.08,
+          "latency_ms": 1523.46,
           "error": null
         }
       ]
@@ -134,26 +148,25 @@
       "title": "Backend Engineer (Python / Node.js)",
       "expected_skills_count": 18,
       "repeats": 1,
-      "f1_mean": 0.8947,
+      "f1_mean": 0.9,
       "f1_std": 0.0,
-      "precision_mean": 0.85,
-      "recall_mean": 0.9444,
-      "hallucination_mean": 0.15,
+      "precision_mean": 0.8182,
+      "recall_mean": 1.0,
+      "hallucination_mean": 0.1818,
       "runs": [
         {
-          "n_extracted": 20,
+          "n_extracted": 22,
           "n_labeled": 18,
-          "precision": 0.85,
-          "recall": 0.9444,
-          "f1": 0.8947,
-          "hallucination_rate": 0.15,
-          "missed": [
-            "REST API"
-          ],
+          "precision": 0.8182,
+          "recall": 1.0,
+          "f1": 0.9,
+          "hallucination_rate": 0.1818,
+          "missed": [],
           "extra": [
-            "REST API design",
+            "GCP",
             "GitHub",
-            "GCP"
+            "Technical Leadership",
+            "Problem Solving"
           ],
           "extracted_raw": [
             "Python",
@@ -162,22 +175,24 @@
             "PostgreSQL",
             "SQL",
             "Redis",
-            "REST API design",
             "Docker",
+            "Kubernetes",
+            "REST API",
+            "gRPC",
+            "OAuth2",
+            "JWT",
+            "pytest",
+            "Node.js",
+            "AWS",
+            "GCP",
+            "Kafka",
             "Linux",
             "Git",
             "GitHub",
-            "pytest",
-            "Node.js",
-            "Kubernetes",
-            "OAuth2",
-            "JWT",
-            "gRPC",
-            "AWS",
-            "GCP",
-            "Kafka"
+            "Technical Leadership",
+            "Problem Solving"
           ],
-          "latency_ms": 947.3,
+          "latency_ms": 1105.93,
           "error": null
         }
       ]
@@ -187,20 +202,22 @@
       "title": "DevOps Engineer (AWS / Kubernetes)",
       "expected_skills_count": 20,
       "repeats": 1,
-      "f1_mean": 0.8,
+      "f1_mean": 0.7755,
       "f1_std": 0.0,
-      "precision_mean": 0.6667,
-      "recall_mean": 1.0,
-      "hallucination_mean": 0.3333,
+      "precision_mean": 0.6552,
+      "recall_mean": 0.95,
+      "hallucination_mean": 0.3448,
       "runs": [
         {
-          "n_extracted": 30,
+          "n_extracted": 29,
           "n_labeled": 20,
-          "precision": 0.6667,
-          "recall": 1.0,
-          "f1": 0.8,
-          "hallucination_rate": 0.3333,
-          "missed": [],
+          "precision": 0.6552,
+          "recall": 0.95,
+          "f1": 0.7755,
+          "hallucination_rate": 0.3448,
+          "missed": [
+            "CI/CD"
+          ],
           "extra": [
             "CloudWatch",
             "Loki",
@@ -215,16 +232,16 @@
           ],
           "extracted_raw": [
             "AWS",
-            "Kubernetes",
             "EKS",
             "EC2",
             "RDS",
             "S3",
             "IAM",
             "CloudWatch",
-            "Terraform",
+            "Kubernetes",
             "Helm",
             "Argo CD",
+            "Terraform",
             "GitHub Actions",
             "Jenkins",
             "Docker",
@@ -235,7 +252,6 @@
             "Python",
             "Go",
             "Linux",
-            "CI/CD",
             "GitLab CI",
             "Flux",
             "Istio",
@@ -245,7 +261,7 @@
             "Technical Leadership",
             "Problem Solving"
           ],
-          "latency_ms": 1030.55,
+          "latency_ms": 2402.91,
           "error": null
         }
       ]
@@ -255,23 +271,22 @@
       "title": "Flutter Mobile Engineer",
       "expected_skills_count": 20,
       "repeats": 1,
-      "f1_mean": 0.6531,
+      "f1_mean": 0.7083,
       "f1_std": 0.0,
-      "precision_mean": 0.5517,
-      "recall_mean": 0.8,
-      "hallucination_mean": 0.4483,
+      "precision_mean": 0.6071,
+      "recall_mean": 0.85,
+      "hallucination_mean": 0.3929,
       "runs": [
         {
-          "n_extracted": 29,
+          "n_extracted": 28,
           "n_labeled": 20,
-          "precision": 0.5517,
-          "recall": 0.8,
-          "f1": 0.6531,
-          "hallucination_rate": 0.4483,
+          "precision": 0.6071,
+          "recall": 0.85,
+          "f1": 0.7083,
+          "hallucination_rate": 0.3929,
           "missed": [
             "Git",
             "Responsive UI",
-            "OOP",
             "Animations"
           ],
           "extra": [
@@ -280,11 +295,9 @@
             "http",
             "Git workflows",
             "Code review",
-            "OOP fundamentals",
             "Shared preferences",
             "Kotlin",
             "Swift",
-            "Auth",
             "Firestore",
             "Cloud Messaging",
             "Unit testing"
@@ -304,7 +317,7 @@
             "http",
             "Git workflows",
             "Code review",
-            "OOP fundamentals",
+            "OOP",
             "Figma",
             "Hive",
             "SQLite",
@@ -314,13 +327,12 @@
             "Kotlin",
             "Swift",
             "Firebase",
-            "Auth",
             "Firestore",
             "Cloud Messaging",
             "Unit testing",
             "Widget testing"
           ],
-          "latency_ms": 1002.25,
+          "latency_ms": 1051.51,
           "error": null
         }
       ]
@@ -365,7 +377,7 @@
             "React Router",
             "Axios"
           ],
-          "latency_ms": 842.09,
+          "latency_ms": 1151.38,
           "error": null
         }
       ]
