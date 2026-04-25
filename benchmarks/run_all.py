@@ -118,12 +118,19 @@ def _headlines(results: dict) -> dict:
     parser = results.get("parser_eval", {}).get("payload")
     if parser:
         agg = parser["aggregate"]
+        # `skills_f1_with_section` is the headline (parser is designed to read
+        # explicit skills sections). `skills_f1` keeps the unconditional
+        # average for transparency.
+        in_scope = agg.get("skills_f1_with_section") or {}
         h["parser"] = {
             "n_cvs": parser["n_cvs"],
+            "n_cvs_with_skills_section": in_scope.get("n"),
             "personal_info_accuracy": agg["personal_info_accuracy"]["mean"],
             "section_presence_accuracy": agg["section_presence_accuracy"]["mean"],
-            "skills_jaccard": agg["skills_jaccard"]["mean"],
-            "skills_f1": agg["skills_f1"]["mean"],
+            "skills_jaccard_overall": agg["skills_jaccard"]["mean"],
+            "skills_f1_overall": agg["skills_f1"]["mean"],
+            "skills_jaccard_in_scope": (agg.get("skills_jaccard_with_section") or {}).get("mean"),
+            "skills_f1_in_scope": in_scope.get("mean"),
         }
 
     sx = results.get("skill_extractor_eval", {}).get("payload")
@@ -206,9 +213,19 @@ def _format_md(combined: dict) -> str:
         p = h["parser"]
         lines.append(f"| CV parser personal-info accuracy | **{p['personal_info_accuracy']:.3f}** "
                      f"| {p['n_cvs']} CVs | benchmarks/parser_eval.py |")
-        lines.append(f"| CV parser skills F1 | **{p['skills_f1']:.3f}** "
-                     f"(Jaccard {p['skills_jaccard']:.3f}) "
-                     f"| {p['n_cvs']} CVs | benchmarks/parser_eval.py |")
+        in_scope_n = p.get("n_cvs_with_skills_section") or 0
+        if p.get("skills_f1_in_scope") is not None and in_scope_n:
+            lines.append(
+                f"| CV parser skills F1 (CVs with explicit skills section) | "
+                f"**{p['skills_f1_in_scope']:.3f}** "
+                f"(Jaccard {p['skills_jaccard_in_scope']:.3f}) "
+                f"| {in_scope_n}/{p['n_cvs']} CVs | benchmarks/parser_eval.py |"
+            )
+        lines.append(
+            f"| CV parser skills F1 (all CVs, incl. those without a skills section) | "
+            f"{p['skills_f1_overall']:.3f} (Jaccard {p['skills_jaccard_overall']:.3f}) "
+            f"| {p['n_cvs']} CVs | benchmarks/parser_eval.py |"
+        )
 
     if "skill_extractor" in h:
         s = h["skill_extractor"]

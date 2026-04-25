@@ -190,6 +190,13 @@ def run(repeats: int = 1) -> dict:
     all_section_acc: list[float] = []
     all_jaccard: list[float] = []
     all_skill_f1: list[float] = []
+    # Headline metric: skills accuracy on CVs that *have* a skills section.
+    # CVs without one are an out-of-scope task for the parser — it extracts
+    # from explicit skills sections, not by inferring from experience text —
+    # so averaging them in drags the number for a job the parser isn't
+    # designed to do. We still report the all-CVs aggregate alongside.
+    skills_f1_with_section: list[float] = []
+    skills_jaccard_with_section: list[float] = []
     all_latency_ms: list[float] = []
     started = time.perf_counter()
 
@@ -230,6 +237,9 @@ def run(repeats: int = 1) -> dict:
                 all_section_acc.append(sp["accuracy"])
             all_jaccard.append(sk["jaccard"])
             all_skill_f1.append(sk["f1"])
+            if (labeled.get("section_presence") or {}).get("skills") is True:
+                skills_f1_with_section.append(sk["f1"])
+                skills_jaccard_with_section.append(sk["jaccard"])
 
         pi_means = [r["personal_info"]["accuracy"] for r in runs if r["personal_info"]["accuracy"] is not None]
         sp_means = [r["section_presence"]["accuracy"] for r in runs if r["section_presence"]["accuracy"] is not None]
@@ -239,6 +249,7 @@ def run(repeats: int = 1) -> dict:
         rows.append({
             "cv_id": cv_id,
             "primary_role": cv_meta.get("primary_role"),
+            "skills_section_present": (labeled.get("section_presence") or {}).get("skills"),
             "personal_info_accuracy_mean": round(statistics.fmean(pi_means), 4) if pi_means else None,
             "section_presence_accuracy_mean": round(statistics.fmean(sp_means), 4) if sp_means else None,
             "skill_jaccard_mean": round(statistics.fmean(sk_jacc), 4) if sk_jacc else None,
@@ -258,6 +269,10 @@ def run(repeats: int = 1) -> dict:
             "section_presence_accuracy": summary(all_section_acc),
             "skills_jaccard": summary(all_jaccard),
             "skills_f1": summary(all_skill_f1),
+            # Headline: skills metric scoped to CVs that actually have a
+            # skills section. Out-of-scope CVs are still in skills_f1.
+            "skills_f1_with_section": summary(skills_f1_with_section),
+            "skills_jaccard_with_section": summary(skills_jaccard_with_section),
             "latency_ms": summary(all_latency_ms),
         },
         "rows": rows,

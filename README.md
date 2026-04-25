@@ -74,7 +74,8 @@ fabricated numbers. Latest run (2026-04-25):
 | ATS matched vs. mismatched separation | matched **100.0** / mismatched **11.0** (Cohen's d = **6.27**) | 3 vs 6 pairs |
 | Endpoint warm p95 (max across routes) | **≤ 13 ms** | 5 routes × 60 req |
 | CV parser personal-info accuracy | **0.94** | 10 CVs |
-| CV parser skills F1 | 0.28 (Jaccard 0.18) | 10 CVs |
+| CV parser skills F1 (CVs with explicit skills section) | **0.43** (Jaccard 0.30) | 5 of 10 CVs |
+| CV parser skills F1 (all 10 CVs, incl. those without a skills section) | 0.30 (Jaccard 0.20) | 10 CVs |
 | Skill extractor F1 | **0.78** (P=0.71, R=0.88, hallucination 0.29) | 5 JDs × 1 run |
 | Gap analyzer coverage | **0.997** (48/50 pairs at 100%) | 50 (CV, JD) pairs |
 | Gap analyzer separation (similarity score) | strong **0.55** / partial **0.49** / weak **0.19** (Cohen's d strong-vs-weak = **1.59**) | 50 pairs |
