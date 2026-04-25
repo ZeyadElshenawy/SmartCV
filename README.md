@@ -3,7 +3,7 @@
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
 [![Django 5.2](https://img.shields.io/badge/django-5.2-092e20.svg)](https://www.djangoproject.com/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests: 281 passing](https://img.shields.io/badge/tests-281%20passing-brightgreen.svg)](#benchmarks--test-results)
+[![Tests: 305 passing](https://img.shields.io/badge/tests-305%20passing-brightgreen.svg)](#benchmarks--test-results)
 [![Coverage: 53%](https://img.shields.io/badge/coverage-53%25-yellow.svg)](#benchmarks--test-results)
 
 AI-powered career assistant for job seekers. Upload a CV, paste a job
@@ -14,7 +14,8 @@ same services everywhere instead of one-off scripts.
 Built with Django 5.2, PostgreSQL (Supabase + pgvector), Tailwind CSS v4,
 and Groq (`meta-llama/llama-4-scout-17b-16e-instruct`).
 
-![SmartCV dashboard — your master profile, profile-strength score, and quick links to job tailoring](docs/images/dashboard.png)
+<!-- TODO(screenshot): dashboard hero shot — master profile, profile-strength score, quick links to job tailoring. Save to docs/images/dashboard.png and uncomment the line below. -->
+<!-- ![SmartCV dashboard — master profile, profile-strength score, and quick links to job tailoring](docs/images/dashboard.png) -->
 
 ## Highlights
 
@@ -26,7 +27,8 @@ and Groq (`meta-llama/llama-4-scout-17b-16e-instruct`).
 - **CV parsing** with structured Pydantic output and personal-info
   extraction (`profiles/services/cv_parser.py`).
 - **Outreach automation** via a Chrome extension that auto-discovers
-  LinkedIn targets and drafts personalised messages.
+  LinkedIn targets and drafts personalised messages
+  (`extension-outreach/`).
 - **Built-in observability** — per-route latency middleware,
   `/healthz/metrics` endpoint, structured request logging.
 
@@ -34,14 +36,16 @@ and Groq (`meta-llama/llama-4-scout-17b-16e-instruct`).
 
 ### Resume editor with live preview and ATS score
 
-![Resume editor with live preview and ATS score](docs/images/resume-editor.png)
+<!-- TODO(screenshot): resume editor split-pane (form on left, print preview on right, ATS score recomputing). Save to docs/images/resume-editor.png and uncomment the line below. -->
+<!-- ![Resume editor with live preview and ATS score](docs/images/resume-editor.png) -->
 
 Edit a tailored resume on the left, watch the print-ready preview update on
 the right, and see the ATS score recompute as you type.
 
 ### Gap analysis
 
-![Gap analysis output — matched / partial / missing skills, with action plan](docs/images/gap-analysis.png)
+<!-- TODO(screenshot): gap analysis page showing matched / partial / missing skill columns plus the action plan. Save to docs/images/gap-analysis.png and uncomment the line below. -->
+<!-- ![Gap analysis output — matched / partial / missing skills, with action plan](docs/images/gap-analysis.png) -->
 
 Two-phase pipeline: an LLM categorises every JD skill, then programmatic
 fuzzy reconciliation guarantees every skill lands in `matched`, `partial`,
@@ -49,7 +53,8 @@ or `missing` — no silent drops.
 
 ### Outreach campaign builder
 
-![Outreach campaign builder — Run a campaign at <Company>, paired with the Chrome extension](docs/images/outreach-campaign.png)
+<!-- TODO(screenshot): outreach campaign page paired with the Chrome extension popup. Save to docs/images/outreach-campaign.png and uncomment the line below. -->
+<!-- ![Outreach campaign builder — Run a campaign at <Company>, paired with the Chrome extension](docs/images/outreach-campaign.png) -->
 
 Per-job campaign page that pairs with a Chrome extension. The extension
 discovers reachable people from inside your own LinkedIn tab and queues
@@ -57,7 +62,7 @@ personalised connect-with-note drafts for review — never automated sending.
 
 ## Benchmarks & Test Results
 
-281 Django tests passing. Coverage 53% overall (76.9% in `core/`).
+305 Django tests passing. Coverage 53% overall (76.9% in `core/`).
 
 The repo ships a small, real evaluation suite under `benchmarks/` — every
 metric has a sample size, a re-run command, and a JSON artifact. No
@@ -102,7 +107,7 @@ cp .env.example .env
 # then edit .env to set:
 #   DATABASE_URL  (Supabase PgBouncer URL on port 6543, sslmode=require)
 #   GROQ_API_KEY  (https://console.groq.com)
-#   SECRET_KEY    (required when DEBUG=False)
+#   SECRET_KEY    (required for any non-test invocation; tests use a default)
 
 # Migrate + run
 python manage.py migrate
@@ -117,13 +122,14 @@ committed so the dev server works without npm.
 ## Architecture
 
 ```
-accounts/   Custom UUID User model + email auth
-profiles/   CV parsing, JSONB profile, chatbot, outreach API + Chrome ext
-jobs/       Job input (URL or text) + LLM-based skill extraction
-analysis/   Gap analyzer (two-phase), learning paths, salary tools
-resumes/    Tailored resume gen, cover letters, PDF export (xhtml2pdf)
-core/       Landing, observability middleware, metrics, healthz
-benchmarks/ Reproducible evaluation suite (see docs/benchmarks.md)
+accounts/           Custom UUID User model + email auth
+profiles/           CV parsing, JSONB profile, chatbot, outreach API
+jobs/               Job input (URL or text) + LLM-based skill extraction
+analysis/           Gap analyzer (two-phase), learning paths, salary tools
+resumes/            Tailored resume gen, cover letters, PDF export (xhtml2pdf)
+core/               Landing, observability middleware, metrics, healthz
+extension-outreach/ Chrome extension for LinkedIn target discovery + drafting
+benchmarks/         Reproducible evaluation suite (see docs/benchmarks.md)
 ```
 
 LLM access is centralised in `profiles/services/llm_engine.py`:
