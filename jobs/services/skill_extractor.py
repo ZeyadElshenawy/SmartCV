@@ -5,6 +5,24 @@ from profiles.services.schemas import SkillListResult
 
 logger = logging.getLogger(__name__)
 
+# Hard denylist for the post-LLM filter. Each entry was an actual hallucination
+# in benchmarks/results/2026-04-25 — the LLM adds them on most senior-ish JDs
+# regardless of whether they appear in the text. We let the prompt try first,
+# then strip these unconditionally if they slipped through.
+_GENERIC_SOFT_SKILL_DENYLIST = {
+    "technical leadership",
+    "problem solving",
+    "problem-solving",
+    "communication",
+    "teamwork",
+    "collaboration",
+    "code review",
+    "pair programming",
+    "pairing sessions",
+    "mentorship",
+    "leadership",
+}
+
 # --------------------------------------------------
 # Enhanced Skill Knowledge Base (kept for reference/fallback)
 # --------------------------------------------------
@@ -86,35 +104,89 @@ SKILL_KB = {
     "Problem Solving": ["solve problems", "problem solving", "problem-solving"],
 }
 
+def _is_jd_anchored(skill: str, jd_lower: str) -> bool:
+    """True if the extracted skill name plausibly appears in the JD text.
+
+    Permissive — we'd rather keep a real canonical extraction than reject it
+    on a tokenization mismatch. Three independent passes:
+
+    1. Full skill name appears as a substring of the JD (case-insensitive).
+       Catches the easy 90% case ("AWS", "PostgreSQL", "TypeScript").
+    2. After stripping common boilerplate suffixes (" pipelines", " API",
+       " workflows", " testing"), the trimmed name appears as a substring.
+       Lets "REST API" match a JD that just says "REST".
+    3. Every alphabetic word longer than 2 chars in the skill name appears
+       in the JD. Catches multi-word canonicalizations like "Tailwind CSS"
+       when the JD only says "Tailwind".
+
+    Skills that fail all three are very likely hallucinations.
+    """
+    s = skill.lower().strip()
+    if not s:
+        return False
+    if s in jd_lower:
+        return True
+    trimmed = re.sub(r"\s+(pipelines?|apis?|workflows?|testing|clients?|sessions?)$", "", s)
+    if trimmed and trimmed != s and trimmed in jd_lower:
+        return True
+    words = [w for w in re.findall(r"[a-z]+", s) if len(w) > 2]
+    if words and all(w in jd_lower for w in words):
+        return True
+    return False
+
+
 # --------------------------------------------------
 # Full extraction pipeline (Using LangChain + Groq)
 # --------------------------------------------------
 def extract_skills(text):
     if not text:
         return []
-    
+
     prompt = f"""You are an expert AI recruiter system.
-Extract key professional skills, tools, frameworks, and technologies from the following job description text.
+Extract key professional skills, tools, frameworks, programming languages, and technologies from the following job description text.
 
 Guidelines:
-1. Only extract technical skills, tools, and VERY specific soft skills (like "Technical Leadership" or "Problem Solving").
-2. Try to map extracted software/skills to canonical names if appropriate (e.g. "aws" -> "AWS", "gen ai" -> "Generative AI").
-3. Return the unique skill names.
+1. Extract ONLY technical skills, tools, frameworks, languages, platforms, and named technologies.
+2. Try to map extracted skills to canonical names if appropriate (e.g. "aws" -> "AWS", "gen ai" -> "Generative AI", "k8s" -> "Kubernetes").
+3. Return unique skill names.
 
-=== STRICT ANTI-HALLUCINATION RULE (CRITICAL) ===
-- Only list skills explicitly mentioned or required in the job description text. Do not invent any skills.
+=== STRICT ANTI-HALLUCINATION RULES (CRITICAL) ===
+- Only list skills explicitly mentioned in the job description text. Do not invent skills.
+- A skill is "explicitly mentioned" only if its name (or a well-known alias) appears verbatim in the text.
+- DO NOT include generic soft skills. The following are BANNED unless the exact phrase appears verbatim in the JD:
+  Technical Leadership, Problem Solving, Communication, Teamwork, Collaboration,
+  Code Review, Pair Programming, Pairing Sessions, Mentorship, Leadership.
+- DO NOT infer skills from job seniority, company type, or industry. If it isn't in the text, do not list it.
 
 Job Description Text to analyze:
 {text}"""
-    
+
     try:
         structured_llm = get_structured_llm(SkillListResult, temperature=0.0, max_tokens=512)
         result = structured_llm.invoke(prompt)
-        
-        if result and result.skills:
-            return result.skills
-        return []
-            
+
+        if not result or not result.skills:
+            return []
+
+        # Defense in depth: even with the prompt rules above, the LLM occasionally
+        # adds the banned soft skills on senior JDs. Strip them unconditionally
+        # unless they appear verbatim in the JD text. Then drop anything that
+        # fails JD-substring anchoring.
+        text_lower = text.lower()
+        out: list[str] = []
+        for s in result.skills:
+            if not s:
+                continue
+            sl = s.lower().strip()
+            if sl in _GENERIC_SOFT_SKILL_DENYLIST and sl not in text_lower:
+                logger.debug("skill_extractor: dropped denylisted '%s' (not in JD text)", s)
+                continue
+            if not _is_jd_anchored(s, text_lower):
+                logger.debug("skill_extractor: dropped unanchored '%s' (no substring or word match in JD)", s)
+                continue
+            out.append(s)
+        return out
+
     except Exception as e:
         logger.error(f"Failed to extract skills: {e}")
         return []
