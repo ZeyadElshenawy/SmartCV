@@ -39,7 +39,9 @@ fabricated numbers. Latest run (2026-04-25):
 | CV parser skills F1 | 0.28 (Jaccard 0.18) | 10 CVs |
 | Skill extractor F1 | **0.78** (P=0.71, R=0.88, hallucination 0.29) | 5 JDs × 1 run |
 | Gap analyzer coverage | **0.997** (48/50 pairs at 100%) | 50 (CV, JD) pairs |
-| Gap analyzer separation (similarity score) | strong **0.58** / partial **0.45** / weak **0.21** (Cohen's d strong-vs-weak = **1.64**) | 50 pairs |
+| Gap analyzer separation (similarity score) | strong **0.55** / partial **0.49** / weak **0.19** (Cohen's d strong-vs-weak = **1.59**) | 50 pairs |
+| Tailored resume — LLM-judged (1-10) | factuality **8.0** / relevance **6.8** / ats_fit **5.6** / human_voice **5.6** | 10 strong pairs |
+| Tailored resume — programmatic entity grounding | **0.875** of generated companies/schools appear verbatim in source CV | 10 pairs |
 
 See [`docs/benchmarks.md`](docs/benchmarks.md) for full methodology, the
 formulas behind each metric, fixture description, and a "what this does
@@ -49,7 +51,8 @@ not measure" disclosure. Latest JSON artifacts live in
 Reproduce with:
 
 ```bash
-python -m benchmarks.run_all
+python -m benchmarks.run_all                    # all phases except D5
+python -m benchmarks.run_all --with-tailoring   # also runs LLM-judged tailoring
 ```
 
 ## Quick Start

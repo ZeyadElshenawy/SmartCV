@@ -130,6 +130,36 @@ Three checks against `resumes.services.scoring.compute_ats_breakdown`:
 This phase needs **no external fixtures** and is the cheapest to
 re-run.
 
+### Phase D5 — Resume Tailoring (`tailoring_eval.py` + `llm_judge.py`)
+
+Pipeline per (CV, JD) pair, restricted to manifest pairs labeled
+`strong` by default (~10 pairs):
+
+1. Parse the CV via `parse_cv`.
+2. Run `compute_gap_analysis` to feed the generator.
+3. Generate a tailored resume via
+   `resumes.services.resume_generator.generate_resume_content`.
+4. Score with the 4-axis LLM judge defined in `benchmarks/llm_judge.py`
+   — factuality / relevance / ats_fit / human_voice on a 1-10 scale,
+   each with a one-sentence rationale.
+5. Programmatic factuality pre-check: every company / school name in
+   the generated resume must appear verbatim (case-insensitive) in the
+   original CV text. Reports the grounded ratio.
+6. Programmatic voice check: count occurrences of the banned tokens
+   from `profiles.services.prompt_guards.HUMAN_VOICE_RULE`.
+
+The judge prompt inlines the canonical voice rule so it grades against
+the same standard the generator is supposed to follow. Judge runs at
+`temperature=0.0` for near-deterministic scoring; the generator runs at
+the production temperature so per-pair scores will vary across runs.
+
+This phase is opt-in from `run_all.py` because of the LLM-call budget
+(3 calls per pair × ~10 pairs ≈ 30 calls):
+
+```bash
+python -m benchmarks.run_all --with-tailoring
+```
+
 ### Phase E — Orchestrator (`run_all.py`)
 
 Single entry point that runs every phase, captures any uncaught exception
@@ -152,6 +182,10 @@ python -m benchmarks.latency_runner --requests 100
 python -m benchmarks.parser_eval
 python -m benchmarks.skill_extractor_eval --repeats 3
 python -m benchmarks.gap_eval --repeats 3
+python -m benchmarks.tailoring_eval                  # strong-bucket only
+
+# With LLM-judged tailoring (Phase D5; slower, more LLM calls):
+python -m benchmarks.run_all --with-tailoring
 
 # Heavier disclosure (slower, more stable means):
 python -m benchmarks.run_all --gap-repeats 3 --sx-repeats 3 --parser-repeats 3
@@ -166,10 +200,11 @@ folder under `benchmarks/results/`.
   on a single developer machine; multi-user contention, real WAN latency,
   Supabase queueing under burst load, and real-browser asset costs are
   out of scope.
-- **Tailored-resume quality (Phase D5).** LLM-judged resume tailoring is
-  not yet wired into `run_all.py`; the harness file lives at
-  `benchmarks/llm_judge.py` and will be added once the judge prompt is
-  validated.
+- **Human-validated resume quality.** Phase D5 (resume tailoring) is
+  graded by a single LLM judge plus a programmatic entity-grounding
+  check. Treat absolute scores as a smoke test, not human-validated
+  ground truth; relative trends across pairs and runs are more reliable
+  than any single number.
 - **Edge-case CVs.** The 10-CV fixture set is intentionally
   representative of the project's target users (early-career CS / SWE
   candidates, plus a few synthetic-style resumes) and does not yet
@@ -183,10 +218,10 @@ folder under `benchmarks/results/`.
 
 # SmartCV Benchmark Run
 
-- **Run date:** 2026-04-25T10:44:11Z
-- **Wall time:** 157.0s
+- **Run date:** 2026-04-25T11:02:31Z
+- **Wall time:** 272.36s
 - **Platform:** Windows 11 / Python 3.13.9
-- **Phases:** ats_eval, latency_runner, parser_eval, skill_extractor_eval, gap_eval
+- **Phases:** ats_eval, latency_runner, parser_eval, skill_extractor_eval, gap_eval, tailoring_eval
 
 ## Headline Metrics
 
@@ -194,22 +229,25 @@ folder under `benchmarks/results/`.
 | --- | --- | --- | --- |
 | ATS scoring deterministic (sigma=0) | **True** | 10 runs x 3 fixtures | benchmarks/ats_eval.py |
 | ATS matched-vs-mismatched separation | matched **100.0** vs mismatched **11.0** (Cohen's d = **6.267**) | 3 matched, 6 mismatched | benchmarks/ats_eval.py |
-| Endpoint warm p95 (max across routes) | **12.36 ms** | 5 routes x 60 req | benchmarks/latency_runner.py |
+| Endpoint warm p95 (max across routes) | **12.58 ms** | 5 routes x 60 req | benchmarks/latency_runner.py |
 | CV parser personal-info accuracy | **0.942** | 10 CVs | benchmarks/parser_eval.py |
 | CV parser skills F1 | **0.278** (Jaccard 0.176) | 10 CVs | benchmarks/parser_eval.py |
-| Skill extractor F1 | **0.781** (P=0.712, R=0.882, halluc=0.288) | 5 JDs x 1 runs | benchmarks/skill_extractor_eval.py |
-| Gap analyzer coverage (Phase 2 reconciliation) | **0.997** (48/50 pairs at 100%) | 50 (CV,JD) pairs | benchmarks/gap_eval.py |
-| Gap analyzer separation (similarity score) | strong **0.582** / partial **0.4517** / weak **0.2147** (Cohen's d strong-vs-weak = **1.635**) | 50 pairs | benchmarks/gap_eval.py |
+| Skill extractor F1 | **0.772** (P=0.693, R=0.893, halluc=0.307) | 5 JDs x 1 runs | benchmarks/skill_extractor_eval.py |
+| Gap analyzer coverage (Phase 2 reconciliation) | **0.999** (49/50 pairs at 100%) | 50 (CV,JD) pairs | benchmarks/gap_eval.py |
+| Gap analyzer separation (similarity score) | strong **0.55** / partial **0.4933** / weak **0.1882** (Cohen's d strong-vs-weak = **1.594**) | 50 pairs | benchmarks/gap_eval.py |
+| Tailored resume — judge axes (1-10) | factuality **8.0** / relevance **6.8** / ats_fit **5.6** / human_voice **5.6** | 10 pairs (strong) | benchmarks/tailoring_eval.py |
+| Tailored resume — programmatic entity grounding | **0.875** of generated entities appear verbatim in source CV | 10 pairs | benchmarks/tailoring_eval.py |
 
 ## Phase Wall Times
 
 | Phase | Wall (s) | OK |
 | --- | --- | --- |
 | ats_eval | 0.0 | yes |
-| latency_runner | 6.53 | yes |
-| parser_eval | 1.3 | yes |
-| skill_extractor_eval | 5.19 | yes |
-| gap_eval | 143.98 | yes |
+| latency_runner | 6.58 | yes |
+| parser_eval | 1.29 | yes |
+| skill_extractor_eval | 7.27 | yes |
+| gap_eval | 123.11 | yes |
+| tailoring_eval | 134.11 | yes |
 
 ## Disclosure
 

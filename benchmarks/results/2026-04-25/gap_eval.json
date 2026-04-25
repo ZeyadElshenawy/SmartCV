@@ -6,77 +6,77 @@
   "n_jds": 5,
   "n_pairs_evaluated": 50,
   "repeats_per_pair": 1,
-  "parse_wall_seconds": 1.19,
-  "wall_seconds": 142.79,
+  "parse_wall_seconds": 1.18,
+  "wall_seconds": 121.93,
   "parse_errors": [],
   "buckets": {
     "strong": {
       "n": 10,
-      "min": 0.2,
-      "mean": 0.582,
+      "min": 0.14,
+      "mean": 0.55,
       "median": 0.6,
       "p95": 0.9,
       "max": 0.9,
-      "std": 0.224,
+      "std": 0.2577,
       "scores": [
         0.6,
         0.9,
         0.8,
         0.6,
-        0.6,
+        0.4,
         0.2,
         0.36,
         0.9,
-        0.5,
-        0.36
+        0.6,
+        0.14
       ]
     },
     "partial": {
       "n": 6,
-      "min": 0.1,
-      "mean": 0.4517,
-      "median": 0.48,
-      "p95": 0.67,
+      "min": 0.2,
+      "mean": 0.4933,
+      "median": 0.5,
+      "p95": 0.7,
       "max": 0.7,
-      "std": 0.2033,
+      "std": 0.1776,
       "scores": [
-        0.6,
-        0.35,
         0.7,
-        0.6,
-        0.1,
+        0.5,
+        0.7,
+        0.5,
+        0.2,
         0.36
       ]
     },
     "weak": {
       "n": 34,
       "min": 0.0,
-      "mean": 0.2147,
-      "median": 0.15,
+      "mean": 0.1882,
+      "median": 0.1,
       "p95": 0.63,
       "max": 0.7,
-      "std": 0.2248,
+      "std": 0.2178,
       "scores": [
         0.2,
+        0.35,
+        0.05,
+        0.2,
         0.6,
-        0.1,
-        0.3,
         0.6,
-        0.5,
-        0.1,
+        0.05,
         0.1,
         0.6,
         0.05,
-        0.3,
+        0.2,
         0.2,
         0.1,
+        0.05,
+        0.14,
+        0.06,
+        0.1,
+        0.05,
+        0.2,
         0.0,
-        0.45,
-        0.2,
-        0.1,
-        0.2,
-        0.2,
-        0.1,
         0.2,
         0.0,
         0.0,
@@ -84,7 +84,7 @@
         0.7,
         0.7,
         0.5,
-        0.0,
+        0.2,
         0.0,
         0.0,
         0.2,
@@ -95,27 +95,27 @@
     }
   },
   "separation": {
-    "strong_vs_weak_cohens_d": 1.635,
+    "strong_vs_weak_cohens_d": 1.594,
     "strong_mean_gt_weak_mean": true
   },
   "coverage": {
     "n": 50,
-    "min": 0.9286,
-    "mean": 0.9971,
+    "min": 0.9524,
+    "mean": 0.999,
     "median": 1.0,
     "p95": 1.0,
     "max": 1.0,
-    "std": 0.014,
-    "perfect_coverage_pairs": 48
+    "std": 0.0067,
+    "perfect_coverage_pairs": 49
   },
   "latency_ms": {
     "n": 50,
-    "min": 950.53,
-    "mean": 2855.7424,
-    "median": 3171.94,
-    "p95": 4448.14,
-    "max": 5066.27,
-    "std": 1341.7289
+    "min": 976.96,
+    "mean": 2438.4804,
+    "median": 2553.285,
+    "p95": 4228.81,
+    "max": 4729.43,
+    "std": 1204.7392
   },
   "rows": [
     {
@@ -127,8 +127,8 @@
       "runs": [
         {
           "similarity_score": 0.2,
-          "n_matched": 3,
-          "n_missing": 18,
+          "n_matched": 5,
+          "n_missing": 16,
           "n_partial": 0,
           "analysis_method": "llm",
           "coverage": {
@@ -137,7 +137,7 @@
             "n_covered_of_job": 21,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 1106.51,
+          "latency_ms": 1699.29,
           "error": null
         }
       ]
@@ -146,13 +146,13 @@
       "cv_id": "cv_backend_jr_rust",
       "jd_id": "jd_backend_python_node",
       "expected": "partial",
-      "similarity_mean": 0.6,
+      "similarity_mean": 0.7,
       "similarity_std": 0.0,
       "runs": [
         {
-          "similarity_score": 0.6,
-          "n_matched": 9,
-          "n_missing": 9,
+          "similarity_score": 0.7,
+          "n_matched": 10,
+          "n_missing": 8,
           "n_partial": 0,
           "analysis_method": "llm",
           "coverage": {
@@ -161,7 +161,7 @@
             "n_covered_of_job": 18,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 1082.66,
+          "latency_ms": 992.68,
           "error": null
         }
       ]
@@ -170,78 +170,6 @@
       "cv_id": "cv_backend_jr_rust",
       "jd_id": "jd_devops_aws_k8s",
       "expected": "weak",
-      "similarity_mean": 0.6,
-      "similarity_std": 0.0,
-      "runs": [
-        {
-          "similarity_score": 0.6,
-          "n_matched": 8,
-          "n_missing": 13,
-          "n_partial": 0,
-          "analysis_method": "llm",
-          "coverage": {
-            "n_job_skills": 20,
-            "n_accounted": 21,
-            "n_covered_of_job": 20,
-            "coverage_ratio": 1.0
-          },
-          "latency_ms": 1101.86,
-          "error": null
-        }
-      ]
-    },
-    {
-      "cv_id": "cv_backend_jr_rust",
-      "jd_id": "jd_flutter_mobile",
-      "expected": "weak",
-      "similarity_mean": 0.1,
-      "similarity_std": 0.0,
-      "runs": [
-        {
-          "similarity_score": 0.1,
-          "n_matched": 3,
-          "n_missing": 17,
-          "n_partial": 0,
-          "analysis_method": "llm",
-          "coverage": {
-            "n_job_skills": 20,
-            "n_accounted": 20,
-            "n_covered_of_job": 20,
-            "coverage_ratio": 1.0
-          },
-          "latency_ms": 1048.05,
-          "error": null
-        }
-      ]
-    },
-    {
-      "cv_id": "cv_backend_jr_rust",
-      "jd_id": "jd_junior_web_dev",
-      "expected": "weak",
-      "similarity_mean": 0.3,
-      "similarity_std": 0.0,
-      "runs": [
-        {
-          "similarity_score": 0.3,
-          "n_matched": 7,
-          "n_missing": 11,
-          "n_partial": 0,
-          "analysis_method": "llm",
-          "coverage": {
-            "n_job_skills": 14,
-            "n_accounted": 18,
-            "n_covered_of_job": 14,
-            "coverage_ratio": 1.0
-          },
-          "latency_ms": 1009.45,
-          "error": null
-        }
-      ]
-    },
-    {
-      "cv_id": "cv_frontend_jr_react",
-      "jd_id": "jd_senior_frontend_react",
-      "expected": "partial",
       "similarity_mean": 0.35,
       "similarity_std": 0.0,
       "runs": [
@@ -252,12 +180,84 @@
           "n_partial": 0,
           "analysis_method": "llm",
           "coverage": {
+            "n_job_skills": 20,
+            "n_accounted": 21,
+            "n_covered_of_job": 20,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1050.19,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_backend_jr_rust",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.05,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.05,
+          "n_matched": 1,
+          "n_missing": 19,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 20,
+            "n_accounted": 20,
+            "n_covered_of_job": 20,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1870.57,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_backend_jr_rust",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "weak",
+      "similarity_mean": 0.2,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.2,
+          "n_matched": 4,
+          "n_missing": 11,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 15,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1263.92,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_jr_react",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "partial",
+      "similarity_mean": 0.5,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.5,
+          "n_matched": 8,
+          "n_missing": 13,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
             "n_job_skills": 21,
             "n_accounted": 21,
             "n_covered_of_job": 21,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 1035.09,
+          "latency_ms": 1266.05,
           "error": null
         }
       ]
@@ -281,7 +281,7 @@
             "n_covered_of_job": 18,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 991.9,
+          "latency_ms": 1118.81,
           "error": null
         }
       ]
@@ -290,11 +290,11 @@
       "cv_id": "cv_frontend_jr_react",
       "jd_id": "jd_devops_aws_k8s",
       "expected": "weak",
-      "similarity_mean": 0.5,
+      "similarity_mean": 0.6,
       "similarity_std": 0.0,
       "runs": [
         {
-          "similarity_score": 0.5,
+          "similarity_score": 0.6,
           "n_matched": 8,
           "n_missing": 14,
           "n_partial": 0,
@@ -305,7 +305,7 @@
             "n_covered_of_job": 20,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 1079.09,
+          "latency_ms": 2474.88,
           "error": null
         }
       ]
@@ -314,22 +314,22 @@
       "cv_id": "cv_frontend_jr_react",
       "jd_id": "jd_flutter_mobile",
       "expected": "weak",
-      "similarity_mean": 0.1,
+      "similarity_mean": 0.05,
       "similarity_std": 0.0,
       "runs": [
         {
-          "similarity_score": 0.1,
-          "n_matched": 7,
+          "similarity_score": 0.05,
+          "n_matched": 1,
           "n_missing": 19,
           "n_partial": 0,
           "analysis_method": "llm",
           "coverage": {
             "n_job_skills": 20,
-            "n_accounted": 26,
+            "n_accounted": 20,
             "n_covered_of_job": 20,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 1100.97,
+          "latency_ms": 1040.31,
           "error": null
         }
       ]
@@ -353,7 +353,7 @@
             "n_covered_of_job": 14,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 950.53,
+          "latency_ms": 976.96,
           "error": null
         }
       ]
@@ -367,8 +367,8 @@
       "runs": [
         {
           "similarity_score": 0.1,
-          "n_matched": 3,
-          "n_missing": 18,
+          "n_matched": 2,
+          "n_missing": 19,
           "n_partial": 0,
           "analysis_method": "llm",
           "coverage": {
@@ -377,7 +377,7 @@
             "n_covered_of_job": 21,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 1087.67,
+          "latency_ms": 1893.57,
           "error": null
         }
       ]
@@ -401,7 +401,7 @@
             "n_covered_of_job": 18,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 1043.8,
+          "latency_ms": 1146.85,
           "error": null
         }
       ]
@@ -425,7 +425,7 @@
             "n_covered_of_job": 20,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 1140.0,
+          "latency_ms": 1060.58,
           "error": null
         }
       ]
@@ -449,7 +449,7 @@
             "n_covered_of_job": 20,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 3139.08,
+          "latency_ms": 1103.88,
           "error": null
         }
       ]
@@ -458,11 +458,11 @@
       "cv_id": "cv_devops_jr",
       "jd_id": "jd_junior_web_dev",
       "expected": "weak",
-      "similarity_mean": 0.3,
+      "similarity_mean": 0.2,
       "similarity_std": 0.0,
       "runs": [
         {
-          "similarity_score": 0.3,
+          "similarity_score": 0.2,
           "n_matched": 3,
           "n_missing": 11,
           "n_partial": 0,
@@ -473,7 +473,7 @@
             "n_covered_of_job": 14,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 1312.3,
+          "latency_ms": 1659.63,
           "error": null
         }
       ]
@@ -487,8 +487,8 @@
       "runs": [
         {
           "similarity_score": 0.2,
-          "n_matched": 5,
-          "n_missing": 16,
+          "n_matched": 6,
+          "n_missing": 15,
           "n_partial": 0,
           "analysis_method": "llm",
           "coverage": {
@@ -497,7 +497,7 @@
             "n_covered_of_job": 21,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 1423.81,
+          "latency_ms": 1102.61,
           "error": null
         }
       ]
@@ -512,16 +512,16 @@
         {
           "similarity_score": 0.1,
           "n_matched": 3,
-          "n_missing": 17,
+          "n_missing": 15,
           "n_partial": 0,
           "analysis_method": "llm",
           "coverage": {
             "n_job_skills": 18,
-            "n_accounted": 20,
+            "n_accounted": 18,
             "n_covered_of_job": 18,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 1333.38,
+          "latency_ms": 1011.96,
           "error": null
         }
       ]
@@ -530,22 +530,22 @@
       "cv_id": "cv_flutter_intern",
       "jd_id": "jd_devops_aws_k8s",
       "expected": "weak",
-      "similarity_mean": 0.0,
+      "similarity_mean": 0.05,
       "similarity_std": 0.0,
       "runs": [
         {
-          "similarity_score": 0.0,
-          "n_matched": 2,
+          "similarity_score": 0.05,
+          "n_matched": 1,
           "n_missing": 20,
           "n_partial": 0,
           "analysis_method": "llm",
           "coverage": {
             "n_job_skills": 20,
-            "n_accounted": 22,
+            "n_accounted": 21,
             "n_covered_of_job": 20,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 1284.56,
+          "latency_ms": 1407.88,
           "error": null
         }
       ]
@@ -569,7 +569,7 @@
             "n_covered_of_job": 20,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 2094.47,
+          "latency_ms": 1205.63,
           "error": null
         }
       ]
@@ -578,22 +578,22 @@
       "cv_id": "cv_flutter_intern",
       "jd_id": "jd_junior_web_dev",
       "expected": "weak",
-      "similarity_mean": 0.45,
+      "similarity_mean": 0.14,
       "similarity_std": 0.0,
       "runs": [
         {
-          "similarity_score": 0.45,
-          "n_matched": 5,
-          "n_missing": 9,
+          "similarity_score": 0.14,
+          "n_matched": 2,
+          "n_missing": 12,
           "n_partial": 0,
-          "analysis_method": "llm",
+          "analysis_method": "fallback",
           "coverage": {
             "n_job_skills": 14,
             "n_accounted": 14,
             "n_covered_of_job": 14,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 5066.27,
+          "latency_ms": 2642.1,
           "error": null
         }
       ]
@@ -602,22 +602,22 @@
       "cv_id": "cv_frontend_diploma_react",
       "jd_id": "jd_senior_frontend_react",
       "expected": "partial",
-      "similarity_mean": 0.6,
+      "similarity_mean": 0.5,
       "similarity_std": 0.0,
       "runs": [
         {
-          "similarity_score": 0.6,
-          "n_matched": 9,
-          "n_missing": 12,
+          "similarity_score": 0.5,
+          "n_matched": 13,
+          "n_missing": 15,
           "n_partial": 0,
           "analysis_method": "llm",
           "coverage": {
             "n_job_skills": 21,
-            "n_accounted": 21,
+            "n_accounted": 28,
             "n_covered_of_job": 21,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 4092.81,
+          "latency_ms": 1123.84,
           "error": null
         }
       ]
@@ -626,22 +626,22 @@
       "cv_id": "cv_frontend_diploma_react",
       "jd_id": "jd_backend_python_node",
       "expected": "weak",
-      "similarity_mean": 0.2,
+      "similarity_mean": 0.06,
       "similarity_std": 0.0,
       "runs": [
         {
-          "similarity_score": 0.2,
-          "n_matched": 5,
-          "n_missing": 14,
+          "similarity_score": 0.06,
+          "n_matched": 1,
+          "n_missing": 17,
           "n_partial": 0,
-          "analysis_method": "llm",
+          "analysis_method": "fallback",
           "coverage": {
             "n_job_skills": 18,
-            "n_accounted": 19,
+            "n_accounted": 18,
             "n_covered_of_job": 18,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 3392.45,
+          "latency_ms": 1692.31,
           "error": null
         }
       ]
@@ -665,7 +665,7 @@
             "n_covered_of_job": 20,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 4174.34,
+          "latency_ms": 1084.76,
           "error": null
         }
       ]
@@ -674,22 +674,22 @@
       "cv_id": "cv_frontend_diploma_react",
       "jd_id": "jd_flutter_mobile",
       "expected": "weak",
-      "similarity_mean": 0.2,
+      "similarity_mean": 0.05,
       "similarity_std": 0.0,
       "runs": [
         {
-          "similarity_score": 0.2,
-          "n_matched": 10,
-          "n_missing": 16,
+          "similarity_score": 0.05,
+          "n_matched": 1,
+          "n_missing": 19,
           "n_partial": 0,
-          "analysis_method": "llm",
+          "analysis_method": "fallback",
           "coverage": {
             "n_job_skills": 20,
-            "n_accounted": 26,
+            "n_accounted": 20,
             "n_covered_of_job": 20,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 4176.99,
+          "latency_ms": 2646.43,
           "error": null
         }
       ]
@@ -713,7 +713,7 @@
             "n_covered_of_job": 14,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 4187.64,
+          "latency_ms": 2080.42,
           "error": null
         }
       ]
@@ -727,8 +727,8 @@
       "runs": [
         {
           "similarity_score": 0.6,
-          "n_matched": 8,
-          "n_missing": 13,
+          "n_matched": 12,
+          "n_missing": 9,
           "n_partial": 0,
           "analysis_method": "llm",
           "coverage": {
@@ -737,7 +737,7 @@
             "n_covered_of_job": 21,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 3041.56,
+          "latency_ms": 3721.44,
           "error": null
         }
       ]
@@ -751,17 +751,17 @@
       "runs": [
         {
           "similarity_score": 0.2,
-          "n_matched": 8,
-          "n_missing": 17,
+          "n_matched": 6,
+          "n_missing": 18,
           "n_partial": 0,
           "analysis_method": "llm",
           "coverage": {
             "n_job_skills": 18,
-            "n_accounted": 25,
+            "n_accounted": 24,
             "n_covered_of_job": 18,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 4204.43,
+          "latency_ms": 3147.91,
           "error": null
         }
       ]
@@ -770,22 +770,22 @@
       "cv_id": "cv_frontend_senior_react_vue",
       "jd_id": "jd_devops_aws_k8s",
       "expected": "weak",
-      "similarity_mean": 0.1,
+      "similarity_mean": 0.0,
       "similarity_std": 0.0,
       "runs": [
         {
-          "similarity_score": 0.1,
-          "n_matched": 5,
+          "similarity_score": 0.0,
+          "n_matched": 0,
           "n_missing": 20,
           "n_partial": 0,
           "analysis_method": "llm",
           "coverage": {
             "n_job_skills": 20,
-            "n_accounted": 25,
+            "n_accounted": 20,
             "n_covered_of_job": 20,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 4214.3,
+          "latency_ms": 4203.76,
           "error": null
         }
       ]
@@ -799,17 +799,17 @@
       "runs": [
         {
           "similarity_score": 0.2,
-          "n_matched": 4,
+          "n_matched": 8,
           "n_missing": 16,
           "n_partial": 0,
           "analysis_method": "llm",
           "coverage": {
             "n_job_skills": 20,
-            "n_accounted": 20,
+            "n_accounted": 24,
             "n_covered_of_job": 20,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 4463.84,
+          "latency_ms": 4249.3,
           "error": null
         }
       ]
@@ -818,13 +818,13 @@
       "cv_id": "cv_frontend_senior_react_vue",
       "jd_id": "jd_junior_web_dev",
       "expected": "strong",
-      "similarity_mean": 0.6,
+      "similarity_mean": 0.4,
       "similarity_std": 0.0,
       "runs": [
         {
-          "similarity_score": 0.6,
-          "n_matched": 10,
-          "n_missing": 9,
+          "similarity_score": 0.4,
+          "n_matched": 8,
+          "n_missing": 11,
           "n_partial": 0,
           "analysis_method": "llm",
           "coverage": {
@@ -833,7 +833,7 @@
             "n_covered_of_job": 14,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 3027.49,
+          "latency_ms": 4130.85,
           "error": null
         }
       ]
@@ -857,7 +857,7 @@
             "n_covered_of_job": 21,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 3862.12,
+          "latency_ms": 3123.09,
           "error": null
         }
       ]
@@ -881,7 +881,7 @@
             "n_covered_of_job": 18,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 4103.12,
+          "latency_ms": 3173.48,
           "error": null
         }
       ]
@@ -905,7 +905,7 @@
             "n_covered_of_job": 20,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 3389.2,
+          "latency_ms": 4130.86,
           "error": null
         }
       ]
@@ -922,14 +922,14 @@
           "n_matched": 0,
           "n_missing": 20,
           "n_partial": 0,
-          "analysis_method": "llm",
+          "analysis_method": "fallback",
           "coverage": {
             "n_job_skills": 20,
             "n_accounted": 20,
             "n_covered_of_job": 20,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 3188.9,
+          "latency_ms": 2915.98,
           "error": null
         }
       ]
@@ -944,16 +944,16 @@
         {
           "similarity_score": 0.36,
           "n_matched": 4,
-          "n_missing": 12,
+          "n_missing": 10,
           "n_partial": 0,
           "analysis_method": "llm",
           "coverage": {
             "n_job_skills": 14,
-            "n_accounted": 16,
-            "n_covered_of_job": 13,
-            "coverage_ratio": 0.9286
+            "n_accounted": 14,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
           },
-          "latency_ms": 4213.49,
+          "latency_ms": 1017.72,
           "error": null
         }
       ]
@@ -977,7 +977,7 @@
             "n_covered_of_job": 21,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 3414.52,
+          "latency_ms": 3150.97,
           "error": null
         }
       ]
@@ -1001,7 +1001,7 @@
             "n_covered_of_job": 18,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 4277.45,
+          "latency_ms": 4019.22,
           "error": null
         }
       ]
@@ -1025,7 +1025,7 @@
             "n_covered_of_job": 20,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 3044.46,
+          "latency_ms": 3062.16,
           "error": null
         }
       ]
@@ -1049,7 +1049,7 @@
             "n_covered_of_job": 20,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 3007.46,
+          "latency_ms": 3120.76,
           "error": null
         }
       ]
@@ -1058,13 +1058,13 @@
       "cv_id": "cv_frontend_senior_react_vue_v2",
       "jd_id": "jd_junior_web_dev",
       "expected": "strong",
-      "similarity_mean": 0.5,
+      "similarity_mean": 0.6,
       "similarity_std": 0.0,
       "runs": [
         {
-          "similarity_score": 0.5,
-          "n_matched": 7,
-          "n_missing": 7,
+          "similarity_score": 0.6,
+          "n_matched": 8,
+          "n_missing": 6,
           "n_partial": 0,
           "analysis_method": "llm",
           "coverage": {
@@ -1073,7 +1073,7 @@
             "n_covered_of_job": 14,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 4533.22,
+          "latency_ms": 3985.02,
           "error": null
         }
       ]
@@ -1082,22 +1082,22 @@
       "cv_id": "cv_frontend_jquery_legacy",
       "jd_id": "jd_senior_frontend_react",
       "expected": "partial",
-      "similarity_mean": 0.1,
+      "similarity_mean": 0.2,
       "similarity_std": 0.0,
       "runs": [
         {
-          "similarity_score": 0.1,
-          "n_matched": 6,
-          "n_missing": 20,
+          "similarity_score": 0.2,
+          "n_matched": 14,
+          "n_missing": 19,
           "n_partial": 0,
           "analysis_method": "llm",
           "coverage": {
             "n_job_skills": 21,
-            "n_accounted": 26,
-            "n_covered_of_job": 21,
-            "coverage_ratio": 1.0
+            "n_accounted": 33,
+            "n_covered_of_job": 20,
+            "coverage_ratio": 0.9524
           },
-          "latency_ms": 3268.32,
+          "latency_ms": 3260.59,
           "error": null
         }
       ]
@@ -1106,22 +1106,22 @@
       "cv_id": "cv_frontend_jquery_legacy",
       "jd_id": "jd_backend_python_node",
       "expected": "weak",
-      "similarity_mean": 0.0,
+      "similarity_mean": 0.2,
       "similarity_std": 0.0,
       "runs": [
         {
-          "similarity_score": 0.0,
-          "n_matched": 0,
+          "similarity_score": 0.2,
+          "n_matched": 12,
           "n_missing": 18,
           "n_partial": 0,
           "analysis_method": "llm",
           "coverage": {
             "n_job_skills": 18,
-            "n_accounted": 18,
+            "n_accounted": 30,
             "n_covered_of_job": 18,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 3666.85,
+          "latency_ms": 4567.61,
           "error": null
         }
       ]
@@ -1145,7 +1145,7 @@
             "n_covered_of_job": 20,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 3125.64,
+          "latency_ms": 4089.67,
           "error": null
         }
       ]
@@ -1169,7 +1169,7 @@
             "n_covered_of_job": 20,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 4428.95,
+          "latency_ms": 3198.66,
           "error": null
         }
       ]
@@ -1178,22 +1178,22 @@
       "cv_id": "cv_frontend_jquery_legacy",
       "jd_id": "jd_junior_web_dev",
       "expected": "strong",
-      "similarity_mean": 0.36,
+      "similarity_mean": 0.14,
       "similarity_std": 0.0,
       "runs": [
         {
-          "similarity_score": 0.36,
-          "n_matched": 4,
-          "n_missing": 10,
+          "similarity_score": 0.14,
+          "n_matched": 2,
+          "n_missing": 12,
           "n_partial": 0,
-          "analysis_method": "llm",
+          "analysis_method": "fallback",
           "coverage": {
             "n_job_skills": 14,
             "n_accounted": 14,
-            "n_covered_of_job": 13,
-            "coverage_ratio": 0.9286
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
           },
-          "latency_ms": 3154.98,
+          "latency_ms": 2631.69,
           "error": null
         }
       ]
@@ -1207,17 +1207,17 @@
       "runs": [
         {
           "similarity_score": 0.2,
-          "n_matched": 5,
+          "n_matched": 6,
           "n_missing": 16,
           "n_partial": 0,
           "analysis_method": "llm",
           "coverage": {
             "n_job_skills": 21,
-            "n_accounted": 21,
+            "n_accounted": 22,
             "n_covered_of_job": 21,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 4132.24,
+          "latency_ms": 1296.76,
           "error": null
         }
       ]
@@ -1241,7 +1241,7 @@
             "n_covered_of_job": 18,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 4255.3,
+          "latency_ms": 3606.97,
           "error": null
         }
       ]
@@ -1265,7 +1265,7 @@
             "n_covered_of_job": 20,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 3316.51,
+          "latency_ms": 4729.43,
           "error": null
         }
       ]
@@ -1289,7 +1289,7 @@
             "n_covered_of_job": 20,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 3997.78,
+          "latency_ms": 3564.73,
           "error": null
         }
       ]
@@ -1313,7 +1313,7 @@
             "n_covered_of_job": 14,
             "coverage_ratio": 1.0
           },
-          "latency_ms": 3999.31,
+          "latency_ms": 3209.28,
           "error": null
         }
       ]

@@ -1,0 +1,320 @@
+{
+  "benchmark": "tailoring_eval",
+  "version": 1,
+  "fixture_kind": "real_anonymized_cv_x_jd",
+  "buckets_evaluated": [
+    "strong"
+  ],
+  "n_pairs": 10,
+  "parse_wall_seconds": 0.94,
+  "eval_wall_seconds": 133.17,
+  "wall_seconds": 134.11,
+  "axes": {
+    "factuality": {
+      "n": 5,
+      "min": 6,
+      "mean": 8.0,
+      "median": 8,
+      "p95": 9.6,
+      "max": 10,
+      "std": 1.2649
+    },
+    "relevance": {
+      "n": 5,
+      "min": 5,
+      "mean": 6.8,
+      "median": 7,
+      "p95": 8.6,
+      "max": 9,
+      "std": 1.3266
+    },
+    "ats_fit": {
+      "n": 5,
+      "min": 3,
+      "mean": 5.6,
+      "median": 6,
+      "p95": 8.4,
+      "max": 9,
+      "std": 2.0591
+    },
+    "human_voice": {
+      "n": 5,
+      "min": 2,
+      "mean": 5.6,
+      "median": 6,
+      "p95": 7.8,
+      "max": 8,
+      "std": 2.0591
+    }
+  },
+  "programmatic": {
+    "entity_grounding_ratio": {
+      "n": 4,
+      "min": 0.5,
+      "mean": 0.875,
+      "median": 1.0,
+      "p95": 1.0,
+      "max": 1.0,
+      "std": 0.2165
+    },
+    "banned_voice_hits_per_resume": {
+      "n": 5,
+      "min": 0,
+      "mean": 0.2,
+      "median": 0,
+      "p95": 0.8,
+      "max": 1,
+      "std": 0.4
+    }
+  },
+  "rows": [
+    {
+      "cv_id": "cv_frontend_jr_react",
+      "jd_id": "jd_junior_web_dev",
+      "bucket": "strong",
+      "stage": "judge",
+      "error": "RateLimitError: Error code: 429 - {'error': {'message': 'Rate limit reached for model `meta-llama/llama-4-scout-17b-16e-instruct` in organization `org_01kna6r09efdtbc9px359kqn33` service tier `on_demand` on tokens per minute (TPM): Limit 30000, Used 25811, Requested 4253. Please try again in 128ms. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}",
+      "programmatic_factuality": {
+        "n_entities": 2,
+        "n_grounded": 1,
+        "ratio": 0.5,
+        "ungrounded": [
+          "Not Provided"
+        ]
+      },
+      "voice_hits": []
+    },
+    {
+      "cv_id": "cv_flutter_intern",
+      "jd_id": "jd_flutter_mobile",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 10,
+          "rationale": "The GENERATED RESUME claims 2+ years of Flutter experience and lists projects and skills that are present in the SOURCE CV, with no fabricated employers or degrees. Hence, factuality score is 10."
+        },
+        "relevance": {
+          "score": 9,
+          "rationale": "The GENERATED RESUME directly addresses the TARGET JOB's requirements, mentioning Flutter, Dart, Clean Architecture, BLoC, Cubit, REST API, and responsive UI, which are all must-have skills. Hence, relevance score is 9."
+        },
+        "ats_fit": {
+          "score": 9,
+          "rationale": "The GENERATED RESUME effectively uses job keywords like Flutter, Dart, Clean Architecture, BLoC, Cubit, and REST API. It varies action verbs across bullets, enhancing ATS fit. Hence, ATS fit score is 9."
+        },
+        "human_voice": {
+          "score": 8,
+          "rationale": "The GENERATED RESUME avoids AI-tell phrases and uses plain English. It varies sentence structures and does not use banned words or templates. Hence, human voice score is 8."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 2,
+        "n_grounded": 1,
+        "ratio": 0.5,
+        "ungrounded": [
+          "Apr 2025 - Feb 2025"
+        ]
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_frontend_diploma_react",
+      "jd_id": "jd_junior_web_dev",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 8,
+          "rationale": "The GENERATED RESUME contains skills that are not present in the SOURCE CV, such as TypeScript. However, it does not include any concrete claims about companies, schools, years, certifications, or named projects that are not present in the SOURCE CV. But since some skills are added that are not in SOURCE CV, it scores lower."
+        },
+        "relevance": {
+          "score": 7,
+          "rationale": "The GENERATED RESUME lists relevant skills such as HTML5, CSS3, JavaScript, React, Responsive Design, Git, GitHub, Tailwind, Bootstrap, which align with the TARGET JOB requirements. However, it lacks specific experience or project details that directly address the job responsibilities."
+        },
+        "ats_fit": {
+          "score": 6,
+          "rationale": "The GENERATED RESUME uses some of the job's keywords like HTML5, CSS3, JavaScript, React, Git, GitHub, Tailwind, and Bootstrap. However, it misses other important keywords such as Figma, REST API, React Router, Axios, and TypeScript is included which is a nice to have. The keyword usage is relevant but not comprehensive."
+        },
+        "human_voice": {
+          "score": 5,
+          "rationale": "The GENERATED RESUME uses a professional title and summary that could be seen as somewhat generic and AI-like. The language is formal but lacks a personal touch or specific details that would make it sound more human. There are no obvious banned words, but the structure and phrasing are quite standard."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 0,
+        "n_grounded": 0,
+        "ratio": null,
+        "ungrounded": []
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue",
+      "jd_id": "jd_senior_frontend_react",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 6,
+          "rationale": "The GENERATED RESUME contains factual claims that mostly appear in the SOURCE CV, but some details are missing or altered, such as specific job titles, company names, and achievements. Overall, it seems to be a paraphrased version but scores low due to incomplete information."
+        },
+        "relevance": {
+          "score": 5,
+          "rationale": "The GENERATED RESUME lists relevant skills such as React, TypeScript, and JavaScript, which align with the TARGET JOB requirements. However, it lacks specific examples or bullets that directly address the job responsibilities, resulting in a mediocre score."
+        },
+        "ats_fit": {
+          "score": 3,
+          "rationale": "The GENERATED RESUME uses some of the job's keywords like React, TypeScript, and JavaScript. However, it misses many required skills and does not vary action verbs across bullets, as it doesn't provide any bullet points. This results in a low score."
+        },
+        "human_voice": {
+          "score": 2,
+          "rationale": "The GENERATED RESUME lacks a human voice, as it seems to be a direct extraction of information without varied sentence structure or specific achievements. It also misses concrete results and uses a very formal tone, which is typical of AI-generated content."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 5,
+        "n_grounded": 5,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue",
+      "jd_id": "jd_junior_web_dev",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 8,
+          "rationale": "The GENERATED RESUME contains factual claims that mostly appear in the SOURCE CV, with some discrepancies in company and duration information. The overall factuality score is 8."
+        },
+        "relevance": {
+          "score": 7,
+          "rationale": "The GENERATED RESUME addresses several requirements stated in the TARGET JOB, including HTML5, CSS3, JavaScript, React, Responsive Design, Git, and GitHub. However, it lacks specific examples directly related to the job's responsibilities, resulting in a score of 7."
+        },
+        "ats_fit": {
+          "score": 6,
+          "rationale": "The GENERATED RESUME uses several job keywords, including HTML5, CSS3, JavaScript, React, and Git. However, it misses some keywords like REST API, React Router, and Axios, and uses a few generic terms. The ATS fit score is 6."
+        },
+        "human_voice": {
+          "score": 6,
+          "rationale": "The GENERATED RESUME exhibits some AI-tell characteristics, such as using generic phrases and similar sentence structures. However, it does not contain banned words and has a relatively natural tone, resulting in a score of 6."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 4,
+        "n_grounded": 4,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [
+        "seamless"
+      ],
+      "voice_hit_count": 1
+    },
+    {
+      "cv_id": "cv_frontend_mid_react",
+      "jd_id": "jd_senior_frontend_react",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 8,
+          "rationale": "The GENERATED RESUME contains factual claims that mostly appear in the SOURCE CV, but some details are missing or incomplete, such as specific years and durations for experiences. The education institution and degree are present but lack specific details. Overall, it scores an 8 for factuality."
+        },
+        "relevance": {
+          "score": 6,
+          "rationale": "The GENERATED RESUME lists relevant skills for the Senior Frontend Engineer (React) position, including React, TypeScript, JavaScript, and others. However, it lacks specific bullets addressing the TARGET JOB requirements, such as building large-scale React applications, designing reusable UI component libraries, and driving performance work. It scores a 6 for relevance."
+        },
+        "ats_fit": {
+          "score": 4,
+          "rationale": "The GENERATED RESUME uses some of the job's keywords but misses many required skills like GraphQL, GitHub Actions, Figma, and Vue. It also lacks variation in action verbs across bullets. It scores a 4 for ATS fit."
+        },
+        "human_voice": {
+          "score": 7,
+          "rationale": "The GENERATED RESUME uses a professional but somewhat generic tone. It avoids obvious AI-tell phrases but lacks variation in sentence structure and uses a somewhat formulaic approach. It scores a 7 for human voice."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 4,
+        "n_grounded": 4,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_frontend_mid_react",
+      "jd_id": "jd_junior_web_dev",
+      "bucket": "strong",
+      "stage": "judge",
+      "error": "RateLimitError: Error code: 429 - {'error': {'message': 'Rate limit reached for model `meta-llama/llama-4-scout-17b-16e-instruct` in organization `org_01kna6r09efdtbc9px359kqn33` service tier `on_demand` on tokens per day (TPD): Limit 500000, Used 497033, Requested 3457. Please try again in 1m24.672s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}",
+      "programmatic_factuality": {
+        "n_entities": 4,
+        "n_grounded": 4,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": []
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue_v2",
+      "jd_id": "jd_senior_frontend_react",
+      "bucket": "strong",
+      "stage": "judge",
+      "error": "RateLimitError: Error code: 429 - {'error': {'message': 'Rate limit reached for model `meta-llama/llama-4-scout-17b-16e-instruct` in organization `org_01kna6r09efdtbc9px359kqn33` service tier `on_demand` on tokens per day (TPD): Limit 500000, Used 498820, Requested 3520. Please try again in 6m44.352s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}",
+      "programmatic_factuality": {
+        "n_entities": 5,
+        "n_grounded": 5,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": []
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue_v2",
+      "jd_id": "jd_junior_web_dev",
+      "bucket": "strong",
+      "stage": "judge",
+      "error": "RateLimitError: Error code: 429 - {'error': {'message': 'Rate limit reached for model `meta-llama/llama-4-scout-17b-16e-instruct` in organization `org_01kna6r09efdtbc9px359kqn33` service tier `on_demand` on tokens per day (TPD): Limit 500000, Used 498810, Requested 3722. Please try again in 7m17.5296s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}",
+      "programmatic_factuality": {
+        "n_entities": 5,
+        "n_grounded": 5,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": []
+    },
+    {
+      "cv_id": "cv_frontend_jquery_legacy",
+      "jd_id": "jd_junior_web_dev",
+      "bucket": "strong",
+      "stage": "judge",
+      "error": "RateLimitError: Error code: 429 - {'error': {'message': 'Rate limit reached for model `meta-llama/llama-4-scout-17b-16e-instruct` in organization `org_01kna6r09efdtbc9px359kqn33` service tier `on_demand` on tokens per day (TPD): Limit 500000, Used 498795, Requested 3555. Please try again in 6m46.08s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}",
+      "programmatic_factuality": {
+        "n_entities": 0,
+        "n_grounded": 0,
+        "ratio": null,
+        "ungrounded": []
+      },
+      "voice_hits": []
+    }
+  ],
+  "method": {
+    "generator": "resumes.services.resume_generator.generate_resume_content",
+    "judge_module": "benchmarks.llm_judge",
+    "judge_axes": [
+      "factuality",
+      "relevance",
+      "ats_fit",
+      "human_voice"
+    ],
+    "judge_scale": "1-10 per axis"
+  },
+  "disclosure": "LLM-judged metric \u2014 both the resume generator and the judge are Groq llama-4-scout. Judge temperature=0.0 so its scores are near-deterministic; the generator runs at the production temp (0.7 default) so per-pair scores will vary across runs. Single judge model: not human-validated; treat absolute numbers as a smoke test, relative trends across pairs as more reliable. Programmatic entity-grounding and voice-hit checks are independent of the LLM judge and provide a non-LLM cross-check."
+}
