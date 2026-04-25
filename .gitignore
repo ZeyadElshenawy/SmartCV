@@ -17,6 +17,7 @@ batch_results.json
 .vscode/
 .idea/
 .claude/
+.mcp.json
 
 # Personal / test artifacts
 screenshots/

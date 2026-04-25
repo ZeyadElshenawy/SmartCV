@@ -20,7 +20,12 @@ $pythonProcesses = Get-Process -Name python -ErrorAction SilentlyContinue
 if ($pythonProcesses) {
     $pythonProcesses | Stop-Process -Force -ErrorAction SilentlyContinue
     Write-Host "=> Killed $($pythonProcesses.Count) ghost Python processes." -ForegroundColor Green
-    Start-Sleep -Seconds 1
+    # Force-killed Python won't cleanly close its Supabase PgBouncer sockets;
+    # the pooler needs a few seconds to reap those client slots before a fresh
+    # connection on this run can succeed. Otherwise runserver hangs on the
+    # first DB connect after "System check identified no issues".
+    Write-Host "=> Waiting 5s for Supabase PgBouncer to reap orphaned client slots..." -ForegroundColor DarkGray
+    Start-Sleep -Seconds 5
 } else {
     Write-Host "=> No ghost Python processes found." -ForegroundColor Green
 }
@@ -51,18 +56,20 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "=> watchdog already installed." -ForegroundColor Green
 }
 
-# Launch browser when the server boots
+# Launch browser when the server boots. Use netstat instead of Test-NetConnection
+# because Test-NetConnection goes through WMI, which hangs indefinitely on this
+# machine — same root cause as the runserver-port-free block above. The hung
+# poller would either never open the browser, or open it too early (resulting
+# in a connection-refused / blank page before Django was ready).
 Start-Job -ScriptBlock {
-    $retryCount = 0
-    $maxRetries = 30
-    while ($retryCount -lt $maxRetries) {
-        $connection = Test-NetConnection -ComputerName 127.0.0.1 -Port 8000 -InformationLevel Quiet -WarningAction SilentlyContinue
-        if ($connection) {
+    for ($i = 0; $i -lt 30; $i++) {
+        $listening = (netstat -ano | Select-String ':8000\s+.*LISTENING')
+        if ($listening) {
+            Start-Sleep -Milliseconds 400  # tiny grace period for the worker to accept
             Start-Process "http://127.0.0.1:8000/"
             break
         }
         Start-Sleep -Seconds 1
-        $retryCount++
     }
 } | Out-Null
 
