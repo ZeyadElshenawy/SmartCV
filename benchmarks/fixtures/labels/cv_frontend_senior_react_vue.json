@@ -1,0 +1,18 @@
+{
+  "cv_id": "cv_frontend_senior_react_vue",
+  "personal_info": {
+    "name": "Charlotte May",
+    "email": "john.smith@gmail.com",
+    "phone": null,
+    "location": "London, UK"
+  },
+  "education_count": 0,
+  "experience_count": 2,
+  "skills_canonical": [
+    "JavaScript", "React", "Vue", "Redux", "Responsive Design",
+    "UI Performance", "Accessibility", "Automated Testing", "User Testing"
+  ],
+  "section_presence": {
+    "summary": true, "experience": true, "education": false, "projects": false, "skills": false
+  }
+}

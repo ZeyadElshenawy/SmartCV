@@ -1,0 +1,19 @@
+{
+  "cv_id": "cv_flutter_intern",
+  "personal_info": {
+    "name": "Mohamed Abd Elghany",
+    "email": "info.mohamedabdelghany@gmail.com",
+    "phone": "01287002189",
+    "location": "Mansoura, Egypt"
+  },
+  "education_count": 1,
+  "experience_count": 2,
+  "skills_canonical": [
+    "Flutter", "Dart", "OOP", "Clean Code", "Clean Architecture",
+    "BLoC", "Cubit", "Provider", "GetX", "Animations", "Responsive UI",
+    "REST API", "Agile"
+  ],
+  "section_presence": {
+    "summary": true, "experience": true, "education": true, "projects": false, "skills": true
+  }
+}

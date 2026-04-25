@@ -1,0 +1,18 @@
+{
+  "cv_id": "cv_frontend_entry_no_role",
+  "personal_info": {
+    "name": null,
+    "email": "g.price@email.com",
+    "phone": "(123) 456-7890",
+    "location": "Austin, TX"
+  },
+  "education_count": 1,
+  "experience_count": 2,
+  "skills_canonical": [
+    "HTML5", "CSS3", "TypeScript", "Bootstrap", "GitHub", "WebStorm",
+    "Yarn", "Webpack", "Chrome DevTools", "InVision"
+  ],
+  "section_presence": {
+    "summary": true, "experience": true, "education": true, "projects": true, "skills": true
+  }
+}

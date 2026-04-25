@@ -1,0 +1,32 @@
+{
+  "id": "jd_flutter_mobile",
+  "title": "Flutter Mobile Engineer",
+  "company": "Lumen Health",
+  "url": "https://example.com/jobs/flutter-mobile",
+  "description": "Lumen Health is building patient-facing mobile apps in Flutter. We need a mobile engineer comfortable shipping cross-platform apps end-to-end: from architecture through API integration to App Store / Play Store releases.\n\nResponsibilities:\n- Build and maintain cross-platform mobile applications using Flutter and Dart.\n- Apply Clean Architecture and structured state management (BLoC, Cubit, Provider, or GetX).\n- Integrate REST APIs and handle authentication, offline caching, and error states.\n- Build pixel-perfect, responsive UIs that match Figma designs.\n- Implement local persistence (Hive, SQLite, or shared preferences).\n- Set up CI/CD for iOS and Android builds (Codemagic or GitHub Actions).\n- Collaborate with backend, design, and QA in an agile workflow.\n\nMust-have skills:\n- 2+ years of Flutter development.\n- Strong Dart and OOP fundamentals.\n- Hands-on with at least one state management library (BLoC, Cubit, Provider, GetX).\n- REST API integration with HTTP clients (Dio, Retrofit, or http).\n- Clean Architecture and feature-folder structuring.\n- Git workflows and code review.\n\nNice to have:\n- Native Android (Kotlin) or iOS (Swift) experience.\n- Firebase (Auth, Firestore, Cloud Messaging) integration.\n- Animations and custom painter work.\n- Unit and widget testing in Flutter.\n- App Store / Play Store release experience.",
+  "expected_skills": [
+    "Flutter",
+    "Dart",
+    "BLoC",
+    "Cubit",
+    "Provider",
+    "GetX",
+    "Clean Architecture",
+    "REST API",
+    "Dio",
+    "Hive",
+    "SQLite",
+    "Firebase",
+    "Git",
+    "Responsive UI",
+    "OOP",
+    "Animations",
+    "Widget Testing",
+    "Codemagic",
+    "GitHub Actions",
+    "Figma"
+  ],
+  "expected_skills_must_have": [
+    "Flutter", "Dart", "BLoC", "REST API", "Clean Architecture", "Git", "OOP"
+  ]
+}

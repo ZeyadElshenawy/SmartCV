@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "description": "Hand-curated fixture suite for SmartCV benchmark Phases D1-D3 + D5. CV files are referenced by their original on-disk paths so we don't duplicate (potentially personal) PDFs into the repo. JDs and labels in jobs/ + labels/ are committed and PII-free.",
+  "cvs": [
+    {
+      "id": "cv_backend_jr_rust",
+      "path": "test cvs/Ahmed-Mahmoud-Backend.pdf",
+      "primary_role": "backend",
+      "seniority": "junior",
+      "notes": "Aspiring backend dev; Rust + C++ heavy, Node.js/MySQL learning. IT intern only."
+    },
+    {
+      "id": "cv_frontend_jr_react",
+      "path": "test cvs/Ahmed-Mahmoud-Frontend.pdf",
+      "primary_role": "frontend",
+      "seniority": "junior",
+      "notes": "Final-year SWE student. HTML/CSS/JS + React. No professional FE role."
+    },
+    {
+      "id": "cv_devops_jr",
+      "path": "test cvs/Ahmed-Mahmoud-DevOps.pdf",
+      "primary_role": "devops",
+      "seniority": "junior",
+      "notes": "Third-year SWE student aspiring to DevOps; CI/CD/IaC theoretical, IT intern only."
+    },
+    {
+      "id": "cv_flutter_intern",
+      "path": "test cvs/Mohamed Abd Elghany_Flutter Developer.pdf",
+      "primary_role": "mobile",
+      "seniority": "junior",
+      "notes": "Flutter dev, two internships. Strong on Dart, BLoC, GetX, Provider, Clean Arch."
+    },
+    {
+      "id": "cv_frontend_diploma_react",
+      "path": "test cvs/Sara Ahmed CV.pdf",
+      "primary_role": "frontend",
+      "seniority": "junior",
+      "notes": "Front-end Diploma grad. React + Tailwind + Bootstrap + Figma. Several small projects."
+    },
+    {
+      "id": "cv_frontend_senior_react_vue",
+      "path": "test cvs2/cv_0.pdf",
+      "primary_role": "frontend",
+      "seniority": "senior",
+      "notes": "Synthetic-style CV (Charlotte May): Senior FE 5+ yrs React/Vue at ABC + XYZ."
+    },
+    {
+      "id": "cv_frontend_mid_react",
+      "path": "test cvs2/cv_3.pdf",
+      "primary_role": "frontend",
+      "seniority": "mid",
+      "notes": "Synthetic-style (Enrique Veragoza): Mid FE; multi-year React focus."
+    },
+    {
+      "id": "cv_frontend_senior_react_vue_v2",
+      "path": "test cvs2/cv_7.pdf",
+      "primary_role": "frontend",
+      "seniority": "senior",
+      "notes": "Charlotte May variant of cv_0; same career."
+    },
+    {
+      "id": "cv_frontend_jquery_legacy",
+      "path": "test cvs2/cv_11.pdf",
+      "primary_role": "frontend",
+      "seniority": "mid",
+      "notes": "Resume-Worded sample. HTML/CSS/JS/jQuery focus, light on React."
+    },
+    {
+      "id": "cv_frontend_entry_no_role",
+      "path": "test cvs2/cv_14.pdf",
+      "primary_role": "frontend",
+      "seniority": "entry",
+      "notes": "Junior FE with no FE work history (server / library jobs); HTML5/CSS3/TS skills only."
+    }
+  ],
+  "jobs": [
+    {"id": "jd_senior_frontend_react",      "file": "jobs/jd_senior_frontend_react.json"},
+    {"id": "jd_backend_python_node",        "file": "jobs/jd_backend_python_node.json"},
+    {"id": "jd_devops_aws_k8s",             "file": "jobs/jd_devops_aws_k8s.json"},
+    {"id": "jd_flutter_mobile",             "file": "jobs/jd_flutter_mobile.json"},
+    {"id": "jd_junior_web_dev",             "file": "jobs/jd_junior_web_dev.json"}
+  ],
+  "expected_match_strength": {
+    "_doc": "Coarse expected fit per (cv_id, jd_id). 'strong' = should be matched-heavy; 'partial' = some overlap; 'weak' = mostly missing. Used as smoke-test sanity for gap analyzer separation.",
+    "cv_backend_jr_rust":              {"jd_senior_frontend_react": "weak",   "jd_backend_python_node": "partial", "jd_devops_aws_k8s": "weak",    "jd_flutter_mobile": "weak",   "jd_junior_web_dev": "weak"},
+    "cv_frontend_jr_react":            {"jd_senior_frontend_react": "partial","jd_backend_python_node": "weak",    "jd_devops_aws_k8s": "weak",    "jd_flutter_mobile": "weak",   "jd_junior_web_dev": "strong"},
+    "cv_devops_jr":                    {"jd_senior_frontend_react": "weak",   "jd_backend_python_node": "weak",    "jd_devops_aws_k8s": "partial", "jd_flutter_mobile": "weak",   "jd_junior_web_dev": "weak"},
+    "cv_flutter_intern":               {"jd_senior_frontend_react": "weak",   "jd_backend_python_node": "weak",    "jd_devops_aws_k8s": "weak",    "jd_flutter_mobile": "strong", "jd_junior_web_dev": "weak"},
+    "cv_frontend_diploma_react":       {"jd_senior_frontend_react": "partial","jd_backend_python_node": "weak",    "jd_devops_aws_k8s": "weak",    "jd_flutter_mobile": "weak",   "jd_junior_web_dev": "strong"},
+    "cv_frontend_senior_react_vue":    {"jd_senior_frontend_react": "strong", "jd_backend_python_node": "weak",    "jd_devops_aws_k8s": "weak",    "jd_flutter_mobile": "weak",   "jd_junior_web_dev": "strong"},
+    "cv_frontend_mid_react":           {"jd_senior_frontend_react": "strong", "jd_backend_python_node": "weak",    "jd_devops_aws_k8s": "weak",    "jd_flutter_mobile": "weak",   "jd_junior_web_dev": "strong"},
+    "cv_frontend_senior_react_vue_v2": {"jd_senior_frontend_react": "strong", "jd_backend_python_node": "weak",    "jd_devops_aws_k8s": "weak",    "jd_flutter_mobile": "weak",   "jd_junior_web_dev": "strong"},
+    "cv_frontend_jquery_legacy":       {"jd_senior_frontend_react": "partial","jd_backend_python_node": "weak",    "jd_devops_aws_k8s": "weak",    "jd_flutter_mobile": "weak",   "jd_junior_web_dev": "strong"},
+    "cv_frontend_entry_no_role":       {"jd_senior_frontend_react": "weak",   "jd_backend_python_node": "weak",    "jd_devops_aws_k8s": "weak",    "jd_flutter_mobile": "weak",   "jd_junior_web_dev": "partial"}
+  }
+}
