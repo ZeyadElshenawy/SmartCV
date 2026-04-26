@@ -1,0 +1,4198 @@
+{
+  "benchmark": "run_all",
+  "version": 1,
+  "run_at_utc": "2026-04-26T22:47:49Z",
+  "wall_seconds": 322.13,
+  "platform": {
+    "python": "3.13.9",
+    "system": "Windows",
+    "release": "11",
+    "machine": "AMD64"
+  },
+  "phases_run": [
+    "ats_eval",
+    "latency_runner",
+    "parser_eval",
+    "skill_extractor_eval",
+    "gap_eval",
+    "tailoring_eval"
+  ],
+  "phase_info": {
+    "ats_eval": {
+      "phase": "ats_eval",
+      "ok": true,
+      "wall_seconds": 0.01
+    },
+    "latency_runner": {
+      "phase": "latency_runner",
+      "ok": true,
+      "wall_seconds": 19.73
+    },
+    "parser_eval": {
+      "phase": "parser_eval",
+      "ok": true,
+      "wall_seconds": 1.72
+    },
+    "skill_extractor_eval": {
+      "phase": "skill_extractor_eval",
+      "ok": true,
+      "wall_seconds": 16.97
+    },
+    "gap_eval": {
+      "phase": "gap_eval",
+      "ok": true,
+      "wall_seconds": 148.84
+    },
+    "tailoring_eval": {
+      "phase": "tailoring_eval",
+      "ok": true,
+      "wall_seconds": 134.86
+    }
+  },
+  "headlines": {
+    "ats": {
+      "deterministic": true,
+      "matched_mean": 100.0,
+      "mismatched_mean": 11.0,
+      "cohens_d": 6.267,
+      "stuffing_fired": true
+    },
+    "latency": {
+      "n_routes": 5,
+      "requests_per_route": 100,
+      "warm_p95_max_ms": 12.88,
+      "warm_p95_median_ms": 10.21
+    },
+    "parser": {
+      "n_cvs": 10,
+      "n_cvs_with_skills_section": 5,
+      "personal_info_accuracy": 0.9417,
+      "section_presence_accuracy": 0.68,
+      "skills_jaccard_overall": 0.197,
+      "skills_f1_overall": 0.2956,
+      "skills_jaccard_in_scope": 0.3034,
+      "skills_f1_in_scope": 0.4294
+    },
+    "skill_extractor": {
+      "n_jds": 5,
+      "repeats_per_jd": 3,
+      "f1": 0.8095,
+      "precision": 0.7652,
+      "recall": 0.8724,
+      "hallucination_rate": 0.2348
+    },
+    "tailoring": {
+      "n_pairs": 10,
+      "buckets": [
+        "strong"
+      ],
+      "factuality_mean": 5.875,
+      "relevance_mean": 6.375,
+      "ats_fit_mean": 6.5,
+      "human_voice_mean": 3.75,
+      "entity_grounding_mean": 0.8095,
+      "banned_voice_hits_mean": 0.375
+    },
+    "gap": {
+      "n_pairs": 50,
+      "repeats_per_pair": 1,
+      "coverage_mean": 0.9976,
+      "perfect_coverage_pairs": 48,
+      "strong_mean": 0.456,
+      "partial_mean": 0.46,
+      "weak_mean": 0.1897,
+      "cohens_d_strong_vs_weak": 1.097
+    }
+  },
+  "phase_payloads": {
+    "ats_eval": {
+      "benchmark": "ats_eval",
+      "version": 1,
+      "fixture_kind": "synthetic",
+      "n_jobs": 3,
+      "n_resumes_matched": 3,
+      "determinism": {
+        "runs_per_fixture": 10,
+        "deterministic": true,
+        "per_fixture": [
+          {
+            "fixture": "backend",
+            "runs": 10,
+            "mean": 100.0,
+            "std": 0.0,
+            "min": 100.0,
+            "max": 100.0
+          },
+          {
+            "fixture": "frontend",
+            "runs": 10,
+            "mean": 100.0,
+            "std": 0.0,
+            "min": 100.0,
+            "max": 100.0
+          },
+          {
+            "fixture": "data",
+            "runs": 10,
+            "mean": 100.0,
+            "std": 0.0,
+            "min": 100.0,
+            "max": 100.0
+          }
+        ]
+      },
+      "separation": {
+        "matched": {
+          "n": 3,
+          "min": 100.0,
+          "mean": 100.0,
+          "median": 100.0,
+          "p95": 100.0,
+          "max": 100.0,
+          "std": 0.0,
+          "scores": [
+            100.0,
+            100.0,
+            100.0
+          ]
+        },
+        "mismatched": {
+          "n": 6,
+          "min": 0.0,
+          "mean": 11.0,
+          "median": 0.0,
+          "p95": 38.5,
+          "max": 44.0,
+          "std": 16.8028,
+          "scores": [
+            0.0,
+            44.0,
+            0.0,
+            0.0,
+            22.0,
+            0.0
+          ]
+        },
+        "cohens_d": 6.267,
+        "separated": true
+      },
+      "stuffing": {
+        "stuffing_threshold": 4,
+        "penalty_per_skill": 5.0,
+        "stuffed_skills_detected": [
+          "Python"
+        ],
+        "stuffing_penalty_applied": 5.0,
+        "expected_penalty_for_detected": 5.0,
+        "penalty_matches_formula": true,
+        "stuffing_fired": true,
+        "keyword_counts": {
+          "Python": 7,
+          "Django": 2,
+          "PostgreSQL": 2,
+          "Docker": 2,
+          "REST API": 2
+        }
+      },
+      "disclosure": "Synthetic in-process fixtures \u2014 no real CVs. ATS algorithm is pure Python; \u03c3=0 is the expected determinism outcome. Separation is measured across 3 matched (resume, job) pairs vs. 6 cross-paired mismatches.",
+      "written_to": "G:\\New folder\\SmartCV\\benchmarks\\results\\2026-04-26\\ats_eval.json"
+    },
+    "latency_runner": {
+      "benchmark": "latency_runner",
+      "version": 1,
+      "requests_per_route": 100,
+      "n_routes": 5,
+      "total_requests_issued": 500,
+      "wall_seconds": 19.73,
+      "platform": {
+        "python": "3.13.9",
+        "system": "Windows",
+        "release": "11",
+        "machine": "AMD64",
+        "debug": true,
+        "database_engine": "django.db.backends.postgresql"
+      },
+      "results": [
+        {
+          "path": "/",
+          "requests": 100,
+          "statuses": {
+            "200": 100
+          },
+          "errors": [],
+          "error_count": 0,
+          "latency_ms": {
+            "n": 100,
+            "min": 9.924,
+            "mean": 51.0473,
+            "median": 11.246,
+            "p95": 12.97,
+            "max": 3908.73,
+            "std": 387.7896,
+            "p50": 11.25,
+            "p99": 127.21
+          },
+          "cold_warm": {
+            "cold_n": 5,
+            "cold_mean": 790.739,
+            "cold_max": 3908.73,
+            "warm_n": 95,
+            "warm_mean": 12.116,
+            "warm_p95": 12.88
+          },
+          "label": "home"
+        },
+        {
+          "path": "/healthz/",
+          "requests": 100,
+          "statuses": {
+            "200": 100
+          },
+          "errors": [],
+          "error_count": 0,
+          "latency_ms": {
+            "n": 100,
+            "min": 6.001,
+            "mean": 7.2018,
+            "median": 7.074,
+            "p95": 8.46,
+            "max": 11.382,
+            "std": 0.738,
+            "p50": 7.07,
+            "p99": 9.46
+          },
+          "cold_warm": {
+            "cold_n": 5,
+            "cold_mean": 6.768,
+            "cold_max": 7.618,
+            "warm_n": 95,
+            "warm_mean": 7.225,
+            "warm_p95": 8.5
+          },
+          "label": "healthz"
+        },
+        {
+          "path": "/healthz/deep/",
+          "requests": 100,
+          "statuses": {
+            "200": 100
+          },
+          "errors": [],
+          "error_count": 0,
+          "latency_ms": {
+            "n": 100,
+            "min": 7.505,
+            "mean": 119.5324,
+            "median": 8.945,
+            "p95": 10.99,
+            "max": 11056.792,
+            "std": 1099.2363,
+            "p50": 8.95,
+            "p99": 121.89
+          },
+          "cold_warm": {
+            "cold_n": 5,
+            "cold_mean": 2218.619,
+            "cold_max": 11056.792,
+            "warm_n": 95,
+            "warm_mean": 9.054,
+            "warm_p95": 10.81
+          },
+          "label": "healthz_deep"
+        },
+        {
+          "path": "/accounts/login/",
+          "requests": 100,
+          "statuses": {
+            "200": 100
+          },
+          "errors": [],
+          "error_count": 0,
+          "latency_ms": {
+            "n": 100,
+            "min": 7.651,
+            "mean": 10.4291,
+            "median": 8.648,
+            "p95": 10.34,
+            "max": 131.35,
+            "std": 12.7402,
+            "p50": 8.65,
+            "p99": 46.61
+          },
+          "cold_warm": {
+            "cold_n": 5,
+            "cold_mean": 15.776,
+            "cold_max": 45.757,
+            "warm_n": 95,
+            "warm_mean": 10.148,
+            "warm_p95": 10.21
+          },
+          "label": "login_form"
+        },
+        {
+          "path": "/accounts/register/",
+          "requests": 100,
+          "statuses": {
+            "200": 100
+          },
+          "errors": [],
+          "error_count": 0,
+          "latency_ms": {
+            "n": 100,
+            "min": 7.612,
+            "mean": 9.025,
+            "median": 8.882,
+            "p95": 10.09,
+            "max": 24.156,
+            "std": 1.6536,
+            "p50": 8.88,
+            "p99": 11.5
+          },
+          "cold_warm": {
+            "cold_n": 5,
+            "cold_mean": 11.928,
+            "cold_max": 24.156,
+            "warm_n": 95,
+            "warm_mean": 8.872,
+            "warm_p95": 9.95
+          },
+          "label": "register_form"
+        }
+      ],
+      "middleware_snapshot": {
+        "delta_requests_recorded": 300,
+        "post_run": {
+          "total": {
+            "requests": 300,
+            "errors_4xx": 0,
+            "errors_5xx": 0,
+            "error_rate": 0.0
+          },
+          "routes": {
+            "GET home": {
+              "count": 100,
+              "by_status": {
+                "200": 100
+              },
+              "errors_4xx": 0,
+              "errors_5xx": 0,
+              "error_rate": 0.0,
+              "latency_ms": {
+                "p50": 1.5,
+                "p95": 1.93,
+                "p99": 2.68,
+                "samples": 100
+              }
+            },
+            "GET login": {
+              "count": 100,
+              "by_status": {
+                "200": 100
+              },
+              "errors_4xx": 0,
+              "errors_5xx": 0,
+              "error_rate": 0.0,
+              "latency_ms": {
+                "p50": 0.72,
+                "p95": 1.11,
+                "p99": 38.07,
+                "samples": 100
+              }
+            },
+            "GET register": {
+              "count": 100,
+              "by_status": {
+                "200": 100
+              },
+              "errors_4xx": 0,
+              "errors_5xx": 0,
+              "error_rate": 0.0,
+              "latency_ms": {
+                "p50": 0.77,
+                "p95": 1.04,
+                "p99": 2.2,
+                "samples": 100
+              }
+            }
+          }
+        }
+      },
+      "disclosure": "Latencies measured in-process via django.test.Client (no network hop). Numbers reflect view + middleware + DB access cost on the developer machine; production WAN latency is not included. First N=5 samples per route are reported separately as 'cold' to expose lazy-import / connection-warmup cost.",
+      "written_to": "G:\\New folder\\SmartCV\\benchmarks\\results\\2026-04-26\\latency_runner.json"
+    },
+    "parser_eval": {
+      "benchmark": "parser_eval",
+      "version": 1,
+      "fixture_kind": "real_anonymized_cv",
+      "n_cvs": 10,
+      "repeats_per_cv": 1,
+      "wall_seconds": 1.71,
+      "aggregate": {
+        "personal_info_accuracy": {
+          "n": 10,
+          "min": 0.6667,
+          "mean": 0.9417,
+          "median": 1.0,
+          "p95": 1.0,
+          "max": 1.0,
+          "std": 0.1181
+        },
+        "section_presence_accuracy": {
+          "n": 10,
+          "min": 0.4,
+          "mean": 0.68,
+          "median": 0.6,
+          "p95": 1.0,
+          "max": 1.0,
+          "std": 0.1833
+        },
+        "skills_jaccard": {
+          "n": 10,
+          "min": 0.0,
+          "mean": 0.197,
+          "median": 0.1412,
+          "p95": 0.61,
+          "max": 0.8333,
+          "std": 0.2365
+        },
+        "skills_f1": {
+          "n": 10,
+          "min": 0.0,
+          "mean": 0.2956,
+          "median": 0.2758,
+          "p95": 0.77,
+          "max": 0.9091,
+          "std": 0.2738
+        },
+        "skills_f1_with_section": {
+          "n": 5,
+          "min": 0.2609,
+          "mean": 0.4294,
+          "median": 0.3019,
+          "p95": 0.8,
+          "max": 0.9091,
+          "std": 0.2433
+        },
+        "skills_jaccard_with_section": {
+          "n": 5,
+          "min": 0.1395,
+          "mean": 0.3034,
+          "median": 0.1739,
+          "p95": 0.71,
+          "max": 0.8333,
+          "std": 0.2668
+        },
+        "latency_ms": {
+          "n": 10,
+          "min": 30.2,
+          "mean": 153.319,
+          "median": 115.24,
+          "p95": 384.16,
+          "max": 501.88,
+          "std": 134.5384
+        }
+      },
+      "rows": [
+        {
+          "cv_id": "cv_backend_jr_rust",
+          "primary_role": "backend",
+          "skills_section_present": true,
+          "personal_info_accuracy_mean": 1.0,
+          "section_presence_accuracy_mean": 0.6,
+          "skill_jaccard_mean": 0.1395,
+          "skill_f1_mean": 0.2907,
+          "runs": [
+            {
+              "personal_info": {
+                "per_field": {
+                  "name": {
+                    "status": "match",
+                    "parsed": "Ahmed Mahmoud Abbas",
+                    "labeled": "Ahmed Mahmoud Abbas"
+                  },
+                  "email": {
+                    "status": "match",
+                    "parsed": "ahmedabbass871@gmail.com",
+                    "labeled": "ahmedabbass871@gmail.com"
+                  },
+                  "phone": {
+                    "status": "match",
+                    "parsed": "+20 1114993108",
+                    "labeled": "+20 1114993108"
+                  },
+                  "location": {
+                    "status": "match",
+                    "parsed": "Egypt, Cairo",
+                    "labeled": "Egypt, Cairo"
+                  }
+                },
+                "considered": 4,
+                "correct": 4,
+                "accuracy": 1.0
+              },
+              "section_presence": {
+                "per_section": {
+                  "summary": {
+                    "expected": true,
+                    "actual": true,
+                    "match": true
+                  },
+                  "experience": {
+                    "expected": true,
+                    "actual": false,
+                    "match": false
+                  },
+                  "education": {
+                    "expected": true,
+                    "actual": true,
+                    "match": true
+                  },
+                  "projects": {
+                    "expected": true,
+                    "actual": false,
+                    "match": false
+                  },
+                  "skills": {
+                    "expected": true,
+                    "actual": true,
+                    "match": true
+                  }
+                },
+                "accuracy": 0.6
+              },
+              "skills": {
+                "n_parsed": 33,
+                "n_labeled": 13,
+                "precision": 0.2121,
+                "recall": 0.4615,
+                "f1": 0.2907,
+                "jaccard": 0.1395,
+                "missed": [
+                  "Multithreading",
+                  "Active Directory",
+                  "DHCP",
+                  "VLANs",
+                  "VPNs",
+                  "Sophos",
+                  "FortiGate"
+                ],
+                "extra": [
+                  "DevOps & Deployment: CI/CD",
+                  "Jenkins",
+                  "basic",
+                  "APIs",
+                  "Firewalls",
+                  "Packet Tracer",
+                  "System",
+                  "Clean Code",
+                  "Python",
+                  "JavaScript",
+                  "NAT",
+                  "VirtualBox",
+                  "Bash",
+                  "Kubernetes",
+                  "Wireshark",
+                  "Ansible",
+                  "REST",
+                  "Self",
+                  "Learner",
+                  "DNS",
+                  "upcoming",
+                  "Fedora)",
+                  "CLI Tools",
+                  "Design Thinking",
+                  "Git",
+                  "Docker"
+                ]
+              },
+              "counts": {
+                "experience": {
+                  "labeled": 1,
+                  "parsed": 0
+                },
+                "education": {
+                  "labeled": 1,
+                  "parsed": 1
+                }
+              },
+              "latency_ms": 183.75,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_jr_react",
+          "primary_role": "frontend",
+          "skills_section_present": true,
+          "personal_info_accuracy_mean": 1.0,
+          "section_presence_accuracy_mean": 0.6,
+          "skill_jaccard_mean": 0.1739,
+          "skill_f1_mean": 0.3019,
+          "runs": [
+            {
+              "personal_info": {
+                "per_field": {
+                  "name": {
+                    "status": "match",
+                    "parsed": "Ahmed Mahmoud Abbas",
+                    "labeled": "Ahmed Mahmoud Abbas"
+                  },
+                  "email": {
+                    "status": "match",
+                    "parsed": "ahmedabbass871@gmail.com",
+                    "labeled": "ahmedabbass871@gmail.com"
+                  },
+                  "phone": {
+                    "status": "match",
+                    "parsed": "+20 1114993108",
+                    "labeled": "+20 1114993108"
+                  },
+                  "location": {
+                    "status": "match",
+                    "parsed": "Egypt, Cairo",
+                    "labeled": "Egypt, Cairo"
+                  }
+                },
+                "considered": 4,
+                "correct": 4,
+                "accuracy": 1.0
+              },
+              "section_presence": {
+                "per_section": {
+                  "summary": {
+                    "expected": true,
+                    "actual": true,
+                    "match": true
+                  },
+                  "experience": {
+                    "expected": true,
+                    "actual": false,
+                    "match": false
+                  },
+                  "education": {
+                    "expected": true,
+                    "actual": true,
+                    "match": true
+                  },
+                  "projects": {
+                    "expected": true,
+                    "actual": false,
+                    "match": false
+                  },
+                  "skills": {
+                    "expected": true,
+                    "actual": true,
+                    "match": true
+                  }
+                },
+                "accuracy": 0.6
+              },
+              "skills": {
+                "n_parsed": 45,
+                "n_labeled": 8,
+                "precision": 0.1778,
+                "recall": 1.0,
+                "f1": 0.3019,
+                "jaccard": 0.1739,
+                "missed": [],
+                "extra": [
+                  "starting soon",
+                  "Cisco",
+                  "Accessibility",
+                  "Terraform",
+                  "basic",
+                  "Firewalls",
+                  "Packet Tracer",
+                  "System",
+                  "Rust",
+                  "Python",
+                  "MySQL",
+                  "Learning",
+                  "NAT",
+                  "VirtualBox",
+                  "DHCP",
+                  "Backend & DevOps",
+                  "Bash scripting",
+                  "Kubernetes",
+                  "VLANs",
+                  "Flexbox/Grid",
+                  "Wireshark",
+                  "Node.js",
+                  "Frontend: DOM manipulation",
+                  "Adaptability",
+                  "Ansible",
+                  "Networking & Security: TCP/IP",
+                  "Self",
+                  "Learner",
+                  "Administration:",
+                  "DNS",
+                  "Fedora)",
+                  "Teamwork",
+                  "Tools & Platforms: Git",
+                  "Docker",
+                  "GitHub",
+                  "GitHub Pages",
+                  "Linux"
+                ]
+              },
+              "counts": {
+                "experience": {
+                  "labeled": 1,
+                  "parsed": 0
+                },
+                "education": {
+                  "labeled": 1,
+                  "parsed": 1
+                }
+              },
+              "latency_ms": 179.52,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_devops_jr",
+          "primary_role": "devops",
+          "skills_section_present": true,
+          "personal_info_accuracy_mean": 1.0,
+          "section_presence_accuracy_mean": 0.6,
+          "skill_jaccard_mean": 0.1429,
+          "skill_f1_mean": 0.2609,
+          "runs": [
+            {
+              "personal_info": {
+                "per_field": {
+                  "name": {
+                    "status": "match",
+                    "parsed": "Ahmed Mahmoud Abbas",
+                    "labeled": "Ahmed Mahmoud Abbas"
+                  },
+                  "email": {
+                    "status": "match",
+                    "parsed": "ahmedabbass871@gmail.com",
+                    "labeled": "ahmedabbass871@gmail.com"
+                  },
+                  "phone": {
+                    "status": "match",
+                    "parsed": "+20 1114993108",
+                    "labeled": "+20 1114993108"
+                  },
+                  "location": {
+                    "status": "match",
+                    "parsed": "Egypt, Cairo",
+                    "labeled": "Egypt, Cairo"
+                  }
+                },
+                "considered": 4,
+                "correct": 4,
+                "accuracy": 1.0
+              },
+              "section_presence": {
+                "per_section": {
+                  "summary": {
+                    "expected": true,
+                    "actual": true,
+                    "match": true
+                  },
+                  "experience": {
+                    "expected": true,
+                    "actual": false,
+                    "match": false
+                  },
+                  "education": {
+                    "expected": true,
+                    "actual": true,
+                    "match": true
+                  },
+                  "projects": {
+                    "expected": true,
+                    "actual": false,
+                    "match": false
+                  },
+                  "skills": {
+                    "expected": true,
+                    "actual": true,
+                    "match": true
+                  }
+                },
+                "accuracy": 0.6
+              },
+              "skills": {
+                "n_parsed": 37,
+                "n_labeled": 9,
+                "precision": 0.1622,
+                "recall": 0.6667,
+                "f1": 0.2609,
+                "jaccard": 0.1429,
+                "missed": [
+                  "Containerization",
+                  "Infrastructure as Code",
+                  "Active Directory"
+                ],
+                "extra": [
+                  "Sophos",
+                  "pfSense",
+                  "Terraform",
+                  "Jenkins",
+                  "basic",
+                  "Python",
+                  "JavaScript",
+                  "NAT",
+                  "VirtualBox",
+                  "C++",
+                  "Bash",
+                  "Kubernetes",
+                  "FortiGate",
+                  "Wireshark",
+                  "Problem Solving",
+                  "Cisco Packet Tracer",
+                  "Adaptability",
+                  "Ansible",
+                  "Self",
+                  "Learner",
+                  "DNS",
+                  "Fedora)",
+                  "Nmap",
+                  "Subnetting",
+                  "Burp Suite",
+                  "Networking: TCP/IP",
+                  "fundamentals",
+                  "Docker",
+                  "AWS",
+                  "GitHub",
+                  "Tools: Git"
+                ]
+              },
+              "counts": {
+                "experience": {
+                  "labeled": 1,
+                  "parsed": 0
+                },
+                "education": {
+                  "labeled": 1,
+                  "parsed": 1
+                }
+              },
+              "latency_ms": 156.98,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_flutter_intern",
+          "primary_role": "mobile",
+          "skills_section_present": true,
+          "personal_info_accuracy_mean": 1.0,
+          "section_presence_accuracy_mean": 1.0,
+          "skill_jaccard_mean": 0.2273,
+          "skill_f1_mean": 0.3846,
+          "runs": [
+            {
+              "personal_info": {
+                "per_field": {
+                  "name": {
+                    "status": "match",
+                    "parsed": "Mohamed Abd Elghany",
+                    "labeled": "Mohamed Abd Elghany"
+                  },
+                  "email": {
+                    "status": "match",
+                    "parsed": "info.mohamedabdelghany@gmail.com",
+                    "labeled": "info.mohamedabdelghany@gmail.com"
+                  },
+                  "phone": {
+                    "status": "match",
+                    "parsed": "01287002189",
+                    "labeled": "01287002189"
+                  },
+                  "location": {
+                    "status": "match",
+                    "parsed": "My Portfolio Mansoura, Egypt",
+                    "labeled": "Mansoura, Egypt"
+                  }
+                },
+                "considered": 4,
+                "correct": 4,
+                "accuracy": 1.0
+              },
+              "section_presence": {
+                "per_section": {
+                  "summary": {
+                    "expected": true,
+                    "actual": true,
+                    "match": true
+                  },
+                  "experience": {
+                    "expected": true,
+                    "actual": true,
+                    "match": true
+                  },
+                  "education": {
+                    "expected": true,
+                    "actual": true,
+                    "match": true
+                  },
+                  "projects": {
+                    "expected": false,
+                    "actual": false,
+                    "match": true
+                  },
+                  "skills": {
+                    "expected": true,
+                    "actual": true,
+                    "match": true
+                  }
+                },
+                "accuracy": 1.0
+              },
+              "skills": {
+                "n_parsed": 39,
+                "n_labeled": 13,
+                "precision": 0.2564,
+                "recall": 0.7692,
+                "f1": 0.3846,
+                "jaccard": 0.2273,
+                "missed": [
+                  "Clean Architecture",
+                  "REST API",
+                  "Agile"
+                ],
+                "extra": [
+                  "Abd",
+                  "Dio",
+                  "Postman",
+                  "portfolio.netlify.app/]",
+                  "elghany7/]",
+                  "Dependency Injection",
+                  "aLrjlug92F/view?usp=sharing]",
+                  "Data & Storage: Firebase",
+                  "abd",
+                  "Shared Preferences",
+                  "Elghany'",
+                  "Local Notifications",
+                  "El",
+                  "elghany",
+                  "Localization",
+                  "Others: Google Maps",
+                  "Problem Solving",
+                  "SQLite",
+                  "Adaptability",
+                  "VS Code",
+                  "Payment Gateway Integration",
+                  "Android Studio",
+                  "MVVM",
+                  "SOLID Principles",
+                  "Ghany]",
+                  "Hive",
+                  "Communication",
+                  "Tools & DevOps: Git",
+                  "GitHub"
+                ]
+              },
+              "counts": {
+                "experience": {
+                  "labeled": 2,
+                  "parsed": 1
+                },
+                "education": {
+                  "labeled": 1,
+                  "parsed": 2
+                }
+              },
+              "latency_ms": 501.88,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_diploma_react",
+          "primary_role": "frontend",
+          "skills_section_present": false,
+          "personal_info_accuracy_mean": 1.0,
+          "section_presence_accuracy_mean": 0.6,
+          "skill_jaccard_mean": 0.3462,
+          "skill_f1_mean": 0.602,
+          "runs": [
+            {
+              "personal_info": {
+                "per_field": {
+                  "name": {
+                    "status": "match",
+                    "parsed": "Sara Ahmed",
+                    "labeled": "Sara Ahmed"
+                  },
+                  "email": {
+                    "status": "match",
+                    "parsed": "sarahmedd72@gmail.com",
+                    "labeled": "sarahmedd72@gmail.com"
+                  },
+                  "phone": {
+                    "status": "match",
+                    "parsed": "01068726072",
+                    "labeled": "01068726072"
+                  },
+                  "location": {
+                    "status": "skipped_null_label",
+                    "parsed": null
+                  }
+                },
+                "considered": 3,
+                "correct": 3,
+                "accuracy": 1.0
+              },
+              "section_presence": {
+                "per_section": {
+                  "summary": {
+                    "expected": true,
+                    "actual": true,
+                    "match": true
+                  },
+                  "experience": {
+                    "expected": false,
+                    "actual": false,
+                    "match": true
+                  },
+                  "education": {
+                    "expected": false,
+                    "actual": false,
+                    "match": true
+                  },
+                  "projects": {
+                    "expected": true,
+                    "actual": false,
+                    "match": false
+                  },
+                  "skills": {
+                    "expected": false,
+                    "actual": true,
+                    "match": false
+                  }
+                },
+                "accuracy": 0.6
+              },
+              "skills": {
+                "n_parsed": 21,
+                "n_labeled": 11,
+                "precision": 0.4762,
+                "recall": 0.8182,
+                "f1": 0.602,
+                "jaccard": 0.3462,
+                "missed": [
+                  "React Router",
+                  "Local Storage"
+                ],
+                "extra": [
+                  "Courses & Diplomas",
+                  "Completed",
+                  "C#",
+                  "Python",
+                  "UI/ UX principles",
+                  "Responsive designs",
+                  "C++",
+                  "Routing)",
+                  "Front",
+                  "Project Link",
+                  "GitHub"
+                ]
+              },
+              "counts": {
+                "experience": {
+                  "labeled": 0,
+                  "parsed": 0
+                },
+                "education": {
+                  "labeled": 1,
+                  "parsed": 0
+                }
+              },
+              "latency_ms": 240.29,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_senior_react_vue",
+          "primary_role": "frontend",
+          "skills_section_present": false,
+          "personal_info_accuracy_mean": 1.0,
+          "section_presence_accuracy_mean": 0.6,
+          "skill_jaccard_mean": 0.0,
+          "skill_f1_mean": 0.0,
+          "runs": [
+            {
+              "personal_info": {
+                "per_field": {
+                  "name": {
+                    "status": "match",
+                    "parsed": "Charlotte May",
+                    "labeled": "Charlotte May"
+                  },
+                  "email": {
+                    "status": "match",
+                    "parsed": "john.smith@gmail.com",
+                    "labeled": "john.smith@gmail.com"
+                  },
+                  "phone": {
+                    "status": "skipped_null_label",
+                    "parsed": null
+                  },
+                  "location": {
+                    "status": "match",
+                    "parsed": "London, UK",
+                    "labeled": "London, UK"
+                  }
+                },
+                "considered": 3,
+                "correct": 3,
+                "accuracy": 1.0
+              },
+              "section_presence": {
+                "per_section": {
+                  "summary": {
+                    "expected": true,
+                    "actual": true,
+                    "match": true
+                  },
+                  "experience": {
+                    "expected": true,
+                    "actual": true,
+                    "match": true
+                  },
+                  "education": {
+                    "expected": false,
+                    "actual": true,
+                    "match": false
+                  },
+                  "projects": {
+                    "expected": false,
+                    "actual": false,
+                    "match": true
+                  },
+                  "skills": {
+                    "expected": false,
+                    "actual": true,
+                    "match": false
+                  }
+                },
+                "accuracy": 0.6
+              },
+              "skills": {
+                "n_parsed": 16,
+                "n_labeled": 9,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0,
+                "jaccard": 0.0,
+                "missed": [
+                  "JavaScript",
+                  "React",
+                  "Vue",
+                  "Redux",
+                  "Responsive Design",
+                  "UI Performance",
+                  "Accessibility",
+                  "Automated Testing",
+                  "User Testing"
+                ],
+                "extra": [
+                  "commerce website that handled",
+                  "commerce Website",
+                  "Powered by'",
+                  "Provided guidance and",
+                  "completion of several high",
+                  "Cross",
+                  "Developing a High",
+                  "Mentoring Junior Developers",
+                  "Led the frontend development",
+                  "mentorship to junior developers",
+                  "resulting in their successful",
+                  "Traffic E",
+                  "Powered by",
+                  "profile projects and increased",
+                  "Achievements",
+                  "over 100"
+                ]
+              },
+              "counts": {
+                "experience": {
+                  "labeled": 2,
+                  "parsed": 3
+                },
+                "education": {
+                  "labeled": 0,
+                  "parsed": 2
+                }
+              },
+              "latency_ms": 73.5,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_mid_react",
+          "primary_role": "frontend",
+          "skills_section_present": false,
+          "personal_info_accuracy_mean": 0.75,
+          "section_presence_accuracy_mean": 0.6,
+          "skill_jaccard_mean": 0.0,
+          "skill_f1_mean": 0.0,
+          "runs": [
+            {
+              "personal_info": {
+                "per_field": {
+                  "name": {
+                    "status": "match",
+                    "parsed": "",
+                    "labeled": "Enrique Veragoza"
+                  },
+                  "email": {
+                    "status": "match",
+                    "parsed": "e.veragoza@email.com",
+                    "labeled": "e.veragoza@email.com"
+                  },
+                  "phone": {
+                    "status": "miss",
+                    "parsed": "",
+                    "labeled": "(123) 456-7890"
+                  },
+                  "location": {
+                    "status": "match",
+                    "parsed": "Stockton, CA",
+                    "labeled": "Stockton, CA"
+                  }
+                },
+                "considered": 4,
+                "correct": 3,
+                "accuracy": 0.75
+              },
+              "section_presence": {
+                "per_section": {
+                  "summary": {
+                    "expected": false,
+                    "actual": true,
+                    "match": false
+                  },
+                  "experience": {
+                    "expected": true,
+                    "actual": true,
+                    "match": true
+                  },
+                  "education": {
+                    "expected": true,
+                    "actual": true,
+                    "match": true
+                  },
+                  "projects": {
+                    "expected": false,
+                    "actual": false,
+                    "match": true
+                  },
+                  "skills": {
+                    "expected": false,
+                    "actual": true,
+                    "match": false
+                  }
+                },
+                "accuracy": 0.6
+              },
+              "skills": {
+                "n_parsed": 4,
+                "n_labeled": 7,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0,
+                "jaccard": 0.0,
+                "missed": [
+                  "Front-End Development",
+                  "Code Review",
+                  "Mentorship",
+                  "UI/UX",
+                  "Reusable Components",
+                  "Automated Testing",
+                  "Performance Optimization"
+                ],
+                "extra": [
+                  "HTML",
+                  "JavaScript",
+                  "CSS",
+                  "React.js"
+                ]
+              },
+              "counts": {
+                "experience": {
+                  "labeled": 3,
+                  "parsed": 3
+                },
+                "education": {
+                  "labeled": 1,
+                  "parsed": 1
+                }
+              },
+              "latency_ms": 48.0,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_senior_react_vue_v2",
+          "primary_role": "frontend",
+          "skills_section_present": false,
+          "personal_info_accuracy_mean": 1.0,
+          "section_presence_accuracy_mean": 0.8,
+          "skill_jaccard_mean": 0.0,
+          "skill_f1_mean": 0.0,
+          "runs": [
+            {
+              "personal_info": {
+                "per_field": {
+                  "name": {
+                    "status": "match",
+                    "parsed": "Charlotte May",
+                    "labeled": "Charlotte May"
+                  },
+                  "email": {
+                    "status": "match",
+                    "parsed": "john.smith@gmail.com",
+                    "labeled": "john.smith@gmail.com"
+                  },
+                  "phone": {
+                    "status": "skipped_null_label",
+                    "parsed": null
+                  },
+                  "location": {
+                    "status": "match",
+                    "parsed": "London, UK",
+                    "labeled": "London, UK"
+                  }
+                },
+                "considered": 3,
+                "correct": 3,
+                "accuracy": 1.0
+              },
+              "section_presence": {
+                "per_section": {
+                  "summary": {
+                    "expected": true,
+                    "actual": true,
+                    "match": true
+                  },
+                  "experience": {
+                    "expected": true,
+                    "actual": true,
+                    "match": true
+                  },
+                  "education": {
+                    "expected": false,
+                    "actual": true,
+                    "match": false
+                  },
+                  "projects": {
+                    "expected": false,
+                    "actual": false,
+                    "match": true
+                  },
+                  "skills": {
+                    "expected": false,
+                    "actual": false,
+                    "match": true
+                  }
+                },
+                "accuracy": 0.8
+              },
+              "skills": {
+                "n_parsed": 0,
+                "n_labeled": 9,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0,
+                "jaccard": 0.0,
+                "missed": [
+                  "JavaScript",
+                  "React",
+                  "Vue",
+                  "Redux",
+                  "Responsive Design",
+                  "UI Performance",
+                  "Accessibility",
+                  "Automated Testing",
+                  "User Testing"
+                ],
+                "extra": []
+              },
+              "counts": {
+                "experience": {
+                  "labeled": 2,
+                  "parsed": 3
+                },
+                "education": {
+                  "labeled": 0,
+                  "parsed": 2
+                }
+              },
+              "latency_ms": 66.91,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_jquery_legacy",
+          "primary_role": "frontend",
+          "skills_section_present": false,
+          "personal_info_accuracy_mean": 1.0,
+          "section_presence_accuracy_mean": 0.4,
+          "skill_jaccard_mean": 0.1071,
+          "skill_f1_mean": 0.2069,
+          "runs": [
+            {
+              "personal_info": {
+                "per_field": {
+                  "name": {
+                    "status": "match",
+                    "parsed": "",
+                    "labeled": "First Last"
+                  },
+                  "email": {
+                    "status": "skipped_null_label",
+                    "parsed": "first.last@gmail.com"
+                  },
+                  "phone": {
+                    "status": "skipped_null_label",
+                    "parsed": null
+                  },
+                  "location": {
+                    "status": "match",
+                    "parsed": "",
+                    "labeled": "London, United Kingdom"
+                  }
+                },
+                "considered": 2,
+                "correct": 2,
+                "accuracy": 1.0
+              },
+              "section_presence": {
+                "per_section": {
+                  "summary": {
+                    "expected": false,
+                    "actual": true,
+                    "match": false
+                  },
+                  "experience": {
+                    "expected": true,
+                    "actual": false,
+                    "match": false
+                  },
+                  "education": {
+                    "expected": false,
+                    "actual": false,
+                    "match": true
+                  },
+                  "projects": {
+                    "expected": false,
+                    "actual": false,
+                    "match": true
+                  },
+                  "skills": {
+                    "expected": false,
+                    "actual": true,
+                    "match": false
+                  }
+                },
+                "accuracy": 0.4
+              },
+              "skills": {
+                "n_parsed": 22,
+                "n_labeled": 7,
+                "precision": 0.1364,
+                "recall": 0.4286,
+                "f1": 0.2069,
+                "jaccard": 0.1071,
+                "missed": [
+                  "HTML",
+                  "JavaScript",
+                  "SEO",
+                  "Web Maintenance"
+                ],
+                "extra": [
+                  "Command Line",
+                  "TypeScript",
+                  "Browser Development",
+                  "Tools and Software:",
+                  "Vue.js",
+                  "Agile Methodologies",
+                  "Troubleshooting",
+                  "Romanian",
+                  "Techniques:",
+                  "Cross",
+                  "Testing",
+                  "English",
+                  "Conversational",
+                  "Web Development",
+                  "Spanish",
+                  "Debugging",
+                  "Languages:",
+                  "AJAX",
+                  "Native"
+                ]
+              },
+              "counts": {
+                "experience": {
+                  "labeled": 2,
+                  "parsed": 0
+                },
+                "education": {
+                  "labeled": 0,
+                  "parsed": 0
+                }
+              },
+              "latency_ms": 30.2,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_entry_no_role",
+          "primary_role": "frontend",
+          "skills_section_present": true,
+          "personal_info_accuracy_mean": 0.6667,
+          "section_presence_accuracy_mean": 1.0,
+          "skill_jaccard_mean": 0.8333,
+          "skill_f1_mean": 0.9091,
+          "runs": [
+            {
+              "personal_info": {
+                "per_field": {
+                  "name": {
+                    "status": "skipped_null_label",
+                    "parsed": null
+                  },
+                  "email": {
+                    "status": "match",
+                    "parsed": "g.price@email.com",
+                    "labeled": "g.price@email.com"
+                  },
+                  "phone": {
+                    "status": "miss",
+                    "parsed": "",
+                    "labeled": "(123) 456-7890"
+                  },
+                  "location": {
+                    "status": "match",
+                    "parsed": "Austin, TX",
+                    "labeled": "Austin, TX"
+                  }
+                },
+                "considered": 3,
+                "correct": 2,
+                "accuracy": 0.6667
+              },
+              "section_presence": {
+                "per_section": {
+                  "summary": {
+                    "expected": true,
+                    "actual": true,
+                    "match": true
+                  },
+                  "experience": {
+                    "expected": true,
+                    "actual": true,
+                    "match": true
+                  },
+                  "education": {
+                    "expected": true,
+                    "actual": true,
+                    "match": true
+                  },
+                  "projects": {
+                    "expected": true,
+                    "actual": true,
+                    "match": true
+                  },
+                  "skills": {
+                    "expected": true,
+                    "actual": true,
+                    "match": true
+                  }
+                },
+                "accuracy": 1.0
+              },
+              "skills": {
+                "n_parsed": 12,
+                "n_labeled": 10,
+                "precision": 0.8333,
+                "recall": 1.0,
+                "f1": 0.9091,
+                "jaccard": 0.8333,
+                "missed": [],
+                "extra": [
+                  "CAREER OBJECTIVE",
+                  "Aspiring junior front"
+                ]
+              },
+              "counts": {
+                "experience": {
+                  "labeled": 2,
+                  "parsed": 2
+                },
+                "education": {
+                  "labeled": 1,
+                  "parsed": 2
+                }
+              },
+              "latency_ms": 52.16,
+              "error": null
+            }
+          ]
+        }
+      ],
+      "method": {
+        "service": "profiles.services.cv_parser.parse_cv",
+        "fuzzy_cutoff": 0.85,
+        "scoring": {
+          "personal_info": "case-insensitive match; phone digit-normalized; null labels skipped",
+          "skills": "lowercased exact + difflib >= 0.85 + substring tolerance",
+          "section_presence": "labeled section true => parsed list/text non-empty"
+        }
+      },
+      "disclosure": "LLM-driven (Groq llama-4-scout via the parser's structured-output stage). Mean of 1 run(s) per CV. PII normalization is intentionally lenient (case- and whitespace-insensitive) so cosmetic differences don't dominate the score.",
+      "written_to": "G:\\New folder\\SmartCV\\benchmarks\\results\\2026-04-26\\parser_eval.json"
+    },
+    "skill_extractor_eval": {
+      "benchmark": "skill_extractor_eval",
+      "version": 1,
+      "fixture_kind": "real_anonymized_jd",
+      "n_jds": 5,
+      "repeats_per_jd": 3,
+      "wall_seconds": 16.92,
+      "aggregate": {
+        "f1": {
+          "n": 15,
+          "min": 0.6939,
+          "mean": 0.8095,
+          "median": 0.8085,
+          "p95": 0.95,
+          "max": 0.9474,
+          "std": 0.0867
+        },
+        "precision": {
+          "n": 15,
+          "min": 0.6071,
+          "mean": 0.7652,
+          "median": 0.7037,
+          "p95": 0.93,
+          "max": 0.9286,
+          "std": 0.1252
+        },
+        "recall": {
+          "n": 15,
+          "min": 0.7857,
+          "mean": 0.8724,
+          "median": 0.8095,
+          "p95": 1.0,
+          "max": 1.0,
+          "std": 0.0865
+        },
+        "hallucination_rate": {
+          "n": 15,
+          "min": 0.0714,
+          "mean": 0.2348,
+          "median": 0.2963,
+          "p95": 0.39,
+          "max": 0.3929,
+          "std": 0.1252
+        },
+        "latency_ms": {
+          "n": 15,
+          "min": 877.14,
+          "mean": 1122.104,
+          "median": 1018.76,
+          "p95": 1564.12,
+          "max": 1624.43,
+          "std": 240.0474
+        }
+      },
+      "per_job": [
+        {
+          "jd_id": "jd_senior_frontend_react",
+          "title": "Senior Frontend Engineer (React)",
+          "expected_skills_count": 21,
+          "repeats": 3,
+          "f1_mean": 0.7037,
+          "f1_std": 0.0139,
+          "precision_mean": 0.6227,
+          "recall_mean": 0.8095,
+          "hallucination_mean": 0.3773,
+          "runs": [
+            {
+              "n_extracted": 26,
+              "n_labeled": 21,
+              "precision": 0.6538,
+              "recall": 0.8095,
+              "f1": 0.7234,
+              "hallucination_rate": 0.3462,
+              "missed": [
+                "REST API",
+                "Accessibility",
+                "Responsive Design",
+                "Vue"
+              ],
+              "extra": [
+                "Babel",
+                "npm",
+                "yarn",
+                "GitHub",
+                "REST",
+                "Zustand",
+                "Context",
+                "Vue.js",
+                "Playwright"
+              ],
+              "extracted_raw": [
+                "React",
+                "TypeScript",
+                "JavaScript",
+                "HTML5",
+                "CSS3",
+                "Webpack",
+                "Vite",
+                "Babel",
+                "npm",
+                "yarn",
+                "Git",
+                "GitHub",
+                "Jest",
+                "React Testing Library",
+                "Cypress",
+                "REST",
+                "GraphQL",
+                "Redux",
+                "Zustand",
+                "Context",
+                "Tailwind",
+                "Vue.js",
+                "Storybook",
+                "Playwright",
+                "GitHub Actions",
+                "Figma"
+              ],
+              "latency_ms": 1538.27,
+              "error": null
+            },
+            {
+              "n_extracted": 28,
+              "n_labeled": 21,
+              "precision": 0.6071,
+              "recall": 0.8095,
+              "f1": 0.6939,
+              "hallucination_rate": 0.3929,
+              "missed": [
+                "REST API",
+                "Accessibility",
+                "Responsive Design",
+                "Vue"
+              ],
+              "extra": [
+                "Babel",
+                "npm",
+                "yarn",
+                "GitHub",
+                "REST",
+                "Zustand",
+                "Context",
+                "Vue.js",
+                "Playwright",
+                "WCAG 2.1",
+                "Core Web Vitals"
+              ],
+              "extracted_raw": [
+                "React",
+                "TypeScript",
+                "JavaScript",
+                "HTML5",
+                "CSS3",
+                "Webpack",
+                "Vite",
+                "Babel",
+                "npm",
+                "yarn",
+                "Git",
+                "GitHub",
+                "Jest",
+                "React Testing Library",
+                "Cypress",
+                "REST",
+                "GraphQL",
+                "Redux",
+                "Zustand",
+                "Context",
+                "Tailwind",
+                "Vue.js",
+                "Storybook",
+                "Playwright",
+                "GitHub Actions",
+                "Figma",
+                "WCAG 2.1",
+                "Core Web Vitals"
+              ],
+              "latency_ms": 1243.58,
+              "error": null
+            },
+            {
+              "n_extracted": 28,
+              "n_labeled": 21,
+              "precision": 0.6071,
+              "recall": 0.8095,
+              "f1": 0.6939,
+              "hallucination_rate": 0.3929,
+              "missed": [
+                "REST API",
+                "Accessibility",
+                "Responsive Design",
+                "Vue"
+              ],
+              "extra": [
+                "Babel",
+                "npm",
+                "yarn",
+                "GitHub",
+                "REST",
+                "Zustand",
+                "Context",
+                "Vue.js",
+                "Playwright",
+                "WCAG 2.1",
+                "Core Web Vitals"
+              ],
+              "extracted_raw": [
+                "React",
+                "TypeScript",
+                "JavaScript",
+                "HTML5",
+                "CSS3",
+                "Webpack",
+                "Vite",
+                "Babel",
+                "npm",
+                "yarn",
+                "Git",
+                "GitHub",
+                "Jest",
+                "React Testing Library",
+                "Cypress",
+                "REST",
+                "GraphQL",
+                "Redux",
+                "Zustand",
+                "Context",
+                "Tailwind",
+                "Vue.js",
+                "Storybook",
+                "Playwright",
+                "GitHub Actions",
+                "Figma",
+                "WCAG 2.1",
+                "Core Web Vitals"
+              ],
+              "latency_ms": 1051.8,
+              "error": null
+            }
+          ]
+        },
+        {
+          "jd_id": "jd_backend_python_node",
+          "title": "Backend Engineer (Python / Node.js)",
+          "expected_skills_count": 18,
+          "repeats": 3,
+          "f1_mean": 0.9474,
+          "f1_std": 0.0,
+          "precision_mean": 0.9,
+          "recall_mean": 1.0,
+          "hallucination_mean": 0.1,
+          "runs": [
+            {
+              "n_extracted": 20,
+              "n_labeled": 18,
+              "precision": 0.9,
+              "recall": 1.0,
+              "f1": 0.9474,
+              "hallucination_rate": 0.1,
+              "missed": [],
+              "extra": [
+                "GitHub",
+                "GCP"
+              ],
+              "extracted_raw": [
+                "Python",
+                "Django",
+                "FastAPI",
+                "Node.js",
+                "PostgreSQL",
+                "Redis",
+                "REST API",
+                "gRPC",
+                "Docker",
+                "Kubernetes",
+                "SQL",
+                "pytest",
+                "OAuth2",
+                "JWT",
+                "Git",
+                "GitHub",
+                "Linux",
+                "AWS",
+                "GCP",
+                "Kafka"
+              ],
+              "latency_ms": 925.23,
+              "error": null
+            },
+            {
+              "n_extracted": 20,
+              "n_labeled": 18,
+              "precision": 0.9,
+              "recall": 1.0,
+              "f1": 0.9474,
+              "hallucination_rate": 0.1,
+              "missed": [],
+              "extra": [
+                "GitHub",
+                "GCP"
+              ],
+              "extracted_raw": [
+                "Python",
+                "Django",
+                "FastAPI",
+                "Node.js",
+                "PostgreSQL",
+                "Redis",
+                "REST API",
+                "gRPC",
+                "Docker",
+                "Kubernetes",
+                "SQL",
+                "pytest",
+                "OAuth2",
+                "JWT",
+                "Git",
+                "GitHub",
+                "Linux",
+                "AWS",
+                "GCP",
+                "Kafka"
+              ],
+              "latency_ms": 919.7,
+              "error": null
+            },
+            {
+              "n_extracted": 20,
+              "n_labeled": 18,
+              "precision": 0.9,
+              "recall": 1.0,
+              "f1": 0.9474,
+              "hallucination_rate": 0.1,
+              "missed": [],
+              "extra": [
+                "GitHub",
+                "GCP"
+              ],
+              "extracted_raw": [
+                "Python",
+                "Django",
+                "FastAPI",
+                "Node.js",
+                "PostgreSQL",
+                "Redis",
+                "REST API",
+                "gRPC",
+                "Docker",
+                "Kubernetes",
+                "SQL",
+                "pytest",
+                "OAuth2",
+                "JWT",
+                "Git",
+                "GitHub",
+                "Linux",
+                "AWS",
+                "GCP",
+                "Kafka"
+              ],
+              "latency_ms": 937.58,
+              "error": null
+            }
+          ]
+        },
+        {
+          "jd_id": "jd_devops_aws_k8s",
+          "title": "DevOps Engineer (AWS / Kubernetes)",
+          "expected_skills_count": 20,
+          "repeats": 3,
+          "f1_mean": 0.8085,
+          "f1_std": 0.0,
+          "precision_mean": 0.7037,
+          "recall_mean": 0.95,
+          "hallucination_mean": 0.2963,
+          "runs": [
+            {
+              "n_extracted": 27,
+              "n_labeled": 20,
+              "precision": 0.7037,
+              "recall": 0.95,
+              "f1": 0.8085,
+              "hallucination_rate": 0.2963,
+              "missed": [
+                "CI/CD"
+              ],
+              "extra": [
+                "CloudWatch",
+                "Loki",
+                "GitLab CI",
+                "Flux",
+                "Istio",
+                "Linkerd",
+                "Vault",
+                "AWS Secrets Manager"
+              ],
+              "extracted_raw": [
+                "AWS",
+                "EKS",
+                "EC2",
+                "RDS",
+                "S3",
+                "IAM",
+                "CloudWatch",
+                "Kubernetes",
+                "Helm",
+                "Argo CD",
+                "Terraform",
+                "GitHub Actions",
+                "Jenkins",
+                "Docker",
+                "Prometheus",
+                "Grafana",
+                "Loki",
+                "Bash",
+                "Python",
+                "Go",
+                "Linux",
+                "GitLab CI",
+                "Flux",
+                "Istio",
+                "Linkerd",
+                "Vault",
+                "AWS Secrets Manager"
+              ],
+              "latency_ms": 1624.43,
+              "error": null
+            },
+            {
+              "n_extracted": 27,
+              "n_labeled": 20,
+              "precision": 0.7037,
+              "recall": 0.95,
+              "f1": 0.8085,
+              "hallucination_rate": 0.2963,
+              "missed": [
+                "CI/CD"
+              ],
+              "extra": [
+                "CloudWatch",
+                "Loki",
+                "GitLab CI",
+                "Flux",
+                "Istio",
+                "Linkerd",
+                "Vault",
+                "AWS Secrets Manager"
+              ],
+              "extracted_raw": [
+                "AWS",
+                "EKS",
+                "EC2",
+                "RDS",
+                "S3",
+                "IAM",
+                "CloudWatch",
+                "Kubernetes",
+                "Helm",
+                "Argo CD",
+                "Terraform",
+                "GitHub Actions",
+                "Jenkins",
+                "Docker",
+                "Prometheus",
+                "Grafana",
+                "Loki",
+                "Bash",
+                "Python",
+                "Go",
+                "Linux",
+                "GitLab CI",
+                "Flux",
+                "Istio",
+                "Linkerd",
+                "Vault",
+                "AWS Secrets Manager"
+              ],
+              "latency_ms": 1031.1,
+              "error": null
+            },
+            {
+              "n_extracted": 27,
+              "n_labeled": 20,
+              "precision": 0.7037,
+              "recall": 0.95,
+              "f1": 0.8085,
+              "hallucination_rate": 0.2963,
+              "missed": [
+                "CI/CD"
+              ],
+              "extra": [
+                "CloudWatch",
+                "Loki",
+                "GitLab CI",
+                "Flux",
+                "Istio",
+                "Linkerd",
+                "Vault",
+                "AWS Secrets Manager"
+              ],
+              "extracted_raw": [
+                "AWS",
+                "EKS",
+                "EC2",
+                "RDS",
+                "S3",
+                "IAM",
+                "CloudWatch",
+                "Kubernetes",
+                "Helm",
+                "Argo CD",
+                "Terraform",
+                "GitHub Actions",
+                "Jenkins",
+                "Docker",
+                "Prometheus",
+                "Grafana",
+                "Loki",
+                "Bash",
+                "Python",
+                "Go",
+                "Linux",
+                "GitLab CI",
+                "Flux",
+                "Istio",
+                "Linkerd",
+                "Vault",
+                "AWS Secrets Manager"
+              ],
+              "latency_ms": 1018.76,
+              "error": null
+            }
+          ]
+        },
+        {
+          "jd_id": "jd_flutter_mobile",
+          "title": "Flutter Mobile Engineer",
+          "expected_skills_count": 20,
+          "repeats": 3,
+          "f1_mean": 0.7367,
+          "f1_std": 0.0133,
+          "precision_mean": 0.6711,
+          "recall_mean": 0.8167,
+          "hallucination_mean": 0.3289,
+          "runs": [
+            {
+              "n_extracted": 25,
+              "n_labeled": 20,
+              "precision": 0.68,
+              "recall": 0.85,
+              "f1": 0.7556,
+              "hallucination_rate": 0.32,
+              "missed": [
+                "Responsive UI",
+                "Animations",
+                "Widget Testing"
+              ],
+              "extra": [
+                "HTTP clients",
+                "Retrofit",
+                "http",
+                "shared preferences",
+                "Kotlin",
+                "Swift",
+                "Firestore",
+                "Cloud Messaging"
+              ],
+              "extracted_raw": [
+                "Flutter",
+                "Dart",
+                "Clean Architecture",
+                "BLoC",
+                "Cubit",
+                "Provider",
+                "GetX",
+                "REST API",
+                "HTTP clients",
+                "Dio",
+                "Retrofit",
+                "http",
+                "Git",
+                "Figma",
+                "Hive",
+                "SQLite",
+                "shared preferences",
+                "Codemagic",
+                "GitHub Actions",
+                "Kotlin",
+                "Swift",
+                "Firebase",
+                "Firestore",
+                "Cloud Messaging",
+                "OOP"
+              ],
+              "latency_ms": 988.67,
+              "error": null
+            },
+            {
+              "n_extracted": 24,
+              "n_labeled": 20,
+              "precision": 0.6667,
+              "recall": 0.8,
+              "f1": 0.7273,
+              "hallucination_rate": 0.3333,
+              "missed": [
+                "Responsive UI",
+                "OOP",
+                "Animations",
+                "Widget Testing"
+              ],
+              "extra": [
+                "HTTP clients",
+                "Retrofit",
+                "http",
+                "shared preferences",
+                "Kotlin",
+                "Swift",
+                "Firestore",
+                "Cloud Messaging"
+              ],
+              "extracted_raw": [
+                "Flutter",
+                "Dart",
+                "Clean Architecture",
+                "BLoC",
+                "Cubit",
+                "Provider",
+                "GetX",
+                "REST API",
+                "HTTP clients",
+                "Dio",
+                "Retrofit",
+                "http",
+                "Git",
+                "Figma",
+                "Hive",
+                "SQLite",
+                "shared preferences",
+                "Codemagic",
+                "GitHub Actions",
+                "Kotlin",
+                "Swift",
+                "Firebase",
+                "Firestore",
+                "Cloud Messaging"
+              ],
+              "latency_ms": 1453.29,
+              "error": null
+            },
+            {
+              "n_extracted": 24,
+              "n_labeled": 20,
+              "precision": 0.6667,
+              "recall": 0.8,
+              "f1": 0.7273,
+              "hallucination_rate": 0.3333,
+              "missed": [
+                "Responsive UI",
+                "OOP",
+                "Animations",
+                "Widget Testing"
+              ],
+              "extra": [
+                "HTTP clients",
+                "Retrofit",
+                "http",
+                "shared preferences",
+                "Kotlin",
+                "Swift",
+                "Firestore",
+                "Cloud Messaging"
+              ],
+              "extracted_raw": [
+                "Flutter",
+                "Dart",
+                "Clean Architecture",
+                "BLoC",
+                "Cubit",
+                "Provider",
+                "GetX",
+                "REST API",
+                "HTTP clients",
+                "Dio",
+                "Retrofit",
+                "http",
+                "Git",
+                "Figma",
+                "Hive",
+                "SQLite",
+                "shared preferences",
+                "Codemagic",
+                "GitHub Actions",
+                "Kotlin",
+                "Swift",
+                "Firebase",
+                "Firestore",
+                "Cloud Messaging"
+              ],
+              "latency_ms": 1005.23,
+              "error": null
+            }
+          ]
+        },
+        {
+          "jd_id": "jd_junior_web_dev",
+          "title": "Junior Web Developer",
+          "expected_skills_count": 14,
+          "repeats": 3,
+          "f1_mean": 0.8512,
+          "f1_std": 0.0,
+          "precision_mean": 0.9286,
+          "recall_mean": 0.7857,
+          "hallucination_mean": 0.0714,
+          "runs": [
+            {
+              "n_extracted": 14,
+              "n_labeled": 14,
+              "precision": 0.9286,
+              "recall": 0.7857,
+              "f1": 0.8512,
+              "hallucination_rate": 0.0714,
+              "missed": [
+                "Responsive Design",
+                "Tailwind",
+                "REST API"
+              ],
+              "extra": [
+                "Tailwind CSS"
+              ],
+              "extracted_raw": [
+                "HTML",
+                "HTML5",
+                "CSS",
+                "CSS3",
+                "JavaScript",
+                "React",
+                "React Router",
+                "Axios",
+                "Tailwind CSS",
+                "Bootstrap",
+                "Git",
+                "GitHub",
+                "TypeScript",
+                "Figma"
+              ],
+              "latency_ms": 902.42,
+              "error": null
+            },
+            {
+              "n_extracted": 14,
+              "n_labeled": 14,
+              "precision": 0.9286,
+              "recall": 0.7857,
+              "f1": 0.8512,
+              "hallucination_rate": 0.0714,
+              "missed": [
+                "Responsive Design",
+                "Tailwind",
+                "REST API"
+              ],
+              "extra": [
+                "Tailwind CSS"
+              ],
+              "extracted_raw": [
+                "HTML",
+                "HTML5",
+                "CSS",
+                "CSS3",
+                "JavaScript",
+                "React",
+                "React Router",
+                "Axios",
+                "Tailwind CSS",
+                "Bootstrap",
+                "Git",
+                "GitHub",
+                "TypeScript",
+                "Figma"
+              ],
+              "latency_ms": 877.14,
+              "error": null
+            },
+            {
+              "n_extracted": 14,
+              "n_labeled": 14,
+              "precision": 0.9286,
+              "recall": 0.7857,
+              "f1": 0.8512,
+              "hallucination_rate": 0.0714,
+              "missed": [
+                "Responsive Design",
+                "Tailwind",
+                "REST API"
+              ],
+              "extra": [
+                "Tailwind CSS"
+              ],
+              "extracted_raw": [
+                "HTML",
+                "HTML5",
+                "CSS",
+                "CSS3",
+                "JavaScript",
+                "React",
+                "React Router",
+                "Axios",
+                "TypeScript",
+                "Tailwind CSS",
+                "Bootstrap",
+                "Git",
+                "GitHub",
+                "Figma"
+              ],
+              "latency_ms": 1314.36,
+              "error": null
+            }
+          ]
+        }
+      ],
+      "method": {
+        "fuzzy_cutoff": 0.85,
+        "service": "jobs.services.skill_extractor.extract_skills",
+        "scoring": "lowercased exact + difflib SequenceMatcher >= 0.85"
+      },
+      "disclosure": "LLM-driven metric \u2014 Groq llama-4-scout, temperature=0.0 in the service call. Mean of 3 run(s) per JD. Variance shown as std. Skills compared via lowercased exact + difflib >= 0.85 fuzzy fallback (matches gap-analyzer cutoff).",
+      "written_to": "G:\\New folder\\SmartCV\\benchmarks\\results\\2026-04-26\\skill_extractor_eval.json"
+    },
+    "gap_eval": {
+      "benchmark": "gap_eval",
+      "version": 1,
+      "fixture_kind": "real_anonymized_cv_x_jd",
+      "n_cvs": 10,
+      "n_jds": 5,
+      "n_pairs_evaluated": 50,
+      "repeats_per_pair": 1,
+      "parse_wall_seconds": 1.21,
+      "wall_seconds": 147.63,
+      "parse_errors": [],
+      "buckets": {
+        "strong": {
+          "n": 10,
+          "min": 0.0,
+          "mean": 0.456,
+          "median": 0.43,
+          "p95": 0.85,
+          "max": 0.9,
+          "std": 0.2984,
+          "scores": [
+            0.6,
+            0.8,
+            0.8,
+            0.1,
+            0.0,
+            0.2,
+            0.36,
+            0.9,
+            0.5,
+            0.3
+          ]
+        },
+        "partial": {
+          "n": 6,
+          "min": 0.2,
+          "mean": 0.46,
+          "median": 0.45,
+          "p95": 0.67,
+          "max": 0.7,
+          "std": 0.1633,
+          "scores": [
+            0.6,
+            0.4,
+            0.7,
+            0.5,
+            0.2,
+            0.36
+          ]
+        },
+        "weak": {
+          "n": 34,
+          "min": 0.0,
+          "mean": 0.1897,
+          "median": 0.1,
+          "p95": 0.63,
+          "max": 0.7,
+          "std": 0.2252,
+          "scores": [
+            0.2,
+            0.6,
+            0.1,
+            0.3,
+            0.55,
+            0.45,
+            0.1,
+            0.2,
+            0.6,
+            0.05,
+            0.3,
+            0.2,
+            0.0,
+            0.0,
+            0.2,
+            0.2,
+            0.1,
+            0.2,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.7,
+            0.7,
+            0.5,
+            0.0,
+            0.0,
+            0.0,
+            0.2,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      },
+      "separation": {
+        "strong_vs_weak_cohens_d": 1.097,
+        "strong_mean_gt_weak_mean": true
+      },
+      "coverage": {
+        "n": 50,
+        "min": 0.9286,
+        "mean": 0.9976,
+        "median": 1.0,
+        "p95": 1.0,
+        "max": 1.0,
+        "std": 0.0119,
+        "perfect_coverage_pairs": 48
+      },
+      "latency_ms": {
+        "n": 50,
+        "min": 976.83,
+        "mean": 2952.4712,
+        "median": 3199.74,
+        "p95": 4449.51,
+        "max": 5184.0,
+        "std": 1292.3829
+      },
+      "rows": [
+        {
+          "cv_id": "cv_backend_jr_rust",
+          "jd_id": "jd_senior_frontend_react",
+          "expected": "weak",
+          "similarity_mean": 0.2,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.2,
+              "n_matched": 5,
+              "n_missing": 16,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 21,
+                "n_accounted": 21,
+                "n_covered_of_job": 21,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 1425.17,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_backend_jr_rust",
+          "jd_id": "jd_backend_python_node",
+          "expected": "partial",
+          "similarity_mean": 0.6,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.6,
+              "n_matched": 10,
+              "n_missing": 8,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 18,
+                "n_accounted": 18,
+                "n_covered_of_job": 18,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 1049.61,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_backend_jr_rust",
+          "jd_id": "jd_devops_aws_k8s",
+          "expected": "weak",
+          "similarity_mean": 0.6,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.6,
+              "n_matched": 8,
+              "n_missing": 13,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 20,
+                "n_accounted": 21,
+                "n_covered_of_job": 20,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 1070.09,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_backend_jr_rust",
+          "jd_id": "jd_flutter_mobile",
+          "expected": "weak",
+          "similarity_mean": 0.1,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.1,
+              "n_matched": 3,
+              "n_missing": 17,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 20,
+                "n_accounted": 20,
+                "n_covered_of_job": 20,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 1469.77,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_backend_jr_rust",
+          "jd_id": "jd_junior_web_dev",
+          "expected": "weak",
+          "similarity_mean": 0.3,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.3,
+              "n_matched": 4,
+              "n_missing": 11,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 14,
+                "n_accounted": 15,
+                "n_covered_of_job": 14,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 981.42,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_jr_react",
+          "jd_id": "jd_senior_frontend_react",
+          "expected": "partial",
+          "similarity_mean": 0.4,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.4,
+              "n_matched": 7,
+              "n_missing": 15,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 21,
+                "n_accounted": 22,
+                "n_covered_of_job": 21,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 1096.87,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_jr_react",
+          "jd_id": "jd_backend_python_node",
+          "expected": "weak",
+          "similarity_mean": 0.55,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.55,
+              "n_matched": 9,
+              "n_missing": 11,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 18,
+                "n_accounted": 20,
+                "n_covered_of_job": 18,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 1062.75,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_jr_react",
+          "jd_id": "jd_devops_aws_k8s",
+          "expected": "weak",
+          "similarity_mean": 0.45,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.45,
+              "n_matched": 7,
+              "n_missing": 14,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 20,
+                "n_accounted": 21,
+                "n_covered_of_job": 20,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 1589.03,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_jr_react",
+          "jd_id": "jd_flutter_mobile",
+          "expected": "weak",
+          "similarity_mean": 0.1,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.1,
+              "n_matched": 5,
+              "n_missing": 19,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 20,
+                "n_accounted": 24,
+                "n_covered_of_job": 20,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 1124.61,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_jr_react",
+          "jd_id": "jd_junior_web_dev",
+          "expected": "strong",
+          "similarity_mean": 0.6,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.6,
+              "n_matched": 8,
+              "n_missing": 7,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 14,
+                "n_accounted": 15,
+                "n_covered_of_job": 14,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 1007.63,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_devops_jr",
+          "jd_id": "jd_senior_frontend_react",
+          "expected": "weak",
+          "similarity_mean": 0.2,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.2,
+              "n_matched": 5,
+              "n_missing": 16,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 21,
+                "n_accounted": 21,
+                "n_covered_of_job": 21,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 1112.39,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_devops_jr",
+          "jd_id": "jd_backend_python_node",
+          "expected": "weak",
+          "similarity_mean": 0.6,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.6,
+              "n_matched": 10,
+              "n_missing": 8,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 18,
+                "n_accounted": 18,
+                "n_covered_of_job": 18,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 1768.06,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_devops_jr",
+          "jd_id": "jd_devops_aws_k8s",
+          "expected": "partial",
+          "similarity_mean": 0.7,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.7,
+              "n_matched": 10,
+              "n_missing": 10,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 20,
+                "n_accounted": 20,
+                "n_covered_of_job": 20,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 1111.06,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_devops_jr",
+          "jd_id": "jd_flutter_mobile",
+          "expected": "weak",
+          "similarity_mean": 0.05,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.05,
+              "n_matched": 1,
+              "n_missing": 19,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 20,
+                "n_accounted": 20,
+                "n_covered_of_job": 20,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 1290.05,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_devops_jr",
+          "jd_id": "jd_junior_web_dev",
+          "expected": "weak",
+          "similarity_mean": 0.3,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.3,
+              "n_matched": 3,
+              "n_missing": 11,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 14,
+                "n_accounted": 14,
+                "n_covered_of_job": 14,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 976.83,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_flutter_intern",
+          "jd_id": "jd_senior_frontend_react",
+          "expected": "weak",
+          "similarity_mean": 0.2,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.2,
+              "n_matched": 5,
+              "n_missing": 16,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 21,
+                "n_accounted": 21,
+                "n_covered_of_job": 21,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 1639.82,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_flutter_intern",
+          "jd_id": "jd_backend_python_node",
+          "expected": "weak",
+          "similarity_mean": 0.0,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.0,
+              "n_matched": 2,
+              "n_missing": 17,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 18,
+                "n_accounted": 19,
+                "n_covered_of_job": 18,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 4147.73,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_flutter_intern",
+          "jd_id": "jd_devops_aws_k8s",
+          "expected": "weak",
+          "similarity_mean": 0.0,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.0,
+              "n_matched": 2,
+              "n_missing": 20,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 20,
+                "n_accounted": 22,
+                "n_covered_of_job": 20,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 4368.79,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_flutter_intern",
+          "jd_id": "jd_flutter_mobile",
+          "expected": "strong",
+          "similarity_mean": 0.8,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.8,
+              "n_matched": 16,
+              "n_missing": 5,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 20,
+                "n_accounted": 21,
+                "n_covered_of_job": 20,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 4156.13,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_flutter_intern",
+          "jd_id": "jd_junior_web_dev",
+          "expected": "weak",
+          "similarity_mean": 0.2,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.2,
+              "n_matched": 3,
+              "n_missing": 11,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 14,
+                "n_accounted": 14,
+                "n_covered_of_job": 14,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 4154.8,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_diploma_react",
+          "jd_id": "jd_senior_frontend_react",
+          "expected": "partial",
+          "similarity_mean": 0.5,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.5,
+              "n_matched": 11,
+              "n_missing": 14,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 21,
+                "n_accounted": 25,
+                "n_covered_of_job": 21,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 4206.34,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_diploma_react",
+          "jd_id": "jd_backend_python_node",
+          "expected": "weak",
+          "similarity_mean": 0.2,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.2,
+              "n_matched": 4,
+              "n_missing": 14,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 18,
+                "n_accounted": 18,
+                "n_covered_of_job": 18,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 3117.15,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_diploma_react",
+          "jd_id": "jd_devops_aws_k8s",
+          "expected": "weak",
+          "similarity_mean": 0.1,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.1,
+              "n_matched": 2,
+              "n_missing": 19,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 20,
+                "n_accounted": 21,
+                "n_covered_of_job": 20,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 3465.22,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_diploma_react",
+          "jd_id": "jd_flutter_mobile",
+          "expected": "weak",
+          "similarity_mean": 0.2,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.2,
+              "n_matched": 5,
+              "n_missing": 15,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 20,
+                "n_accounted": 20,
+                "n_covered_of_job": 20,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 4154.58,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_diploma_react",
+          "jd_id": "jd_junior_web_dev",
+          "expected": "strong",
+          "similarity_mean": 0.8,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.8,
+              "n_matched": 11,
+              "n_missing": 3,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 14,
+                "n_accounted": 14,
+                "n_covered_of_job": 14,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 4311.14,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_senior_react_vue",
+          "jd_id": "jd_senior_frontend_react",
+          "expected": "strong",
+          "similarity_mean": 0.1,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.1,
+              "n_matched": 3,
+              "n_missing": 18,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 21,
+                "n_accounted": 21,
+                "n_covered_of_job": 21,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 3172.33,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_senior_react_vue",
+          "jd_id": "jd_backend_python_node",
+          "expected": "weak",
+          "similarity_mean": 0.0,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.0,
+              "n_matched": 0,
+              "n_missing": 18,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 18,
+                "n_accounted": 18,
+                "n_covered_of_job": 18,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 3168.72,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_senior_react_vue",
+          "jd_id": "jd_devops_aws_k8s",
+          "expected": "weak",
+          "similarity_mean": 0.0,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.0,
+              "n_matched": 0,
+              "n_missing": 20,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 20,
+                "n_accounted": 20,
+                "n_covered_of_job": 20,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 4383.33,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_senior_react_vue",
+          "jd_id": "jd_flutter_mobile",
+          "expected": "weak",
+          "similarity_mean": 0.0,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.0,
+              "n_matched": 0,
+              "n_missing": 20,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 20,
+                "n_accounted": 20,
+                "n_covered_of_job": 20,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 4503.66,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_senior_react_vue",
+          "jd_id": "jd_junior_web_dev",
+          "expected": "strong",
+          "similarity_mean": 0.0,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.0,
+              "n_matched": 0,
+              "n_missing": 14,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 14,
+                "n_accounted": 14,
+                "n_covered_of_job": 14,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 3604.79,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_mid_react",
+          "jd_id": "jd_senior_frontend_react",
+          "expected": "strong",
+          "similarity_mean": 0.2,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.2,
+              "n_matched": 5,
+              "n_missing": 16,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 21,
+                "n_accounted": 21,
+                "n_covered_of_job": 21,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 3176.07,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_mid_react",
+          "jd_id": "jd_backend_python_node",
+          "expected": "weak",
+          "similarity_mean": 0.0,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.0,
+              "n_matched": 0,
+              "n_missing": 18,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 18,
+                "n_accounted": 18,
+                "n_covered_of_job": 18,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 3093.89,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_mid_react",
+          "jd_id": "jd_devops_aws_k8s",
+          "expected": "weak",
+          "similarity_mean": 0.0,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.0,
+              "n_matched": 0,
+              "n_missing": 20,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 20,
+                "n_accounted": 20,
+                "n_covered_of_job": 20,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 5184.0,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_mid_react",
+          "jd_id": "jd_flutter_mobile",
+          "expected": "weak",
+          "similarity_mean": 0.0,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.0,
+              "n_matched": 0,
+              "n_missing": 20,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 20,
+                "n_accounted": 20,
+                "n_covered_of_job": 20,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 2114.95,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_mid_react",
+          "jd_id": "jd_junior_web_dev",
+          "expected": "strong",
+          "similarity_mean": 0.36,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.36,
+              "n_matched": 4,
+              "n_missing": 13,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 14,
+                "n_accounted": 17,
+                "n_covered_of_job": 14,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 4168.75,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_senior_react_vue_v2",
+          "jd_id": "jd_senior_frontend_react",
+          "expected": "strong",
+          "similarity_mean": 0.9,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.9,
+              "n_matched": 20,
+              "n_missing": 1,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 21,
+                "n_accounted": 21,
+                "n_covered_of_job": 21,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 3151.48,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_senior_react_vue_v2",
+          "jd_id": "jd_backend_python_node",
+          "expected": "weak",
+          "similarity_mean": 0.7,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.7,
+              "n_matched": 13,
+              "n_missing": 5,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 18,
+                "n_accounted": 18,
+                "n_covered_of_job": 18,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 4579.37,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_senior_react_vue_v2",
+          "jd_id": "jd_devops_aws_k8s",
+          "expected": "weak",
+          "similarity_mean": 0.7,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.7,
+              "n_matched": 10,
+              "n_missing": 10,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 20,
+                "n_accounted": 20,
+                "n_covered_of_job": 20,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 3047.46,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_senior_react_vue_v2",
+          "jd_id": "jd_flutter_mobile",
+          "expected": "weak",
+          "similarity_mean": 0.5,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.5,
+              "n_matched": 8,
+              "n_missing": 12,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 20,
+                "n_accounted": 20,
+                "n_covered_of_job": 20,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 3223.41,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_senior_react_vue_v2",
+          "jd_id": "jd_junior_web_dev",
+          "expected": "strong",
+          "similarity_mean": 0.5,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.5,
+              "n_matched": 7,
+              "n_missing": 7,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 14,
+                "n_accounted": 14,
+                "n_covered_of_job": 14,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 4088.78,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_jquery_legacy",
+          "jd_id": "jd_senior_frontend_react",
+          "expected": "partial",
+          "similarity_mean": 0.2,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.2,
+              "n_matched": 6,
+              "n_missing": 19,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 21,
+                "n_accounted": 25,
+                "n_covered_of_job": 20,
+                "coverage_ratio": 0.9524
+              },
+              "latency_ms": 3387.89,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_jquery_legacy",
+          "jd_id": "jd_backend_python_node",
+          "expected": "weak",
+          "similarity_mean": 0.0,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.0,
+              "n_matched": 0,
+              "n_missing": 18,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 18,
+                "n_accounted": 18,
+                "n_covered_of_job": 18,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 3271.19,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_jquery_legacy",
+          "jd_id": "jd_devops_aws_k8s",
+          "expected": "weak",
+          "similarity_mean": 0.0,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.0,
+              "n_matched": 0,
+              "n_missing": 20,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 20,
+                "n_accounted": 20,
+                "n_covered_of_job": 20,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 4168.94,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_jquery_legacy",
+          "jd_id": "jd_flutter_mobile",
+          "expected": "weak",
+          "similarity_mean": 0.0,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.0,
+              "n_matched": 0,
+              "n_missing": 20,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 20,
+                "n_accounted": 20,
+                "n_covered_of_job": 20,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 3899.23,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_jquery_legacy",
+          "jd_id": "jd_junior_web_dev",
+          "expected": "strong",
+          "similarity_mean": 0.3,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.3,
+              "n_matched": 6,
+              "n_missing": 12,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 14,
+                "n_accounted": 18,
+                "n_covered_of_job": 13,
+                "coverage_ratio": 0.9286
+              },
+              "latency_ms": 3290.56,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_entry_no_role",
+          "jd_id": "jd_senior_frontend_react",
+          "expected": "weak",
+          "similarity_mean": 0.2,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.2,
+              "n_matched": 5,
+              "n_missing": 16,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 21,
+                "n_accounted": 21,
+                "n_covered_of_job": 21,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 4167.04,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_entry_no_role",
+          "jd_id": "jd_backend_python_node",
+          "expected": "weak",
+          "similarity_mean": 0.0,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.0,
+              "n_matched": 0,
+              "n_missing": 18,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 18,
+                "n_accounted": 18,
+                "n_covered_of_job": 18,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 3129.61,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_entry_no_role",
+          "jd_id": "jd_devops_aws_k8s",
+          "expected": "weak",
+          "similarity_mean": 0.0,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.0,
+              "n_matched": 0,
+              "n_missing": 20,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 20,
+                "n_accounted": 20,
+                "n_covered_of_job": 20,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 4218.36,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_entry_no_role",
+          "jd_id": "jd_flutter_mobile",
+          "expected": "weak",
+          "similarity_mean": 0.0,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.0,
+              "n_matched": 0,
+              "n_missing": 20,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 20,
+                "n_accounted": 20,
+                "n_covered_of_job": 20,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 3375.33,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_entry_no_role",
+          "jd_id": "jd_junior_web_dev",
+          "expected": "partial",
+          "similarity_mean": 0.36,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.36,
+              "n_matched": 5,
+              "n_missing": 9,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 14,
+                "n_accounted": 14,
+                "n_covered_of_job": 14,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 4197.38,
+              "error": null
+            }
+          ]
+        }
+      ],
+      "method": {
+        "service": "analysis.services.gap_analyzer.compute_gap_analysis",
+        "buckets_source": "fixtures/manifest.json -> expected_match_strength"
+      },
+      "disclosure": "LLM-driven (Groq llama-4-scout). Mean of 1 run(s) per pair. Per-skill ground-truth labels not provided \u2014 separation is measured by similarity_score across hand-graded strong/partial/weak buckets, and coverage validates the analyzer's '100% reconciliation' claim.",
+      "written_to": "G:\\New folder\\SmartCV\\benchmarks\\results\\2026-04-26\\gap_eval.json"
+    },
+    "tailoring_eval": {
+      "benchmark": "tailoring_eval",
+      "version": 1,
+      "fixture_kind": "real_anonymized_cv_x_jd",
+      "buckets_evaluated": [
+        "strong"
+      ],
+      "n_pairs": 10,
+      "parse_wall_seconds": 0.97,
+      "eval_wall_seconds": 133.89,
+      "wall_seconds": 134.86,
+      "axes": {
+        "factuality": {
+          "n": 8,
+          "min": 1,
+          "mean": 5.875,
+          "median": 7.0,
+          "p95": 8.0,
+          "max": 8,
+          "std": 2.5218
+        },
+        "relevance": {
+          "n": 8,
+          "min": 4,
+          "mean": 6.375,
+          "median": 7.0,
+          "p95": 7.65,
+          "max": 8,
+          "std": 1.2183
+        },
+        "ats_fit": {
+          "n": 8,
+          "min": 5,
+          "mean": 6.5,
+          "median": 6.0,
+          "p95": 8.0,
+          "max": 8,
+          "std": 1.0
+        },
+        "human_voice": {
+          "n": 8,
+          "min": 2,
+          "mean": 3.75,
+          "median": 4.0,
+          "p95": 5.3,
+          "max": 6,
+          "std": 1.199
+        }
+      },
+      "programmatic": {
+        "entity_grounding_ratio": {
+          "n": 7,
+          "min": 0.0,
+          "mean": 0.8095,
+          "median": 1.0,
+          "p95": 1.0,
+          "max": 1.0,
+          "std": 0.3499
+        },
+        "banned_voice_hits_per_resume": {
+          "n": 8,
+          "min": 0,
+          "mean": 0.375,
+          "median": 0.0,
+          "p95": 1.0,
+          "max": 1,
+          "std": 0.4841
+        }
+      },
+      "rows": [
+        {
+          "cv_id": "cv_frontend_jr_react",
+          "jd_id": "jd_junior_web_dev",
+          "bucket": "strong",
+          "stage": "judge",
+          "error": "BadRequestError: Error code: 400 - {'error': {'message': 'tool call validation failed: parameters for tool JudgeVerdict did not match schema: errors: [`/factuality/rationale`: length must be <= 400, but got 615, `/human_voice/rationale`: length must be <= 400, but got 474, `/relevance/rationale`: length must be <= 400, but got 510]', 'type': 'invalid_request_error', 'code': 'tool_use_failed', 'failed_generation': '[\\n  {\\n    \"name\": \"JudgeVerdict\",\\n    \"parameters\": {\\n      \"factuality\": {\\n        \"rationale\": \"The GENERATED RESUME contains factual claims that mostly appear in the SOURCE CV. The education section correctly mentions \\'Bachelor\\' and \\'King Salman International University\\', which matches the SOURCE CV. However, the year of graduation is missing, which could be considered a minor omission rather than fabrication. The skills listed, such as \\'HTML5\\', \\'CSS3\\', \\'JavaScript\\', \\'React\\', \\'Responsive Design\\', \\'Git\\', \\'GitHub\\', \\'Tailwind\\', \\'Bootstrap\\', and \\'TypeScript\\', are also present in the SOURCE CV, although some proficiency levels are not specified. Since there are no obvious fabrications, the score is higher.\",\\n        \"score\": 8\\n      },\\n      \"relevance\": {\\n        \"rationale\": \"The GENERATED RESUME lists relevant skills such as \\'HTML5\\', \\'CSS3\\', \\'JavaScript\\', \\'React\\', \\'Responsive Design\\', \\'Git\\', \\'GitHub\\', \\'Tailwind\\', \\'Bootstrap\\', and \\'TypeScript\\', which align well with the required skills for the Junior Web Developer position at BrightPage Agency. However, the experience section is empty, which means there are no specific examples or bullets that directly address the requirements stated in the TARGET JOB. The summary is generic and does not provide concrete evidence of relevance.\",\\n        \"score\": 5\\n      },\\n      \"ats_fit\": {\\n        \"rationale\": \"The GENERATED RESUME uses several keywords from the job description, such as \\'HTML5\\', \\'CSS3\\', \\'JavaScript\\', \\'React\\', \\'Responsive Design\\', \\'Git\\', \\'GitHub\\', \\'Tailwind\\', \\'Bootstrap\\', and \\'TypeScript\\'. However, it lacks specific action verbs and varied sentence structures in the experience section, which is empty. The resume seems to be a simple listing of skills without concrete applications.\",\\n        \"score\": 6\\n      },\\n      \"human_voice\": {\\n        \"rationale\": \"The GENERATED RESUME has a professional summary that sounds somewhat generic: \\'Experienced professional seeking Junior Web Developer position at BrightPage Agency.\\' This summary could be seen as a bit AI-tell-like due to its formality and lack of specificity. The structure and language used are straightforward but lack the nuance and personal touch expected in a human-written resume. There are no obvious banned words, but the overall tone is formal and somewhat robotic.\",\\n        \"score\": 5\\n      },\\n      \"overall_summary\": \"\"\\n    }\\n  }\\n]'}}",
+          "programmatic_factuality": {
+            "n_entities": 1,
+            "n_grounded": 1,
+            "ratio": 1.0,
+            "ungrounded": []
+          },
+          "voice_hits": []
+        },
+        {
+          "cv_id": "cv_flutter_intern",
+          "jd_id": "jd_flutter_mobile",
+          "bucket": "strong",
+          "judge": {
+            "factuality": {
+              "score": 8,
+              "rationale": "The GENERATED RESUME contains factual claims that mostly appear in the SOURCE CV, with some details omitted or rephrased. For instance, the company and duration of employment are slightly misstated. However, there are no entirely fabricated employers or degrees."
+            },
+            "relevance": {
+              "score": 7,
+              "rationale": "The GENERATED RESUME addresses several requirements stated in the TARGET JOB, including Flutter, Dart, Clean Architecture, BLoC, Cubit, and REST API integration. However, some bullets are somewhat generic and could apply to other roles."
+            },
+            "ats_fit": {
+              "score": 6,
+              "rationale": "The GENERATED RESUME uses several job keywords, including Flutter, Dart, BLoC, Cubit, Provider, GetX, Clean Architecture, and REST API. However, it misses some must-have skills like Codemagic and GitHub Actions, and the action verbs across bullets are not highly varied."
+            },
+            "human_voice": {
+              "score": 4,
+              "rationale": "The GENERATED RESUME exhibits some AI-tell phrasing, including the use of 'Highly skilled' and a professional summary that sounds overly promotional. The bullet points also lack specificity and concrete results."
+            },
+            "overall_summary": ""
+          },
+          "programmatic_factuality": {
+            "n_entities": 2,
+            "n_grounded": 2,
+            "ratio": 1.0,
+            "ungrounded": []
+          },
+          "voice_hits": [],
+          "voice_hit_count": 0
+        },
+        {
+          "cv_id": "cv_frontend_diploma_react",
+          "jd_id": "jd_junior_web_dev",
+          "bucket": "strong",
+          "judge": {
+            "factuality": {
+              "score": 3,
+              "rationale": "The GENERATED RESUME contains several claims not present in the SOURCE CV, such as a Bachelor of Computer Science degree from XYZ University in 2020, experience as a Junior Web Developer at ABC Company, and a personal project with a REST API using Node.js and Express. These claims are not verified in the provided SOURCE CV."
+            },
+            "relevance": {
+              "score": 8,
+              "rationale": "The GENERATED RESUME addresses most of the requirements stated in the TARGET JOB, including building responsive web pages, implementing React components, using Tailwind CSS, connecting REST APIs, and using Git and GitHub. The bullets are specific and relevant to the job requirements."
+            },
+            "ats_fit": {
+              "score": 7,
+              "rationale": "The GENERATED RESUME uses some of the job's keywords, such as HTML5, CSS3, JavaScript, React, and Git. However, it misses some keywords like TypeScript and React Router. The action verbs across bullets are varied, but some are generic."
+            },
+            "human_voice": {
+              "score": 6,
+              "rationale": "The GENERATED RESUME uses some AI-tell phrasing, such as 'Skilled in building responsive web pages' and 'Proficient in React, Git, and GitHub.' The sentence structure is also somewhat repetitive, with multiple bullets starting with 'Built' or 'Implemented.' However, the language is generally clear and concise."
+            },
+            "overall_summary": ""
+          },
+          "programmatic_factuality": {
+            "n_entities": 2,
+            "n_grounded": 0,
+            "ratio": 0.0,
+            "ungrounded": [
+              "ABC Company",
+              "XYZ University"
+            ]
+          },
+          "voice_hits": [],
+          "voice_hit_count": 0
+        },
+        {
+          "cv_id": "cv_frontend_senior_react_vue",
+          "jd_id": "jd_senior_frontend_react",
+          "bucket": "strong",
+          "judge": {
+            "factuality": {
+              "score": 8,
+              "rationale": "The GENERATED RESUME contains factual claims that mostly appear in the SOURCE CV, with some details omitted. The companies, years, and education details match, but some specific project details and metrics are not included."
+            },
+            "relevance": {
+              "score": 6,
+              "rationale": "The GENERATED RESUME addresses some requirements stated in the TARGET JOB, such as experience with React, JavaScript, and TypeScript. However, it lacks specific mentions of required skills like Tailwind, Webpack, Vite, and GraphQL."
+            },
+            "ats_fit": {
+              "score": 5,
+              "rationale": "The GENERATED RESUME uses some job keywords like React, TypeScript, and Redux, but misses others like Tailwind, Webpack, and GraphQL. The action verbs across bullets are not varied enough."
+            },
+            "human_voice": {
+              "score": 4,
+              "rationale": "The GENERATED RESUME exhibits some AI-tell phrasing, such as generic sentences and similar sentence structures. It also lacks specificity in some bullet points."
+            },
+            "overall_summary": ""
+          },
+          "programmatic_factuality": {
+            "n_entities": 4,
+            "n_grounded": 4,
+            "ratio": 1.0,
+            "ungrounded": []
+          },
+          "voice_hits": [
+            "seamless"
+          ],
+          "voice_hit_count": 1
+        },
+        {
+          "cv_id": "cv_frontend_senior_react_vue",
+          "jd_id": "jd_junior_web_dev",
+          "bucket": "strong",
+          "judge": {
+            "factuality": {
+              "score": 8,
+              "rationale": "The GENERATED RESUME contains accurate information from the SOURCE CV, with no fabricated employers or degrees. All concrete claims appear in the SOURCE CV, but some details like specific years and exact company names are omitted or altered."
+            },
+            "relevance": {
+              "score": 7,
+              "rationale": "The GENERATED RESUME addresses many requirements stated in the TARGET JOB, including HTML5, CSS3, JavaScript, React, Responsive Design, Git, and GitHub. However, it lacks specific examples tailored to the Junior Web Developer role at BrightPage Agency."
+            },
+            "ats_fit": {
+              "score": 8,
+              "rationale": "The GENERATED RESUME uses many of the job's keywords, such as HTML5, CSS3, JavaScript, React, and Git. However, it could improve by varying action verbs more distinctly across bullets and ensuring all must-have skills are explicitly mentioned."
+            },
+            "human_voice": {
+              "score": 4,
+              "rationale": "The GENERATED RESUME exhibits some AI-tell phrasing, such as 'Skilled in HTML, CSS, JavaScript, and React' and generic statements. It also lacks specificity in many bullets and uses a fairly standard, template-like structure."
+            },
+            "overall_summary": ""
+          },
+          "programmatic_factuality": {
+            "n_entities": 4,
+            "n_grounded": 4,
+            "ratio": 1.0,
+            "ungrounded": []
+          },
+          "voice_hits": [
+            "seamless"
+          ],
+          "voice_hit_count": 1
+        },
+        {
+          "cv_id": "cv_frontend_mid_react",
+          "jd_id": "jd_senior_frontend_react",
+          "bucket": "strong",
+          "stage": "judge",
+          "error": "BadRequestError: Error code: 400 - {'error': {'message': 'tool call validation failed: parameters for tool JudgeVerdict did not match schema: errors: [`/relevance/score`: expected integer, but got string, `/ats_fit/score`: expected integer, but got string, `/factuality/score`: expected integer, but got string, `/human_voice/score`: expected integer, but got string]', 'type': 'invalid_request_error', 'code': 'tool_use_failed', 'failed_generation': '[\\n  {\\n    \"name\": \"JudgeVerdict\",\\n    \"parameters\": {\\n      \"factuality\": {\\n        \"score\": \"8\",\\n        \"rationale\": \"Most concrete claims in the GENERATED RESUME appear in the SOURCE CV, but some details like specific project names or metrics are missing or altered.\"\\n      },\\n      \"relevance\": {\\n        \"score\": \"9\",\\n        \"rationale\": \"The bullets in the GENERATED RESUME directly address requirements stated in the TARGET JOB, including React, TypeScript, accessibility, performance optimization, and mentoring mid-level engineers.\"\\n      },\\n      \"ats_fit\": {\\n        \"score\": \"9\",\\n        \"rationale\": \"The GENERATED RESUME uses job keywords like React, TypeScript, Tailwind, Webpack, Vite, Redux, Jest, Cypress, REST API, GraphQL, and Git, and varies action verbs across bullets.\"\\n      },\\n      \"human_voice\": {\\n        \"score\": \"7\",\\n        \"rationale\": \"The GENERATED RESUME avoids banned words but exhibits some AI-tell phrasing and similar sentence structures, and could benefit from more specific metrics and varied sentence structures.\"\\n      },\\n      \"overall_summary\": \"\"\\n    }\\n  }\\n]'}}",
+          "programmatic_factuality": {
+            "n_entities": 4,
+            "n_grounded": 2,
+            "ratio": 0.5,
+            "ungrounded": [
+              "Previous",
+              "Early Experience"
+            ]
+          },
+          "voice_hits": []
+        },
+        {
+          "cv_id": "cv_frontend_mid_react",
+          "jd_id": "jd_junior_web_dev",
+          "bucket": "strong",
+          "judge": {
+            "factuality": {
+              "score": 6,
+              "rationale": "The GENERATED RESUME claims 5 years of experience with specific companies and projects, but the SOURCE CV does not support the exact duration or some details, resulting in a factuality score of 6."
+            },
+            "relevance": {
+              "score": 7,
+              "rationale": "The GENERATED RESUME addresses some requirements of the TARGET JOB, such as HTML, CSS, JavaScript, React, and Git, but lacks specific examples and Tailwind or Bootstrap, scoring 7 for relevance."
+            },
+            "ats_fit": {
+              "score": 6,
+              "rationale": "The GENERATED RESUME uses some job keywords like HTML, CSS, JavaScript, React, Git, and GitHub but misses others like TypeScript, Figma, and Axios, and has limited action verb variation, scoring 6 for ATS fit."
+            },
+            "human_voice": {
+              "score": 4,
+              "rationale": "The GENERATED RESUME uses AI-tell phrases like 'Highly experienced web developer' and lacks specificity and varied sentence structure, scoring 4 for human voice."
+            },
+            "overall_summary": ""
+          },
+          "programmatic_factuality": {
+            "n_entities": 3,
+            "n_grounded": 2,
+            "ratio": 0.6667,
+            "ungrounded": [
+              "Previous"
+            ]
+          },
+          "voice_hits": [],
+          "voice_hit_count": 0
+        },
+        {
+          "cv_id": "cv_frontend_senior_react_vue_v2",
+          "jd_id": "jd_senior_frontend_react",
+          "bucket": "strong",
+          "judge": {
+            "factuality": {
+              "score": 5,
+              "rationale": "The GENERATED RESUME contains some factual information from the SOURCE CV, but it lacks specific details such as job titles, responsibilities, and achievements. The education section is also incomplete."
+            },
+            "relevance": {
+              "score": 4,
+              "rationale": "The GENERATED RESUME mentions some relevant skills required for the TARGET JOB, but it does not provide specific examples of how these skills were applied in previous roles. The responsibilities section is empty, which suggests a lack of relevance to the TARGET JOB."
+            },
+            "ats_fit": {
+              "score": 6,
+              "rationale": "The GENERATED RESUME includes some of the required keywords from the TARGET JOB, such as React, TypeScript, and Jest. However, it lacks variation in action verbs and does not provide specific examples of achievements."
+            },
+            "human_voice": {
+              "score": 2,
+              "rationale": "The GENERATED RESUME uses a generic and formal tone, which sounds like AI-generated content. The professional summary is a typical example of an AI-tell phrase. The resume lacks specificity and concrete examples, which makes it sound unnatural."
+            },
+            "overall_summary": ""
+          },
+          "programmatic_factuality": {
+            "n_entities": 5,
+            "n_grounded": 5,
+            "ratio": 1.0,
+            "ungrounded": []
+          },
+          "voice_hits": [],
+          "voice_hit_count": 0
+        },
+        {
+          "cv_id": "cv_frontend_senior_react_vue_v2",
+          "jd_id": "jd_junior_web_dev",
+          "bucket": "strong",
+          "judge": {
+            "factuality": {
+              "score": 8,
+              "rationale": "The GENERATED RESUME contains accurate information from the SOURCE CV, with no fabricated employers or degrees. However, some details like specific years and company names are not fully aligned, which affects the score."
+            },
+            "relevance": {
+              "score": 7,
+              "rationale": "The GENERATED RESUME addresses several requirements stated in the TARGET JOB, including HTML, CSS, JavaScript, React, Responsive Design, Git, and GitHub. However, it lacks specific mentions of Tailwind, TypeScript, Figma, REST API, React Router, and Axios, which are required or nice-to-have skills."
+            },
+            "ats_fit": {
+              "score": 6,
+              "rationale": "The GENERATED RESUME uses relevant keywords from the TARGET JOB, such as HTML5, CSS3, JavaScript, React, and Git. However, it misses some must-have and nice-to-have skills like TypeScript, Figma, and React Router. The action verbs are varied but could be more dynamic."
+            },
+            "human_voice": {
+              "score": 4,
+              "rationale": "The GENERATED RESUME uses a professional tone but contains some AI-tell phrasing, such as 'Highly skilled Junior Web Developer' and lacks specificity in some bullet points. The sentence structure is repetitive and could be more varied."
+            },
+            "overall_summary": ""
+          },
+          "programmatic_factuality": {
+            "n_entities": 4,
+            "n_grounded": 4,
+            "ratio": 1.0,
+            "ungrounded": []
+          },
+          "voice_hits": [
+            "seamless"
+          ],
+          "voice_hit_count": 1
+        },
+        {
+          "cv_id": "cv_frontend_jquery_legacy",
+          "jd_id": "jd_junior_web_dev",
+          "bucket": "strong",
+          "judge": {
+            "factuality": {
+              "score": 1,
+              "rationale": "The GENERATED RESUME claims skills that are not verified to exist in the SOURCE CV, as the SOURCE CV is empty. Therefore, factuality is severely compromised."
+            },
+            "relevance": {
+              "score": 5,
+              "rationale": "The GENERATED RESUME lists skills relevant to the TARGET JOB, such as HTML5, CSS3, JavaScript, React, and others, but lacks concrete experience or projects to demonstrate their application."
+            },
+            "ats_fit": {
+              "score": 8,
+              "rationale": "The GENERATED RESUME includes several keywords from the TARGET JOB, such as HTML5, CSS3, JavaScript, React, Git, GitHub, Tailwind, Bootstrap, and TypeScript, which suggests a good ATS fit."
+            },
+            "human_voice": {
+              "score": 2,
+              "rationale": "The GENERATED RESUME uses a professional but generic summary and lacks specific details or achievements, sounding more like an AI-generated profile than a human-written resume."
+            },
+            "overall_summary": ""
+          },
+          "programmatic_factuality": {
+            "n_entities": 0,
+            "n_grounded": 0,
+            "ratio": null,
+            "ungrounded": []
+          },
+          "voice_hits": [],
+          "voice_hit_count": 0
+        }
+      ],
+      "method": {
+        "generator": "resumes.services.resume_generator.generate_resume_content",
+        "judge_module": "benchmarks.llm_judge",
+        "judge_axes": [
+          "factuality",
+          "relevance",
+          "ats_fit",
+          "human_voice"
+        ],
+        "judge_scale": "1-10 per axis"
+      },
+      "disclosure": "LLM-judged metric \u2014 both the resume generator and the judge are Groq llama-4-scout. Judge temperature=0.0 so its scores are near-deterministic; the generator runs at the production temp (0.7 default) so per-pair scores will vary across runs. Single judge model: not human-validated; treat absolute numbers as a smoke test, relative trends across pairs as more reliable. Programmatic entity-grounding and voice-hit checks are independent of the LLM judge and provide a non-LLM cross-check.",
+      "written_to": "G:\\New folder\\SmartCV\\benchmarks\\results\\2026-04-26\\tailoring_eval.json"
+    }
+  }
+}
