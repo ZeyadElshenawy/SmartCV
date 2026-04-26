@@ -162,7 +162,7 @@ Job Description Text to analyze:
 {text}"""
 
     try:
-        structured_llm = get_structured_llm(SkillListResult, temperature=0.0, max_tokens=512)
+        structured_llm = get_structured_llm(SkillListResult, temperature=0.0, max_tokens=512, task="skill_extractor")
         result = structured_llm.invoke(prompt)
 
         if not result or not result.skills:

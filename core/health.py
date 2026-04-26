@@ -78,3 +78,109 @@ def healthz_metrics(request):
     except Exception as exc:  # noqa: BLE001
         return JsonResponse({"error": f"metrics_unavailable: {exc}"}, status=500)
     return JsonResponse(snapshot, status=200)
+
+
+# Canonical task names — kept in sync with the `task=...` arg every caller
+# of get_llm / get_structured_llm / get_llm_client passes. Adding a new task
+# requires adding it here so /healthz/llm/ surfaces it.
+KNOWN_LLM_TASKS = (
+    "agent_chat",
+    "interviewer",
+    "gap_analyzer",
+    "resume_gen",
+    "skill_extractor",
+    "parser",
+    "validator",
+    "cover_letter",
+    "outreach",
+    "learning_path",
+    "salary",
+    "judge",
+)
+
+
+def _mask_key(key: str) -> str:
+    """Mask a credential as `<first 8 chars>…<last 4 chars>`.
+
+    The 8+4 split is enough entropy to confirm two tasks share the same
+    key (or to spot when a dedicated key falls back to the global default)
+    without leaking a usable credential. Empty / very short keys are
+    surfaced verbatim so a misconfiguration jumps out.
+    """
+    if not key:
+        return "(empty)"
+    if len(key) <= 12:
+        # Too short to mask meaningfully — likely a misconfig (e.g., `gsk_x`).
+        # Show length only so the operator notices.
+        return f"(short: {len(key)} chars)"
+    return f"{key[:8]}…{key[-4:]}"
+
+
+@require_GET
+@staff_member_required
+def healthz_llm(request):
+    """Staff-only snapshot of the LLM task→key/model routing.
+
+    Reads env at request time and goes through the same `_resolve_credentials`
+    path that production calls use, so what you see here is what every LLM
+    call actually picks. Useful for confirming the per-task GROQ_API_KEY_*
+    vars are spelled correctly after a `.env` change.
+
+    Keys are masked. Tasks that fell back to the global GROQ_API_KEY are
+    flagged `dedicated: false` so a missing override is obvious.
+    """
+    # Lazy import — avoids a circular import via profiles.services at module load
+    from profiles.services.llm_engine import (
+        DEFAULT_GROQ_API_KEY,
+        DEFAULT_GROQ_MODEL,
+        _resolve_credentials,
+    )
+
+    try:
+        default_key = DEFAULT_GROQ_API_KEY
+        default_model = DEFAULT_GROQ_MODEL
+
+        tasks_payload = {}
+        unique_keys = set()
+        if default_key:
+            unique_keys.add(default_key)
+        dedicated_count = 0
+        model_overrides_count = 0
+
+        for task in KNOWN_LLM_TASKS:
+            task_key, task_model = _resolve_credentials(task)
+            is_dedicated = bool(task_key) and task_key != default_key
+            is_model_overridden = task_model != default_model
+
+            if is_dedicated:
+                dedicated_count += 1
+            if is_model_overridden:
+                model_overrides_count += 1
+            if task_key:
+                unique_keys.add(task_key)
+
+            tasks_payload[task] = {
+                "key": _mask_key(task_key),
+                "model": task_model,
+                "dedicated": is_dedicated,
+                "model_overridden": is_model_overridden,
+            }
+
+        payload = {
+            "default": {
+                "key": _mask_key(default_key),
+                "model": default_model,
+                "set": bool(default_key),
+            },
+            "tasks": tasks_payload,
+            "summary": {
+                "total_tasks": len(KNOWN_LLM_TASKS),
+                "dedicated_count": dedicated_count,
+                "fallback_count": len(KNOWN_LLM_TASKS) - dedicated_count,
+                "unique_keys": len(unique_keys),
+                "model_overrides_count": model_overrides_count,
+            },
+        }
+        return JsonResponse(payload, status=200)
+    except Exception as exc:  # noqa: BLE001 — never let a config bug 500
+        return JsonResponse({"error": f"llm_status_unavailable: {exc}"}, status=500)

@@ -8,6 +8,7 @@ urlpatterns = [
     path('healthz/',         health.healthz,         name='healthz'),
     path('healthz/deep/',    health.healthz_deep,    name='healthz_deep'),
     path('healthz/metrics/', health.healthz_metrics, name='healthz_metrics'),
+    path('healthz/llm/',     health.healthz_llm,     name='healthz_llm'),
 
     path('', views.home_view, name='home'),
     # Legacy route — redirect to the canonical profiles dashboard

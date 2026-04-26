@@ -319,7 +319,7 @@ User just said: "{user_reply or '(No reply yet — generate your opening message
 
 5. CRITICAL JSON REQUIREMENT: You MUST output your response by calling the provided tool/function with a valid JSON payload matching the schema. DO NOT output conversational text directly."""
 
-        structured_llm = get_structured_llm(ChatTurnResult, temperature=0.5, max_tokens=800)
+        structured_llm = get_structured_llm(ChatTurnResult, temperature=0.5, max_tokens=800, task="interviewer")
         data = structured_llm.invoke(system_prompt)
         
         reply_analysis = data.reply_analysis

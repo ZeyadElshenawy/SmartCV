@@ -52,7 +52,7 @@ class CVExtractor:
         
         # Initialize Cloud LLM
         self.use_llm = use_llm
-        self.llm_client = get_llm_client()
+        self.llm_client = get_llm_client(task="parser")
         self.llm_available = self.llm_client is not None
         
         # Common section headers with variations

@@ -28,7 +28,7 @@ For each skill, provide:
 - Do not invent fake courses or fake YouTube channels. Recommend real, verifiable resources."""
 
     try:
-        structured_llm = get_structured_llm(LearningPathResult, temperature=0.3, max_tokens=2048)
+        structured_llm = get_structured_llm(LearningPathResult, temperature=0.3, max_tokens=2048, task="learning_path")
         result = structured_llm.invoke(prompt)
         
         learning_path = [item.model_dump() for item in result.items]

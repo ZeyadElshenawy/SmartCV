@@ -304,7 +304,7 @@ def chat(user, history: list[ChatTurn], user_message: str, job=None) -> ChatResu
     msgs.append(HumanMessage(content=user_message))
 
     try:
-        llm = get_llm(temperature=0.6, max_tokens=700)
+        llm = get_llm(temperature=0.6, max_tokens=700, task="agent_chat")
         response = llm.invoke(msgs)
         text = getattr(response, 'content', None) or str(response)
         return ChatResult(reply=text.strip(), error=None)

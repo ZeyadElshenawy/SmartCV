@@ -94,7 +94,7 @@ RULES for the Cover Letter:
 Output ONLY the text of the cover letter, nothing else."""
 
     try:
-        llm = get_llm(temperature=0.7, max_tokens=2048)
+        llm = get_llm(temperature=0.7, max_tokens=2048, task="cover_letter")
         result = llm.invoke([HumanMessage(content=prompt)])
 
         content = result.content.strip()

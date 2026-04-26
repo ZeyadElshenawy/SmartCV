@@ -38,7 +38,7 @@ INVALID answers (return makes_sense=false, need clarification):
 Be LENIENT - most answers should pass unless clearly nonsensical."""
 
     try:
-        structured_llm = get_structured_llm(SemanticValidationResult, temperature=0.3, max_tokens=120)
+        structured_llm = get_structured_llm(SemanticValidationResult, temperature=0.3, max_tokens=120, task="validator")
         result = structured_llm.invoke(prompt)
         
         if not result.makes_sense and result.clarification_question:

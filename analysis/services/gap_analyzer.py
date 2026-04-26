@@ -342,7 +342,7 @@ RULE 5 — SENIORITY & CAREER-SWITCH SIGNALS (soft_skill_gaps):
 === OUTPUT ===
 Return ONLY the structured JSON via the provided function. No preamble."""
 
-        structured_llm = get_structured_llm(GapAnalysisResult, temperature=0.1, max_tokens=2000)
+        structured_llm = get_structured_llm(GapAnalysisResult, temperature=0.1, max_tokens=2000, task="gap_analyzer")
         result = structured_llm.invoke(prompt)
 
         # Clamp similarity score to valid range

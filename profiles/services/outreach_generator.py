@@ -81,7 +81,7 @@ def _fallback_plaintext_json(prompt: str) -> dict | None:
         "No prose, no markdown, no arrays — just the JSON object."
     )
     try:
-        llm = get_llm(temperature=0.7, max_tokens=1024)
+        llm = get_llm(temperature=0.7, max_tokens=1024, task="outreach")
         reply = llm.invoke(json_prompt)
         text = getattr(reply, 'content', None) or str(reply)
         return _parse_json_object(text)
@@ -96,7 +96,7 @@ def _invoke_with_fallback(prompt: str) -> dict:
     Returns a dict matching OutreachCampaignResult fields (possibly empty).
     """
     try:
-        structured_llm = get_structured_llm(OutreachCampaignResult, temperature=0.7, max_tokens=1024)
+        structured_llm = get_structured_llm(OutreachCampaignResult, temperature=0.7, max_tokens=1024, task="outreach")
         result = structured_llm.invoke(prompt)
         return result.model_dump()
     except Exception as exc:
