@@ -359,3 +359,107 @@ class ResumeEditPreviewTemplateClassTests(TestCase):
                 f'.pdf-preview--{v}', body,
                 f'No .pdf-preview--{v} rule in the page for template "{v}".',
             )
+
+
+class ResumeListThumbnailTests(TestCase):
+    """Each card on the résumé list page now renders a thumbnail preview of
+    the actual resume content (name, summary, first experience, top skills)
+    so the user can recognise their resumes by glance instead of by reading
+    the job-title text. The thumbnail reuses the editor's .pdf-preview CSS,
+    so picking a template carries through to the list view automatically.
+    """
+
+    def setUp(self):
+        from jobs.models import Job
+        from analysis.models import GapAnalysis
+        from profiles.models import UserProfile
+        from resumes.models import GeneratedResume
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='listthumb@example.com', email='listthumb@example.com', password='x',
+        )
+        UserProfile.objects.create(user=self.user, full_name='Ada Lovelace', email='listthumb@example.com')
+        self.client.force_login(self.user)
+        job = Job.objects.create(user=self.user, title='Senior Backend Engineer', company='Acme Corp')
+        self.gap = GapAnalysis.objects.create(user=self.user, job=job, similarity_score=0.82)
+        self.resume = GeneratedResume.objects.create(
+            gap_analysis=self.gap,
+            content={
+                'professional_title': 'Backend Systems Engineer',
+                'professional_summary': 'Built distributed Python systems for high-throughput pipelines and ran the migration from synchronous to async stack.',
+                'template_name': 'danette',
+                'experience': [
+                    {
+                        'title': 'Backend Engineer',
+                        'company': 'PriorCo',
+                        'duration': '2023 - Present',
+                        'description': ['Cut p99 latency from 1.2s to 380ms', 'Owned async migration across 6 services'],
+                    },
+                ],
+                'skills': ['Python', 'PostgreSQL', 'Redis', 'Kubernetes', 'AWS'],
+            },
+        )
+
+    def test_thumbnail_renders_real_content(self):
+        """The thumbnail must show real resume data — name, professional
+        title, first experience, skills — not placeholder bars."""
+        resp = self.client.get(reverse('resume_list'))
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode('utf-8')
+        # Name from the user's profile.
+        self.assertIn('Ada Lovelace', body)
+        # Professional title from the resume content (NOT the job title).
+        self.assertIn('Backend Systems Engineer', body)
+        # First experience entry's title and company.
+        self.assertIn('Backend Engineer', body)
+        self.assertIn('PriorCo', body)
+        # Top skill renders.
+        self.assertIn('Python', body)
+        # Template-aware CSS modifier picked up.
+        self.assertIn('pdf-preview pdf-preview--danette', body)
+        # Sized as a list thumbnail (not the editor's small picker thumb).
+        self.assertIn('resume-list-thumb', body)
+
+    def test_thumbnail_handles_empty_content_gracefully(self):
+        """A resume with empty content shouldn't break the page: section
+        headings without data must not render, and the page still 200s."""
+        self.resume.content = {}
+        self.resume.save()
+        resp = self.client.get(reverse('resume_list'))
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode('utf-8')
+        # The thumbnail container still renders so the card has a stable shape
+        self.assertIn('resume-list-thumb', body)
+        # But the section headings inside it (Summary / Experience / Skills)
+        # must NOT appear when there's no data — we conditionally render.
+        # Match the exact section-title markup so we don't catch e.g. an
+        # entirely unrelated word "Summary" elsewhere in the page chrome.
+        self.assertNotIn('<div class="p-section-title">Summary</div>', body)
+        self.assertNotIn('<div class="p-section-title">Experience</div>', body)
+        self.assertNotIn('<div class="p-section-title">Skills</div>', body)
+        # Header still falls back to job title when professional_title is empty.
+        self.assertIn('Senior Backend Engineer', body)
+
+    def test_thumbnail_falls_back_to_standard_when_template_missing(self):
+        """If a resume saved before the template-name feature, fall back to
+        'standard' so the thumbnail still has consistent styling."""
+        self.resume.content = {
+            'professional_title': 'X',
+            'professional_summary': 'Y',
+        }
+        self.resume.save()
+        resp = self.client.get(reverse('resume_list'))
+        body = resp.content.decode('utf-8')
+        self.assertIn('pdf-preview pdf-preview--standard', body)
+
+    def test_profile_name_falls_back_to_email_local_part(self):
+        """Users without a UserProfile.full_name should still get a header,
+        not an empty void. Email local-part is the fallback."""
+        from profiles.models import UserProfile
+        UserProfile.objects.filter(user=self.user).update(full_name='')
+        resp = self.client.get(reverse('resume_list'))
+        body = resp.content.decode('utf-8')
+        # Email local-part rendered (not the full email — that would leak
+        # the address into the visible UI).
+        self.assertIn('listthumb', body)
+        self.assertNotIn('listthumb@example.com', body)
