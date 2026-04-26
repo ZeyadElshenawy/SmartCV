@@ -255,17 +255,166 @@ Make it PROFESSIONAL and ATS-OPTIMIZED.
 
     except Exception as e:
         logger.exception(f"Resume generation error: {e}")
-        fallback = {
-            "professional_title": job.title,
-            "professional_summary": f"Experienced professional seeking {job.title} position at {job.company}.",
-            "skills": job.extracted_skills[:10] if job.extracted_skills else [],
-            "experience": [],
-            "education": [],
-            "projects": [],
-            "certifications": [],
-            "languages": [],
-        }
-        return _ensure_profile_data_preserved(fallback, raw_cv_data)
+        return _build_offline_fallback(profile, job, raw_cv_data)
+
+
+def _build_offline_fallback(profile, job, raw_cv_data: dict) -> dict:
+    """Compose a usable resume directly from profile data when the LLM call
+    fails (rate limit, validation error, timeout). Pulls verbatim from the
+    source CV — no fabrication, no banned AI-tell openers, no stub text
+    like "Experienced professional seeking X position at Y" (which the
+    HUMAN_VOICE_RULE explicitly bans).
+
+    The output is deterministic given (profile, job) and produces a resume
+    that a real recruiter could read without flagging it as obvious LLM
+    fallback content. Applies basic JD-relevance filtering on skills so
+    the recruiter doesn't see Java/Python/C++ on a junior frontend role.
+    """
+    # Build a JD-keyword set for relevance filtering. We keep skills that
+    # match one of these (substring or word-level) and demote the rest
+    # to the bottom of the list. We never DROP skills — keeping the source
+    # CV's full skill set preserves grounding — we just reorder.
+    job_skills_lower = {s.lower().strip() for s in (getattr(job, 'extracted_skills', None) or [])}
+    job_words = set()
+    for s in job_skills_lower:
+        for w in re.findall(r"[a-z]+", s):
+            if len(w) > 2:
+                job_words.add(w)
+
+    def _is_relevant_to_jd(name: str) -> bool:
+        n = name.lower().strip()
+        if not n:
+            return False
+        if n in job_skills_lower:
+            return True
+        # word-level overlap (e.g., "react" in "React Router")
+        return any(w in n for w in job_words)
+
+    # Title — most-recent experience > job title
+    title = ''
+    for exp in (raw_cv_data.get('experiences') or []):
+        if isinstance(exp, dict):
+            t = (exp.get('title') or '').strip()
+            if t:
+                title = t
+                break
+    if not title:
+        title = getattr(job, 'title', '') or ''
+
+    # Skills — split into JD-relevant first, then the rest. Preserves grounding
+    # (no skills dropped) while making the top of the list look tailored.
+    relevant_skills: list[str] = []
+    other_skills: list[str] = []
+    for s in (raw_cv_data.get('skills') or []):
+        if isinstance(s, dict):
+            name = (s.get('name') or '').strip()
+        else:
+            name = str(s).strip()
+        if not name:
+            continue
+        if _is_relevant_to_jd(name):
+            relevant_skills.append(name)
+        else:
+            other_skills.append(name)
+    skills = relevant_skills + other_skills
+
+    # Summary — never start with "Experienced professional seeking..."
+    # Compose from normalized_summary if present, else from role + the most
+    # JD-relevant skill (so even the fallback summary looks tailored).
+    summary = (raw_cv_data.get('normalized_summary') or
+               raw_cv_data.get('summary') or '').strip()
+    if not summary:
+        top_skills = relevant_skills[:2] if relevant_skills else (skills[:2] or [])
+        bits = []
+        if title:
+            bits.append(title)
+        if top_skills:
+            bits.append(f"working with {' and '.join(top_skills)}")
+        # Plain English, no banned phrases. If we have neither, leave empty.
+        summary = (', '.join(bits) + '.') if bits else ''
+
+    # Experience — verbatim from profile, with bullets sourced from
+    # highlights/achievements/description (in that order).
+    experience = []
+    for exp in (raw_cv_data.get('experiences') or []):
+        if not isinstance(exp, dict):
+            continue
+        start = (exp.get('start_date') or '').strip()
+        end = (exp.get('end_date') or '').strip()
+        duration = f"{start} - {end}".strip(' -') if (start or end) else ''
+        bullets = exp.get('highlights') or exp.get('achievements') or exp.get('description') or []
+        if isinstance(bullets, str):
+            bullets = [line.strip() for line in bullets.split('\n') if line.strip()]
+        experience.append({
+            'title': (exp.get('title') or '').strip(),
+            'company': (exp.get('company') or '').strip(),
+            'duration': duration,
+            'description': bullets,
+        })
+
+    # Education — verbatim, with field/year normalization
+    education = []
+    for edu in (raw_cv_data.get('education') or []):
+        if not isinstance(edu, dict):
+            continue
+        degree = (edu.get('degree') or '').strip()
+        field = (edu.get('field') or '').strip()
+        full_degree = f"{degree} of {field}".strip(' of') if field else degree
+        education.append({
+            'degree': full_degree,
+            'institution': (edu.get('institution') or '').strip(),
+            'year': (edu.get('graduation_year') or edu.get('year') or '').strip(),
+        })
+
+    # Projects — verbatim
+    projects = []
+    for proj in (raw_cv_data.get('projects') or []):
+        if not isinstance(proj, dict):
+            continue
+        bullets = proj.get('description') or proj.get('highlights') or []
+        if isinstance(bullets, str):
+            bullets = [line.strip() for line in bullets.split('\n') if line.strip()]
+        projects.append({
+            'name': (proj.get('name') or '').strip(),
+            'description': bullets,
+            'url': (proj.get('url') or '').strip(),
+        })
+
+    # Certifications — verbatim
+    certifications = []
+    for cert in (raw_cv_data.get('certifications') or []):
+        if not isinstance(cert, dict):
+            continue
+        certifications.append({
+            'name': (cert.get('name') or '').strip(),
+            'issuer': (cert.get('issuer') or '').strip(),
+            'date': (cert.get('date') or '').strip(),
+            'url': (cert.get('url') or '').strip(),
+        })
+
+    # Languages — accept either list of str or list of dicts
+    languages = []
+    for lang in (raw_cv_data.get('languages') or []):
+        if isinstance(lang, str):
+            n = lang.strip()
+        elif isinstance(lang, dict):
+            n = (lang.get('name') or '').strip()
+        else:
+            n = ''
+        if n:
+            languages.append(n)
+
+    logger.info("Resume gen: offline fallback used for job '%s' (LLM unavailable)", getattr(job, 'title', '?'))
+    return {
+        'professional_title': title,
+        'professional_summary': summary,
+        'skills': skills,
+        'experience': experience,
+        'education': education,
+        'projects': projects,
+        'certifications': certifications,
+        'languages': languages,
+    }
 
 
 def _ensure_profile_data_preserved(resume_content: dict, profile_data: dict) -> dict:

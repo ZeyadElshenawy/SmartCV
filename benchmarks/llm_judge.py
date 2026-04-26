@@ -20,17 +20,40 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Iterable
+from typing import Iterable, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from profiles.services.llm_engine import get_structured_llm
 from profiles.services.prompt_guards import HUMAN_VOICE_RULE
 
 
 class AxisScore(BaseModel):
-    score: int = Field(..., ge=1, le=10)
-    rationale: str = Field(..., max_length=400)
+    # `score` accepts either int or string (the LLM occasionally emits
+    # "7" instead of 7) and coerces to int below. We can't keep the
+    # Pydantic schema strict-int because Groq's tool-call validator
+    # rejects str-typed outputs upstream of Pydantic — so we accept both
+    # in the schema and clamp on the way in.
+    #
+    # Hard cap on rationale raised from 400 -> 800 because the judge LLM
+    # occasionally produces 500-615 char rationales on detailed cases.
+    score: Union[int, str] = Field(..., description="Integer 1-10")
+    rationale: str = Field(..., max_length=800)
+
+    @field_validator('score', mode='before')
+    @classmethod
+    def coerce_score(cls, v):
+        """Accept either int or str-of-int, clamp to [1, 10]."""
+        if isinstance(v, str):
+            try:
+                v = int(v.strip())
+            except (ValueError, AttributeError):
+                v = 1
+        try:
+            v = int(v)
+        except (TypeError, ValueError):
+            v = 1
+        return max(1, min(10, v))
 
 
 class JudgeVerdict(BaseModel):
@@ -38,7 +61,7 @@ class JudgeVerdict(BaseModel):
     relevance: AxisScore
     ats_fit: AxisScore
     human_voice: AxisScore
-    overall_summary: str = Field(..., max_length=400)
+    overall_summary: str = Field(..., max_length=800)
 
 
 JUDGE_PROMPT = """You are a strict, neutral resume reviewer. You will read:
@@ -69,8 +92,12 @@ Score the GENERATED RESUME on FOUR axes from 1 (terrible) to 10 (excellent).
    Penalize AI-tell phrasing per the rules below. Specific bans:
 {voice_rule}
 
-For each axis return: integer score (1-10) + a one-sentence rationale
-citing the specific evidence that drove the score.
+For each axis return:
+- `score`: a JSON NUMBER literal between 1 and 10 inclusive (e.g. 7,
+  not "7" — never a string-quoted number).
+- `rationale`: a CONCISE one-sentence rationale (<= 300 chars) citing
+  the specific evidence that drove the score. Do NOT pad with
+  summaries or restate the score.
 
 === INPUT ===
 
