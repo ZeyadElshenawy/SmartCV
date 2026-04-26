@@ -145,7 +145,7 @@ IMPORTANT: Do NOT truncate any list. Include every certification, course, projec
 Use EXACT field names from the schema above.
 """
         
-        structured_llm = get_structured_llm(ResumeSchema, temperature=0.1, max_tokens=8192)
+        structured_llm = get_structured_llm(ResumeSchema, temperature=0.1, max_tokens=8192, task="validator")
         result = structured_llm.invoke(prompt)
         
         # result is already a validated ResumeSchema instance

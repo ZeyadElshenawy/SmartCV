@@ -242,7 +242,7 @@ Make it PROFESSIONAL and ATS-OPTIMIZED.
 {HUMAN_VOICE_RULE}"""
 
     try:
-        structured_llm = get_structured_llm(ResumeContentResult, temperature=0.7, max_tokens=8192)
+        structured_llm = get_structured_llm(ResumeContentResult, temperature=0.7, max_tokens=8192, task="resume_gen")
         result = structured_llm.invoke(prompt)
 
         resume_content = result.model_dump()

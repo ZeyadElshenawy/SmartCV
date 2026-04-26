@@ -923,3 +923,144 @@ class MessageAutoDismissTests(TestCase):
         )
         self.assertTrue(alerts, 'error toast not found')
         self.assertNotIn('setTimeout', alerts[0])
+
+
+class HealthzLlmTests(TestCase):
+    """The /healthz/llm/ endpoint reveals which Groq key + model each LLM
+    task is actually using (after env resolution). Used to confirm the
+    per-task GROQ_API_KEY_<TASK> overrides are spelled correctly without
+    leaking the keys themselves.
+    """
+
+    URL = '/healthz/llm/'
+
+    def setUp(self):
+        User = get_user_model()
+        self.staff = User.objects.create_user(
+            username='staff@example.com', email='staff@example.com',
+            password='pw12345678', is_staff=True,
+        )
+        self.normal = User.objects.create_user(
+            username='nobody@example.com', email='nobody@example.com',
+            password='pw12345678',
+        )
+
+    def test_anonymous_redirects_to_admin_login(self):
+        """staff_member_required bounces anon users to the admin login."""
+        resp = self.client.get(self.URL)
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('/admin/login/', resp.url)
+
+    def test_non_staff_user_redirected(self):
+        """Non-staff logged-in users get the same admin-login bounce."""
+        self.client.force_login(self.normal)
+        resp = self.client.get(self.URL)
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('/admin/login/', resp.url)
+
+    def test_staff_gets_200_with_expected_shape(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(self.URL)
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        # Top-level keys
+        self.assertIn('default', body)
+        self.assertIn('tasks', body)
+        self.assertIn('summary', body)
+        # Default block has key/model/set
+        self.assertIn('key', body['default'])
+        self.assertIn('model', body['default'])
+        self.assertIn('set', body['default'])
+        # All 12 known tasks present
+        from core.health import KNOWN_LLM_TASKS
+        for task in KNOWN_LLM_TASKS:
+            self.assertIn(task, body['tasks'])
+            entry = body['tasks'][task]
+            self.assertIn('key', entry)
+            self.assertIn('model', entry)
+            self.assertIn('dedicated', entry)
+            self.assertIn('model_overridden', entry)
+        # Summary counts add up
+        s = body['summary']
+        self.assertEqual(s['total_tasks'], len(KNOWN_LLM_TASKS))
+        self.assertEqual(s['dedicated_count'] + s['fallback_count'], s['total_tasks'])
+
+    def test_dedicated_key_detected_when_env_set(self):
+        """A GROQ_API_KEY_<TASK> override flips that task to dedicated=true
+        while siblings without an override stay dedicated=false."""
+        import os
+        from unittest.mock import patch
+        env = {
+            'GROQ_API_KEY': 'gsk_default_aaaaaaaaaaaa1234',
+            'GROQ_API_KEY_GAP_ANALYZER': 'gsk_dedicated_bbbbbbbbb5678',
+        }
+        # Clear any task-specific keys we don't intend to set so the test
+        # isn't polluted by the developer's actual .env.
+        from core.health import KNOWN_LLM_TASKS
+        clear_vars = [
+            f"GROQ_API_KEY_{t.upper()}" for t in KNOWN_LLM_TASKS
+            if f"GROQ_API_KEY_{t.upper()}" not in env
+        ] + [f"GROQ_MODEL_{t.upper()}" for t in KNOWN_LLM_TASKS]
+
+        with patch.dict(os.environ, env, clear=False):
+            for v in clear_vars:
+                os.environ.pop(v, None)
+            self.client.force_login(self.staff)
+            resp = self.client.get(self.URL)
+            self.assertEqual(resp.status_code, 200)
+            body = resp.json()
+
+        gap = body['tasks']['gap_analyzer']
+        self.assertTrue(gap['dedicated'], "gap_analyzer override should be detected")
+        # A sibling without override should fall back
+        resume = body['tasks']['resume_gen']
+        self.assertFalse(resume['dedicated'])
+
+    def test_keys_are_masked_never_full(self):
+        """No full API key should ever appear in the response body."""
+        import os
+        from unittest.mock import patch
+        from core.health import KNOWN_LLM_TASKS
+        from profiles.services import llm_engine
+
+        full_key = 'gsk_FULL_SECRET_KEY_DO_NOT_LEAK_1234567890abcdef'
+        # Clear any developer-real task vars so they can't leak into the body.
+        scrub = [f"GROQ_API_KEY_{t.upper()}" for t in KNOWN_LLM_TASKS]
+        scrub += [f"GROQ_MODEL_{t.upper()}" for t in KNOWN_LLM_TASKS]
+        # Also override the module-level DEFAULT (captured at import time).
+        with patch.dict(os.environ, {}, clear=False), \
+             patch.object(llm_engine, 'DEFAULT_GROQ_API_KEY', full_key):
+            for v in scrub:
+                os.environ.pop(v, None)
+            self.client.force_login(self.staff)
+            resp = self.client.get(self.URL)
+            body_text = resp.content.decode('utf-8')
+        self.assertNotIn(full_key, body_text)
+        # The masked form should appear: first 8 + last 4 chars.
+        self.assertIn(full_key[:8], body_text)
+        self.assertIn(full_key[-4:], body_text)
+        # Ellipsis JSON-escapes to ….
+        self.assertIn('\\u2026', body_text)
+
+    def test_empty_default_key_surfaces_as_empty(self):
+        """No GROQ_API_KEY at all renders as `(empty)` so it's obvious."""
+        import os
+        from unittest.mock import patch
+        # Wipe both globals + every task override so resolution truly returns ""
+        from core.health import KNOWN_LLM_TASKS
+        scrub = ['GROQ_API_KEY', 'GROQ_MODEL']
+        scrub += [f"GROQ_API_KEY_{t.upper()}" for t in KNOWN_LLM_TASKS]
+        scrub += [f"GROQ_MODEL_{t.upper()}" for t in KNOWN_LLM_TASKS]
+        # We also need DEFAULT_GROQ_API_KEY (read at import time) to look empty.
+        # Patch it directly on the module.
+        from profiles.services import llm_engine
+        with patch.dict(os.environ, {}, clear=False), \
+             patch.object(llm_engine, 'DEFAULT_GROQ_API_KEY', ''):
+            for v in scrub:
+                os.environ.pop(v, None)
+            self.client.force_login(self.staff)
+            resp = self.client.get(self.URL)
+            self.assertEqual(resp.status_code, 200)
+            body = resp.json()
+        self.assertEqual(body['default']['key'], '(empty)')
+        self.assertFalse(body['default']['set'])

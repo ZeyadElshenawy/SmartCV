@@ -37,7 +37,7 @@ The argument should be firmly rooted in the specific skills they bring to the ta
 Do NOT include placeholder addresses. Just start with "Hi [Recruiter Name]," and end with a professional sign off. Output ONLY the email script."""
 
     try:
-        llm = get_llm(temperature=0.7, max_tokens=2048)
+        llm = get_llm(temperature=0.7, max_tokens=2048, task="salary")
         result = llm.invoke([HumanMessage(content=prompt)])
         
         content = result.content.strip()

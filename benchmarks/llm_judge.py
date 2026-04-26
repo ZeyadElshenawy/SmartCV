@@ -179,5 +179,5 @@ def judge(
         source_cv=json.dumps(source_cv, default=str)[:6000],
         generated_resume=json.dumps(generated_resume, default=str)[:6000],
     )
-    llm = get_structured_llm(JudgeVerdict, temperature=0.0, max_tokens=1024)
+    llm = get_structured_llm(JudgeVerdict, temperature=0.0, max_tokens=1024, task="judge")
     return llm.invoke(prompt)
