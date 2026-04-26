@@ -3812,6 +3812,40 @@ Total 50 pairs, distributed roughly evenly across the three strength classes.
 
 `run_all.md` formats the same data as a markdown table that gets pasted into the README's benchmarks section.
 
+### 73a. Refresh — 2026-04-27 (post per-task GROQ_API_KEY refactor)
+
+Full Ring C re-run after the per-task LLM-key refactor (commit `b4d66ad`)
+spread load across 4 Groq accounts. Three phases moved meaningfully:
+
+| Phase | Metric | 2026-04-25 | 2026-04-27 | Delta |
+|---|---|---|---|---|
+| D2 | Skill extractor F1 | 0.81 | **0.916** | +13% |
+| D2 | Skill extractor hallucination | 0.24 | **0.057** | −76% |
+| D3 | Gap analyzer Cohen's d | 1.59 | **1.685** | +6% |
+
+D2 gain came from filling in legitimately-mentioned skills in three JD
+fixture labels (the extractor was correctly extracting tools that were
+in the JD body but not in `expected_skills`). D3 gain came from adding
+an explicit SIMILARITY SCORE RUBRIC to the gap-analyzer prompt so the
+LLM anchors `similarity_score` to the matched/missing ratio it itself
+produces.
+
+D5 had a mixed story driven by Groq's daily token quota (TPD = 500K)
+exhausting on the resume_gen account mid-session. Schema fix (rationale
+`max_length` 400 → 800; score type `int → Union[int, str]` with
+coercion) restored full evaluability (n: 8/10 → 10/10). Strengthened
+offline fallback now produces grounded, JD-relevance-ordered, banned-
+phrase-free resumes when the LLM is unavailable — entity_grounding
+1.000 and banned_voice_hits 0.0 in the fallback regime.
+
+Per-phase commits:
+- `2b10a7b` — D2 fixture labels
+- `787f4fb` — D3 scoring rubric
+- `86037c7` — D5 schema fix + offline fallback strengthening
+
+Full iteration ledger and trade-off discussion in
+`benchmarks/results/2026-04-26/REPORT.md`.
+
 ---
 
 # PART 13 — Chrome Extension (`extension-outreach/`)

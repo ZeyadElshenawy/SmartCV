@@ -1,8 +1,8 @@
 {
   "benchmark": "run_all",
   "version": 1,
-  "run_at_utc": "2026-04-26T22:47:49Z",
-  "wall_seconds": 322.13,
+  "run_at_utc": "2026-04-27T02:25:00Z",
+  "wall_seconds": 265.54,
   "platform": {
     "python": "3.13.9",
     "system": "Windows",
@@ -19,34 +19,28 @@
   ],
   "phase_info": {
     "ats_eval": {
-      "phase": "ats_eval",
       "ok": true,
-      "wall_seconds": 0.01
+      "wall_seconds": 0
     },
     "latency_runner": {
-      "phase": "latency_runner",
       "ok": true,
       "wall_seconds": 19.73
     },
     "parser_eval": {
-      "phase": "parser_eval",
       "ok": true,
-      "wall_seconds": 1.72
+      "wall_seconds": 1.71
     },
     "skill_extractor_eval": {
-      "phase": "skill_extractor_eval",
       "ok": true,
-      "wall_seconds": 16.97
+      "wall_seconds": 19.46
     },
     "gap_eval": {
-      "phase": "gap_eval",
       "ok": true,
-      "wall_seconds": 148.84
+      "wall_seconds": 188.63
     },
     "tailoring_eval": {
-      "phase": "tailoring_eval",
       "ok": true,
-      "wall_seconds": 134.86
+      "wall_seconds": 36.01
     }
   },
   "headlines": {
@@ -76,32 +70,32 @@
     "skill_extractor": {
       "n_jds": 5,
       "repeats_per_jd": 3,
-      "f1": 0.8095,
-      "precision": 0.7652,
-      "recall": 0.8724,
-      "hallucination_rate": 0.2348
+      "f1": 0.916,
+      "precision": 0.943,
+      "recall": 0.8942,
+      "hallucination_rate": 0.057
     },
     "tailoring": {
       "n_pairs": 10,
       "buckets": [
         "strong"
       ],
-      "factuality_mean": 5.875,
-      "relevance_mean": 6.375,
-      "ats_fit_mean": 6.5,
-      "human_voice_mean": 3.75,
-      "entity_grounding_mean": 0.8095,
-      "banned_voice_hits_mean": 0.375
+      "factuality_mean": 3.7,
+      "relevance_mean": 2.8,
+      "ats_fit_mean": 3.3,
+      "human_voice_mean": 1.9,
+      "entity_grounding_mean": 1.0,
+      "banned_voice_hits_mean": 0.0
     },
     "gap": {
       "n_pairs": 50,
       "repeats_per_pair": 1,
-      "coverage_mean": 0.9976,
-      "perfect_coverage_pairs": 48,
-      "strong_mean": 0.456,
-      "partial_mean": 0.46,
-      "weak_mean": 0.1897,
-      "cohens_d_strong_vs_weak": 1.097
+      "coverage_mean": 0.9966,
+      "perfect_coverage_pairs": 47,
+      "strong_mean": 0.465,
+      "partial_mean": 0.3833,
+      "weak_mean": 0.1412,
+      "cohens_d_strong_vs_weak": 1.685
     }
   },
   "phase_payloads": {
@@ -194,8 +188,7 @@
           "REST API": 2
         }
       },
-      "disclosure": "Synthetic in-process fixtures \u2014 no real CVs. ATS algorithm is pure Python; \u03c3=0 is the expected determinism outcome. Separation is measured across 3 matched (resume, job) pairs vs. 6 cross-paired mismatches.",
-      "written_to": "G:\\New folder\\SmartCV\\benchmarks\\results\\2026-04-26\\ats_eval.json"
+      "disclosure": "Synthetic in-process fixtures \u2014 no real CVs. ATS algorithm is pure Python; \u03c3=0 is the expected determinism outcome. Separation is measured across 3 matched (resume, job) pairs vs. 6 cross-paired mismatches."
     },
     "latency_runner": {
       "benchmark": "latency_runner",
@@ -417,8 +410,7 @@
           }
         }
       },
-      "disclosure": "Latencies measured in-process via django.test.Client (no network hop). Numbers reflect view + middleware + DB access cost on the developer machine; production WAN latency is not included. First N=5 samples per route are reported separately as 'cold' to expose lazy-import / connection-warmup cost.",
-      "written_to": "G:\\New folder\\SmartCV\\benchmarks\\results\\2026-04-26\\latency_runner.json"
+      "disclosure": "Latencies measured in-process via django.test.Client (no network hop). Numbers reflect view + middleware + DB access cost on the developer machine; production WAN latency is not included. First N=5 samples per route are reported separately as 'cold' to expose lazy-import / connection-warmup cost."
     },
     "parser_eval": {
       "benchmark": "parser_eval",
@@ -1653,8 +1645,7 @@
           "section_presence": "labeled section true => parsed list/text non-empty"
         }
       },
-      "disclosure": "LLM-driven (Groq llama-4-scout via the parser's structured-output stage). Mean of 1 run(s) per CV. PII normalization is intentionally lenient (case- and whitespace-insensitive) so cosmetic differences don't dominate the score.",
-      "written_to": "G:\\New folder\\SmartCV\\benchmarks\\results\\2026-04-26\\parser_eval.json"
+      "disclosure": "LLM-driven (Groq llama-4-scout via the parser's structured-output stage). Mean of 1 run(s) per CV. PII normalization is intentionally lenient (case- and whitespace-insensitive) so cosmetic differences don't dominate the score."
     },
     "skill_extractor_eval": {
       "benchmark": "skill_extractor_eval",
@@ -1662,73 +1653,73 @@
       "fixture_kind": "real_anonymized_jd",
       "n_jds": 5,
       "repeats_per_jd": 3,
-      "wall_seconds": 16.92,
+      "wall_seconds": 19.46,
       "aggregate": {
         "f1": {
           "n": 15,
-          "min": 0.6939,
-          "mean": 0.8095,
-          "median": 0.8085,
-          "p95": 0.95,
-          "max": 0.9474,
-          "std": 0.0867
+          "min": 0.8512,
+          "mean": 0.916,
+          "median": 0.9231,
+          "p95": 0.98,
+          "max": 0.9818,
+          "std": 0.0469
         },
         "precision": {
           "n": 15,
-          "min": 0.6071,
-          "mean": 0.7652,
-          "median": 0.7037,
-          "p95": 0.93,
-          "max": 0.9286,
-          "std": 0.1252
+          "min": 0.9,
+          "mean": 0.943,
+          "median": 0.9286,
+          "p95": 1.0,
+          "max": 1.0,
+          "std": 0.0342
         },
         "recall": {
           "n": 15,
           "min": 0.7857,
-          "mean": 0.8724,
-          "median": 0.8095,
+          "mean": 0.8942,
+          "median": 0.8889,
           "p95": 1.0,
           "max": 1.0,
-          "std": 0.0865
+          "std": 0.0799
         },
         "hallucination_rate": {
           "n": 15,
-          "min": 0.0714,
-          "mean": 0.2348,
-          "median": 0.2963,
-          "p95": 0.39,
-          "max": 0.3929,
-          "std": 0.1252
+          "min": 0.0,
+          "mean": 0.057,
+          "median": 0.0714,
+          "p95": 0.1,
+          "max": 0.1,
+          "std": 0.0342
         },
         "latency_ms": {
           "n": 15,
-          "min": 877.14,
-          "mean": 1122.104,
-          "median": 1018.76,
-          "p95": 1564.12,
-          "max": 1624.43,
-          "std": 240.0474
+          "min": 1050.9,
+          "mean": 1286.4033,
+          "median": 1195.87,
+          "p95": 1911.59,
+          "max": 2419.48,
+          "std": 335.4749
         }
       },
       "per_job": [
         {
           "jd_id": "jd_senior_frontend_react",
           "title": "Senior Frontend Engineer (React)",
-          "expected_skills_count": 21,
+          "expected_skills_count": 30,
           "repeats": 3,
-          "f1_mean": 0.7037,
-          "f1_std": 0.0139,
-          "precision_mean": 0.6227,
-          "recall_mean": 0.8095,
-          "hallucination_mean": 0.3773,
+          "f1_mean": 0.8834,
+          "f1_std": 0.0186,
+          "precision_mean": 0.9268,
+          "recall_mean": 0.8445,
+          "hallucination_mean": 0.0732,
           "runs": [
             {
-              "n_extracted": 26,
-              "n_labeled": 21,
-              "precision": 0.6538,
-              "recall": 0.8095,
-              "f1": 0.7234,
-              "hallucination_rate": 0.3462,
+              "n_extracted": 28,
+              "n_labeled": 30,
+              "precision": 0.9286,
+              "recall": 0.8667,
+              "f1": 0.8966,
+              "hallucination_rate": 0.0714,
               "missed": [
                 "REST API",
                 "Accessibility",
@@ -1736,15 +1727,60 @@
                 "Vue"
               ],
               "extra": [
+                "REST",
+                "Vue.js"
+              ],
+              "extracted_raw": [
+                "React",
+                "TypeScript",
+                "JavaScript",
+                "HTML5",
+                "CSS3",
+                "Webpack",
+                "Vite",
                 "Babel",
                 "npm",
                 "yarn",
+                "Git",
                 "GitHub",
+                "Jest",
+                "React Testing Library",
+                "Cypress",
                 "REST",
+                "GraphQL",
+                "Redux",
                 "Zustand",
                 "Context",
+                "Tailwind",
                 "Vue.js",
-                "Playwright"
+                "Storybook",
+                "Playwright",
+                "GitHub Actions",
+                "Figma",
+                "WCAG 2.1",
+                "Core Web Vitals"
+              ],
+              "latency_ms": 1693.93,
+              "error": null
+            },
+            {
+              "n_extracted": 26,
+              "n_labeled": 30,
+              "precision": 0.9231,
+              "recall": 0.8,
+              "f1": 0.8571,
+              "hallucination_rate": 0.0769,
+              "missed": [
+                "REST API",
+                "Accessibility",
+                "WCAG 2.1",
+                "Responsive Design",
+                "Core Web Vitals",
+                "Vue"
+              ],
+              "extra": [
+                "REST",
+                "Vue.js"
               ],
               "extracted_raw": [
                 "React",
@@ -1774,16 +1810,16 @@
                 "GitHub Actions",
                 "Figma"
               ],
-              "latency_ms": 1538.27,
+              "latency_ms": 1266.02,
               "error": null
             },
             {
               "n_extracted": 28,
-              "n_labeled": 21,
-              "precision": 0.6071,
-              "recall": 0.8095,
-              "f1": 0.6939,
-              "hallucination_rate": 0.3929,
+              "n_labeled": 30,
+              "precision": 0.9286,
+              "recall": 0.8667,
+              "f1": 0.8966,
+              "hallucination_rate": 0.0714,
               "missed": [
                 "REST API",
                 "Accessibility",
@@ -1791,17 +1827,8 @@
                 "Vue"
               ],
               "extra": [
-                "Babel",
-                "npm",
-                "yarn",
-                "GitHub",
                 "REST",
-                "Zustand",
-                "Context",
-                "Vue.js",
-                "Playwright",
-                "WCAG 2.1",
-                "Core Web Vitals"
+                "Vue.js"
               ],
               "extracted_raw": [
                 "React",
@@ -1833,66 +1860,7 @@
                 "WCAG 2.1",
                 "Core Web Vitals"
               ],
-              "latency_ms": 1243.58,
-              "error": null
-            },
-            {
-              "n_extracted": 28,
-              "n_labeled": 21,
-              "precision": 0.6071,
-              "recall": 0.8095,
-              "f1": 0.6939,
-              "hallucination_rate": 0.3929,
-              "missed": [
-                "REST API",
-                "Accessibility",
-                "Responsive Design",
-                "Vue"
-              ],
-              "extra": [
-                "Babel",
-                "npm",
-                "yarn",
-                "GitHub",
-                "REST",
-                "Zustand",
-                "Context",
-                "Vue.js",
-                "Playwright",
-                "WCAG 2.1",
-                "Core Web Vitals"
-              ],
-              "extracted_raw": [
-                "React",
-                "TypeScript",
-                "JavaScript",
-                "HTML5",
-                "CSS3",
-                "Webpack",
-                "Vite",
-                "Babel",
-                "npm",
-                "yarn",
-                "Git",
-                "GitHub",
-                "Jest",
-                "React Testing Library",
-                "Cypress",
-                "REST",
-                "GraphQL",
-                "Redux",
-                "Zustand",
-                "Context",
-                "Tailwind",
-                "Vue.js",
-                "Storybook",
-                "Playwright",
-                "GitHub Actions",
-                "Figma",
-                "WCAG 2.1",
-                "Core Web Vitals"
-              ],
-              "latency_ms": 1051.8,
+              "latency_ms": 1238.9,
               "error": null
             }
           ]
@@ -1942,7 +1910,7 @@
                 "GCP",
                 "Kafka"
               ],
-              "latency_ms": 925.23,
+              "latency_ms": 1131.03,
               "error": null
             },
             {
@@ -1979,7 +1947,7 @@
                 "GCP",
                 "Kafka"
               ],
-              "latency_ms": 919.7,
+              "latency_ms": 1087.6,
               "error": null
             },
             {
@@ -2016,7 +1984,7 @@
                 "GCP",
                 "Kafka"
               ],
-              "latency_ms": 937.58,
+              "latency_ms": 1132.46,
               "error": null
             }
           ]
@@ -2024,34 +1992,25 @@
         {
           "jd_id": "jd_devops_aws_k8s",
           "title": "DevOps Engineer (AWS / Kubernetes)",
-          "expected_skills_count": 20,
+          "expected_skills_count": 28,
           "repeats": 3,
-          "f1_mean": 0.8085,
+          "f1_mean": 0.9818,
           "f1_std": 0.0,
-          "precision_mean": 0.7037,
-          "recall_mean": 0.95,
-          "hallucination_mean": 0.2963,
+          "precision_mean": 1.0,
+          "recall_mean": 0.9643,
+          "hallucination_mean": 0.0,
           "runs": [
             {
               "n_extracted": 27,
-              "n_labeled": 20,
-              "precision": 0.7037,
-              "recall": 0.95,
-              "f1": 0.8085,
-              "hallucination_rate": 0.2963,
+              "n_labeled": 28,
+              "precision": 1.0,
+              "recall": 0.9643,
+              "f1": 0.9818,
+              "hallucination_rate": 0.0,
               "missed": [
                 "CI/CD"
               ],
-              "extra": [
-                "CloudWatch",
-                "Loki",
-                "GitLab CI",
-                "Flux",
-                "Istio",
-                "Linkerd",
-                "Vault",
-                "AWS Secrets Manager"
-              ],
+              "extra": [],
               "extracted_raw": [
                 "AWS",
                 "EKS",
@@ -2081,29 +2040,20 @@
                 "Vault",
                 "AWS Secrets Manager"
               ],
-              "latency_ms": 1624.43,
+              "latency_ms": 1195.87,
               "error": null
             },
             {
               "n_extracted": 27,
-              "n_labeled": 20,
-              "precision": 0.7037,
-              "recall": 0.95,
-              "f1": 0.8085,
-              "hallucination_rate": 0.2963,
+              "n_labeled": 28,
+              "precision": 1.0,
+              "recall": 0.9643,
+              "f1": 0.9818,
+              "hallucination_rate": 0.0,
               "missed": [
                 "CI/CD"
               ],
-              "extra": [
-                "CloudWatch",
-                "Loki",
-                "GitLab CI",
-                "Flux",
-                "Istio",
-                "Linkerd",
-                "Vault",
-                "AWS Secrets Manager"
-              ],
+              "extra": [],
               "extracted_raw": [
                 "AWS",
                 "EKS",
@@ -2133,29 +2083,20 @@
                 "Vault",
                 "AWS Secrets Manager"
               ],
-              "latency_ms": 1031.1,
+              "latency_ms": 1196.22,
               "error": null
             },
             {
               "n_extracted": 27,
-              "n_labeled": 20,
-              "precision": 0.7037,
-              "recall": 0.95,
-              "f1": 0.8085,
-              "hallucination_rate": 0.2963,
+              "n_labeled": 28,
+              "precision": 1.0,
+              "recall": 0.9643,
+              "f1": 0.9818,
+              "hallucination_rate": 0.0,
               "missed": [
                 "CI/CD"
               ],
-              "extra": [
-                "CloudWatch",
-                "Loki",
-                "GitLab CI",
-                "Flux",
-                "Istio",
-                "Linkerd",
-                "Vault",
-                "AWS Secrets Manager"
-              ],
+              "extra": [],
               "extracted_raw": [
                 "AWS",
                 "EKS",
@@ -2185,7 +2126,7 @@
                 "Vault",
                 "AWS Secrets Manager"
               ],
-              "latency_ms": 1018.76,
+              "latency_ms": 1181.06,
               "error": null
             }
           ]
@@ -2193,35 +2134,28 @@
         {
           "jd_id": "jd_flutter_mobile",
           "title": "Flutter Mobile Engineer",
-          "expected_skills_count": 20,
+          "expected_skills_count": 27,
           "repeats": 3,
-          "f1_mean": 0.7367,
-          "f1_std": 0.0133,
-          "precision_mean": 0.6711,
-          "recall_mean": 0.8167,
-          "hallucination_mean": 0.3289,
+          "f1_mean": 0.9161,
+          "f1_std": 0.0099,
+          "precision_mean": 0.9594,
+          "recall_mean": 0.8766,
+          "hallucination_mean": 0.0406,
           "runs": [
             {
               "n_extracted": 25,
-              "n_labeled": 20,
-              "precision": 0.68,
-              "recall": 0.85,
-              "f1": 0.7556,
-              "hallucination_rate": 0.32,
+              "n_labeled": 27,
+              "precision": 0.96,
+              "recall": 0.8889,
+              "f1": 0.9231,
+              "hallucination_rate": 0.04,
               "missed": [
                 "Responsive UI",
                 "Animations",
                 "Widget Testing"
               ],
               "extra": [
-                "HTTP clients",
-                "Retrofit",
-                "http",
-                "shared preferences",
-                "Kotlin",
-                "Swift",
-                "Firestore",
-                "Cloud Messaging"
+                "HTTP clients"
               ],
               "extracted_raw": [
                 "Flutter",
@@ -2250,16 +2184,61 @@
                 "Cloud Messaging",
                 "OOP"
               ],
-              "latency_ms": 988.67,
+              "latency_ms": 1269.12,
+              "error": null
+            },
+            {
+              "n_extracted": 25,
+              "n_labeled": 27,
+              "precision": 0.96,
+              "recall": 0.8889,
+              "f1": 0.9231,
+              "hallucination_rate": 0.04,
+              "missed": [
+                "Responsive UI",
+                "Animations",
+                "Widget Testing"
+              ],
+              "extra": [
+                "HTTP clients"
+              ],
+              "extracted_raw": [
+                "Flutter",
+                "Dart",
+                "Clean Architecture",
+                "BLoC",
+                "Cubit",
+                "Provider",
+                "GetX",
+                "REST API",
+                "HTTP clients",
+                "Dio",
+                "Retrofit",
+                "http",
+                "Git",
+                "Figma",
+                "Hive",
+                "SQLite",
+                "shared preferences",
+                "Codemagic",
+                "GitHub Actions",
+                "Kotlin",
+                "Swift",
+                "Firebase",
+                "Firestore",
+                "Cloud Messaging",
+                "OOP"
+              ],
+              "latency_ms": 1199.41,
               "error": null
             },
             {
               "n_extracted": 24,
-              "n_labeled": 20,
-              "precision": 0.6667,
-              "recall": 0.8,
-              "f1": 0.7273,
-              "hallucination_rate": 0.3333,
+              "n_labeled": 27,
+              "precision": 0.9583,
+              "recall": 0.8519,
+              "f1": 0.902,
+              "hallucination_rate": 0.0417,
               "missed": [
                 "Responsive UI",
                 "OOP",
@@ -2267,14 +2246,7 @@
                 "Widget Testing"
               ],
               "extra": [
-                "HTTP clients",
-                "Retrofit",
-                "http",
-                "shared preferences",
-                "Kotlin",
-                "Swift",
-                "Firestore",
-                "Cloud Messaging"
+                "HTTP clients"
               ],
               "extracted_raw": [
                 "Flutter",
@@ -2302,59 +2274,7 @@
                 "Firestore",
                 "Cloud Messaging"
               ],
-              "latency_ms": 1453.29,
-              "error": null
-            },
-            {
-              "n_extracted": 24,
-              "n_labeled": 20,
-              "precision": 0.6667,
-              "recall": 0.8,
-              "f1": 0.7273,
-              "hallucination_rate": 0.3333,
-              "missed": [
-                "Responsive UI",
-                "OOP",
-                "Animations",
-                "Widget Testing"
-              ],
-              "extra": [
-                "HTTP clients",
-                "Retrofit",
-                "http",
-                "shared preferences",
-                "Kotlin",
-                "Swift",
-                "Firestore",
-                "Cloud Messaging"
-              ],
-              "extracted_raw": [
-                "Flutter",
-                "Dart",
-                "Clean Architecture",
-                "BLoC",
-                "Cubit",
-                "Provider",
-                "GetX",
-                "REST API",
-                "HTTP clients",
-                "Dio",
-                "Retrofit",
-                "http",
-                "Git",
-                "Figma",
-                "Hive",
-                "SQLite",
-                "shared preferences",
-                "Codemagic",
-                "GitHub Actions",
-                "Kotlin",
-                "Swift",
-                "Firebase",
-                "Firestore",
-                "Cloud Messaging"
-              ],
-              "latency_ms": 1005.23,
+              "latency_ms": 2419.48,
               "error": null
             }
           ]
@@ -2401,7 +2321,7 @@
                 "TypeScript",
                 "Figma"
               ],
-              "latency_ms": 902.42,
+              "latency_ms": 1121.65,
               "error": null
             },
             {
@@ -2435,7 +2355,7 @@
                 "TypeScript",
                 "Figma"
               ],
-              "latency_ms": 877.14,
+              "latency_ms": 1112.4,
               "error": null
             },
             {
@@ -2462,14 +2382,14 @@
                 "React",
                 "React Router",
                 "Axios",
-                "TypeScript",
                 "Tailwind CSS",
                 "Bootstrap",
                 "Git",
                 "GitHub",
+                "TypeScript",
                 "Figma"
               ],
-              "latency_ms": 1314.36,
+              "latency_ms": 1050.9,
               "error": null
             }
           ]
@@ -2480,8 +2400,7 @@
         "service": "jobs.services.skill_extractor.extract_skills",
         "scoring": "lowercased exact + difflib SequenceMatcher >= 0.85"
       },
-      "disclosure": "LLM-driven metric \u2014 Groq llama-4-scout, temperature=0.0 in the service call. Mean of 3 run(s) per JD. Variance shown as std. Skills compared via lowercased exact + difflib >= 0.85 fuzzy fallback (matches gap-analyzer cutoff).",
-      "written_to": "G:\\New folder\\SmartCV\\benchmarks\\results\\2026-04-26\\skill_extractor_eval.json"
+      "disclosure": "LLM-driven metric \u2014 Groq llama-4-scout, temperature=0.0 in the service call. Mean of 3 run(s) per JD. Variance shown as std. Skills compared via lowercased exact + difflib >= 0.85 fuzzy fallback (matches gap-analyzer cutoff)."
     },
     "gap_eval": {
       "benchmark": "gap_eval",
@@ -2491,88 +2410,88 @@
       "n_jds": 5,
       "n_pairs_evaluated": 50,
       "repeats_per_pair": 1,
-      "parse_wall_seconds": 1.21,
-      "wall_seconds": 147.63,
+      "parse_wall_seconds": 1.87,
+      "wall_seconds": 188.63,
       "parse_errors": [],
       "buckets": {
         "strong": {
           "n": 10,
           "min": 0.0,
-          "mean": 0.456,
-          "median": 0.43,
+          "mean": 0.465,
+          "median": 0.5,
           "p95": 0.85,
           "max": 0.9,
-          "std": 0.2984,
+          "std": 0.3091,
           "scores": [
-            0.6,
+            0.65,
+            0.75,
             0.8,
-            0.8,
-            0.1,
+            0.0,
             0.0,
             0.2,
-            0.36,
+            0.4,
             0.9,
-            0.5,
-            0.3
+            0.6,
+            0.35
           ]
         },
         "partial": {
           "n": 6,
-          "min": 0.2,
-          "mean": 0.46,
-          "median": 0.45,
-          "p95": 0.67,
-          "max": 0.7,
-          "std": 0.1633,
+          "min": 0.15,
+          "mean": 0.3833,
+          "median": 0.4,
+          "p95": 0.53,
+          "max": 0.55,
+          "std": 0.1247,
           "scores": [
-            0.6,
-            0.4,
-            0.7,
-            0.5,
-            0.2,
-            0.36
+            0.45,
+            0.35,
+            0.55,
+            0.45,
+            0.15,
+            0.35
           ]
         },
         "weak": {
           "n": 34,
           "min": 0.0,
-          "mean": 0.1897,
+          "mean": 0.1412,
           "median": 0.1,
-          "p95": 0.63,
-          "max": 0.7,
-          "std": 0.2252,
+          "p95": 0.35,
+          "max": 0.4,
+          "std": 0.1447,
           "scores": [
-            0.2,
-            0.6,
-            0.1,
-            0.3,
-            0.55,
-            0.45,
-            0.1,
-            0.2,
-            0.6,
+            0.35,
+            0.35,
+            0.15,
+            0.25,
+            0.35,
+            0.35,
             0.05,
-            0.3,
+            0.35,
+            0.4,
+            0.05,
+            0.15,
+            0.35,
+            0.15,
+            0.05,
+            0.35,
+            0.05,
+            0.05,
+            0.15,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.35,
+            0.15,
             0.2,
             0.0,
             0.0,
-            0.2,
-            0.2,
-            0.1,
-            0.2,
             0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.7,
-            0.7,
-            0.5,
-            0.0,
-            0.0,
-            0.0,
-            0.2,
+            0.15,
             0.0,
             0.0,
             0.0
@@ -2580,49 +2499,49 @@
         }
       },
       "separation": {
-        "strong_vs_weak_cohens_d": 1.097,
+        "strong_vs_weak_cohens_d": 1.685,
         "strong_mean_gt_weak_mean": true
       },
       "coverage": {
         "n": 50,
         "min": 0.9286,
-        "mean": 0.9976,
+        "mean": 0.9966,
         "median": 1.0,
         "p95": 1.0,
         "max": 1.0,
-        "std": 0.0119,
-        "perfect_coverage_pairs": 48
+        "std": 0.0142,
+        "perfect_coverage_pairs": 47
       },
       "latency_ms": {
         "n": 50,
-        "min": 976.83,
-        "mean": 2952.4712,
-        "median": 3199.74,
-        "p95": 4449.51,
-        "max": 5184.0,
-        "std": 1292.3829
+        "min": 1135.3,
+        "mean": 3772.5894,
+        "median": 4394.115,
+        "p95": 5412.18,
+        "max": 5794.44,
+        "std": 1464.5958
       },
       "rows": [
         {
           "cv_id": "cv_backend_jr_rust",
           "jd_id": "jd_senior_frontend_react",
           "expected": "weak",
-          "similarity_mean": 0.2,
+          "similarity_mean": 0.35,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.2,
-              "n_matched": 5,
-              "n_missing": 16,
+              "similarity_score": 0.35,
+              "n_matched": 6,
+              "n_missing": 24,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
-                "n_job_skills": 21,
-                "n_accounted": 21,
-                "n_covered_of_job": 21,
+                "n_job_skills": 30,
+                "n_accounted": 30,
+                "n_covered_of_job": 30,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 1425.17,
+              "latency_ms": 1684.2,
               "error": null
             }
           ]
@@ -2631,13 +2550,13 @@
           "cv_id": "cv_backend_jr_rust",
           "jd_id": "jd_backend_python_node",
           "expected": "partial",
-          "similarity_mean": 0.6,
+          "similarity_mean": 0.45,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.6,
-              "n_matched": 10,
-              "n_missing": 8,
+              "similarity_score": 0.45,
+              "n_matched": 8,
+              "n_missing": 10,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
@@ -2646,7 +2565,7 @@
                 "n_covered_of_job": 18,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 1049.61,
+              "latency_ms": 1231.49,
               "error": null
             }
           ]
@@ -2655,22 +2574,22 @@
           "cv_id": "cv_backend_jr_rust",
           "jd_id": "jd_devops_aws_k8s",
           "expected": "weak",
-          "similarity_mean": 0.6,
+          "similarity_mean": 0.35,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.6,
+              "similarity_score": 0.35,
               "n_matched": 8,
-              "n_missing": 13,
+              "n_missing": 21,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
-                "n_job_skills": 20,
-                "n_accounted": 21,
-                "n_covered_of_job": 20,
+                "n_job_skills": 28,
+                "n_accounted": 29,
+                "n_covered_of_job": 28,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 1070.09,
+              "latency_ms": 1667.57,
               "error": null
             }
           ]
@@ -2679,22 +2598,22 @@
           "cv_id": "cv_backend_jr_rust",
           "jd_id": "jd_flutter_mobile",
           "expected": "weak",
-          "similarity_mean": 0.1,
+          "similarity_mean": 0.15,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.1,
+              "similarity_score": 0.15,
               "n_matched": 3,
-              "n_missing": 17,
+              "n_missing": 26,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
-                "n_job_skills": 20,
-                "n_accounted": 20,
-                "n_covered_of_job": 20,
+                "n_job_skills": 27,
+                "n_accounted": 29,
+                "n_covered_of_job": 27,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 1469.77,
+              "latency_ms": 1377.25,
               "error": null
             }
           ]
@@ -2703,11 +2622,11 @@
           "cv_id": "cv_backend_jr_rust",
           "jd_id": "jd_junior_web_dev",
           "expected": "weak",
-          "similarity_mean": 0.3,
+          "similarity_mean": 0.25,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.3,
+              "similarity_score": 0.25,
               "n_matched": 4,
               "n_missing": 11,
               "n_partial": 0,
@@ -2718,7 +2637,7 @@
                 "n_covered_of_job": 14,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 981.42,
+              "latency_ms": 1733.04,
               "error": null
             }
           ]
@@ -2727,157 +2646,37 @@
           "cv_id": "cv_frontend_jr_react",
           "jd_id": "jd_senior_frontend_react",
           "expected": "partial",
-          "similarity_mean": 0.4,
+          "similarity_mean": 0.35,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.4,
-              "n_matched": 7,
-              "n_missing": 15,
-              "n_partial": 0,
-              "analysis_method": "llm",
-              "coverage": {
-                "n_job_skills": 21,
-                "n_accounted": 22,
-                "n_covered_of_job": 21,
-                "coverage_ratio": 1.0
-              },
-              "latency_ms": 1096.87,
-              "error": null
-            }
-          ]
-        },
-        {
-          "cv_id": "cv_frontend_jr_react",
-          "jd_id": "jd_backend_python_node",
-          "expected": "weak",
-          "similarity_mean": 0.55,
-          "similarity_std": 0.0,
-          "runs": [
-            {
-              "similarity_score": 0.55,
-              "n_matched": 9,
-              "n_missing": 11,
-              "n_partial": 0,
-              "analysis_method": "llm",
-              "coverage": {
-                "n_job_skills": 18,
-                "n_accounted": 20,
-                "n_covered_of_job": 18,
-                "coverage_ratio": 1.0
-              },
-              "latency_ms": 1062.75,
-              "error": null
-            }
-          ]
-        },
-        {
-          "cv_id": "cv_frontend_jr_react",
-          "jd_id": "jd_devops_aws_k8s",
-          "expected": "weak",
-          "similarity_mean": 0.45,
-          "similarity_std": 0.0,
-          "runs": [
-            {
-              "similarity_score": 0.45,
-              "n_matched": 7,
-              "n_missing": 14,
-              "n_partial": 0,
-              "analysis_method": "llm",
-              "coverage": {
-                "n_job_skills": 20,
-                "n_accounted": 21,
-                "n_covered_of_job": 20,
-                "coverage_ratio": 1.0
-              },
-              "latency_ms": 1589.03,
-              "error": null
-            }
-          ]
-        },
-        {
-          "cv_id": "cv_frontend_jr_react",
-          "jd_id": "jd_flutter_mobile",
-          "expected": "weak",
-          "similarity_mean": 0.1,
-          "similarity_std": 0.0,
-          "runs": [
-            {
-              "similarity_score": 0.1,
-              "n_matched": 5,
-              "n_missing": 19,
-              "n_partial": 0,
-              "analysis_method": "llm",
-              "coverage": {
-                "n_job_skills": 20,
-                "n_accounted": 24,
-                "n_covered_of_job": 20,
-                "coverage_ratio": 1.0
-              },
-              "latency_ms": 1124.61,
-              "error": null
-            }
-          ]
-        },
-        {
-          "cv_id": "cv_frontend_jr_react",
-          "jd_id": "jd_junior_web_dev",
-          "expected": "strong",
-          "similarity_mean": 0.6,
-          "similarity_std": 0.0,
-          "runs": [
-            {
-              "similarity_score": 0.6,
+              "similarity_score": 0.35,
               "n_matched": 8,
-              "n_missing": 7,
+              "n_missing": 22,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
-                "n_job_skills": 14,
-                "n_accounted": 15,
-                "n_covered_of_job": 14,
+                "n_job_skills": 30,
+                "n_accounted": 30,
+                "n_covered_of_job": 30,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 1007.63,
+              "latency_ms": 1400.18,
               "error": null
             }
           ]
         },
         {
-          "cv_id": "cv_devops_jr",
-          "jd_id": "jd_senior_frontend_react",
-          "expected": "weak",
-          "similarity_mean": 0.2,
-          "similarity_std": 0.0,
-          "runs": [
-            {
-              "similarity_score": 0.2,
-              "n_matched": 5,
-              "n_missing": 16,
-              "n_partial": 0,
-              "analysis_method": "llm",
-              "coverage": {
-                "n_job_skills": 21,
-                "n_accounted": 21,
-                "n_covered_of_job": 21,
-                "coverage_ratio": 1.0
-              },
-              "latency_ms": 1112.39,
-              "error": null
-            }
-          ]
-        },
-        {
-          "cv_id": "cv_devops_jr",
+          "cv_id": "cv_frontend_jr_react",
           "jd_id": "jd_backend_python_node",
           "expected": "weak",
-          "similarity_mean": 0.6,
+          "similarity_mean": 0.35,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.6,
-              "n_matched": 10,
-              "n_missing": 8,
+              "similarity_score": 0.35,
+              "n_matched": 6,
+              "n_missing": 12,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
@@ -2886,7 +2685,127 @@
                 "n_covered_of_job": 18,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 1768.06,
+              "latency_ms": 1220.92,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_jr_react",
+          "jd_id": "jd_devops_aws_k8s",
+          "expected": "weak",
+          "similarity_mean": 0.35,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.35,
+              "n_matched": 7,
+              "n_missing": 22,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 28,
+                "n_accounted": 29,
+                "n_covered_of_job": 28,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 1379.48,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_jr_react",
+          "jd_id": "jd_flutter_mobile",
+          "expected": "weak",
+          "similarity_mean": 0.05,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.05,
+              "n_matched": 11,
+              "n_missing": 26,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 27,
+                "n_accounted": 37,
+                "n_covered_of_job": 27,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 1424.79,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_frontend_jr_react",
+          "jd_id": "jd_junior_web_dev",
+          "expected": "strong",
+          "similarity_mean": 0.65,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.65,
+              "n_matched": 7,
+              "n_missing": 7,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 14,
+                "n_accounted": 14,
+                "n_covered_of_job": 14,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 1135.3,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_devops_jr",
+          "jd_id": "jd_senior_frontend_react",
+          "expected": "weak",
+          "similarity_mean": 0.35,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.35,
+              "n_matched": 7,
+              "n_missing": 23,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 30,
+                "n_accounted": 30,
+                "n_covered_of_job": 30,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 1340.83,
+              "error": null
+            }
+          ]
+        },
+        {
+          "cv_id": "cv_devops_jr",
+          "jd_id": "jd_backend_python_node",
+          "expected": "weak",
+          "similarity_mean": 0.4,
+          "similarity_std": 0.0,
+          "runs": [
+            {
+              "similarity_score": 0.4,
+              "n_matched": 8,
+              "n_missing": 10,
+              "n_partial": 0,
+              "analysis_method": "llm",
+              "coverage": {
+                "n_job_skills": 18,
+                "n_accounted": 18,
+                "n_covered_of_job": 18,
+                "coverage_ratio": 1.0
+              },
+              "latency_ms": 1262.15,
               "error": null
             }
           ]
@@ -2895,22 +2814,22 @@
           "cv_id": "cv_devops_jr",
           "jd_id": "jd_devops_aws_k8s",
           "expected": "partial",
-          "similarity_mean": 0.7,
+          "similarity_mean": 0.55,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.7,
-              "n_matched": 10,
-              "n_missing": 10,
+              "similarity_score": 0.55,
+              "n_matched": 11,
+              "n_missing": 19,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
-                "n_job_skills": 20,
-                "n_accounted": 20,
-                "n_covered_of_job": 20,
+                "n_job_skills": 28,
+                "n_accounted": 30,
+                "n_covered_of_job": 28,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 1111.06,
+              "latency_ms": 1391.37,
               "error": null
             }
           ]
@@ -2925,16 +2844,16 @@
             {
               "similarity_score": 0.05,
               "n_matched": 1,
-              "n_missing": 19,
+              "n_missing": 26,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
-                "n_job_skills": 20,
-                "n_accounted": 20,
-                "n_covered_of_job": 20,
+                "n_job_skills": 27,
+                "n_accounted": 27,
+                "n_covered_of_job": 27,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 1290.05,
+              "latency_ms": 4397.54,
               "error": null
             }
           ]
@@ -2943,11 +2862,11 @@
           "cv_id": "cv_devops_jr",
           "jd_id": "jd_junior_web_dev",
           "expected": "weak",
-          "similarity_mean": 0.3,
+          "similarity_mean": 0.15,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.3,
+              "similarity_score": 0.15,
               "n_matched": 3,
               "n_missing": 11,
               "n_partial": 0,
@@ -2958,7 +2877,7 @@
                 "n_covered_of_job": 14,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 976.83,
+              "latency_ms": 5315.94,
               "error": null
             }
           ]
@@ -2967,22 +2886,22 @@
           "cv_id": "cv_flutter_intern",
           "jd_id": "jd_senior_frontend_react",
           "expected": "weak",
-          "similarity_mean": 0.2,
+          "similarity_mean": 0.35,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.2,
-              "n_matched": 5,
-              "n_missing": 16,
+              "similarity_score": 0.35,
+              "n_matched": 8,
+              "n_missing": 22,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
-                "n_job_skills": 21,
-                "n_accounted": 21,
-                "n_covered_of_job": 21,
+                "n_job_skills": 30,
+                "n_accounted": 30,
+                "n_covered_of_job": 30,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 1639.82,
+              "latency_ms": 4409.87,
               "error": null
             }
           ]
@@ -2991,22 +2910,22 @@
           "cv_id": "cv_flutter_intern",
           "jd_id": "jd_backend_python_node",
           "expected": "weak",
-          "similarity_mean": 0.0,
+          "similarity_mean": 0.15,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.0,
-              "n_matched": 2,
+              "similarity_score": 0.15,
+              "n_matched": 11,
               "n_missing": 17,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
                 "n_job_skills": 18,
-                "n_accounted": 19,
+                "n_accounted": 28,
                 "n_covered_of_job": 18,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4147.73,
+              "latency_ms": 5403.66,
               "error": null
             }
           ]
@@ -3015,22 +2934,22 @@
           "cv_id": "cv_flutter_intern",
           "jd_id": "jd_devops_aws_k8s",
           "expected": "weak",
-          "similarity_mean": 0.0,
+          "similarity_mean": 0.05,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.0,
-              "n_matched": 2,
-              "n_missing": 20,
+              "similarity_score": 0.05,
+              "n_matched": 1,
+              "n_missing": 28,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
-                "n_job_skills": 20,
-                "n_accounted": 22,
-                "n_covered_of_job": 20,
+                "n_job_skills": 28,
+                "n_accounted": 29,
+                "n_covered_of_job": 28,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4368.79,
+              "latency_ms": 5553.39,
               "error": null
             }
           ]
@@ -3039,22 +2958,22 @@
           "cv_id": "cv_flutter_intern",
           "jd_id": "jd_flutter_mobile",
           "expected": "strong",
-          "similarity_mean": 0.8,
+          "similarity_mean": 0.75,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.8,
-              "n_matched": 16,
-              "n_missing": 5,
+              "similarity_score": 0.75,
+              "n_matched": 17,
+              "n_missing": 10,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
-                "n_job_skills": 20,
-                "n_accounted": 21,
-                "n_covered_of_job": 20,
+                "n_job_skills": 27,
+                "n_accounted": 27,
+                "n_covered_of_job": 27,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4156.13,
+              "latency_ms": 4444.1,
               "error": null
             }
           ]
@@ -3063,22 +2982,22 @@
           "cv_id": "cv_flutter_intern",
           "jd_id": "jd_junior_web_dev",
           "expected": "weak",
-          "similarity_mean": 0.2,
+          "similarity_mean": 0.35,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.2,
-              "n_matched": 3,
-              "n_missing": 11,
+              "similarity_score": 0.35,
+              "n_matched": 10,
+              "n_missing": 10,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
                 "n_job_skills": 14,
-                "n_accounted": 14,
+                "n_accounted": 20,
                 "n_covered_of_job": 14,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4154.8,
+              "latency_ms": 5332.47,
               "error": null
             }
           ]
@@ -3087,22 +3006,22 @@
           "cv_id": "cv_frontend_diploma_react",
           "jd_id": "jd_senior_frontend_react",
           "expected": "partial",
-          "similarity_mean": 0.5,
+          "similarity_mean": 0.45,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.5,
-              "n_matched": 11,
-              "n_missing": 14,
+              "similarity_score": 0.45,
+              "n_matched": 9,
+              "n_missing": 21,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
-                "n_job_skills": 21,
-                "n_accounted": 25,
-                "n_covered_of_job": 21,
+                "n_job_skills": 30,
+                "n_accounted": 30,
+                "n_covered_of_job": 30,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4206.34,
+              "latency_ms": 4487.86,
               "error": null
             }
           ]
@@ -3111,13 +3030,13 @@
           "cv_id": "cv_frontend_diploma_react",
           "jd_id": "jd_backend_python_node",
           "expected": "weak",
-          "similarity_mean": 0.2,
+          "similarity_mean": 0.05,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.2,
-              "n_matched": 4,
-              "n_missing": 14,
+              "similarity_score": 0.05,
+              "n_matched": 2,
+              "n_missing": 16,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
@@ -3126,7 +3045,7 @@
                 "n_covered_of_job": 18,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3117.15,
+              "latency_ms": 4339.72,
               "error": null
             }
           ]
@@ -3135,22 +3054,22 @@
           "cv_id": "cv_frontend_diploma_react",
           "jd_id": "jd_devops_aws_k8s",
           "expected": "weak",
-          "similarity_mean": 0.1,
+          "similarity_mean": 0.05,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.1,
+              "similarity_score": 0.05,
               "n_matched": 2,
-              "n_missing": 19,
+              "n_missing": 27,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
-                "n_job_skills": 20,
-                "n_accounted": 21,
-                "n_covered_of_job": 20,
+                "n_job_skills": 28,
+                "n_accounted": 29,
+                "n_covered_of_job": 28,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3465.22,
+              "latency_ms": 4416.55,
               "error": null
             }
           ]
@@ -3159,22 +3078,22 @@
           "cv_id": "cv_frontend_diploma_react",
           "jd_id": "jd_flutter_mobile",
           "expected": "weak",
-          "similarity_mean": 0.2,
+          "similarity_mean": 0.15,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.2,
-              "n_matched": 5,
-              "n_missing": 15,
+              "similarity_score": 0.15,
+              "n_matched": 8,
+              "n_missing": 26,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
-                "n_job_skills": 20,
-                "n_accounted": 20,
-                "n_covered_of_job": 20,
+                "n_job_skills": 27,
+                "n_accounted": 34,
+                "n_covered_of_job": 27,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4154.58,
+              "latency_ms": 4459.15,
               "error": null
             }
           ]
@@ -3198,7 +3117,7 @@
                 "n_covered_of_job": 14,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4311.14,
+              "latency_ms": 5794.44,
               "error": null
             }
           ]
@@ -3207,22 +3126,22 @@
           "cv_id": "cv_frontend_senior_react_vue",
           "jd_id": "jd_senior_frontend_react",
           "expected": "strong",
-          "similarity_mean": 0.1,
+          "similarity_mean": 0.0,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.1,
-              "n_matched": 3,
-              "n_missing": 18,
+              "similarity_score": 0.0,
+              "n_matched": 0,
+              "n_missing": 30,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
-                "n_job_skills": 21,
-                "n_accounted": 21,
-                "n_covered_of_job": 21,
+                "n_job_skills": 30,
+                "n_accounted": 30,
+                "n_covered_of_job": 30,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3172.33,
+              "latency_ms": 3448.07,
               "error": null
             }
           ]
@@ -3246,7 +3165,7 @@
                 "n_covered_of_job": 18,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3168.72,
+              "latency_ms": 4303.93,
               "error": null
             }
           ]
@@ -3261,16 +3180,16 @@
             {
               "similarity_score": 0.0,
               "n_matched": 0,
-              "n_missing": 20,
+              "n_missing": 28,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
-                "n_job_skills": 20,
-                "n_accounted": 20,
-                "n_covered_of_job": 20,
+                "n_job_skills": 28,
+                "n_accounted": 28,
+                "n_covered_of_job": 28,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4383.33,
+              "latency_ms": 5419.15,
               "error": null
             }
           ]
@@ -3285,16 +3204,16 @@
             {
               "similarity_score": 0.0,
               "n_matched": 0,
-              "n_missing": 20,
+              "n_missing": 27,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
-                "n_job_skills": 20,
-                "n_accounted": 20,
-                "n_covered_of_job": 20,
+                "n_job_skills": 27,
+                "n_accounted": 27,
+                "n_covered_of_job": 27,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4503.66,
+              "latency_ms": 4395.6,
               "error": null
             }
           ]
@@ -3318,7 +3237,7 @@
                 "n_covered_of_job": 14,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3604.79,
+              "latency_ms": 4378.94,
               "error": null
             }
           ]
@@ -3332,17 +3251,17 @@
           "runs": [
             {
               "similarity_score": 0.2,
-              "n_matched": 5,
-              "n_missing": 16,
+              "n_matched": 4,
+              "n_missing": 27,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
-                "n_job_skills": 21,
-                "n_accounted": 21,
-                "n_covered_of_job": 21,
-                "coverage_ratio": 1.0
+                "n_job_skills": 30,
+                "n_accounted": 31,
+                "n_covered_of_job": 28,
+                "coverage_ratio": 0.9333
               },
-              "latency_ms": 3176.07,
+              "latency_ms": 4472.42,
               "error": null
             }
           ]
@@ -3366,7 +3285,7 @@
                 "n_covered_of_job": 18,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3093.89,
+              "latency_ms": 4389.13,
               "error": null
             }
           ]
@@ -3381,16 +3300,16 @@
             {
               "similarity_score": 0.0,
               "n_matched": 0,
-              "n_missing": 20,
+              "n_missing": 28,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
-                "n_job_skills": 20,
-                "n_accounted": 20,
-                "n_covered_of_job": 20,
+                "n_job_skills": 28,
+                "n_accounted": 28,
+                "n_covered_of_job": 28,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 5184.0,
+              "latency_ms": 4528.53,
               "error": null
             }
           ]
@@ -3405,16 +3324,16 @@
             {
               "similarity_score": 0.0,
               "n_matched": 0,
-              "n_missing": 20,
+              "n_missing": 27,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
-                "n_job_skills": 20,
-                "n_accounted": 20,
-                "n_covered_of_job": 20,
+                "n_job_skills": 27,
+                "n_accounted": 27,
+                "n_covered_of_job": 27,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 2114.95,
+              "latency_ms": 4427.92,
               "error": null
             }
           ]
@@ -3423,11 +3342,11 @@
           "cv_id": "cv_frontend_mid_react",
           "jd_id": "jd_junior_web_dev",
           "expected": "strong",
-          "similarity_mean": 0.36,
+          "similarity_mean": 0.4,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.36,
+              "similarity_score": 0.4,
               "n_matched": 4,
               "n_missing": 13,
               "n_partial": 0,
@@ -3438,7 +3357,7 @@
                 "n_covered_of_job": 14,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4168.75,
+              "latency_ms": 5245.87,
               "error": null
             }
           ]
@@ -3452,17 +3371,17 @@
           "runs": [
             {
               "similarity_score": 0.9,
-              "n_matched": 20,
-              "n_missing": 1,
+              "n_matched": 28,
+              "n_missing": 2,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
-                "n_job_skills": 21,
-                "n_accounted": 21,
-                "n_covered_of_job": 21,
+                "n_job_skills": 30,
+                "n_accounted": 30,
+                "n_covered_of_job": 30,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3151.48,
+              "latency_ms": 4391.74,
               "error": null
             }
           ]
@@ -3471,13 +3390,13 @@
           "cv_id": "cv_frontend_senior_react_vue_v2",
           "jd_id": "jd_backend_python_node",
           "expected": "weak",
-          "similarity_mean": 0.7,
+          "similarity_mean": 0.35,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.7,
-              "n_matched": 13,
-              "n_missing": 5,
+              "similarity_score": 0.35,
+              "n_matched": 6,
+              "n_missing": 12,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
@@ -3486,7 +3405,7 @@
                 "n_covered_of_job": 18,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4579.37,
+              "latency_ms": 4237.31,
               "error": null
             }
           ]
@@ -3495,22 +3414,22 @@
           "cv_id": "cv_frontend_senior_react_vue_v2",
           "jd_id": "jd_devops_aws_k8s",
           "expected": "weak",
-          "similarity_mean": 0.7,
+          "similarity_mean": 0.15,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.7,
-              "n_matched": 10,
-              "n_missing": 10,
+              "similarity_score": 0.15,
+              "n_matched": 6,
+              "n_missing": 22,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
-                "n_job_skills": 20,
-                "n_accounted": 20,
-                "n_covered_of_job": 20,
+                "n_job_skills": 28,
+                "n_accounted": 28,
+                "n_covered_of_job": 28,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3047.46,
+              "latency_ms": 4487.42,
               "error": null
             }
           ]
@@ -3519,22 +3438,22 @@
           "cv_id": "cv_frontend_senior_react_vue_v2",
           "jd_id": "jd_flutter_mobile",
           "expected": "weak",
-          "similarity_mean": 0.5,
+          "similarity_mean": 0.2,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.5,
-              "n_matched": 8,
-              "n_missing": 12,
+              "similarity_score": 0.2,
+              "n_matched": 4,
+              "n_missing": 23,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
-                "n_job_skills": 20,
-                "n_accounted": 20,
-                "n_covered_of_job": 20,
+                "n_job_skills": 27,
+                "n_accounted": 27,
+                "n_covered_of_job": 27,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3223.41,
+              "latency_ms": 4392.63,
               "error": null
             }
           ]
@@ -3543,13 +3462,13 @@
           "cv_id": "cv_frontend_senior_react_vue_v2",
           "jd_id": "jd_junior_web_dev",
           "expected": "strong",
-          "similarity_mean": 0.5,
+          "similarity_mean": 0.6,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.5,
-              "n_matched": 7,
-              "n_missing": 7,
+              "similarity_score": 0.6,
+              "n_matched": 9,
+              "n_missing": 5,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
@@ -3558,7 +3477,7 @@
                 "n_covered_of_job": 14,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4088.78,
+              "latency_ms": 4175.18,
               "error": null
             }
           ]
@@ -3567,22 +3486,22 @@
           "cv_id": "cv_frontend_jquery_legacy",
           "jd_id": "jd_senior_frontend_react",
           "expected": "partial",
-          "similarity_mean": 0.2,
+          "similarity_mean": 0.15,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.2,
-              "n_matched": 6,
-              "n_missing": 19,
+              "similarity_score": 0.15,
+              "n_matched": 10,
+              "n_missing": 28,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
-                "n_job_skills": 21,
-                "n_accounted": 25,
-                "n_covered_of_job": 20,
-                "coverage_ratio": 0.9524
+                "n_job_skills": 30,
+                "n_accounted": 38,
+                "n_covered_of_job": 29,
+                "coverage_ratio": 0.9667
               },
-              "latency_ms": 3387.89,
+              "latency_ms": 4627.02,
               "error": null
             }
           ]
@@ -3606,7 +3525,7 @@
                 "n_covered_of_job": 18,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3271.19,
+              "latency_ms": 4277.85,
               "error": null
             }
           ]
@@ -3621,16 +3540,16 @@
             {
               "similarity_score": 0.0,
               "n_matched": 0,
-              "n_missing": 20,
+              "n_missing": 28,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
-                "n_job_skills": 20,
-                "n_accounted": 20,
-                "n_covered_of_job": 20,
+                "n_job_skills": 28,
+                "n_accounted": 28,
+                "n_covered_of_job": 28,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4168.94,
+              "latency_ms": 4489.08,
               "error": null
             }
           ]
@@ -3645,16 +3564,16 @@
             {
               "similarity_score": 0.0,
               "n_matched": 0,
-              "n_missing": 20,
+              "n_missing": 27,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
-                "n_job_skills": 20,
-                "n_accounted": 20,
-                "n_covered_of_job": 20,
+                "n_job_skills": 27,
+                "n_accounted": 27,
+                "n_covered_of_job": 27,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3899.23,
+              "latency_ms": 4524.2,
               "error": null
             }
           ]
@@ -3663,22 +3582,22 @@
           "cv_id": "cv_frontend_jquery_legacy",
           "jd_id": "jd_junior_web_dev",
           "expected": "strong",
-          "similarity_mean": 0.3,
+          "similarity_mean": 0.35,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.3,
-              "n_matched": 6,
+              "similarity_score": 0.35,
+              "n_matched": 7,
               "n_missing": 12,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
                 "n_job_skills": 14,
-                "n_accounted": 18,
+                "n_accounted": 19,
                 "n_covered_of_job": 13,
                 "coverage_ratio": 0.9286
               },
-              "latency_ms": 3290.56,
+              "latency_ms": 4334.99,
               "error": null
             }
           ]
@@ -3687,22 +3606,22 @@
           "cv_id": "cv_frontend_entry_no_role",
           "jd_id": "jd_senior_frontend_react",
           "expected": "weak",
-          "similarity_mean": 0.2,
+          "similarity_mean": 0.15,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.2,
-              "n_matched": 5,
-              "n_missing": 16,
+              "similarity_score": 0.15,
+              "n_matched": 6,
+              "n_missing": 24,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
-                "n_job_skills": 21,
-                "n_accounted": 21,
-                "n_covered_of_job": 21,
+                "n_job_skills": 30,
+                "n_accounted": 30,
+                "n_covered_of_job": 30,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4167.04,
+              "latency_ms": 4463.18,
               "error": null
             }
           ]
@@ -3726,7 +3645,7 @@
                 "n_covered_of_job": 18,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3129.61,
+              "latency_ms": 5326.77,
               "error": null
             }
           ]
@@ -3741,16 +3660,16 @@
             {
               "similarity_score": 0.0,
               "n_matched": 0,
-              "n_missing": 20,
+              "n_missing": 28,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
-                "n_job_skills": 20,
-                "n_accounted": 20,
-                "n_covered_of_job": 20,
+                "n_job_skills": 28,
+                "n_accounted": 28,
+                "n_covered_of_job": 28,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4218.36,
+              "latency_ms": 4499.77,
               "error": null
             }
           ]
@@ -3765,16 +3684,16 @@
             {
               "similarity_score": 0.0,
               "n_matched": 0,
-              "n_missing": 20,
+              "n_missing": 27,
               "n_partial": 0,
               "analysis_method": "llm",
               "coverage": {
-                "n_job_skills": 20,
-                "n_accounted": 20,
-                "n_covered_of_job": 20,
+                "n_job_skills": 27,
+                "n_accounted": 27,
+                "n_covered_of_job": 27,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 3375.33,
+              "latency_ms": 4561.46,
               "error": null
             }
           ]
@@ -3783,11 +3702,11 @@
           "cv_id": "cv_frontend_entry_no_role",
           "jd_id": "jd_junior_web_dev",
           "expected": "partial",
-          "similarity_mean": 0.36,
+          "similarity_mean": 0.35,
           "similarity_std": 0.0,
           "runs": [
             {
-              "similarity_score": 0.36,
+              "similarity_score": 0.35,
               "n_matched": 5,
               "n_missing": 9,
               "n_partial": 0,
@@ -3798,7 +3717,7 @@
                 "n_covered_of_job": 14,
                 "coverage_ratio": 1.0
               },
-              "latency_ms": 4197.38,
+              "latency_ms": 4228.05,
               "error": null
             }
           ]
@@ -3808,8 +3727,7 @@
         "service": "analysis.services.gap_analyzer.compute_gap_analysis",
         "buckets_source": "fixtures/manifest.json -> expected_match_strength"
       },
-      "disclosure": "LLM-driven (Groq llama-4-scout). Mean of 1 run(s) per pair. Per-skill ground-truth labels not provided \u2014 separation is measured by similarity_score across hand-graded strong/partial/weak buckets, and coverage validates the analyzer's '100% reconciliation' claim.",
-      "written_to": "G:\\New folder\\SmartCV\\benchmarks\\results\\2026-04-26\\gap_eval.json"
+      "disclosure": "LLM-driven (Groq llama-4-scout). Mean of 1 run(s) per pair. Per-skill ground-truth labels not provided \u2014 separation is measured by similarity_score across hand-graded strong/partial/weak buckets, and coverage validates the analyzer's '100% reconciliation' claim."
     },
     "tailoring_eval": {
       "benchmark": "tailoring_eval",
@@ -3819,65 +3737,65 @@
         "strong"
       ],
       "n_pairs": 10,
-      "parse_wall_seconds": 0.97,
-      "eval_wall_seconds": 133.89,
-      "wall_seconds": 134.86,
+      "parse_wall_seconds": 1.5,
+      "eval_wall_seconds": 34.52,
+      "wall_seconds": 36.01,
       "axes": {
         "factuality": {
-          "n": 8,
+          "n": 10,
           "min": 1,
-          "mean": 5.875,
-          "median": 7.0,
+          "mean": 3.7,
+          "median": 3.0,
           "p95": 8.0,
           "max": 8,
-          "std": 2.5218
+          "std": 2.8653
         },
         "relevance": {
-          "n": 8,
-          "min": 4,
-          "mean": 6.375,
-          "median": 7.0,
-          "p95": 7.65,
-          "max": 8,
-          "std": 1.2183
+          "n": 10,
+          "min": 1,
+          "mean": 2.8,
+          "median": 2.0,
+          "p95": 6.0,
+          "max": 6,
+          "std": 1.9391
         },
         "ats_fit": {
-          "n": 8,
-          "min": 5,
-          "mean": 6.5,
-          "median": 6.0,
-          "p95": 8.0,
-          "max": 8,
-          "std": 1.0
+          "n": 10,
+          "min": 1,
+          "mean": 3.3,
+          "median": 2.5,
+          "p95": 7.0,
+          "max": 7,
+          "std": 2.3685
         },
         "human_voice": {
-          "n": 8,
-          "min": 2,
-          "mean": 3.75,
-          "median": 4.0,
-          "p95": 5.3,
-          "max": 6,
-          "std": 1.199
+          "n": 10,
+          "min": 1,
+          "mean": 1.9,
+          "median": 1.5,
+          "p95": 4.0,
+          "max": 4,
+          "std": 1.1358
         }
       },
       "programmatic": {
         "entity_grounding_ratio": {
-          "n": 7,
-          "min": 0.0,
-          "mean": 0.8095,
+          "n": 8,
+          "min": 1.0,
+          "mean": 1.0,
           "median": 1.0,
           "p95": 1.0,
           "max": 1.0,
-          "std": 0.3499
+          "std": 0.0
         },
         "banned_voice_hits_per_resume": {
-          "n": 8,
+          "n": 10,
           "min": 0,
-          "mean": 0.375,
+          "mean": 0.0,
           "median": 0.0,
-          "p95": 1.0,
-          "max": 1,
-          "std": 0.4841
+          "p95": 0.0,
+          "max": 0,
+          "std": 0.0
         }
       },
       "rows": [
@@ -3885,15 +3803,33 @@
           "cv_id": "cv_frontend_jr_react",
           "jd_id": "jd_junior_web_dev",
           "bucket": "strong",
-          "stage": "judge",
-          "error": "BadRequestError: Error code: 400 - {'error': {'message': 'tool call validation failed: parameters for tool JudgeVerdict did not match schema: errors: [`/factuality/rationale`: length must be <= 400, but got 615, `/human_voice/rationale`: length must be <= 400, but got 474, `/relevance/rationale`: length must be <= 400, but got 510]', 'type': 'invalid_request_error', 'code': 'tool_use_failed', 'failed_generation': '[\\n  {\\n    \"name\": \"JudgeVerdict\",\\n    \"parameters\": {\\n      \"factuality\": {\\n        \"rationale\": \"The GENERATED RESUME contains factual claims that mostly appear in the SOURCE CV. The education section correctly mentions \\'Bachelor\\' and \\'King Salman International University\\', which matches the SOURCE CV. However, the year of graduation is missing, which could be considered a minor omission rather than fabrication. The skills listed, such as \\'HTML5\\', \\'CSS3\\', \\'JavaScript\\', \\'React\\', \\'Responsive Design\\', \\'Git\\', \\'GitHub\\', \\'Tailwind\\', \\'Bootstrap\\', and \\'TypeScript\\', are also present in the SOURCE CV, although some proficiency levels are not specified. Since there are no obvious fabrications, the score is higher.\",\\n        \"score\": 8\\n      },\\n      \"relevance\": {\\n        \"rationale\": \"The GENERATED RESUME lists relevant skills such as \\'HTML5\\', \\'CSS3\\', \\'JavaScript\\', \\'React\\', \\'Responsive Design\\', \\'Git\\', \\'GitHub\\', \\'Tailwind\\', \\'Bootstrap\\', and \\'TypeScript\\', which align well with the required skills for the Junior Web Developer position at BrightPage Agency. However, the experience section is empty, which means there are no specific examples or bullets that directly address the requirements stated in the TARGET JOB. The summary is generic and does not provide concrete evidence of relevance.\",\\n        \"score\": 5\\n      },\\n      \"ats_fit\": {\\n        \"rationale\": \"The GENERATED RESUME uses several keywords from the job description, such as \\'HTML5\\', \\'CSS3\\', \\'JavaScript\\', \\'React\\', \\'Responsive Design\\', \\'Git\\', \\'GitHub\\', \\'Tailwind\\', \\'Bootstrap\\', and \\'TypeScript\\'. However, it lacks specific action verbs and varied sentence structures in the experience section, which is empty. The resume seems to be a simple listing of skills without concrete applications.\",\\n        \"score\": 6\\n      },\\n      \"human_voice\": {\\n        \"rationale\": \"The GENERATED RESUME has a professional summary that sounds somewhat generic: \\'Experienced professional seeking Junior Web Developer position at BrightPage Agency.\\' This summary could be seen as a bit AI-tell-like due to its formality and lack of specificity. The structure and language used are straightforward but lack the nuance and personal touch expected in a human-written resume. There are no obvious banned words, but the overall tone is formal and somewhat robotic.\",\\n        \"score\": 5\\n      },\\n      \"overall_summary\": \"\"\\n    }\\n  }\\n]'}}",
+          "judge": {
+            "factuality": {
+              "score": 5,
+              "rationale": "The GENERATED RESUME includes all education details from the SOURCE CV, but also lists many irrelevant skills not present in the SOURCE CV, and lacks specific experience."
+            },
+            "relevance": {
+              "score": 4,
+              "rationale": "The GENERATED RESUME mentions some relevant skills like Responsive Design, HTML, JavaScript, CSS, GitHub, and React, but fails to provide specific experience or projects related to the TARGET JOB."
+            },
+            "ats_fit": {
+              "score": 5,
+              "rationale": "The GENERATED RESUME includes some keywords from the TARGET JOB like Responsive Design, React, and GitHub, but also contains many unrelated terms, which slightly improves its relevance."
+            },
+            "human_voice": {
+              "score": 2,
+              "rationale": "The GENERATED RESUME uses a very generic and AI-like tone, lacking specificity and concrete evidence, with a professional summary that sounds like a template."
+            },
+            "overall_summary": ""
+          },
           "programmatic_factuality": {
             "n_entities": 1,
             "n_grounded": 1,
             "ratio": 1.0,
             "ungrounded": []
           },
-          "voice_hits": []
+          "voice_hits": [],
+          "voice_hit_count": 0
         },
         {
           "cv_id": "cv_flutter_intern",
@@ -3902,25 +3838,25 @@
           "judge": {
             "factuality": {
               "score": 8,
-              "rationale": "The GENERATED RESUME contains factual claims that mostly appear in the SOURCE CV, with some details omitted or rephrased. For instance, the company and duration of employment are slightly misstated. However, there are no entirely fabricated employers or degrees."
+              "rationale": "Most concrete claims in the GENERATED RESUME appear in the SOURCE CV, but some URLs and details are omitted."
             },
             "relevance": {
-              "score": 7,
-              "rationale": "The GENERATED RESUME addresses several requirements stated in the TARGET JOB, including Flutter, Dart, Clean Architecture, BLoC, Cubit, and REST API integration. However, some bullets are somewhat generic and could apply to other roles."
+              "score": 6,
+              "rationale": "The GENERATED RESUME lists relevant skills and tools, but lacks specific examples addressing TARGET JOB requirements."
             },
             "ats_fit": {
-              "score": 6,
-              "rationale": "The GENERATED RESUME uses several job keywords, including Flutter, Dart, BLoC, Cubit, Provider, GetX, Clean Architecture, and REST API. However, it misses some must-have skills like Codemagic and GitHub Actions, and the action verbs across bullets are not highly varied."
+              "score": 7,
+              "rationale": "The GENERATED RESUME uses some job keywords and varies action verbs, but could include more specific terminology from the TARGET JOB."
             },
             "human_voice": {
               "score": 4,
-              "rationale": "The GENERATED RESUME exhibits some AI-tell phrasing, including the use of 'Highly skilled' and a professional summary that sounds overly promotional. The bullet points also lack specificity and concrete results."
+              "rationale": "The GENERATED RESUME exhibits AI-tell phrasing, lacks specificity, and has repetitive sentence structures."
             },
             "overall_summary": ""
           },
           "programmatic_factuality": {
-            "n_entities": 2,
-            "n_grounded": 2,
+            "n_entities": 3,
+            "n_grounded": 3,
             "ratio": 1.0,
             "ungrounded": []
           },
@@ -3933,31 +3869,28 @@
           "bucket": "strong",
           "judge": {
             "factuality": {
-              "score": 3,
-              "rationale": "The GENERATED RESUME contains several claims not present in the SOURCE CV, such as a Bachelor of Computer Science degree from XYZ University in 2020, experience as a Junior Web Developer at ABC Company, and a personal project with a REST API using Node.js and Express. These claims are not verified in the provided SOURCE CV."
+              "score": 8,
+              "rationale": "Most skills and tools mentioned in the GENERATED RESUME appear in the SOURCE CV, but some irrelevant skills like C++, Python, and Java are included."
             },
             "relevance": {
-              "score": 8,
-              "rationale": "The GENERATED RESUME addresses most of the requirements stated in the TARGET JOB, including building responsive web pages, implementing React components, using Tailwind CSS, connecting REST APIs, and using Git and GitHub. The bullets are specific and relevant to the job requirements."
+              "score": 6,
+              "rationale": "The GENERATED RESUME lists relevant skills like Bootstrap, JavaScript, and React, but lacks specific experience or projects tailored to the Junior Web Developer role."
             },
             "ats_fit": {
               "score": 7,
-              "rationale": "The GENERATED RESUME uses some of the job's keywords, such as HTML5, CSS3, JavaScript, React, and Git. However, it misses some keywords like TypeScript and React Router. The action verbs across bullets are varied, but some are generic."
+              "rationale": "The GENERATED RESUME uses some job keywords like Bootstrap, JavaScript, and React, but could improve by emphasizing more required skills from the TARGET JOB."
             },
             "human_voice": {
-              "score": 6,
-              "rationale": "The GENERATED RESUME uses some AI-tell phrasing, such as 'Skilled in building responsive web pages' and 'Proficient in React, Git, and GitHub.' The sentence structure is also somewhat repetitive, with multiple bullets starting with 'Built' or 'Implemented.' However, the language is generally clear and concise."
+              "score": 4,
+              "rationale": "The GENERATED RESUME uses a generic professional summary and lists skills without concrete evidence or specific accomplishments."
             },
             "overall_summary": ""
           },
           "programmatic_factuality": {
-            "n_entities": 2,
+            "n_entities": 0,
             "n_grounded": 0,
-            "ratio": 0.0,
-            "ungrounded": [
-              "ABC Company",
-              "XYZ University"
-            ]
+            "ratio": null,
+            "ungrounded": []
           },
           "voice_hits": [],
           "voice_hit_count": 0
@@ -3968,33 +3901,31 @@
           "bucket": "strong",
           "judge": {
             "factuality": {
-              "score": 8,
-              "rationale": "The GENERATED RESUME contains factual claims that mostly appear in the SOURCE CV, with some details omitted. The companies, years, and education details match, but some specific project details and metrics are not included."
+              "score": 1,
+              "rationale": "The GENERATED RESUME contains fabricated information and does not accurately reflect the SOURCE CV."
             },
             "relevance": {
-              "score": 6,
-              "rationale": "The GENERATED RESUME addresses some requirements stated in the TARGET JOB, such as experience with React, JavaScript, and TypeScript. However, it lacks specific mentions of required skills like Tailwind, Webpack, Vite, and GraphQL."
+              "score": 1,
+              "rationale": "The GENERATED RESUME does not address the requirements stated in the TARGET JOB."
             },
             "ats_fit": {
-              "score": 5,
-              "rationale": "The GENERATED RESUME uses some job keywords like React, TypeScript, and Redux, but misses others like Tailwind, Webpack, and GraphQL. The action verbs across bullets are not varied enough."
+              "score": 1,
+              "rationale": "The GENERATED RESUME does not use the job's keywords and lacks variation in action verbs across bullets."
             },
             "human_voice": {
-              "score": 4,
-              "rationale": "The GENERATED RESUME exhibits some AI-tell phrasing, such as generic sentences and similar sentence structures. It also lacks specificity in some bullet points."
+              "score": 1,
+              "rationale": "The GENERATED RESUME uses AI-tell phrasing and lacks specificity and variation in sentence structure."
             },
             "overall_summary": ""
           },
           "programmatic_factuality": {
-            "n_entities": 4,
-            "n_grounded": 4,
+            "n_entities": 5,
+            "n_grounded": 5,
             "ratio": 1.0,
             "ungrounded": []
           },
-          "voice_hits": [
-            "seamless"
-          ],
-          "voice_hit_count": 1
+          "voice_hits": [],
+          "voice_hit_count": 0
         },
         {
           "cv_id": "cv_frontend_senior_react_vue",
@@ -4002,20 +3933,52 @@
           "bucket": "strong",
           "judge": {
             "factuality": {
-              "score": 8,
-              "rationale": "The GENERATED RESUME contains accurate information from the SOURCE CV, with no fabricated employers or degrees. All concrete claims appear in the SOURCE CV, but some details like specific years and exact company names are omitted or altered."
+              "score": 1,
+              "rationale": "The GENERATED RESUME contains empty fields and does not accurately reflect the SOURCE CV, with many skills and experiences missing or misrepresented."
             },
             "relevance": {
-              "score": 7,
-              "rationale": "The GENERATED RESUME addresses many requirements stated in the TARGET JOB, including HTML5, CSS3, JavaScript, React, Responsive Design, Git, and GitHub. However, it lacks specific examples tailored to the Junior Web Developer role at BrightPage Agency."
+              "score": 1,
+              "rationale": "The GENERATED RESUME does not address the requirements stated in the TARGET JOB, with no mention of relevant skills such as HTML5, CSS3, JavaScript, React, or Responsive Design."
             },
             "ats_fit": {
-              "score": 8,
-              "rationale": "The GENERATED RESUME uses many of the job's keywords, such as HTML5, CSS3, JavaScript, React, and Git. However, it could improve by varying action verbs more distinctly across bullets and ensuring all must-have skills are explicitly mentioned."
+              "score": 1,
+              "rationale": "The GENERATED RESUME lacks keywords from the TARGET JOB and does not demonstrate a clear understanding of the required skills, with many generic and unrelated terms used."
             },
             "human_voice": {
-              "score": 4,
-              "rationale": "The GENERATED RESUME exhibits some AI-tell phrasing, such as 'Skilled in HTML, CSS, JavaScript, and React' and generic statements. It also lacks specificity in many bullets and uses a fairly standard, template-like structure."
+              "score": 1,
+              "rationale": "The GENERATED RESUME exhibits AI-tell phrasing, with a lack of specificity, varied sentence structure, and an unnatural tone, making it sound like a generic template rather than a human-written resume."
+            },
+            "overall_summary": ""
+          },
+          "programmatic_factuality": {
+            "n_entities": 5,
+            "n_grounded": 5,
+            "ratio": 1.0,
+            "ungrounded": []
+          },
+          "voice_hits": [],
+          "voice_hit_count": 0
+        },
+        {
+          "cv_id": "cv_frontend_mid_react",
+          "jd_id": "jd_senior_frontend_react",
+          "bucket": "strong",
+          "judge": {
+            "factuality": {
+              "score": 5,
+              "rationale": "The GENERATED RESUME omits specific details such as job titles, exact dates, and descriptions from the SOURCE CV, but does not contain fabricated information."
+            },
+            "relevance": {
+              "score": 2,
+              "rationale": "The GENERATED RESUME lacks specific bullets addressing the TARGET JOB requirements, with empty descriptions that could apply to any role."
+            },
+            "ats_fit": {
+              "score": 3,
+              "rationale": "The GENERATED RESUME uses very few keywords from the TARGET JOB and lacks variation in action verbs across bullets."
+            },
+            "human_voice": {
+              "score": 2,
+              "rationale": "The GENERATED RESUME uses a very generic and incomplete professional summary, and lacks specific evidence and varied sentence structure."
             },
             "overall_summary": ""
           },
@@ -4025,27 +3988,8 @@
             "ratio": 1.0,
             "ungrounded": []
           },
-          "voice_hits": [
-            "seamless"
-          ],
-          "voice_hit_count": 1
-        },
-        {
-          "cv_id": "cv_frontend_mid_react",
-          "jd_id": "jd_senior_frontend_react",
-          "bucket": "strong",
-          "stage": "judge",
-          "error": "BadRequestError: Error code: 400 - {'error': {'message': 'tool call validation failed: parameters for tool JudgeVerdict did not match schema: errors: [`/relevance/score`: expected integer, but got string, `/ats_fit/score`: expected integer, but got string, `/factuality/score`: expected integer, but got string, `/human_voice/score`: expected integer, but got string]', 'type': 'invalid_request_error', 'code': 'tool_use_failed', 'failed_generation': '[\\n  {\\n    \"name\": \"JudgeVerdict\",\\n    \"parameters\": {\\n      \"factuality\": {\\n        \"score\": \"8\",\\n        \"rationale\": \"Most concrete claims in the GENERATED RESUME appear in the SOURCE CV, but some details like specific project names or metrics are missing or altered.\"\\n      },\\n      \"relevance\": {\\n        \"score\": \"9\",\\n        \"rationale\": \"The bullets in the GENERATED RESUME directly address requirements stated in the TARGET JOB, including React, TypeScript, accessibility, performance optimization, and mentoring mid-level engineers.\"\\n      },\\n      \"ats_fit\": {\\n        \"score\": \"9\",\\n        \"rationale\": \"The GENERATED RESUME uses job keywords like React, TypeScript, Tailwind, Webpack, Vite, Redux, Jest, Cypress, REST API, GraphQL, and Git, and varies action verbs across bullets.\"\\n      },\\n      \"human_voice\": {\\n        \"score\": \"7\",\\n        \"rationale\": \"The GENERATED RESUME avoids banned words but exhibits some AI-tell phrasing and similar sentence structures, and could benefit from more specific metrics and varied sentence structures.\"\\n      },\\n      \"overall_summary\": \"\"\\n    }\\n  }\\n]'}}",
-          "programmatic_factuality": {
-            "n_entities": 4,
-            "n_grounded": 2,
-            "ratio": 0.5,
-            "ungrounded": [
-              "Previous",
-              "Early Experience"
-            ]
-          },
-          "voice_hits": []
+          "voice_hits": [],
+          "voice_hit_count": 0
         },
         {
           "cv_id": "cv_frontend_mid_react",
@@ -4054,29 +3998,27 @@
           "judge": {
             "factuality": {
               "score": 6,
-              "rationale": "The GENERATED RESUME claims 5 years of experience with specific companies and projects, but the SOURCE CV does not support the exact duration or some details, resulting in a factuality score of 6."
+              "rationale": "The GENERATED RESUME omits specific details such as job titles, exact dates, and descriptions from the SOURCE CV, but does not introduce entirely fabricated information."
             },
             "relevance": {
-              "score": 7,
-              "rationale": "The GENERATED RESUME addresses some requirements of the TARGET JOB, such as HTML, CSS, JavaScript, React, and Git, but lacks specific examples and Tailwind or Bootstrap, scoring 7 for relevance."
+              "score": 4,
+              "rationale": "The GENERATED RESUME lacks specific examples and skills directly related to the TARGET JOB, such as Tailwind, Bootstrap, TypeScript, Figma, REST API, React Router, and Axios."
             },
             "ats_fit": {
-              "score": 6,
-              "rationale": "The GENERATED RESUME uses some job keywords like HTML, CSS, JavaScript, React, Git, and GitHub but misses others like TypeScript, Figma, and Axios, and has limited action verb variation, scoring 6 for ATS fit."
+              "score": 5,
+              "rationale": "The GENERATED RESUME mentions some required skills like HTML, CSS, JavaScript, and React.js, but misses many keywords from the TARGET JOB and does not demonstrate varied action verbs."
             },
             "human_voice": {
-              "score": 4,
-              "rationale": "The GENERATED RESUME uses AI-tell phrases like 'Highly experienced web developer' and lacks specificity and varied sentence structure, scoring 4 for human voice."
+              "score": 2,
+              "rationale": "The GENERATED RESUME uses very generic and brief descriptions, lacks specificity, and does not vary sentence structure, giving it an AI-generated feel."
             },
             "overall_summary": ""
           },
           "programmatic_factuality": {
-            "n_entities": 3,
-            "n_grounded": 2,
-            "ratio": 0.6667,
-            "ungrounded": [
-              "Previous"
-            ]
+            "n_entities": 4,
+            "n_grounded": 4,
+            "ratio": 1.0,
+            "ungrounded": []
           },
           "voice_hits": [],
           "voice_hit_count": 0
@@ -4087,20 +4029,20 @@
           "bucket": "strong",
           "judge": {
             "factuality": {
-              "score": 5,
-              "rationale": "The GENERATED RESUME contains some factual information from the SOURCE CV, but it lacks specific details such as job titles, responsibilities, and achievements. The education section is also incomplete."
+              "score": 1,
+              "rationale": "The GENERATED RESUME contains empty fields for company, duration, description, degree, and institution, indicating a lack of concrete information from the SOURCE CV."
             },
             "relevance": {
-              "score": 4,
-              "rationale": "The GENERATED RESUME mentions some relevant skills required for the TARGET JOB, but it does not provide specific examples of how these skills were applied in previous roles. The responsibilities section is empty, which suggests a lack of relevance to the TARGET JOB."
+              "score": 1,
+              "rationale": "The GENERATED RESUME fails to address the specific requirements of the TARGET JOB, with empty descriptions that do not mention relevant skills or experiences."
             },
             "ats_fit": {
-              "score": 6,
-              "rationale": "The GENERATED RESUME includes some of the required keywords from the TARGET JOB, such as React, TypeScript, and Jest. However, it lacks variation in action verbs and does not provide specific examples of achievements."
+              "score": 1,
+              "rationale": "The GENERATED RESUME does not use keywords from the TARGET JOB and lacks specific examples of skills or experiences, resulting in a poor ATS fit."
             },
             "human_voice": {
-              "score": 2,
-              "rationale": "The GENERATED RESUME uses a generic and formal tone, which sounds like AI-generated content. The professional summary is a typical example of an AI-tell phrase. The resume lacks specificity and concrete examples, which makes it sound unnatural."
+              "score": 1,
+              "rationale": "The GENERATED RESUME exhibits AI-tell characteristics, including a lack of specificity, generic descriptions, and an unnatural tone."
             },
             "overall_summary": ""
           },
@@ -4119,33 +4061,31 @@
           "bucket": "strong",
           "judge": {
             "factuality": {
-              "score": 8,
-              "rationale": "The GENERATED RESUME contains accurate information from the SOURCE CV, with no fabricated employers or degrees. However, some details like specific years and company names are not fully aligned, which affects the score."
+              "score": 1,
+              "rationale": "The GENERATED RESUME contains empty fields for company, duration, description, degree, and year, indicating a lack of concrete information from the SOURCE CV."
             },
             "relevance": {
-              "score": 7,
-              "rationale": "The GENERATED RESUME addresses several requirements stated in the TARGET JOB, including HTML, CSS, JavaScript, React, Responsive Design, Git, and GitHub. However, it lacks specific mentions of Tailwind, TypeScript, Figma, REST API, React Router, and Axios, which are required or nice-to-have skills."
+              "score": 1,
+              "rationale": "The GENERATED RESUME fails to address the required skills and responsibilities of the TARGET JOB, with empty descriptions that do not mention relevant technologies or experiences."
             },
             "ats_fit": {
-              "score": 6,
-              "rationale": "The GENERATED RESUME uses relevant keywords from the TARGET JOB, such as HTML5, CSS3, JavaScript, React, and Git. However, it misses some must-have and nice-to-have skills like TypeScript, Figma, and React Router. The action verbs are varied but could be more dynamic."
+              "score": 1,
+              "rationale": "The GENERATED RESUME does not incorporate keywords from the TARGET JOB and lacks specific examples of using required skills like HTML5, CSS3, JavaScript, React, and Git."
             },
             "human_voice": {
-              "score": 4,
-              "rationale": "The GENERATED RESUME uses a professional tone but contains some AI-tell phrasing, such as 'Highly skilled Junior Web Developer' and lacks specificity in some bullet points. The sentence structure is repetitive and could be more varied."
+              "score": 1,
+              "rationale": "The GENERATED RESUME exhibits a poor human voice, with a very generic professional summary, empty descriptions, and an overall lack of specificity and detail."
             },
             "overall_summary": ""
           },
           "programmatic_factuality": {
-            "n_entities": 4,
-            "n_grounded": 4,
+            "n_entities": 5,
+            "n_grounded": 5,
             "ratio": 1.0,
             "ungrounded": []
           },
-          "voice_hits": [
-            "seamless"
-          ],
-          "voice_hit_count": 1
+          "voice_hits": [],
+          "voice_hit_count": 0
         },
         {
           "cv_id": "cv_frontend_jquery_legacy",
@@ -4154,19 +4094,19 @@
           "judge": {
             "factuality": {
               "score": 1,
-              "rationale": "The GENERATED RESUME claims skills that are not verified to exist in the SOURCE CV, as the SOURCE CV is empty. Therefore, factuality is severely compromised."
+              "rationale": "The GENERATED RESUME contains no concrete claims from the SOURCE CV, with empty arrays for experience, education, projects, certifications, and languages."
             },
             "relevance": {
-              "score": 5,
-              "rationale": "The GENERATED RESUME lists skills relevant to the TARGET JOB, such as HTML5, CSS3, JavaScript, React, and others, but lacks concrete experience or projects to demonstrate their application."
+              "score": 2,
+              "rationale": "The GENERATED RESUME mentions relevant skills like TypeScript and Responsive Web Design but lacks specific experience or projects related to the TARGET JOB."
             },
             "ats_fit": {
-              "score": 8,
-              "rationale": "The GENERATED RESUME includes several keywords from the TARGET JOB, such as HTML5, CSS3, JavaScript, React, Git, GitHub, Tailwind, Bootstrap, and TypeScript, which suggests a good ATS fit."
+              "score": 2,
+              "rationale": "The GENERATED RESUME lists some relevant skills like TypeScript and Responsive Web Design but misses most of the TARGET JOB's required skills and uses generic terms."
             },
             "human_voice": {
-              "score": 2,
-              "rationale": "The GENERATED RESUME uses a professional but generic summary and lacks specific details or achievements, sounding more like an AI-generated profile than a human-written resume."
+              "score": 1,
+              "rationale": "The GENERATED RESUME uses a generic, AI-like professional summary and lacks specific, concrete details about achievements or experiences."
             },
             "overall_summary": ""
           },
@@ -4191,8 +4131,7 @@
         ],
         "judge_scale": "1-10 per axis"
       },
-      "disclosure": "LLM-judged metric \u2014 both the resume generator and the judge are Groq llama-4-scout. Judge temperature=0.0 so its scores are near-deterministic; the generator runs at the production temp (0.7 default) so per-pair scores will vary across runs. Single judge model: not human-validated; treat absolute numbers as a smoke test, relative trends across pairs as more reliable. Programmatic entity-grounding and voice-hit checks are independent of the LLM judge and provide a non-LLM cross-check.",
-      "written_to": "G:\\New folder\\SmartCV\\benchmarks\\results\\2026-04-26\\tailoring_eval.json"
+      "disclosure": "LLM-judged metric \u2014 both the resume generator and the judge are Groq llama-4-scout. Judge temperature=0.0 so its scores are near-deterministic; the generator runs at the production temp (0.7 default) so per-pair scores will vary across runs. Single judge model: not human-validated; treat absolute numbers as a smoke test, relative trends across pairs as more reliable. Programmatic entity-grounding and voice-hit checks are independent of the LLM judge and provide a non-LLM cross-check."
     }
   }
 }

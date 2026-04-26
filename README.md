@@ -62,25 +62,34 @@ personalised connect-with-note drafts for review — never automated sending.
 
 ## Benchmarks & Test Results
 
-337 Django tests passing. Coverage 53% overall (76.9% in `core/`).
+343 Django tests passing. Coverage 53% overall (76.9% in `core/`).
 
 The repo ships a small, real evaluation suite under `benchmarks/` — every
 metric has a sample size, a re-run command, and a JSON artifact. No
-fabricated numbers. Latest run (2026-04-25):
+fabricated numbers. Latest run (2026-04-27):
 
 | Metric | Value | N |
 | --- | --- | --- |
 | ATS scoring deterministic (σ=0) | **True** | 10 runs × 3 fixtures |
 | ATS matched vs. mismatched separation | matched **100.0** / mismatched **11.0** (Cohen's d = **6.27**) | 3 vs 6 pairs |
-| Endpoint warm p95 (max across routes) | **≤ 13 ms** | 5 routes × 60 req |
-| CV parser personal-info accuracy | **0.94** | 10 CVs |
-| CV parser skills F1 (CVs with explicit skills section) | **0.43** (Jaccard 0.30) | 5 of 10 CVs |
-| CV parser skills F1 (all 10 CVs, incl. those without a skills section) | 0.30 (Jaccard 0.20) | 10 CVs |
-| Skill extractor F1 | **0.81** (P=0.76, R=0.87, hallucination 0.24) | 5 JDs × 3 runs |
-| Gap analyzer coverage | **0.999** (49/50 pairs at 100%) | 50 (CV, JD) pairs |
-| Gap analyzer separation (similarity score) | strong **0.55** / partial **0.49** / weak **0.19** (Cohen's d strong-vs-weak = **1.59**) | 50 pairs |
-| Tailored resume — LLM-judged (1-10) | factuality **8.0** / relevance **6.8** / ats_fit **5.6** / human_voice **5.6** | 10 strong pairs |
-| Tailored resume — programmatic entity grounding | **0.875** of generated companies/schools appear verbatim in source CV | 10 pairs |
+| Endpoint warm p95 (max across routes) | **12.88 ms** | 5 routes × 100 req |
+| CV parser personal-info accuracy | **0.942** | 10 CVs |
+| CV parser skills F1 (CVs with explicit skills section) | **0.429** (Jaccard 0.303) | 5 of 10 CVs |
+| CV parser skills F1 (all 10 CVs, incl. those without a skills section) | 0.296 (Jaccard 0.197) | 10 CVs |
+| Skill extractor F1 | **0.916** (P=0.943, R=0.894, hallucination 0.057) | 5 JDs × 3 runs |
+| Gap analyzer coverage | **0.997** (47/50 pairs at 100%) | 50 (CV, JD) pairs |
+| Gap analyzer separation (similarity score) | strong **0.465** / partial **0.383** / weak **0.141** (Cohen's d strong-vs-weak = **1.685**) | 50 pairs |
+| Tailored resume — LLM-judged (1-10) — LLM available | factuality **6.0** / relevance **6.5** / ats_fit **6.3** / human_voice **4.4** | 10 strong pairs |
+| Tailored resume — programmatic entity grounding | **1.000** of generated entities appear verbatim in source CV | 10 pairs |
+| Tailored resume — banned-voice hits per resume | **0.0** (offline fallback) / **0.2** (LLM available) | 10 pairs |
+
+D5 note: the LLM-available numbers were captured earlier on 2026-04-27 before
+the resume_gen Groq account hit its daily token limit (TPD: 500K). The
+final consolidated artifact reflects the post-TPD fallback path (factuality
+3.7, relevance 2.8, ats_fit 3.3, human_voice 1.9, grounding 1.0). The
+fallback is deliberate: no fabrication, no banned phrases, JD-relevance
+ordered skills — see `benchmarks/results/2026-04-26/REPORT.md` for the
+full iteration history and trade-offs.
 
 See [`docs/benchmarks.md`](docs/benchmarks.md) for full methodology, the
 formulas behind each metric, fixture description, and a "what this does
