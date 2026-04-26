@@ -4,73 +4,73 @@
   "fixture_kind": "real_anonymized_jd",
   "n_jds": 5,
   "repeats_per_jd": 3,
-  "wall_seconds": 16.92,
+  "wall_seconds": 19.46,
   "aggregate": {
     "f1": {
       "n": 15,
-      "min": 0.6939,
-      "mean": 0.8095,
-      "median": 0.8085,
-      "p95": 0.95,
-      "max": 0.9474,
-      "std": 0.0867
+      "min": 0.8512,
+      "mean": 0.916,
+      "median": 0.9231,
+      "p95": 0.98,
+      "max": 0.9818,
+      "std": 0.0469
     },
     "precision": {
       "n": 15,
-      "min": 0.6071,
-      "mean": 0.7652,
-      "median": 0.7037,
-      "p95": 0.93,
-      "max": 0.9286,
-      "std": 0.1252
+      "min": 0.9,
+      "mean": 0.943,
+      "median": 0.9286,
+      "p95": 1.0,
+      "max": 1.0,
+      "std": 0.0342
     },
     "recall": {
       "n": 15,
       "min": 0.7857,
-      "mean": 0.8724,
-      "median": 0.8095,
+      "mean": 0.8942,
+      "median": 0.8889,
       "p95": 1.0,
       "max": 1.0,
-      "std": 0.0865
+      "std": 0.0799
     },
     "hallucination_rate": {
       "n": 15,
-      "min": 0.0714,
-      "mean": 0.2348,
-      "median": 0.2963,
-      "p95": 0.39,
-      "max": 0.3929,
-      "std": 0.1252
+      "min": 0.0,
+      "mean": 0.057,
+      "median": 0.0714,
+      "p95": 0.1,
+      "max": 0.1,
+      "std": 0.0342
     },
     "latency_ms": {
       "n": 15,
-      "min": 877.14,
-      "mean": 1122.104,
-      "median": 1018.76,
-      "p95": 1564.12,
-      "max": 1624.43,
-      "std": 240.0474
+      "min": 1050.9,
+      "mean": 1286.4033,
+      "median": 1195.87,
+      "p95": 1911.59,
+      "max": 2419.48,
+      "std": 335.4749
     }
   },
   "per_job": [
     {
       "jd_id": "jd_senior_frontend_react",
       "title": "Senior Frontend Engineer (React)",
-      "expected_skills_count": 21,
+      "expected_skills_count": 30,
       "repeats": 3,
-      "f1_mean": 0.7037,
-      "f1_std": 0.0139,
-      "precision_mean": 0.6227,
-      "recall_mean": 0.8095,
-      "hallucination_mean": 0.3773,
+      "f1_mean": 0.8834,
+      "f1_std": 0.0186,
+      "precision_mean": 0.9268,
+      "recall_mean": 0.8445,
+      "hallucination_mean": 0.0732,
       "runs": [
         {
-          "n_extracted": 26,
-          "n_labeled": 21,
-          "precision": 0.6538,
-          "recall": 0.8095,
-          "f1": 0.7234,
-          "hallucination_rate": 0.3462,
+          "n_extracted": 28,
+          "n_labeled": 30,
+          "precision": 0.9286,
+          "recall": 0.8667,
+          "f1": 0.8966,
+          "hallucination_rate": 0.0714,
           "missed": [
             "REST API",
             "Accessibility",
@@ -78,15 +78,60 @@
             "Vue"
           ],
           "extra": [
+            "REST",
+            "Vue.js"
+          ],
+          "extracted_raw": [
+            "React",
+            "TypeScript",
+            "JavaScript",
+            "HTML5",
+            "CSS3",
+            "Webpack",
+            "Vite",
             "Babel",
             "npm",
             "yarn",
+            "Git",
             "GitHub",
+            "Jest",
+            "React Testing Library",
+            "Cypress",
             "REST",
+            "GraphQL",
+            "Redux",
             "Zustand",
             "Context",
+            "Tailwind",
             "Vue.js",
-            "Playwright"
+            "Storybook",
+            "Playwright",
+            "GitHub Actions",
+            "Figma",
+            "WCAG 2.1",
+            "Core Web Vitals"
+          ],
+          "latency_ms": 1693.93,
+          "error": null
+        },
+        {
+          "n_extracted": 26,
+          "n_labeled": 30,
+          "precision": 0.9231,
+          "recall": 0.8,
+          "f1": 0.8571,
+          "hallucination_rate": 0.0769,
+          "missed": [
+            "REST API",
+            "Accessibility",
+            "WCAG 2.1",
+            "Responsive Design",
+            "Core Web Vitals",
+            "Vue"
+          ],
+          "extra": [
+            "REST",
+            "Vue.js"
           ],
           "extracted_raw": [
             "React",
@@ -116,16 +161,16 @@
             "GitHub Actions",
             "Figma"
           ],
-          "latency_ms": 1538.27,
+          "latency_ms": 1266.02,
           "error": null
         },
         {
           "n_extracted": 28,
-          "n_labeled": 21,
-          "precision": 0.6071,
-          "recall": 0.8095,
-          "f1": 0.6939,
-          "hallucination_rate": 0.3929,
+          "n_labeled": 30,
+          "precision": 0.9286,
+          "recall": 0.8667,
+          "f1": 0.8966,
+          "hallucination_rate": 0.0714,
           "missed": [
             "REST API",
             "Accessibility",
@@ -133,17 +178,8 @@
             "Vue"
           ],
           "extra": [
-            "Babel",
-            "npm",
-            "yarn",
-            "GitHub",
             "REST",
-            "Zustand",
-            "Context",
-            "Vue.js",
-            "Playwright",
-            "WCAG 2.1",
-            "Core Web Vitals"
+            "Vue.js"
           ],
           "extracted_raw": [
             "React",
@@ -175,66 +211,7 @@
             "WCAG 2.1",
             "Core Web Vitals"
           ],
-          "latency_ms": 1243.58,
-          "error": null
-        },
-        {
-          "n_extracted": 28,
-          "n_labeled": 21,
-          "precision": 0.6071,
-          "recall": 0.8095,
-          "f1": 0.6939,
-          "hallucination_rate": 0.3929,
-          "missed": [
-            "REST API",
-            "Accessibility",
-            "Responsive Design",
-            "Vue"
-          ],
-          "extra": [
-            "Babel",
-            "npm",
-            "yarn",
-            "GitHub",
-            "REST",
-            "Zustand",
-            "Context",
-            "Vue.js",
-            "Playwright",
-            "WCAG 2.1",
-            "Core Web Vitals"
-          ],
-          "extracted_raw": [
-            "React",
-            "TypeScript",
-            "JavaScript",
-            "HTML5",
-            "CSS3",
-            "Webpack",
-            "Vite",
-            "Babel",
-            "npm",
-            "yarn",
-            "Git",
-            "GitHub",
-            "Jest",
-            "React Testing Library",
-            "Cypress",
-            "REST",
-            "GraphQL",
-            "Redux",
-            "Zustand",
-            "Context",
-            "Tailwind",
-            "Vue.js",
-            "Storybook",
-            "Playwright",
-            "GitHub Actions",
-            "Figma",
-            "WCAG 2.1",
-            "Core Web Vitals"
-          ],
-          "latency_ms": 1051.8,
+          "latency_ms": 1238.9,
           "error": null
         }
       ]
@@ -284,7 +261,7 @@
             "GCP",
             "Kafka"
           ],
-          "latency_ms": 925.23,
+          "latency_ms": 1131.03,
           "error": null
         },
         {
@@ -321,7 +298,7 @@
             "GCP",
             "Kafka"
           ],
-          "latency_ms": 919.7,
+          "latency_ms": 1087.6,
           "error": null
         },
         {
@@ -358,7 +335,7 @@
             "GCP",
             "Kafka"
           ],
-          "latency_ms": 937.58,
+          "latency_ms": 1132.46,
           "error": null
         }
       ]
@@ -366,34 +343,25 @@
     {
       "jd_id": "jd_devops_aws_k8s",
       "title": "DevOps Engineer (AWS / Kubernetes)",
-      "expected_skills_count": 20,
+      "expected_skills_count": 28,
       "repeats": 3,
-      "f1_mean": 0.8085,
+      "f1_mean": 0.9818,
       "f1_std": 0.0,
-      "precision_mean": 0.7037,
-      "recall_mean": 0.95,
-      "hallucination_mean": 0.2963,
+      "precision_mean": 1.0,
+      "recall_mean": 0.9643,
+      "hallucination_mean": 0.0,
       "runs": [
         {
           "n_extracted": 27,
-          "n_labeled": 20,
-          "precision": 0.7037,
-          "recall": 0.95,
-          "f1": 0.8085,
-          "hallucination_rate": 0.2963,
+          "n_labeled": 28,
+          "precision": 1.0,
+          "recall": 0.9643,
+          "f1": 0.9818,
+          "hallucination_rate": 0.0,
           "missed": [
             "CI/CD"
           ],
-          "extra": [
-            "CloudWatch",
-            "Loki",
-            "GitLab CI",
-            "Flux",
-            "Istio",
-            "Linkerd",
-            "Vault",
-            "AWS Secrets Manager"
-          ],
+          "extra": [],
           "extracted_raw": [
             "AWS",
             "EKS",
@@ -423,29 +391,20 @@
             "Vault",
             "AWS Secrets Manager"
           ],
-          "latency_ms": 1624.43,
+          "latency_ms": 1195.87,
           "error": null
         },
         {
           "n_extracted": 27,
-          "n_labeled": 20,
-          "precision": 0.7037,
-          "recall": 0.95,
-          "f1": 0.8085,
-          "hallucination_rate": 0.2963,
+          "n_labeled": 28,
+          "precision": 1.0,
+          "recall": 0.9643,
+          "f1": 0.9818,
+          "hallucination_rate": 0.0,
           "missed": [
             "CI/CD"
           ],
-          "extra": [
-            "CloudWatch",
-            "Loki",
-            "GitLab CI",
-            "Flux",
-            "Istio",
-            "Linkerd",
-            "Vault",
-            "AWS Secrets Manager"
-          ],
+          "extra": [],
           "extracted_raw": [
             "AWS",
             "EKS",
@@ -475,29 +434,20 @@
             "Vault",
             "AWS Secrets Manager"
           ],
-          "latency_ms": 1031.1,
+          "latency_ms": 1196.22,
           "error": null
         },
         {
           "n_extracted": 27,
-          "n_labeled": 20,
-          "precision": 0.7037,
-          "recall": 0.95,
-          "f1": 0.8085,
-          "hallucination_rate": 0.2963,
+          "n_labeled": 28,
+          "precision": 1.0,
+          "recall": 0.9643,
+          "f1": 0.9818,
+          "hallucination_rate": 0.0,
           "missed": [
             "CI/CD"
           ],
-          "extra": [
-            "CloudWatch",
-            "Loki",
-            "GitLab CI",
-            "Flux",
-            "Istio",
-            "Linkerd",
-            "Vault",
-            "AWS Secrets Manager"
-          ],
+          "extra": [],
           "extracted_raw": [
             "AWS",
             "EKS",
@@ -527,7 +477,7 @@
             "Vault",
             "AWS Secrets Manager"
           ],
-          "latency_ms": 1018.76,
+          "latency_ms": 1181.06,
           "error": null
         }
       ]
@@ -535,35 +485,28 @@
     {
       "jd_id": "jd_flutter_mobile",
       "title": "Flutter Mobile Engineer",
-      "expected_skills_count": 20,
+      "expected_skills_count": 27,
       "repeats": 3,
-      "f1_mean": 0.7367,
-      "f1_std": 0.0133,
-      "precision_mean": 0.6711,
-      "recall_mean": 0.8167,
-      "hallucination_mean": 0.3289,
+      "f1_mean": 0.9161,
+      "f1_std": 0.0099,
+      "precision_mean": 0.9594,
+      "recall_mean": 0.8766,
+      "hallucination_mean": 0.0406,
       "runs": [
         {
           "n_extracted": 25,
-          "n_labeled": 20,
-          "precision": 0.68,
-          "recall": 0.85,
-          "f1": 0.7556,
-          "hallucination_rate": 0.32,
+          "n_labeled": 27,
+          "precision": 0.96,
+          "recall": 0.8889,
+          "f1": 0.9231,
+          "hallucination_rate": 0.04,
           "missed": [
             "Responsive UI",
             "Animations",
             "Widget Testing"
           ],
           "extra": [
-            "HTTP clients",
-            "Retrofit",
-            "http",
-            "shared preferences",
-            "Kotlin",
-            "Swift",
-            "Firestore",
-            "Cloud Messaging"
+            "HTTP clients"
           ],
           "extracted_raw": [
             "Flutter",
@@ -592,16 +535,61 @@
             "Cloud Messaging",
             "OOP"
           ],
-          "latency_ms": 988.67,
+          "latency_ms": 1269.12,
+          "error": null
+        },
+        {
+          "n_extracted": 25,
+          "n_labeled": 27,
+          "precision": 0.96,
+          "recall": 0.8889,
+          "f1": 0.9231,
+          "hallucination_rate": 0.04,
+          "missed": [
+            "Responsive UI",
+            "Animations",
+            "Widget Testing"
+          ],
+          "extra": [
+            "HTTP clients"
+          ],
+          "extracted_raw": [
+            "Flutter",
+            "Dart",
+            "Clean Architecture",
+            "BLoC",
+            "Cubit",
+            "Provider",
+            "GetX",
+            "REST API",
+            "HTTP clients",
+            "Dio",
+            "Retrofit",
+            "http",
+            "Git",
+            "Figma",
+            "Hive",
+            "SQLite",
+            "shared preferences",
+            "Codemagic",
+            "GitHub Actions",
+            "Kotlin",
+            "Swift",
+            "Firebase",
+            "Firestore",
+            "Cloud Messaging",
+            "OOP"
+          ],
+          "latency_ms": 1199.41,
           "error": null
         },
         {
           "n_extracted": 24,
-          "n_labeled": 20,
-          "precision": 0.6667,
-          "recall": 0.8,
-          "f1": 0.7273,
-          "hallucination_rate": 0.3333,
+          "n_labeled": 27,
+          "precision": 0.9583,
+          "recall": 0.8519,
+          "f1": 0.902,
+          "hallucination_rate": 0.0417,
           "missed": [
             "Responsive UI",
             "OOP",
@@ -609,14 +597,7 @@
             "Widget Testing"
           ],
           "extra": [
-            "HTTP clients",
-            "Retrofit",
-            "http",
-            "shared preferences",
-            "Kotlin",
-            "Swift",
-            "Firestore",
-            "Cloud Messaging"
+            "HTTP clients"
           ],
           "extracted_raw": [
             "Flutter",
@@ -644,59 +625,7 @@
             "Firestore",
             "Cloud Messaging"
           ],
-          "latency_ms": 1453.29,
-          "error": null
-        },
-        {
-          "n_extracted": 24,
-          "n_labeled": 20,
-          "precision": 0.6667,
-          "recall": 0.8,
-          "f1": 0.7273,
-          "hallucination_rate": 0.3333,
-          "missed": [
-            "Responsive UI",
-            "OOP",
-            "Animations",
-            "Widget Testing"
-          ],
-          "extra": [
-            "HTTP clients",
-            "Retrofit",
-            "http",
-            "shared preferences",
-            "Kotlin",
-            "Swift",
-            "Firestore",
-            "Cloud Messaging"
-          ],
-          "extracted_raw": [
-            "Flutter",
-            "Dart",
-            "Clean Architecture",
-            "BLoC",
-            "Cubit",
-            "Provider",
-            "GetX",
-            "REST API",
-            "HTTP clients",
-            "Dio",
-            "Retrofit",
-            "http",
-            "Git",
-            "Figma",
-            "Hive",
-            "SQLite",
-            "shared preferences",
-            "Codemagic",
-            "GitHub Actions",
-            "Kotlin",
-            "Swift",
-            "Firebase",
-            "Firestore",
-            "Cloud Messaging"
-          ],
-          "latency_ms": 1005.23,
+          "latency_ms": 2419.48,
           "error": null
         }
       ]
@@ -743,7 +672,7 @@
             "TypeScript",
             "Figma"
           ],
-          "latency_ms": 902.42,
+          "latency_ms": 1121.65,
           "error": null
         },
         {
@@ -777,7 +706,7 @@
             "TypeScript",
             "Figma"
           ],
-          "latency_ms": 877.14,
+          "latency_ms": 1112.4,
           "error": null
         },
         {
@@ -804,14 +733,14 @@
             "React",
             "React Router",
             "Axios",
-            "TypeScript",
             "Tailwind CSS",
             "Bootstrap",
             "Git",
             "GitHub",
+            "TypeScript",
             "Figma"
           ],
-          "latency_ms": 1314.36,
+          "latency_ms": 1050.9,
           "error": null
         }
       ]
