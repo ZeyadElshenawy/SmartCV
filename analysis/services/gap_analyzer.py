@@ -339,6 +339,27 @@ RULE 5 — SENIORITY & CAREER-SWITCH SIGNALS (soft_skill_gaps):
 - If the candidate's experience is in a different domain than the target role (e.g., teaching background applying to SWE), add "Career transition: limited direct industry experience in [target domain]".
 - These should be CONSTRUCTIVE observations, not blockers. Keep each under 20 words.
 
+=== SIMILARITY SCORE RUBRIC (CRITICAL) ===
+
+Compute the similarity_score from the matched/missing breakdown YOU produced above. Do NOT pull a number from intuition — anchor it to the ratio.
+
+Let M = len(matched_skills), X = len(critical_missing_skills), T = M + X (total accounted JD skills).
+
+Base score = M / T (rounded to nearest 0.05).
+
+Then APPLY adjustments (cumulative, but final score must stay in [0.0, 1.0]):
+- Subtract 0.05 per soft_skill_gaps entry (cap −0.15 total). Soft gaps lower the score modestly; they don't dominate it.
+- Add 0.05 if M >= 0.7 * T AND the GitHub/Scholar/Kaggle blocks corroborate at least 2 of the matched skills (strong evidence bonus).
+- If T == 0 (job has no required skills), return 0.0.
+
+Examples:
+- 18 matched, 3 missing, 0 soft gaps → base 0.86 → score 0.85 (rounded).
+- 14 matched, 7 missing, 1 soft gap → base 0.67, −0.05 → score 0.60.
+- 5 matched, 16 missing, 0 soft gaps → base 0.24 → score 0.25.
+- 0 matched, 14 missing → base 0.0 → score 0.0.
+
+DO NOT score below the base ratio because the candidate "feels junior" — express that in soft_skill_gaps, not the headline score. A candidate who matches 14 of 21 must-have skills should always score ~0.65, never 0.10.
+
 === OUTPUT ===
 Return ONLY the structured JSON via the provided function. No preamble."""
 
