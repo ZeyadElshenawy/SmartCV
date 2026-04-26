@@ -422,12 +422,28 @@ def cover_letter_preview_view(request, letter_id):
 
 @login_required
 def resume_list_view(request):
-    """View and manage all generated resumes"""
+    """View and manage all generated resumes.
+
+    Also fetches the user's profile name once so the per-card thumbnails
+    (rendered HTML previews of each resume in the grid) can show the
+    candidate's actual name in the header — falls back to the email
+    local-part when no profile/full_name is set yet.
+    """
+    from profiles.models import UserProfile
+    profile = UserProfile.objects.filter(user=request.user).first()
+    if profile and profile.full_name:
+        profile_name = profile.full_name
+    else:
+        profile_name = (request.user.email or '').split('@')[0] or 'Your Name'
+
     resumes = GeneratedResume.objects.filter(
         gap_analysis__job__user=request.user
     ).select_related('gap_analysis__job').order_by('-created_at')
-    
-    return render(request, 'resumes/list.html', {'resumes': resumes})
+
+    return render(request, 'resumes/list.html', {
+        'resumes': resumes,
+        'profile_name': profile_name,
+    })
 
 @login_required
 def resume_delete_view(request, resume_id):
