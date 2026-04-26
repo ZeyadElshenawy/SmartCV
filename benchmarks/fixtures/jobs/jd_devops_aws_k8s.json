@@ -15,16 +15,24 @@
     "Linux",
     "GitHub Actions",
     "Jenkins",
+    "GitLab CI",
     "CI/CD",
     "Helm",
     "Argo CD",
+    "Flux",
+    "Istio",
+    "Linkerd",
     "Prometheus",
     "Grafana",
+    "Loki",
+    "Vault",
+    "AWS Secrets Manager",
     "EKS",
     "EC2",
     "RDS",
     "S3",
-    "IAM"
+    "IAM",
+    "CloudWatch"
   ],
   "expected_skills_must_have": [
     "AWS", "Kubernetes", "Docker", "Terraform", "Bash", "Linux", "CI/CD"
