@@ -6,6 +6,7 @@ urlpatterns = [
     path('api/trigger-resume/<uuid:job_id>/', views.trigger_resume_generation_api, name='trigger_resume_api'),
     path('preview/<uuid:resume_id>/', views.resume_preview_view, name='resume_preview'),
     path('edit/<uuid:resume_id>/', views.resume_edit_view, name='resume_edit'),
+    path('regen/<uuid:resume_id>/<str:section>/', views.regenerate_section_view, name='regenerate_section'),
     path('export/<uuid:resume_id>/', views.export_pdf_view, name='export_pdf'),
     
     # NEW: Optimized PDF Generation

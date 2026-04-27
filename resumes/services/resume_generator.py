@@ -3,7 +3,7 @@ import logging
 import re
 from typing import Dict, Any, Optional
 from profiles.services.llm_engine import get_structured_llm, get_llm
-from profiles.services.schemas import ResumeContentResult
+from profiles.services.schemas import ResumeContentResult, ResumeExperience, ResumeProject
 from profiles.services.prompt_guards import HUMAN_VOICE_RULE
 
 logger = logging.getLogger(__name__)
@@ -411,6 +411,114 @@ Make it PROFESSIONAL and ATS-OPTIMIZED.
     except Exception as e:
         logger.exception(f"Resume generation error: {e}")
         return _build_offline_fallback(profile, job, raw_cv_data)
+
+
+def regenerate_section(profile, job, gap_analysis, current_content: dict, section: str) -> dict | list | str:
+    """Rewrite ONE section of the resume in-place using the same enriched
+    context as full generation, but a focused prompt. Returns just the
+    new value for that section so the caller can update content[section]
+    and save.
+
+    Allowed sections: 'professional_summary', 'skills', 'experience',
+    'projects'. Other sections (education, certifications, languages)
+    are sourced verbatim from the profile and aren't worth regenerating.
+
+    Uses the same evidence-grounded enrichment rule as the full prompt
+    so a regenerated bullet won't suddenly fabricate while neighbouring
+    bullets stay grounded.
+    """
+    if section not in {'professional_summary', 'skills', 'experience', 'projects'}:
+        raise ValueError(f"unsupported section {section!r}")
+
+    raw_cv_data = profile.data_content or {}
+    _SIGNAL_KEYS = {'github_signals', 'scholar_signals', 'kaggle_signals', 'linkedin_snapshot'}
+    slim_cv = {k: v for k, v in raw_cv_data.items()
+               if k != 'raw_text'
+               and k not in _SIGNAL_KEYS
+               and v
+               and k not in ('normalized_summary', 'objective')}
+    jd_body = (job.description or '')[:4000]
+    evidence_context = _build_evidence_context(profile, job, gap_analysis)
+
+    # Single-section schemas — keeps the LLM focused and the response
+    # tiny. Avoids the "regenerate one bullet but the LLM rewrites the
+    # whole resume and drops sections" failure mode.
+    from pydantic import BaseModel, Field
+    from typing import List
+
+    class SummaryOnly(BaseModel):
+        professional_summary: str = Field(..., description="2-3 sentences, 40-60 words. Third person. No banned phrases.")
+
+    class SkillsOnly(BaseModel):
+        skills: List[str] = Field(..., description="8-15 hard/technical skills, JD-relevant ones first.")
+
+    class ExperienceOnly(BaseModel):
+        experience: List[ResumeExperience] = Field(..., description="All experience entries; bullets rewritten.")
+
+    class ProjectsOnly(BaseModel):
+        projects: List[ResumeProject] = Field(..., description="All project entries; bullets rewritten.")
+
+    schema_for = {
+        'professional_summary': SummaryOnly,
+        'skills': SkillsOnly,
+        'experience': ExperienceOnly,
+        'projects': ProjectsOnly,
+    }
+    target_schema = schema_for[section]
+
+    instruction_for = {
+        'professional_summary': (
+            "Rewrite ONLY the professional summary. 2-3 sentences, third person, "
+            "lead with role/years and one concrete proof point taken from the CV "
+            "or the evidence blocks. No banned phrases, no inside-out openers."
+        ),
+        'skills': (
+            "Rewrite ONLY the skills list. 8-15 items, hard/technical only, "
+            "JD-required skills the candidate genuinely has FIRST, then the rest. "
+            "Use exact skill names from the JD where possible."
+        ),
+        'experience': (
+            "Rewrite ONLY the experience section's bullets. Keep titles, "
+            "companies, durations exactly as in the CV. 3-5 bullets per role, "
+            "each starting with a different action verb. Apply the evidence-"
+            "grounded enrichment rule: quantify only when a source supports it."
+        ),
+        'projects': (
+            "Rewrite ONLY the projects section's bullets. Keep names and URLs "
+            "exactly as in the CV. 2-3 bullets per project. Apply the evidence-"
+            "grounded enrichment rule: quantify only when a source supports it."
+        ),
+    }
+
+    prompt = f"""You are an EXPERT resume strategist. Regenerate ONE section of a resume the user is actively editing — keep all other content unchanged.
+
+JOB DETAILS:
+- Title: {job.title}
+- Company: {job.company}
+- Required Skills: {', '.join(job.extracted_skills or [])}
+- Job Description:
+{jd_body}
+
+CURRENT RESUME CONTENT (for reference; do NOT modify any section other than the target):
+{json.dumps({k: v for k, v in (current_content or {}).items() if k in ('professional_title', 'professional_summary', 'skills', 'experience', 'education', 'projects')}, indent=2, default=str)}
+
+CV DATA (authoritative source):
+{json.dumps(slim_cv, indent=2, default=str)}
+
+{evidence_context}
+
+=== TARGET SECTION ===
+{instruction_for[section]}
+
+=== EVIDENCE-GROUNDED ENRICHMENT RULE ===
+Every concrete claim must trace to a source you've been given (CV, GitHub, Scholar, Kaggle, gap analysis). Never claim a skill the gap analysis lists as MISSING. When no source supports a number, keep it qualitative.
+
+{HUMAN_VOICE_RULE}"""
+
+    structured_llm = get_structured_llm(target_schema, temperature=0.6, max_tokens=2048, task="resume_gen")
+    result = structured_llm.invoke(prompt)
+    out = result.model_dump()
+    return out[section]
 
 
 def _build_offline_fallback(profile, job, raw_cv_data: dict) -> dict:

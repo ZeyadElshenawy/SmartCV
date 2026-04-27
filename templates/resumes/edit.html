@@ -208,7 +208,12 @@
                                    class="block w-full h-11 px-4 text-sm rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none transition-[box-shadow] duration-150">
                         </div>
                         <div class="space-y-2">
-                            <label class="block text-xs font-medium uppercase tracking-[0.14em] text-neutral-600 dark:text-neutral-400">Summary paragraph</label>
+                            <div class="flex items-center justify-between gap-2">
+                                <label class="block text-xs font-medium uppercase tracking-[0.14em] text-neutral-600 dark:text-neutral-400">Summary paragraph</label>
+                                <button type="button" onclick="regenSection('professional_summary', this)"
+                                        class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline disabled:opacity-50 disabled:cursor-wait"
+                                        title="Regenerate just this section using the latest signals + JD">↻ Regenerate</button>
+                            </div>
                             <textarea name="professional_summary" rows="5"
                                       class="block w-full px-4 py-3 text-sm rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none transition-[box-shadow] duration-150 resize-y leading-relaxed">{{ resume.content.professional_summary|default:'' }}</textarea>
                         </div>
@@ -219,7 +224,12 @@
                 <section id="section-skills" class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
                     <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
                     <div class="p-6 space-y-3">
-                        {% include "components/section_label.html" with text="02 · Core skills · ATS keywords" tone="brand" %}
+                        <div class="flex items-center justify-between gap-2">
+                            {% include "components/section_label.html" with text="02 · Core skills · ATS keywords" tone="brand" %}
+                            <button type="button" onclick="regenSection('skills', this)"
+                                    class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline disabled:opacity-50 disabled:cursor-wait"
+                                    title="Regenerate the skills list using the latest signals + JD">↻ Regenerate</button>
+                        </div>
                         <textarea name="skills" rows="4"
                                   class="block w-full px-4 py-3 text-sm rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none transition-[box-shadow] duration-150 font-mono leading-relaxed">{% for skill in resume.content.skills %}{{ skill }}{% if not forloop.last %}, {% endif %}{% endfor %}</textarea>
                         <p class="text-xs text-neutral-500 dark:text-neutral-400">Comma-separated. These drive the ATS keyword match.</p>
@@ -230,7 +240,12 @@
                 <section id="section-experience" class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
                     <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
                     <div class="p-6 space-y-5">
-                        {% include "components/section_label.html" with text="03 · Experience" tone="brand" %}
+                        <div class="flex items-center justify-between gap-2">
+                            {% include "components/section_label.html" with text="03 · Experience" tone="brand" %}
+                            <button type="button" onclick="regenSection('experience', this, /*reload=*/ true)"
+                                    class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline disabled:opacity-50 disabled:cursor-wait"
+                                    title="Rewrite all experience bullets using the latest signals + JD. Saves and reloads.">↻ Regenerate bullets</button>
+                        </div>
                         <div id="experience-container" class="space-y-5">
                             {% for exp in resume.content.experience %}
                             <div class="experience-entry group relative rounded-xl ring-1 ring-neutral-200 dark:ring-neutral-800 bg-neutral-50/60 dark:bg-neutral-950/40 p-5 transition-colors hover:ring-neutral-300 dark:hover:ring-neutral-700">
@@ -306,7 +321,12 @@
                 <section id="section-projects" class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
                     <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
                     <div class="p-6 space-y-5">
-                        {% include "components/section_label.html" with text="05 · Projects" tone="brand" %}
+                        <div class="flex items-center justify-between gap-2">
+                            {% include "components/section_label.html" with text="05 · Projects" tone="brand" %}
+                            <button type="button" onclick="regenSection('projects', this, /*reload=*/ true)"
+                                    class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline disabled:opacity-50 disabled:cursor-wait"
+                                    title="Rewrite all project bullets using the latest signals + JD. Saves and reloads.">↻ Regenerate bullets</button>
+                        </div>
                         <div id="projects-container" class="space-y-5">
                             {% for proj in resume.content.projects %}
                             <div class="project-entry group relative rounded-xl ring-1 ring-neutral-200 dark:ring-neutral-800 bg-neutral-50/60 dark:bg-neutral-950/40 p-5 transition-colors hover:ring-neutral-300 dark:hover:ring-neutral-700">
@@ -809,6 +829,99 @@
 </template>
 
 <script>
+    // Per-section regenerate. Sends the current in-flight form values so the
+    // LLM sees the user's working draft (not just the saved snapshot), gets
+    // back the rewritten section, applies it. For summary/skills the new
+    // value drops straight into the textarea + live preview; for experience
+    // and projects (which are repeated DOM rows with add/remove logic), we
+    // save server-side and reload — losing UNSAVED edits in those sections,
+    // which the user opted into by clicking the "↻ Regenerate bullets" button.
+    async function regenSection(section, btn, reload) {
+        if (!btn || btn.disabled) return;
+        btn.disabled = true;
+        const originalLabel = btn.innerHTML;
+        btn.innerHTML = 'Regenerating…';
+        try {
+            // Snapshot the current form state so the LLM sees in-flight edits.
+            const currentContent = collectCurrentContent();
+            const url = window.location.pathname.replace('/edit/', '/regen/') + section + '/';
+            const csrf = document.querySelector('input[name=csrfmiddlewaretoken]')?.value || '';
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+                body: JSON.stringify({current_content: currentContent}),
+            });
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                alert('Regenerate failed: ' + (body.error || res.status));
+                return;
+            }
+            const {value} = await res.json();
+            if (section === 'professional_summary') {
+                const ta = document.querySelector('textarea[name="professional_summary"]');
+                if (ta) { ta.value = value || ''; }
+                updateLivePreview();
+            } else if (section === 'skills') {
+                const ta = document.querySelector('textarea[name="skills"]');
+                if (ta) { ta.value = (value || []).join(', '); }
+                updateLivePreview();
+            } else if (reload) {
+                // experience / projects — DOM is dynamic with add/remove rows,
+                // simplest reliable update is a full reload now that the
+                // server already saved the new content.
+                window.location.reload();
+                return;
+            }
+        } catch (err) {
+            console.error('regen error', err);
+            alert('Regenerate failed — check the console.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalLabel;
+        }
+    }
+
+    // Snapshot the form into the same shape resume.content has on the server,
+    // so the regenerate prompt sees what the user is actively typing rather
+    // than the stale DB snapshot.
+    function collectCurrentContent() {
+        const get = (sel) => document.querySelector(sel)?.value || '';
+        const all = (sel) => Array.from(document.querySelectorAll(sel)).map(n => n.value || '');
+        const skillsRaw = get('textarea[name="skills"]');
+        const experience = [];
+        document.querySelectorAll('.experience-entry').forEach(row => {
+            const t = row.querySelector('input[name="exp_title[]"]')?.value || '';
+            const c = row.querySelector('input[name="exp_company[]"]')?.value || '';
+            const d = row.querySelector('input[name="exp_duration[]"]')?.value || '';
+            const desc = row.querySelector('textarea[name="exp_description[]"]')?.value || '';
+            if (t || c) {
+                experience.push({
+                    title: t, company: c, duration: d,
+                    description: desc.split('\n').map(s => s.trim()).filter(Boolean),
+                });
+            }
+        });
+        const projects = [];
+        document.querySelectorAll('.project-entry').forEach(row => {
+            const n = row.querySelector('input[name="proj_name[]"]')?.value || '';
+            const u = row.querySelector('input[name="proj_url[]"]')?.value || '';
+            const desc = row.querySelector('textarea[name="proj_description[]"]')?.value || '';
+            if (n) {
+                projects.push({
+                    name: n, url: u,
+                    description: desc.split('\n').map(s => s.trim()).filter(Boolean),
+                });
+            }
+        });
+        return {
+            professional_title: get('input[name="professional_title"]'),
+            professional_summary: get('textarea[name="professional_summary"]'),
+            skills: skillsRaw.split(',').map(s => s.trim()).filter(Boolean),
+            experience: experience,
+            projects: projects,
+        };
+    }
+
     // Live preview renderer. Uses createElement + textContent throughout to
     // avoid any possibility of HTML injection (no innerHTML anywhere).
     function el(tag, className, text) {

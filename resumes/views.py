@@ -6,7 +6,7 @@ from jobs.models import Job
 from profiles.models import UserProfile
 from analysis.models import GapAnalysis
 from .models import GeneratedResume, CoverLetter
-from .services.resume_generator import generate_resume_content, calculate_ats_score
+from .services.resume_generator import generate_resume_content, calculate_ats_score, regenerate_section
 from .services.pdf_exporter import generate_pdf
 from .services.cover_letter_generator import generate_cover_letter_content
 from .services.pdf_generator import generate_optimized_pdf
@@ -334,6 +334,66 @@ def resume_edit_view(request, resume_id):
         'profile': profile,
         'template_choices': template_choices,
     })
+
+
+@login_required
+@require_POST
+def regenerate_section_view(request, resume_id, section):
+    """Regenerate one section of a resume in place. Returns JSON with the
+    updated value. The edit page calls this from a per-section "Regenerate"
+    button so the user can iterate on a weak section without losing edits
+    elsewhere on the page.
+
+    POST body is empty — context (CV, JD, signals, gap analysis, current
+    in-progress edits) is fetched server-side. Optional `current_content`
+    JSON body lets the client send the user's unsaved local edits so the
+    LLM sees what they're actively working on, not just the saved snapshot.
+
+    Allowed sections come from regenerate_section()'s whitelist:
+      'professional_summary' | 'skills' | 'experience' | 'projects'
+    """
+    resume = get_object_or_404(GeneratedResume, id=resume_id)
+    if resume.gap_analysis.job.user != request.user:
+        raise Http404
+    if section not in {'professional_summary', 'skills', 'experience', 'projects'}:
+        return JsonResponse({'error': 'unsupported_section'}, status=400)
+
+    try:
+        profile = UserProfile.objects.get(user=request.user)
+    except UserProfile.DoesNotExist:
+        return JsonResponse({'error': 'no_profile'}, status=400)
+
+    job = resume.gap_analysis.job
+    gap_analysis = resume.gap_analysis
+
+    # Use the client's in-flight edits when present so the LLM sees the
+    # user's working draft, not a stale DB snapshot. Falls back to the
+    # saved content if the body is empty or malformed.
+    try:
+        body = json.loads(request.body or b'{}')
+    except (ValueError, TypeError):
+        body = {}
+    current_content = body.get('current_content')
+    if not isinstance(current_content, dict):
+        current_content = resume.content
+
+    try:
+        new_value = regenerate_section(profile, job, gap_analysis, current_content, section)
+    except Exception:
+        logger.exception("regenerate_section failed (resume=%s section=%s)", resume_id, section)
+        return JsonResponse({'error': 'regen_failed'}, status=502)
+
+    # Persist on the saved snapshot so a subsequent reload reflects the
+    # regen. We don't auto-save the user's other in-flight edits here —
+    # the form's save button does that. We're only writing the regenerated
+    # field.
+    saved = resume.content.copy()
+    saved[section] = new_value
+    resume.content = saved
+    resume.save(update_fields=['content'])
+
+    return JsonResponse({'section': section, 'value': new_value})
+
 
 @login_required
 def export_pdf_view(request, resume_id):
