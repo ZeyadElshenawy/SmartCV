@@ -452,6 +452,61 @@ def regenerate_section_view(request, resume_id, section):
         logger.exception("regenerate_section failed (resume=%s section=%s)", resume_id, section)
         return JsonResponse({'error': 'regen_failed'}, status=502)
 
+    # Validate the LLM actually returned usable content. The most common
+    # silent failure for experience/projects regen is the LLM returning
+    # an empty list (rate limit recovered with junk, schema satisfied
+    # but bullets dropped). Without this guard, we'd persist []  and the
+    # subsequent reload would show an empty section — looking to the
+    # user like "regenerate did nothing." Detect, refuse to save, and
+    # surface a 422 so the UI can show a real error instead of silently
+    # blowing away the section.
+    def _empty(v):
+        if v is None:
+            return True
+        if isinstance(v, str):
+            return not v.strip()
+        if isinstance(v, list):
+            return len(v) == 0
+        return False
+
+    if _empty(new_value):
+        logger.warning(
+            "regenerate_section returned empty value (resume=%s section=%s) — refusing to overwrite",
+            resume_id, section,
+        )
+        return JsonResponse({
+            'error': 'empty_regeneration',
+            'detail': "The model returned no usable content for this section. "
+                      "Your existing content is unchanged. Try again — this is "
+                      "usually transient (rate-limit, brief model hiccup).",
+        }, status=422)
+
+    # Per-list-element sanity for experience/projects: at least one entry
+    # must have non-empty title/name AND at least one bullet. An array
+    # of stub entries is just as bad as an empty array.
+    if section == 'experience':
+        usable = [e for e in (new_value or []) if isinstance(e, dict)
+                  and (e.get('title') or e.get('company'))
+                  and (e.get('description') or [])]
+        if not usable:
+            logger.warning("regenerate_section experience returned no usable entries — refusing")
+            return JsonResponse({
+                'error': 'empty_regeneration',
+                'detail': "The model returned experience entries with no bullets. "
+                          "Your existing content is unchanged. Try again.",
+            }, status=422)
+    elif section == 'projects':
+        usable = [p for p in (new_value or []) if isinstance(p, dict)
+                  and p.get('name')
+                  and (p.get('description') or [])]
+        if not usable:
+            logger.warning("regenerate_section projects returned no usable entries — refusing")
+            return JsonResponse({
+                'error': 'empty_regeneration',
+                'detail': "The model returned project entries with no bullets. "
+                          "Your existing content is unchanged. Try again.",
+            }, status=422)
+
     # Persist on the saved snapshot so a subsequent reload reflects the
     # regen. We don't auto-save the user's other in-flight edits here —
     # the form's save button does that. We're only writing the regenerated

@@ -680,11 +680,7 @@
                         {% endif %}
                     </div>
 
-                    {# Section bodies rendered in `section_order` so the live
-                       preview matches the PDF, and reordering instantly
-                       reflows here without a full page reload. Each
-                       section keeps its existing id/class hooks so the
-                       live updateLivePreview() JS still finds them. #}
+                    {# Section bodies rendered in `section_order`; reorder reflows in JS without reload. #}
                     <div id="preview-section-host">
                     {% for section in section_order %}
                         {% if section == "summary" %}
@@ -964,7 +960,13 @@
             });
             if (!res.ok) {
                 const body = await res.json().catch(() => ({}));
-                alert('Regenerate failed: ' + (body.error || res.status));
+                // Surface the server's specific error detail when present
+                // (e.g., the empty_regeneration message). Falls back to
+                // a generic message + status code only when there's no
+                // human-readable detail.
+                const message = body.detail
+                    || (body.error ? 'Regenerate failed: ' + body.error : 'Regenerate failed (' + res.status + ')');
+                alert(message);
                 return;
             }
             const {value} = await res.json();
