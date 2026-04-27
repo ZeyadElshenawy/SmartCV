@@ -158,6 +158,10 @@ class ResumeExperience(BaseModel):
     title: str = ""
     company: str = ""
     duration: str = ""
+    location: str = ""
+    industry: str = ""
+    start_date: str = ""
+    end_date: str = ""
     description: Union[str, List[str]] = Field(default_factory=list)
 
     @model_validator(mode='before')
@@ -172,6 +176,8 @@ class ResumeProject(BaseModel):
     name: str = ""
     description: Union[str, List[str]] = Field(default_factory=list)
     url: str = ""
+    technologies: List[str] = Field(default_factory=list)
+    highlights: List[str] = Field(default_factory=list)
 
     @model_validator(mode='before')
     @classmethod
@@ -179,23 +185,48 @@ class ResumeProject(BaseModel):
         desc = values.get('description', [])
         if isinstance(desc, str):
             values['description'] = [d.strip() for d in desc.split('\n') if d.strip()]
+        # Accept comma-separated technologies string from the editor form
+        tech = values.get('technologies', [])
+        if isinstance(tech, str):
+            values['technologies'] = [t.strip() for t in tech.split(',') if t.strip()]
         return values
 
 class ResumeCertification(BaseModel):
     name: str = ""
     issuer: str = ""
     date: str = ""
+    duration: str = ""
     url: str = ""
 
 class ResumeEducation(BaseModel):
     degree: str = ""
     institution: str = ""
     year: str = ""
+    field: str = ""
+    gpa: str = ""
+    location: str = ""
+    honors: List[str] = Field(default_factory=list)
+
+    @model_validator(mode='before')
+    @classmethod
+    def normalize_honors(cls, values):
+        h = values.get('honors', [])
+        if isinstance(h, str):
+            values['honors'] = [line.strip() for line in h.split('\n') if line.strip()]
+        return values
 
 class ResumeContentResult(BaseModel):
-    """Output schema for resume_generator.py"""
+    """Output schema for resume_generator.py — superset of master profile fields.
+
+    The editor at /resumes/edit/ surfaces every field defined here. Master-profile
+    fields (UserProfile.data_content) get pulled into the matching field on
+    generation or via sync_from_master. The LLM may still drop ATS-discouraged
+    fields (objective, GPA) for its own resume drafts; users can re-add them
+    via the editor.
+    """
     professional_title: str = ""
     professional_summary: str = ""
+    objective: str = ""
     skills: List[str] = Field(default_factory=list)
     experience: List[ResumeExperience] = Field(default_factory=list)
     education: List[ResumeEducation] = Field(default_factory=list)

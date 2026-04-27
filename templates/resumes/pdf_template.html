@@ -114,6 +114,9 @@
         <div class="section">
             <div class="section-title">Professional Summary</div>
             <p style="margin: 0; text-align: justify;">{{ resume.professional_summary }}</p>
+            {% if resume.objective %}
+            <p style="margin: 8px 0 0; text-align: justify;"><strong>Objective:</strong> {{ resume.objective }}</p>
+            {% endif %}
         </div>
         {% endif %}
         {% if section == "skills" and resume.skills %}
@@ -135,7 +138,7 @@
                         <td class="item-date">{{ exp.duration }}</td>
                     </tr>
                 </table>
-                <div class="item-subtitle">{{ exp.company }}</div>
+                <div class="item-subtitle">{{ exp.company }}{% if exp.location %} — {{ exp.location }}{% endif %}{% if exp.industry %} · {{ exp.industry }}{% endif %}</div>
                 {% if exp.description %}
                 <ul class="item-description">
                     {% for point in exp.description %}
@@ -158,7 +161,10 @@
                         <td class="item-date">{{ edu.graduation_year|default:edu.year }}</td>
                     </tr>
                 </table>
-                <div class="item-subtitle">{{ edu.institution }}</div>
+                <div class="item-subtitle">{{ edu.institution }}{% if edu.location %} — {{ edu.location }}{% endif %}{% if edu.gpa %} · GPA {{ edu.gpa }}{% endif %}</div>
+                {% if edu.honors %}
+                <div style="font-size: 9pt; color: #333; margin-top: 2px;">{{ edu.honors|join:" · " }}</div>
+                {% endif %}
             </div>
             {% endfor %}
         </div>
@@ -171,6 +177,9 @@
                 <div class="item-title" style="margin-bottom: 4px;">
                     {% if proj.url %}<a href="{{ proj.url }}" target="_blank">{{ proj.name }}</a>{% else %}{{ proj.name }}{% endif %}
                 </div>
+                {% if proj.technologies %}
+                <div style="font-size: 9pt; color: #333; margin-bottom: 3px; font-style: italic;">{{ proj.technologies|join:" · " }}</div>
+                {% endif %}
                 {% if proj.description %}
                 <ul class="item-description">
                     {% for point in proj.description %}
@@ -190,6 +199,7 @@
                 <li style="margin-bottom: 4px;">
                     <strong>{% if cert.url %}<a href="{{ cert.url }}" target="_blank">{{ cert.name }}</a>{% else %}{{ cert.name }}{% endif %}</strong>
                     {% if cert.issuer %} - {{ cert.issuer }}{% endif %}
+                    {% if cert.duration %} · {{ cert.duration }}{% endif %}
                     {% if cert.date %} ({{ cert.date }}){% endif %}
                 </li>
                 {% endfor %}

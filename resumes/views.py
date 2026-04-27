@@ -167,18 +167,21 @@ def resume_edit_view(request, resume_id):
         # Simple fields
         updated_content['professional_title'] = request.POST.get('professional_title', '')
         updated_content['professional_summary'] = request.POST.get('professional_summary', '')
+        updated_content['objective'] = request.POST.get('objective', '')
         updated_content['template_name'] = request.POST.get('template_name', 'standard')
-        
+
         # Skills (comma separated)
         skills_raw = request.POST.get('skills', '')
         updated_content['skills'] = [s.strip() for s in skills_raw.split(',') if s.strip()]
-        
-        # Experience (arrays)
+
+        # Experience (arrays — incl. location/industry passthrough from master)
         exp_titles = request.POST.getlist('exp_title[]')
         exp_companies = request.POST.getlist('exp_company[]')
         exp_durations = request.POST.getlist('exp_duration[]')
+        exp_locations = request.POST.getlist('exp_location[]')
+        exp_industries = request.POST.getlist('exp_industry[]')
         exp_descriptions = request.POST.getlist('exp_description[]')
-        
+
         experience_list = []
         for i in range(len(exp_titles)):
             if exp_titles[i].strip() or exp_companies[i].strip():
@@ -187,44 +190,60 @@ def resume_edit_view(request, resume_id):
                     'title': exp_titles[i],
                     'company': exp_companies[i],
                     'duration': exp_durations[i] if i < len(exp_durations) else '',
+                    'location': exp_locations[i] if i < len(exp_locations) else '',
+                    'industry': exp_industries[i] if i < len(exp_industries) else '',
                     'description': _description_text_to_list(raw_desc)
                 })
         updated_content['experience'] = experience_list
-        
-        # Education (arrays)
+
+        # Education (arrays — incl. field/gpa/location/honors)
         edu_degrees = request.POST.getlist('edu_degree[]')
+        edu_fields = request.POST.getlist('edu_field[]')
         edu_institutions = request.POST.getlist('edu_institution[]')
         edu_years = request.POST.getlist('edu_year[]')
-        
+        edu_gpas = request.POST.getlist('edu_gpa[]')
+        edu_locations = request.POST.getlist('edu_location[]')
+        edu_honors_raw = request.POST.getlist('edu_honors[]')
+
         education_list = []
         for i in range(len(edu_degrees)):
             if edu_degrees[i].strip() or edu_institutions[i].strip():
+                honors_text = edu_honors_raw[i] if i < len(edu_honors_raw) else ''
                 education_list.append({
                     'degree': edu_degrees[i],
+                    'field': edu_fields[i] if i < len(edu_fields) else '',
                     'institution': edu_institutions[i],
-                    'year': edu_years[i] if i < len(edu_years) else ''
+                    'year': edu_years[i] if i < len(edu_years) else '',
+                    'gpa': edu_gpas[i] if i < len(edu_gpas) else '',
+                    'location': edu_locations[i] if i < len(edu_locations) else '',
+                    'honors': _description_text_to_list(honors_text),
                 })
         updated_content['education'] = education_list
-        
-        # Projects (arrays)
+
+        # Projects (arrays — incl. technologies as comma-separated string)
         proj_names = request.POST.getlist('proj_name[]')
         proj_desc = request.POST.getlist('proj_description[]')
         proj_urls = request.POST.getlist('proj_url[]')
+        proj_techs_raw = request.POST.getlist('proj_technologies[]')
         projects_list = []
         for i in range(len(proj_names)):
             if proj_names[i].strip():
                 raw_desc = proj_desc[i] if i < len(proj_desc) else ''
+                tech_str = proj_techs_raw[i] if i < len(proj_techs_raw) else ''
+                technologies = [t.strip() for t in tech_str.split(',') if t.strip()]
                 projects_list.append({
                     'name': proj_names[i],
                     'description': _description_text_to_list(raw_desc),
-                    'url': proj_urls[i] if i < len(proj_urls) else ''
+                    'url': proj_urls[i] if i < len(proj_urls) else '',
+                    'technologies': technologies,
                 })
         updated_content['projects'] = projects_list
 
-        # Certifications (arrays)
+        # Certifications (arrays — incl. duration)
         cert_names = request.POST.getlist('cert_name[]')
         cert_issuers = request.POST.getlist('cert_issuer[]')
         cert_dates = request.POST.getlist('cert_date[]')
+        cert_durations = request.POST.getlist('cert_duration[]')
         cert_urls = request.POST.getlist('cert_url[]')
         cert_list = []
         for i in range(len(cert_names)):
@@ -233,7 +252,8 @@ def resume_edit_view(request, resume_id):
                     'name': cert_names[i],
                     'issuer': cert_issuers[i] if i < len(cert_issuers) else '',
                     'date': cert_dates[i] if i < len(cert_dates) else '',
-                    'url': cert_urls[i] if i < len(cert_urls) else ''
+                    'duration': cert_durations[i] if i < len(cert_durations) else '',
+                    'url': cert_urls[i] if i < len(cert_urls) else '',
                 })
         updated_content['certifications'] = cert_list
         
@@ -369,6 +389,47 @@ def resume_edit_view(request, resume_id):
         'section_order': section_order,
         'section_order_with_labels': section_order_with_labels,
     })
+
+
+@login_required
+@require_POST
+def sync_resume_from_master_view(request, resume_id):
+    """Pull the latest UserProfile.data_content fields into this resume.
+
+    Reuses _ensure_profile_data_preserved (which is the same path the
+    generator uses to recover from a half-empty LLM output) so we don't have
+    a second source of truth for "master → resume" field mapping.
+
+    Behavior:
+    - Existing resume content is preserved where present (LLM-rewritten
+      bullets aren't clobbered).
+    - Blank or missing fields get filled from the master profile —
+      experience location/industry/dates, education field/gpa/honors,
+      project technologies, certification duration, the objective field.
+    - On the rare race where the LLM dropped a section entirely, that
+      whole section gets rebuilt from the master.
+
+    Returns JSON so the editor can reload without a full form repost.
+    """
+    from resumes.services.resume_generator import _ensure_profile_data_preserved
+
+    resume = get_object_or_404(GeneratedResume, id=resume_id)
+    if resume.gap_analysis.job.user != request.user:
+        raise Http404
+
+    profile = getattr(request.user, 'profile', None)
+    profile_data = (profile.data_content if profile else None) or {}
+
+    if not profile_data:
+        return JsonResponse({
+            'error': 'no_master_profile',
+            'detail': 'Master profile is empty. Upload a CV or fill in /profiles/setup/review/ first.',
+        }, status=400)
+
+    merged = _ensure_profile_data_preserved(resume.content or {}, profile_data)
+    resume.content = merged
+    resume.save()
+    return JsonResponse({'ok': True, 'detail': 'Resume synced from master profile.'})
 
 
 @login_required

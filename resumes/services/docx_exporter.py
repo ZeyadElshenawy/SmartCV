@@ -226,12 +226,20 @@ def _write_header(doc: Document, profile, content: dict) -> None:
 
 def _write_summary(doc: Document, content: dict) -> None:
     text = (content or {}).get('professional_summary') or ''
-    if not text:
+    objective = (content or {}).get('objective') or ''
+    if not text and not objective:
         return
     _add_section_heading(doc, 'Professional Summary')
-    p = doc.add_paragraph()
-    run = p.add_run(text)
-    _set_run_font(run, size_pt=BODY_PT)
+    if text:
+        p = doc.add_paragraph()
+        run = p.add_run(text)
+        _set_run_font(run, size_pt=BODY_PT)
+    if objective:
+        p = doc.add_paragraph()
+        label = p.add_run('Objective: ')
+        _set_run_font(label, size_pt=BODY_PT, bold=True)
+        run = p.add_run(objective)
+        _set_run_font(run, size_pt=BODY_PT)
 
 
 def _write_skills(doc: Document, content: dict) -> None:
@@ -267,11 +275,12 @@ def _write_experience(doc: Document, content: dict) -> None:
             head.add_run('\t')
             date_run = head.add_run(exp.get('duration', ''))
             _set_run_font(date_run, size_pt=ITEM_TITLE_PT)
-        # Company on the next line, italic
-        if exp.get('company'):
+        # Company · location · industry on the next line, italic accent
+        sub_bits = [b for b in (exp.get('company'), exp.get('location'), exp.get('industry')) if b]
+        if sub_bits:
             sub = doc.add_paragraph()
             sub.paragraph_format.space_after = Pt(2)
-            run = sub.add_run(exp.get('company', ''))
+            run = sub.add_run(' · '.join(sub_bits))
             _set_run_font(run, size_pt=ITEM_SUB_PT, italic=True, color=ACCENT_RGB)
         for bullet in _ensure_list(exp.get('description')):
             _bullet(doc, bullet)
@@ -288,6 +297,11 @@ def _write_education(doc: Document, content: dict) -> None:
         degree = edu.get('degree') or ''
         field = edu.get('field') or ''
         institution = edu.get('institution') or ''
+        location = edu.get('location') or ''
+        gpa = edu.get('gpa') or ''
+        honors = edu.get('honors') or []
+        if isinstance(honors, str):
+            honors = [line.strip() for line in honors.split('\n') if line.strip()]
         year = edu.get('graduation_year') or edu.get('year') or ''
         if field:
             degree_text = f"{degree} in {field}".strip()
@@ -303,11 +317,17 @@ def _write_education(doc: Document, content: dict) -> None:
             head.add_run('\t')
             date_run = head.add_run(str(year))
             _set_run_font(date_run, size_pt=ITEM_TITLE_PT)
-        if institution:
+        sub_bits = [b for b in (institution, location, (f"GPA {gpa}" if gpa else '')) if b]
+        if sub_bits:
             sub = doc.add_paragraph()
             sub.paragraph_format.space_after = Pt(2)
-            run = sub.add_run(institution)
+            run = sub.add_run(' · '.join(sub_bits))
             _set_run_font(run, size_pt=ITEM_SUB_PT, italic=True, color=ACCENT_RGB)
+        if honors:
+            h = doc.add_paragraph()
+            h.paragraph_format.space_after = Pt(2)
+            run = h.add_run(' · '.join(honors))
+            _set_run_font(run, size_pt=BODY_PT)
 
 
 def _write_projects(doc: Document, content: dict) -> None:
@@ -336,6 +356,15 @@ def _write_projects(doc: Document, content: dict) -> None:
         else:
             run = head.add_run(name)
             _set_run_font(run, size_pt=ITEM_TITLE_PT, bold=True)
+        # Tech stack on its own italic line under the project name (ATS keywords)
+        techs = proj.get('technologies') or []
+        if isinstance(techs, str):
+            techs = [t.strip() for t in techs.split(',') if t.strip()]
+        if techs:
+            sub = doc.add_paragraph()
+            sub.paragraph_format.space_after = Pt(2)
+            run = sub.add_run(' · '.join(techs))
+            _set_run_font(run, size_pt=ITEM_SUB_PT, italic=True, color=ACCENT_RGB)
         for bullet in _ensure_list(proj.get('description')):
             _bullet(doc, bullet)
 
@@ -369,9 +398,12 @@ def _write_certifications(doc: Document, content: dict) -> None:
         else:
             run = p.add_run(name)
             _set_run_font(run, size_pt=BODY_PT, bold=True)
+        duration = cert.get('duration', '')
         suffix_bits = []
         if issuer:
             suffix_bits.append(f' - {issuer}')
+        if duration:
+            suffix_bits.append(f' · {duration}')
         if date:
             suffix_bits.append(f' ({date})')
         if suffix_bits:

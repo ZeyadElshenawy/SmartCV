@@ -801,6 +801,216 @@ class RegenerateSectionEndpointTests(TestCase):
         self.assertEqual(resp.status_code, 422)
 
 
+class SchemaSupersetTests(TestCase):
+    """Phase 0 schema unification — the resume content schema is now a
+    superset of the master profile. Editor form fields persist round-trip
+    and the DOCX/sync paths surface them.
+    """
+
+    def setUp(self):
+        from jobs.models import Job
+        from analysis.models import GapAnalysis
+        from profiles.models import UserProfile
+        from resumes.models import GeneratedResume
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='superset@example.com', email='superset@example.com', password='x',
+        )
+        UserProfile.objects.create(
+            user=self.user, full_name='Marie Curie', email='superset@example.com',
+            data_content={
+                'objective': 'Translate physics breakthroughs into impactful tools.',
+                'experiences': [{
+                    'title': 'Research Scientist', 'company': 'Sorbonne Lab',
+                    'start_date': '1898', 'end_date': '1906',
+                    'location': 'Paris, FR', 'industry': 'Academic Research',
+                    'highlights': ['Isolated polonium and radium.'],
+                }],
+                'education': [{
+                    'degree': 'Doctorate', 'field': 'Physics',
+                    'institution': 'Sorbonne', 'graduation_year': '1903',
+                    'gpa': 'Honours', 'location': 'Paris, FR',
+                    'honors': ['Nobel Prize in Physics 1903'],
+                }],
+                'projects': [{
+                    'name': 'Polonium isolation', 'url': 'https://example.com/po',
+                    'description': ['Identified polonium via radiochemical separation.'],
+                    'technologies': ['Radiometry', 'Chemistry'],
+                }],
+                'certifications': [{
+                    'name': 'Pharmacy Diploma', 'issuer': 'Sorbonne',
+                    'date': '1894', 'duration': '4 years',
+                    'url': '',
+                }],
+            },
+        )
+        self.client.force_login(self.user)
+        job = Job.objects.create(
+            user=self.user, title='Physicist', company='Pasteur',
+            description='Physics research role.',
+            extracted_skills=['Radiometry'],
+        )
+        gap = GapAnalysis.objects.create(user=self.user, job=job, similarity_score=0.9)
+        self.resume = GeneratedResume.objects.create(
+            gap_analysis=gap,
+            content={
+                'professional_title': 'Physicist',
+                'professional_summary': 'Physicist focused on radioactivity research.',
+                'skills': ['Radiometry'],
+                # Intentionally minimal so sync-from-master has work to do.
+                'experience': [{'title': 'Research Scientist', 'company': 'Sorbonne Lab',
+                                'duration': '1898 - 1906',
+                                'description': ['Isolated polonium.']}],
+                'education': [{'degree': 'Doctorate', 'institution': 'Sorbonne', 'year': '1903'}],
+                'projects': [{'name': 'Polonium isolation',
+                              'description': ['Identified polonium.'],
+                              'url': 'https://example.com/po'}],
+                'certifications': [{'name': 'Pharmacy Diploma', 'issuer': 'Sorbonne',
+                                    'date': '1894', 'url': ''}],
+                'languages': [],
+            },
+        )
+
+    def test_edit_form_persists_new_experience_fields(self):
+        """exp_location[], exp_industry[] survive a POST round-trip."""
+        from django.urls import reverse
+        url = reverse('resume_edit', args=[self.resume.id])
+        resp = self.client.post(url, data={
+            'professional_title': 'Physicist',
+            'professional_summary': 'Updated.',
+            'objective': 'Custom objective text.',
+            'skills': 'Radiometry, Chemistry',
+            'exp_title[]': ['Research Scientist'],
+            'exp_company[]': ['Sorbonne Lab'],
+            'exp_duration[]': ['1898 - 1906'],
+            'exp_location[]': ['Paris, FR'],
+            'exp_industry[]': ['Academic Research'],
+            'exp_description[]': ['Isolated polonium and radium.'],
+            'edu_degree[]': ['Doctorate'],
+            'edu_field[]': ['Physics'],
+            'edu_institution[]': ['Sorbonne'],
+            'edu_year[]': ['1903'],
+            'edu_gpa[]': ['Honours'],
+            'edu_location[]': ['Paris, FR'],
+            'edu_honors[]': ['Nobel Prize in Physics 1903'],
+            'proj_name[]': ['Polonium isolation'],
+            'proj_url[]': ['https://example.com/po'],
+            'proj_technologies[]': ['Radiometry, Chemistry'],
+            'proj_description[]': ['Identified polonium.'],
+            'cert_name[]': ['Pharmacy Diploma'],
+            'cert_issuer[]': ['Sorbonne'],
+            'cert_date[]': ['1894'],
+            'cert_duration[]': ['4 years'],
+            'cert_url[]': [''],
+            'languages': '',
+        }, follow=False)
+        self.assertEqual(resp.status_code, 302)
+        self.resume.refresh_from_db()
+        c = self.resume.content
+        self.assertEqual(c['objective'], 'Custom objective text.')
+        self.assertEqual(c['experience'][0]['location'], 'Paris, FR')
+        self.assertEqual(c['experience'][0]['industry'], 'Academic Research')
+        self.assertEqual(c['education'][0]['field'], 'Physics')
+        self.assertEqual(c['education'][0]['gpa'], 'Honours')
+        self.assertEqual(c['education'][0]['location'], 'Paris, FR')
+        self.assertEqual(c['education'][0]['honors'], ['Nobel Prize in Physics 1903'])
+        self.assertEqual(c['projects'][0]['technologies'], ['Radiometry', 'Chemistry'])
+        self.assertEqual(c['certifications'][0]['duration'], '4 years')
+
+    def test_sync_from_master_fills_blank_fields(self):
+        """Calling sync-from-master pulls master profile fields into the
+        resume without clobbering the existing typed bullets."""
+        from django.urls import reverse
+        url = reverse('sync_resume_from_master', args=[self.resume.id])
+        resp = self.client.post(url, data='{}', content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json()['ok'])
+        self.resume.refresh_from_db()
+        c = self.resume.content
+        # Master fields populated:
+        self.assertEqual(c['experience'][0]['location'], 'Paris, FR')
+        self.assertEqual(c['experience'][0]['industry'], 'Academic Research')
+        self.assertEqual(c['education'][0]['field'], 'Physics')
+        self.assertEqual(c['education'][0]['gpa'], 'Honours')
+        self.assertEqual(c['education'][0]['honors'], ['Nobel Prize in Physics 1903'])
+        self.assertEqual(c['projects'][0]['technologies'], ['Radiometry', 'Chemistry'])
+        self.assertEqual(c['certifications'][0]['duration'], '4 years')
+        self.assertIn('Translate physics breakthroughs', c['objective'])
+        # Existing typed bullet preserved (not clobbered):
+        self.assertIn('Isolated polonium.', c['experience'][0]['description'])
+
+    def test_sync_from_master_rejects_other_users_resume(self):
+        from django.contrib.auth import get_user_model
+        from django.urls import reverse
+        User = get_user_model()
+        other = User.objects.create_user(
+            username='intruder@example.com', email='intruder@example.com', password='x',
+        )
+        self.client.force_login(other)
+        resp = self.client.post(reverse('sync_resume_from_master', args=[self.resume.id]),
+                                data='{}', content_type='application/json')
+        self.assertEqual(resp.status_code, 404)
+
+    def test_sync_from_master_rejects_empty_master(self):
+        """If the user hasn't filled in the master profile, sync should
+        return 400 with a friendly message, not blow up."""
+        from profiles.models import UserProfile
+        from django.urls import reverse
+        UserProfile.objects.filter(user=self.user).update(data_content={})
+        resp = self.client.post(reverse('sync_resume_from_master', args=[self.resume.id]),
+                                data='{}', content_type='application/json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json()['error'], 'no_master_profile')
+
+    def test_docx_renders_new_fields(self):
+        """The DOCX exporter surfaces location, GPA, honors, technologies,
+        and cert duration when present in resume.content."""
+        import io, zipfile
+        # Populate the resume directly with all new fields so we don't rely
+        # on sync_from_master to put them there.
+        self.resume.content = {
+            **self.resume.content,
+            'objective': 'Translate physics breakthroughs into impactful tools.',
+            'experience': [{
+                'title': 'Research Scientist', 'company': 'Sorbonne Lab',
+                'duration': '1898 - 1906',
+                'location': 'Paris, FR', 'industry': 'Academic Research',
+                'description': ['Isolated polonium.'],
+            }],
+            'education': [{
+                'degree': 'Doctorate', 'field': 'Physics',
+                'institution': 'Sorbonne', 'year': '1903',
+                'gpa': 'Honours', 'location': 'Paris, FR',
+                'honors': ['Nobel Prize in Physics 1903'],
+            }],
+            'projects': [{
+                'name': 'Polonium isolation',
+                'url': 'https://example.com/po',
+                'description': ['Identified polonium.'],
+                'technologies': ['Radiometry', 'Chemistry'],
+            }],
+            'certifications': [{
+                'name': 'Pharmacy Diploma', 'issuer': 'Sorbonne',
+                'date': '1894', 'duration': '4 years', 'url': '',
+            }],
+        }
+        self.resume.save()
+        resp = self.client.get(f'/resumes/export-docx/{self.resume.id}/')
+        self.assertEqual(resp.status_code, 200)
+        with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
+            doc_xml = z.read('word/document.xml').decode('utf-8')
+        # New fields should all appear in the rendered XML.
+        self.assertIn('Translate physics breakthroughs', doc_xml)  # objective
+        self.assertIn('Paris, FR', doc_xml)                         # location
+        self.assertIn('Academic Research', doc_xml)                 # industry
+        self.assertIn('Physics', doc_xml)                           # education field
+        self.assertIn('GPA Honours', doc_xml)                       # gpa
+        self.assertIn('Nobel Prize', doc_xml)                       # honors
+        self.assertIn('Radiometry', doc_xml)                        # tech stack
+        self.assertIn('4 years', doc_xml)                           # cert duration
+
+
 class ResumeListThumbnailTests(TestCase):
     """Each card on the résumé list page now renders a thumbnail preview of
     the actual resume content (name, summary, first experience, top skills)
