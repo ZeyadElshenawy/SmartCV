@@ -465,9 +465,16 @@ def dashboard(request):
         request.session.pop('in_onboarding', None)
 
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
-    
-    # Fetch all jobs for the user ONCE
-    jobs = list(Job.objects.filter(user=request.user).order_by('-created_at'))
+
+    # Fetch all jobs for the user ONCE — annotated with resume count so the
+    # kanban tile can show "N résumés" per job without a query-per-card.
+    # The chain is Job → GapAnalysis → GeneratedResume, so we count through.
+    from django.db.models import Count
+    jobs = list(
+        Job.objects.filter(user=request.user)
+        .annotate(resume_count=Count('gap_analyses__resumes', distinct=True))
+        .order_by('-created_at')
+    )
     
     # Kanban Board Data - grouped in Python to save 5 DB queries
     kanban_boards = {

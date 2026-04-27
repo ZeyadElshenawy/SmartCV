@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}Export failed — SmartCV{% endblock %}
+
+{% block content %}
+<div class="bg-neutral-50 dark:bg-neutral-950 min-h-[60vh] flex items-center justify-center py-16 px-4">
+    <div class="mx-auto max-w-lg text-center space-y-6">
+        <div aria-hidden="true" class="mx-auto w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 flex items-center justify-center">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        </div>
+        <h1 class="font-display text-3xl text-neutral-900 dark:text-neutral-50"
+            style="font-variation-settings: 'opsz' 48;">
+            {{ format|upper }} export failed.
+        </h1>
+        <p class="text-neutral-600 dark:text-neutral-300 leading-relaxed">
+            Something went sideways generating your {{ format|upper }}.
+            This is usually a transient render issue — retrying often works.
+            If it keeps failing, the other format ({{ alt_format|upper }}) is a good fallback.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+            <a href="{{ retry_url }}"
+               class="inline-flex items-center justify-center gap-2 h-11 px-5 text-sm font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                Retry {{ format|upper }}
+            </a>
+            <a href="{{ alt_url }}"
+               class="inline-flex items-center justify-center h-11 px-5 text-sm font-medium rounded-lg ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-700 dark:text-neutral-200 bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
+                Try {{ alt_format|upper }} instead
+            </a>
+            <a href="{{ back_url }}"
+               class="inline-flex items-center justify-center h-11 px-5 text-sm font-medium text-neutral-600 dark:text-neutral-300 hover:text-brand-700 dark:hover:text-brand-400 transition-colors">
+                ← Back to résumé
+            </a>
+        </div>
+        {% if error_detail %}
+        <details class="mt-6 text-left max-w-md mx-auto">
+            <summary class="text-xs uppercase tracking-[0.16em] font-medium text-neutral-500 dark:text-neutral-400 cursor-pointer hover:text-neutral-700 dark:hover:text-neutral-300">
+                Technical detail
+            </summary>
+            <pre class="mt-2 p-3 rounded-lg bg-neutral-100 dark:bg-neutral-900 text-[11px] text-neutral-600 dark:text-neutral-400 overflow-x-auto whitespace-pre-wrap">{{ error_detail }}</pre>
+        </details>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

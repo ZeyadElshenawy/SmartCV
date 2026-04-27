@@ -82,6 +82,26 @@
                 </div>
             </section>
         </div>
+
+        {# Hand-off to the Chrome extension for automated send-on-LinkedIn.
+           Plain copy-paste is fine for one or two contacts; the extension is
+           the path for batch outreach. Stays linked even after generation
+           so users learn it exists. #}
+        <a href="{% url 'outreach_pairing' %}"
+           class="block rounded-2xl bg-brand-50 dark:bg-brand-950/30 ring-1 ring-brand-200 dark:ring-brand-800/50 p-5 hover:ring-brand-400 dark:hover:ring-brand-600 transition-all group/card">
+            <div class="flex items-start gap-4">
+                <div class="shrink-0 w-10 h-10 rounded-lg bg-brand-100 dark:bg-brand-900/40 flex items-center justify-center text-brand-700 dark:text-brand-400">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                </div>
+                <div class="flex-1">
+                    <div class="font-medium text-neutral-900 dark:text-neutral-100">Want SmartCV to send these for you?</div>
+                    <p class="text-sm text-neutral-600 dark:text-neutral-300 mt-1">
+                        Set up the Chrome extension and queue the LinkedIn message + cold email straight from your own LinkedIn tab. You review every draft before it sends.
+                    </p>
+                </div>
+                <span aria-hidden="true" class="text-brand-700 dark:text-brand-400 transition-transform group-hover/card:translate-x-0.5">→</span>
+            </div>
+        </a>
         {% else %}
         <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-12 text-center space-y-5">
             <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>

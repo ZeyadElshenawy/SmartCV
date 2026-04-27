@@ -1263,6 +1263,28 @@
         setSectionVisible('preview-languages-section', langs.trim().length > 0);
     }
 
+    // Prevent silent loss of typed edits on accidental navigation. We track
+    // a `dirty` flag that flips to true on any input/change inside the form
+    // and back to false when the form submits successfully (the redirect
+    // after save naturally tears down this listener).
+    let _resumeFormDirty = false;
+    (function attachDirtyTracking() {
+        const form = document.getElementById('resume-edit-form');
+        if (!form) return;
+        const flagDirty = () => { _resumeFormDirty = true; };
+        form.addEventListener('input', flagDirty, {capture: true});
+        form.addEventListener('change', flagDirty, {capture: true});
+        // Submitting the form means the user wants to save → don't warn.
+        form.addEventListener('submit', () => { _resumeFormDirty = false; });
+    })();
+    window.addEventListener('beforeunload', (e) => {
+        if (!_resumeFormDirty) return;
+        // Modern browsers ignore the custom string but require returnValue
+        // to be set to trigger the native "Leave site?" prompt.
+        e.preventDefault();
+        e.returnValue = '';
+    });
+
     function addExperience() {
         document.getElementById('experience-container').appendChild(document.getElementById('exp-template').content.cloneNode(true));
     }

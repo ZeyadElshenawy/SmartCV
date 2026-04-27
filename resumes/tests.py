@@ -1019,6 +1019,85 @@ class SchemaSupersetTests(TestCase):
         self.assertIn('4 years', doc_xml)                           # cert duration
 
 
+class ExportErrorPageTests(TestCase):
+    """Tier-1 papercut: export failures used to return a plain 500 with
+    a single sentence. Now they render the export_error.html template
+    with retry / alt-format / back-to-resume links."""
+
+    def setUp(self):
+        from jobs.models import Job
+        from analysis.models import GapAnalysis
+        from profiles.models import UserProfile
+        from resumes.models import GeneratedResume
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='exporterr@example.com', email='exporterr@example.com', password='x',
+        )
+        UserProfile.objects.create(user=self.user, full_name='Test User')
+        self.client.force_login(self.user)
+        job = Job.objects.create(
+            user=self.user, title='Engineer', company='Acme', description='x',
+            extracted_skills=[],
+        )
+        gap = GapAnalysis.objects.create(user=self.user, job=job, similarity_score=0.5)
+        self.resume = GeneratedResume.objects.create(
+            gap_analysis=gap,
+            content={'professional_title': 'Engineer'},
+        )
+
+    def test_pdf_export_failure_renders_friendly_error_page(self):
+        from unittest.mock import patch
+        with patch('resumes.views.generate_pdf', side_effect=RuntimeError('boom')):
+            resp = self.client.get(f'/resumes/export/{self.resume.id}/')
+        self.assertEqual(resp.status_code, 500)
+        # Friendly page body — not the old plaintext "PDF generation failed."
+        self.assertContains(resp, 'PDF export failed', status_code=500)
+        self.assertContains(resp, 'Retry PDF', status_code=500)
+        self.assertContains(resp, 'Try DOCX instead', status_code=500)
+        self.assertContains(resp, 'Back to résumé', status_code=500)
+
+    def test_docx_export_failure_renders_friendly_error_page(self):
+        from unittest.mock import patch
+        with patch('resumes.views.generate_docx', side_effect=RuntimeError('boom')):
+            resp = self.client.get(f'/resumes/export-docx/{self.resume.id}/')
+        self.assertEqual(resp.status_code, 500)
+        self.assertContains(resp, 'DOCX export failed', status_code=500)
+        self.assertContains(resp, 'Retry DOCX', status_code=500)
+        self.assertContains(resp, 'Try PDF instead', status_code=500)
+
+
+class DashboardResumeCountTests(TestCase):
+    """S4: a returning user with multiple resumes per job should see a
+    `N résumés` badge on each job tile, linking to the history."""
+
+    def test_dashboard_annotates_resume_count_on_jobs(self):
+        from jobs.models import Job
+        from analysis.models import GapAnalysis
+        from profiles.models import UserProfile
+        from resumes.models import GeneratedResume
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        user = User.objects.create_user(
+            username='dash@example.com', email='dash@example.com', password='x',
+        )
+        UserProfile.objects.create(user=user, full_name='Returning User')
+        job = Job.objects.create(
+            user=user, title='Engineer', company='Acme', description='x',
+            extracted_skills=[], application_status='saved',
+        )
+        gap = GapAnalysis.objects.create(user=user, job=job, similarity_score=0.7)
+        # Three resume iterations for the same job — typical second-session
+        # state for a user iterating on tailoring.
+        for i in range(3):
+            GeneratedResume.objects.create(gap_analysis=gap, content={'professional_title': f'v{i}'})
+        self.client.force_login(user)
+        resp = self.client.get('/profiles/dashboard/')
+        self.assertEqual(resp.status_code, 200)
+        # The annotated count surfaces as "3 résumés" badge text.
+        self.assertContains(resp, '3 résumés')
+
+
 class FactualityCheckEnrichedProjectsTests(SimpleTestCase):
     """Phase 3: factuality_check accepts enriched-project URLs / source_ids
     as legitimate evidence so Phase-2 confirmed projects don't get falsely

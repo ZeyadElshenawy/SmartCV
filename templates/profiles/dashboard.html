@@ -263,6 +263,9 @@
                                 <div class="flex items-center gap-1">
                                     <a href="{% url 'gap_analysis' job.id %}" class="text-[10px] px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950/60 font-medium transition-colors" title="Gap analysis">Analysis</a>
                                     <a href="{% url 'profile_chatbot' job.id %}" class="text-[10px] px-1.5 py-0.5 rounded bg-accent-50 dark:bg-accent-950/40 text-accent-700 dark:text-accent-300 hover:bg-accent-100 dark:hover:bg-accent-950/60 font-medium transition-colors" title="Chat to fill gaps">Chat</a>
+                                    {% if job.resume_count %}
+                                    <a href="{% url 'resume_list' %}" class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-950/60 font-medium transition-colors" title="View résumé iterations for this job">{{ job.resume_count }} résumé{{ job.resume_count|pluralize }}</a>
+                                    {% endif %}
                                 </div>
                                 <div class="flex items-center gap-1.5">
                                     <a href="{% url 'negotiate_salary' job.id %}" class="salary-negotiate-btn hidden text-emerald-600 dark:text-emerald-400 hover:text-emerald-800" title="AI salary negotiator">
