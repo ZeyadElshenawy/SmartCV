@@ -211,3 +211,42 @@ class OutreachAction(models.Model):
             ),
         ]
 
+
+class OutreachActionEvent(models.Model):
+    """Audit-trail row for OutreachAction state transitions.
+
+    Each row captures one transition (e.g. queued → in_flight, in_flight →
+    failed). Append-only, never updated. Lets us answer questions like
+    "why did this action fail at 14:32?" or "how often does this action
+    bounce between queued and failed?" without losing history when the
+    action is retried.
+
+    Kept lightweight on purpose — no LLM payload, no per-attempt detail.
+    Just the bare facts: when, what changed, what error (if any), what
+    actor caused it (extension, server-side retry, stale-recovery sweep).
+    """
+    ACTOR_CHOICES = [
+        ('extension', 'Extension'),
+        ('user', 'User'),               # manual retry / pause / resume
+        ('server_dispatch', 'Dispatcher'),  # claim / requeue
+        ('server_recovery', 'Stale-recovery sweep'),
+        ('server_finish', 'Campaign finish'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    action = models.ForeignKey(OutreachAction, on_delete=models.CASCADE, related_name='events')
+    from_status = models.CharField(max_length=16, blank=True)
+    to_status = models.CharField(max_length=16)
+    actor = models.CharField(max_length=24, choices=ACTOR_CHOICES, default='server_dispatch')
+    reason = models.CharField(max_length=64, blank=True)
+    detail = models.TextField(blank=True)
+    attempts_after = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'outreach_action_events'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['action', 'created_at']),
+        ]
+

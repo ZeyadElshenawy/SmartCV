@@ -18,7 +18,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from jobs.models import Job
-from profiles.models import OutreachAction, OutreachCampaign, UserProfile
+from profiles.models import OutreachAction, OutreachActionEvent, OutreachCampaign, UserProfile
 from profiles.services.outreach_dispatcher import (
     MAX_ATTEMPTS,
     STALE_INFLIGHT_AFTER,
@@ -125,6 +125,104 @@ class DispatcherTests(TestCase):
         )
         with self.assertRaises(ValueError):
             record_action_result(action, 'whatever')
+
+
+class ActionEventLogTests(TestCase):
+    """Every state transition on an OutreachAction should append an event
+    row so we can answer 'why did this fail at 14:32?' or 'how often did
+    this bounce queued ↔ failed?' without losing history on retry. Events
+    are append-only (admin enforces read-only in OutreachActionEventAdmin).
+    """
+
+    def test_claim_logs_dispatch_event(self):
+        user = _make_user()
+        job = _make_job(user)
+        campaign = _make_campaign(user, job)
+        OutreachAction.objects.create(
+            campaign=campaign, target_handle='a', kind='connect', payload='hi',
+        )
+        claimed = claim_next_action(user)
+        events = list(OutreachActionEvent.objects.filter(action=claimed))
+        self.assertEqual(len(events), 1)
+        ev = events[0]
+        self.assertEqual(ev.from_status, 'queued')
+        self.assertEqual(ev.to_status, 'in_flight')
+        self.assertEqual(ev.actor, 'server_dispatch')
+        self.assertEqual(ev.attempts_after, 1)
+
+    def test_record_action_result_logs_extension_event(self):
+        user = _make_user()
+        job = _make_job(user)
+        campaign = _make_campaign(user, job)
+        action = OutreachAction.objects.create(
+            campaign=campaign, target_handle='a', kind='connect', payload='hi',
+            status='in_flight', attempts=1,
+        )
+        record_action_result(action, 'sent')
+        ev = OutreachActionEvent.objects.filter(action=action).first()
+        self.assertIsNotNone(ev)
+        self.assertEqual(ev.from_status, 'in_flight')
+        self.assertEqual(ev.to_status, 'sent')
+        self.assertEqual(ev.actor, 'extension')
+
+    def test_stale_recovery_logs_requeue_event(self):
+        user = _make_user()
+        job = _make_job(user)
+        campaign = _make_campaign(user, job)
+        action = OutreachAction.objects.create(
+            campaign=campaign, target_handle='a', kind='connect', payload='hi',
+            status='in_flight', attempts=1,
+        )
+        OutreachAction.objects.filter(pk=action.pk).update(
+            queued_at=timezone.now() - STALE_INFLIGHT_AFTER - timedelta(minutes=1),
+        )
+        reclaim_stale_inflight(user)
+        ev = OutreachActionEvent.objects.filter(action=action).first()
+        self.assertIsNotNone(ev)
+        self.assertEqual(ev.from_status, 'in_flight')
+        self.assertEqual(ev.to_status, 'queued')
+        self.assertEqual(ev.actor, 'server_recovery')
+        self.assertIn('stale_inflight', ev.reason)
+
+    def test_full_lifecycle_produces_ordered_event_chain(self):
+        """A canonical happy-path action: queued -> in_flight (claim) ->
+        sent (extension reports success). The event log should show that
+        sequence in order, with stable from/to fields."""
+        user = _make_user()
+        job = _make_job(user)
+        campaign = _make_campaign(user, job)
+        OutreachAction.objects.create(
+            campaign=campaign, target_handle='a', kind='connect', payload='hi',
+        )
+        claimed = claim_next_action(user)
+        record_action_result(claimed, 'sent')
+        events = list(
+            OutreachActionEvent.objects.filter(action=claimed).order_by('created_at')
+        )
+        self.assertEqual([(e.from_status, e.to_status) for e in events], [
+            ('queued', 'in_flight'),
+            ('in_flight', 'sent'),
+        ])
+        self.assertEqual([e.actor for e in events], ['server_dispatch', 'extension'])
+
+    def test_event_log_failure_does_not_break_dispatch(self):
+        """If the events table is somehow unavailable (corrupted index,
+        transient outage), dispatch must still succeed. _log_event swallows
+        and warns; verify that here by mocking the manager to raise."""
+        user = _make_user()
+        job = _make_job(user)
+        campaign = _make_campaign(user, job)
+        OutreachAction.objects.create(
+            campaign=campaign, target_handle='a', kind='connect', payload='hi',
+        )
+        with patch.object(
+            OutreachActionEvent.objects, 'create',
+            side_effect=Exception('events table down'),
+        ):
+            # Should not raise — dispatch is the system of record, log is observability.
+            claimed = claim_next_action(user)
+        self.assertIsNotNone(claimed)
+        self.assertEqual(claimed.status, 'in_flight')
 
 
 class StaleInflightRecoveryTests(TestCase):
