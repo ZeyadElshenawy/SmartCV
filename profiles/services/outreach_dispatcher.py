@@ -12,7 +12,7 @@ from typing import Optional
 from django.db.models import Q
 from django.utils import timezone
 
-from profiles.models import OutreachAction, OutreachCampaign
+from profiles.models import OutreachAction, OutreachActionEvent, OutreachCampaign
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +43,28 @@ def invites_sent_today(user) -> int:
         completed_at__gte=cutoff,
         status__in=['sent', 'accepted'],
     ).count()
+
+
+def _log_event(action: OutreachAction, *, from_status: str, to_status: str,
+               actor: str, reason: str = '', detail: str = '') -> None:
+    """Append an audit-trail row for a state transition.
+
+    Failures here MUST NOT break dispatch — the event log is observability,
+    not the system of record. We swallow exceptions and warn so a missing
+    table or a transient DB hiccup doesn't take down the queue.
+    """
+    try:
+        OutreachActionEvent.objects.create(
+            action=action,
+            from_status=from_status or '',
+            to_status=to_status,
+            actor=actor,
+            reason=reason or '',
+            detail=detail or '',
+            attempts_after=action.attempts,
+        )
+    except Exception as exc:  # noqa: BLE001 — never let logging break dispatch
+        logger.warning("outreach: event log write failed (action=%s): %s", action.id, exc)
 
 
 def reclaim_stale_inflight(user) -> int:
@@ -79,6 +101,8 @@ def reclaim_stale_inflight(user) -> int:
             action.last_error = action.last_error or 'stale_inflight_max_attempts'
             action.completed_at = now
             action.save(update_fields=['status', 'last_error', 'completed_at'])
+            _log_event(action, from_status='in_flight', to_status='failed',
+                       actor='server_recovery', reason='stale_inflight_max_attempts')
             abandoned += 1
         else:
             action.status = 'queued'
@@ -86,6 +110,8 @@ def reclaim_stale_inflight(user) -> int:
             # claim. Don't reset it to 0; we want the cap to apply across
             # the action's lifetime, not per-claim.
             action.save(update_fields=['status'])
+            _log_event(action, from_status='in_flight', to_status='queued',
+                       actor='server_recovery', reason='stale_inflight_requeued')
             requeued += 1
     if requeued or abandoned:
         logger.info(
@@ -131,9 +157,12 @@ def claim_next_action(user) -> Optional[OutreachAction]:
     if action is None:
         return None
 
+    prev_status = action.status
     action.status = 'in_flight'
     action.attempts = action.attempts + 1
     action.save(update_fields=['status', 'attempts'])
+    _log_event(action, from_status=prev_status, to_status='in_flight',
+               actor='server_dispatch', reason='claimed')
     return action
 
 
@@ -143,6 +172,7 @@ def record_action_result(action: OutreachAction, status: str, error: str = '') -
     if status not in valid_statuses:
         raise ValueError(f"unsupported status {status!r}; expected one of {valid_statuses}")
 
+    prev_status = action.status
     action.status = status
     action.last_error = error or ''
     if status in {'sent', 'accepted', 'skipped'}:
@@ -150,6 +180,9 @@ def record_action_result(action: OutreachAction, status: str, error: str = '') -
     elif status == 'failed' and action.attempts >= MAX_ATTEMPTS:
         action.completed_at = timezone.now()
     action.save(update_fields=['status', 'last_error', 'completed_at'])
+
+    _log_event(action, from_status=prev_status, to_status=status,
+               actor='extension', reason=error or 'outcome', detail=error)
 
     _maybe_finish_campaign(action.campaign)
     return action

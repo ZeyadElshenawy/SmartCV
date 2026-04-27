@@ -22,7 +22,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from jobs.models import Job
-from profiles.models import DiscoveredTarget, OutreachAction, OutreachCampaign
+from profiles.models import DiscoveredTarget, OutreachAction, OutreachActionEvent, OutreachCampaign
 from profiles.services.outreach_dispatcher import (
     claim_next_action,
     invites_sent_today,
@@ -327,12 +327,30 @@ def retry_failed_actions(request, campaign_id):
     if isinstance(only_ids, list) and only_ids:
         qs = qs.filter(id__in=[i for i in only_ids if i])
 
+    # Materialize the list before update() so we can log per-action events
+    # (the bulk update doesn't return rows). Cheap query — `failed` actions
+    # in one campaign are a small set.
+    targets = list(qs)
     requeued = qs.update(
         status='queued',
         attempts=0,
         completed_at=None,
         last_error='',
     )
+    # Audit-trail entry per action so the event log shows who requeued
+    # what and when. Best-effort — never block the retry on log writes.
+    for action in targets:
+        try:
+            OutreachActionEvent.objects.create(
+                action=action,
+                from_status='failed',
+                to_status='queued',
+                actor='user',
+                reason='manual_retry',
+                attempts_after=0,
+            )
+        except Exception:
+            logger.warning("outreach: retry event log write failed for action=%s", action.id)
 
     if requeued and campaign.status in {'failed', 'done'}:
         campaign.status = 'running'
