@@ -53,4 +53,7 @@ extension is doing something even when the queue is otherwise quiet.
   selectors and reports `selector_drift` so the SmartCV status panel surfaces
   the breakage instead of silently failing.
 * Only handles `kind=connect` (connect-with-note). Direct messages and
-  follow-up after-accept are out of v1 scope.
+  follow-up after-accept are out of v1 scope — see
+  [`docs/outreach-v2-spec.md`](../docs/outreach-v2-spec.md) for the v2
+  plan covering DM-after-accept, follow-up sequences, and accept
+  detection.
