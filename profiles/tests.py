@@ -1527,6 +1527,38 @@ class ProjectEnricherTests(TestCase):
         out = project_enricher.enrich_profile(self.profile, force=True)
         self.assertEqual(out, [])
 
+    def test_github_aggregator_real_language_breakdown_shape(self):
+        """Regression: github_aggregator returns list[tuple[str, int]] which
+        JSON-serializes into list[list]. The enricher must accept both that
+        and the dict shape used by older fixtures, without raising."""
+        from profiles.services import project_enricher
+        # Use the real list-of-pairs shape produced by github_aggregator.
+        # In data_content (JSONB), tuples deserialize as lists.
+        self.profile.data_content = {
+            'github_signals': {
+                'profile_url': 'https://github.com/me',
+                'public_repos': 1,
+                'total_stars': 50,
+                'top_repos': [{
+                    'name': 'alpha', 'full_name': 'me/alpha',
+                    'description': 'A neat thing',
+                    'html_url': 'https://github.com/me/alpha',
+                    'stargazers_count': 50, 'forks_count': 4,
+                    'language': 'Python',
+                }],
+                # The shape that broke /profiles/projects/review/ in prod:
+                'language_breakdown': [['Python', 12], ['Rust', 3]],
+                'recent_commit_count': 5,
+            },
+        }
+        with patch.object(project_enricher, 'get_structured_llm') as mock_llm:
+            # Force fallback so we don't depend on an LLM round trip.
+            mock_llm.return_value.invoke.side_effect = RuntimeError('boom')
+            out = project_enricher.enrich_profile(self.profile, force=True)
+        # Must not raise; must produce the GitHub project.
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]['source'], 'github')
+
 
 class ProjectDedupeTests(TestCase):
     """Dedupe matches enriched projects against typed projects via one
