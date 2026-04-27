@@ -297,6 +297,54 @@ def pause_campaign(request, campaign_id):
 
 
 @login_required
+@require_http_methods(['POST'])
+def retry_failed_actions(request, campaign_id):
+    """Reset any 'failed' action in this campaign back to 'queued' so the
+    extension's next poll picks it up again. Useful for transient failures
+    (rate limit, selector_drift after a LinkedIn fix, network blip).
+
+    Resets `attempts` to 0 and clears `completed_at` and `last_error` so
+    the action looks like a fresh queue entry. The unique-constraint on
+    (campaign, target_handle, kind) is unaffected — same action is being
+    re-tried, no duplicates created.
+
+    If the parent campaign is in 'failed' or 'done' status because
+    everything settled, also flip it back to 'running' so the dispatcher
+    will see it again.
+
+    Body (optional): `{"action_ids": ["uuid", ...]}` to retry a specific
+    subset; omitting the body retries all 'failed' actions in the campaign.
+    """
+    campaign = get_object_or_404(OutreachCampaign, id=campaign_id, user=request.user)
+
+    try:
+        body = json.loads(request.body or b'{}')
+    except (ValueError, TypeError):
+        body = {}
+    only_ids = body.get('action_ids') or None
+
+    qs = campaign.actions.filter(status='failed')
+    if isinstance(only_ids, list) and only_ids:
+        qs = qs.filter(id__in=[i for i in only_ids if i])
+
+    requeued = qs.update(
+        status='queued',
+        attempts=0,
+        completed_at=None,
+        last_error='',
+    )
+
+    if requeued and campaign.status in {'failed', 'done'}:
+        campaign.status = 'running'
+        campaign.save(update_fields=['status', 'updated_at'])
+
+    return JsonResponse({
+        'requeued': requeued,
+        'campaign_status': campaign.status,
+    })
+
+
+@login_required
 @require_http_methods(['GET'])
 def campaign_status(request, campaign_id):
     """Live status panel data — polled by the campaign UI every ~5s."""

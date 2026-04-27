@@ -17,6 +17,7 @@
              draftManualUrl: '{% url "outreach_draft_manual_target" %}',
              discoveryListUrl: '{% url "outreach_discovery_list" job.id %}',
              pauseUrl: '{% url "outreach_pause_campaign" "00000000-0000-0000-0000-000000000000" %}',
+             retryUrl: '{% url "outreach_retry_failed" "00000000-0000-0000-0000-000000000000" %}',
              pairUrl: '{% url "outreach_pairing" %}',
              csrfToken: '{{ csrf_token }}'
          })"
@@ -249,9 +250,18 @@
                         <span class="font-medium">Status:</span>
                         <span class="capitalize" x-text="campaignStatus.campaign.status"></span>
                         <span class="text-neutral-500 dark:text-neutral-400" x-text="`· ${campaignStatus.campaign.sent_today}/${campaignStatus.campaign.daily_invite_cap} sent today`"></span>
-                        <button @click="togglePause()" class="ml-auto text-[11px] uppercase tracking-[0.14em] text-brand-700 dark:text-brand-400 hover:underline">
-                            <span x-text="campaignStatus.campaign.status === 'running' ? 'Pause' : 'Resume'"></span>
-                        </button>
+                        <div class="ml-auto flex items-center gap-3">
+                            {# Retry-failed only renders when there's at least one failed action — otherwise the button is just noise. #}
+                            <button x-show="failedCount() > 0" @click="retryFailed()"
+                                    class="text-[11px] uppercase tracking-[0.14em] text-amber-700 dark:text-amber-400 hover:underline disabled:opacity-50"
+                                    :disabled="retrying">
+                                <span x-show="!retrying" x-text="`Retry ${failedCount()} failed`"></span>
+                                <span x-show="retrying">Retrying…</span>
+                            </button>
+                            <button @click="togglePause()" class="text-[11px] uppercase tracking-[0.14em] text-brand-700 dark:text-brand-400 hover:underline">
+                                <span x-text="campaignStatus.campaign.status === 'running' ? 'Pause' : 'Resume'"></span>
+                            </button>
+                        </div>
                     </div>
                     <ul class="text-sm space-y-1.5">
                         <template x-for="a in campaignStatus.actions" :key="a.id">
@@ -292,6 +302,8 @@ function outreachCampaign(cfg) {
         statusTimer: null,
         statusUrlTpl: cfg.statusUrl,
         pauseUrlTpl: cfg.pauseUrl,
+        retryUrlTpl: cfg.retryUrl,
+        retrying: false,
         createUrl: cfg.createUrl,
         draftManualUrl: cfg.draftManualUrl,
         discoveryListUrl: cfg.discoveryListUrl,
@@ -452,6 +464,28 @@ function outreachCampaign(cfg) {
             const url = this.pauseUrlTpl.replace('00000000-0000-0000-0000-000000000000', this.campaignId);
             await fetch(url, {method: 'POST', headers: {'X-CSRFToken': this.csrfToken}});
             this.fetchStatus();
+        },
+        // Count failed actions in the current status snapshot. Used to
+        // conditionally show the retry button — no point rendering it when
+        // there's nothing to retry.
+        failedCount() {
+            if (!this.campaignStatus) return 0;
+            return (this.campaignStatus.actions || []).filter(a => a.status === 'failed').length;
+        },
+        async retryFailed() {
+            if (this.retrying || !this.campaignId) return;
+            this.retrying = true;
+            try {
+                const url = this.retryUrlTpl.replace('00000000-0000-0000-0000-000000000000', this.campaignId);
+                await fetch(url, {
+                    method: 'POST',
+                    headers: {'X-CSRFToken': this.csrfToken, 'Content-Type': 'application/json'},
+                    body: '{}',  // empty body = retry all failed
+                });
+            } finally {
+                this.retrying = false;
+                this.fetchStatus();
+            }
         },
     };
 }
