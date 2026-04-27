@@ -10,6 +10,7 @@ urlpatterns = [
     path('api/outreach/campaigns/', outreach_api.create_campaign, name='outreach_create_campaign'),
     path('api/outreach/draft-target/', outreach_api.draft_manual_target, name='outreach_draft_manual_target'),
     path('api/outreach/campaigns/<uuid:campaign_id>/pause/', outreach_api.pause_campaign, name='outreach_pause_campaign'),
+    path('api/outreach/campaigns/<uuid:campaign_id>/retry/', outreach_api.retry_failed_actions, name='outreach_retry_failed'),
     path('api/outreach/campaigns/<uuid:campaign_id>/status/', outreach_api.campaign_status, name='outreach_campaign_status'),
     path('extension/pair/', outreach_api.pairing_view, name='outreach_pairing'),
 

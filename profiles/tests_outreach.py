@@ -336,6 +336,86 @@ class OutreachApiTests(TestCase):
                                content_type='application/json')
         self.assertIn(res.status_code, (302, 403))
 
+    def test_retry_failed_endpoint_resets_actions_to_queued(self):
+        """The /retry/ endpoint should flip every failed action in a campaign
+        back to queued, clear last_error, reset attempts, and revive a
+        campaign whose status had settled to failed/done."""
+        self.client.force_login(self.user)
+        campaign = _make_campaign(self.user, self.job, status='failed')
+        a1 = OutreachAction.objects.create(
+            campaign=campaign, target_handle='a', kind='connect', payload='hi',
+            status='failed', attempts=3, last_error='timeout',
+            completed_at=timezone.now(),
+        )
+        a2 = OutreachAction.objects.create(
+            campaign=campaign, target_handle='b', kind='connect', payload='hi',
+            status='failed', attempts=2, last_error='selector_drift:send',
+            completed_at=timezone.now(),
+        )
+        # Sent action — must NOT be touched.
+        sent = OutreachAction.objects.create(
+            campaign=campaign, target_handle='c', kind='connect', payload='hi',
+            status='sent', attempts=1, completed_at=timezone.now(),
+        )
+        url = f'/profiles/api/outreach/campaigns/{campaign.id}/retry/'
+        res = self.client.post(url, data='{}', content_type='application/json')
+        self.assertEqual(res.status_code, 200)
+        body = res.json()
+        self.assertEqual(body['requeued'], 2)
+        self.assertEqual(body['campaign_status'], 'running')
+        a1.refresh_from_db(); a2.refresh_from_db(); sent.refresh_from_db()
+        for a in (a1, a2):
+            self.assertEqual(a.status, 'queued')
+            self.assertEqual(a.attempts, 0)
+            self.assertIsNone(a.completed_at)
+            self.assertEqual(a.last_error, '')
+        # Sent action untouched
+        self.assertEqual(sent.status, 'sent')
+
+    def test_retry_failed_endpoint_supports_action_ids_subset(self):
+        """When body includes action_ids, only those failed actions are
+        retried — useful for the "retry just this one" UI affordance."""
+        self.client.force_login(self.user)
+        campaign = _make_campaign(self.user, self.job)
+        a1 = OutreachAction.objects.create(
+            campaign=campaign, target_handle='a', kind='connect', payload='hi',
+            status='failed', attempts=3, last_error='x',
+        )
+        a2 = OutreachAction.objects.create(
+            campaign=campaign, target_handle='b', kind='connect', payload='hi',
+            status='failed', attempts=3, last_error='y',
+        )
+        url = f'/profiles/api/outreach/campaigns/{campaign.id}/retry/'
+        res = self.client.post(
+            url, data=json.dumps({'action_ids': [str(a1.id)]}),
+            content_type='application/json',
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()['requeued'], 1)
+        a1.refresh_from_db(); a2.refresh_from_db()
+        self.assertEqual(a1.status, 'queued')
+        self.assertEqual(a2.status, 'failed')  # not in subset
+
+    def test_retry_failed_endpoint_requires_login(self):
+        campaign = _make_campaign(self.user, self.job)
+        url = f'/profiles/api/outreach/campaigns/{campaign.id}/retry/'
+        res = self.client.post(url, data='{}', content_type='application/json')
+        # Anonymous → redirects to login
+        self.assertIn(res.status_code, (302, 401, 403))
+
+    def test_retry_failed_endpoint_scoped_to_owner(self):
+        """Another user must not be able to retry someone else's campaign."""
+        other = _make_user(email='other@example.com')
+        self.client.force_login(other)
+        campaign = _make_campaign(self.user, self.job)
+        OutreachAction.objects.create(
+            campaign=campaign, target_handle='a', kind='connect', payload='hi',
+            status='failed', attempts=3,
+        )
+        url = f'/profiles/api/outreach/campaigns/{campaign.id}/retry/'
+        res = self.client.post(url, data='{}', content_type='application/json')
+        self.assertEqual(res.status_code, 404)
+
     def test_create_campaign_caps_payload_at_300(self):
         self.client.force_login(self.user)
         res = self.client.post(
