@@ -128,6 +128,233 @@ class DispatcherTests(TestCase):
             record_action_result(action, 'whatever')
 
 
+class CampaignE2EIntegrationTests(TestCase):
+    """End-to-end pipeline through HTTP: create campaign via the session
+    API, simulate the extension polling /next + reporting /result, and
+    verify the campaign finishes cleanly with the right summary stats
+    and event log entries.
+
+    Distinct from the unit tests above (which exercise dispatcher
+    helpers in isolation) — this is the integration shape the
+    benchmarks/results/2026-04-26/REPORT.md flagged as a v1 gap.
+    """
+
+    def setUp(self):
+        self.user = _make_user()
+        self.user.rotate_outreach_token()
+        self.job = _make_job(self.user)
+        self.session = Client()  # for session-authed UI endpoints
+        self.extension = Client()  # for token-authed extension endpoints
+        self.session.force_login(self.user)
+
+    def _ext_auth(self):
+        return {'HTTP_AUTHORIZATION': f'Token {self.user.outreach_token}'}
+
+    def _create_campaign(self, targets):
+        """Helper: hit the session-authed campaign-creation endpoint."""
+        body = {
+            'job_id': str(self.job.id),
+            'targets': targets,
+            'daily_invite_cap': 5,
+        }
+        return self.session.post(
+            '/profiles/api/outreach/campaigns/',
+            data=json.dumps(body),
+            content_type='application/json',
+        )
+
+    def test_full_round_trip_two_targets_both_sent(self):
+        """Create a 2-target campaign, drain it via the extension API,
+        confirm both actions transition queued -> in_flight -> sent and
+        the campaign auto-finishes as 'done'."""
+        # 1. UI creates the campaign with two drafted targets.
+        res = self._create_campaign([
+            {'handle': 'alice', 'name': 'Alice', 'role': 'Eng', 'message': 'hi alice'},
+            {'handle': 'bob', 'name': 'Bob', 'role': 'PM', 'message': 'hi bob'},
+        ])
+        self.assertEqual(res.status_code, 200)
+        campaign_id = res.json()['campaign_id']
+        campaign = OutreachCampaign.objects.get(id=campaign_id)
+        # Server creates campaign in 'running' state; both actions queued.
+        self.assertEqual(campaign.status, 'running')
+        self.assertEqual(campaign.actions.filter(status='queued').count(), 2)
+        # Summary cache initialized
+        self.assertEqual(campaign.summary_stats.get('queued'), 2)
+
+        # 2. Extension polls /next — claims first action.
+        res = self.extension.get('/profiles/api/outreach/next', **self._ext_auth())
+        self.assertEqual(res.status_code, 200)
+        first_action_id = res.json()['id']
+        first_payload = res.json()['payload']
+        self.assertIn(first_payload, ('hi alice', 'hi bob'))
+
+        # 3. Extension reports success.
+        res = self.extension.post(
+            f'/profiles/api/outreach/result/{first_action_id}/',
+            data=json.dumps({'status': 'sent'}),
+            content_type='application/json',
+            **self._ext_auth(),
+        )
+        self.assertEqual(res.status_code, 200)
+        first = OutreachAction.objects.get(id=first_action_id)
+        self.assertEqual(first.status, 'sent')
+        self.assertIsNotNone(first.completed_at)
+
+        # 4. Extension polls /next again — claims second action.
+        res = self.extension.get('/profiles/api/outreach/next', **self._ext_auth())
+        self.assertEqual(res.status_code, 200)
+        second_action_id = res.json()['id']
+        self.assertNotEqual(second_action_id, first_action_id)
+
+        # 5. Extension reports success.
+        self.extension.post(
+            f'/profiles/api/outreach/result/{second_action_id}/',
+            data=json.dumps({'status': 'sent'}),
+            content_type='application/json',
+            **self._ext_auth(),
+        )
+
+        # 6. Campaign auto-finished, summary reflects reality.
+        campaign.refresh_from_db()
+        self.assertEqual(campaign.status, 'done')
+        self.assertEqual(campaign.summary_stats.get('sent'), 2)
+        self.assertEqual(campaign.summary_stats.get('queued'), 0)
+        self.assertEqual(campaign.summary_stats.get('total'), 2)
+
+        # 7. Next /next returns 204 — nothing left to dispatch.
+        res = self.extension.get('/profiles/api/outreach/next', **self._ext_auth())
+        self.assertEqual(res.status_code, 204)
+
+        # 8. Event log captured every transition: 2 claims + 2 results = 4.
+        events = OutreachActionEvent.objects.filter(action__campaign=campaign)
+        self.assertEqual(events.count(), 4)
+        self.assertEqual(events.filter(actor='server_dispatch').count(), 2)
+        self.assertEqual(events.filter(actor='extension').count(), 2)
+
+    def test_full_round_trip_one_failed_then_retried_via_endpoint(self):
+        """An action fails; _maybe_finish_campaign settles the campaign
+        to 'failed' (no open actions left); the user clicks Retry; the
+        same action gets re-dispatched and succeeds. Campaign revives
+        from 'failed' → 'running' → 'done'. Event log captures the
+        full bouncy path including the user-actor retry entry."""
+        res = self._create_campaign([
+            {'handle': 'alice', 'name': 'Alice', 'role': 'Eng', 'message': 'hi'},
+        ])
+        campaign_id = res.json()['campaign_id']
+
+        # Extension claims and reports failure once.
+        r = self.extension.get('/profiles/api/outreach/next', **self._ext_auth())
+        self.assertEqual(r.status_code, 200)
+        action_id = r.json()['id']
+        self.extension.post(
+            f'/profiles/api/outreach/result/{action_id}/',
+            data=json.dumps({'status': 'failed', 'error': 'selector_drift:send'}),
+            content_type='application/json',
+            **self._ext_auth(),
+        )
+
+        # _maybe_finish_campaign settles the campaign to 'failed' because
+        # there are no open (queued/in_flight) actions and nothing was
+        # ever sent. This is the production path for a single-target
+        # campaign where the one action hits a terminal failure.
+        action = OutreachAction.objects.get(id=action_id)
+        self.assertEqual(action.status, 'failed')
+        self.assertEqual(action.last_error, 'selector_drift:send')
+        campaign = OutreachCampaign.objects.get(id=campaign_id)
+        self.assertEqual(campaign.status, 'failed')
+        self.assertEqual(campaign.summary_stats.get('failed'), 1)
+
+        # User clicks Retry → endpoint re-queues + revives the campaign.
+        retry_res = self.session.post(
+            f'/profiles/api/outreach/campaigns/{campaign_id}/retry/',
+            data='{}',
+            content_type='application/json',
+        )
+        self.assertEqual(retry_res.status_code, 200)
+        self.assertEqual(retry_res.json()['requeued'], 1)
+        action.refresh_from_db()
+        campaign.refresh_from_db()
+        self.assertEqual(action.status, 'queued')
+        self.assertEqual(action.attempts, 0)
+        self.assertEqual(action.last_error, '')
+        self.assertEqual(campaign.status, 'running')
+
+        # Extension drains, succeeds this time.
+        r = self.extension.get('/profiles/api/outreach/next', **self._ext_auth())
+        self.assertEqual(r.status_code, 200)
+        self.extension.post(
+            f'/profiles/api/outreach/result/{r.json()["id"]}/',
+            data=json.dumps({'status': 'sent'}),
+            content_type='application/json',
+            **self._ext_auth(),
+        )
+
+        # Campaign back to 'done'.
+        campaign.refresh_from_db()
+        self.assertEqual(campaign.status, 'done')
+        self.assertEqual(campaign.summary_stats.get('sent'), 1)
+        self.assertEqual(campaign.summary_stats.get('failed'), 0)
+
+        # Event log: claim → failed → user-retry → claim → sent
+        events = OutreachActionEvent.objects.filter(action=action).order_by('created_at')
+        actor_chain = list(events.values_list('actor', flat=True))
+        self.assertEqual(actor_chain, [
+            'server_dispatch',  # initial claim
+            'extension',        # failed result
+            'user',             # manual_retry
+            'server_dispatch',  # second claim
+            'extension',        # sent result
+        ])
+        self.assertTrue(events.filter(actor='user', reason='manual_retry').exists())
+
+    def test_full_round_trip_with_stale_recovery(self):
+        """Extension claims an action, then crashes (no result reported).
+        After STALE_INFLIGHT_AFTER, the next /next call should reclaim it
+        and dispatch successfully on the second pass."""
+        res = self._create_campaign([
+            {'handle': 'alice', 'name': 'Alice', 'role': 'Eng', 'message': 'hi'},
+        ])
+        campaign_id = res.json()['campaign_id']
+
+        # 1. Extension polls; claims action.
+        r = self.extension.get('/profiles/api/outreach/next', **self._ext_auth())
+        first_action_id = r.json()['id']
+        action = OutreachAction.objects.get(id=first_action_id)
+        self.assertEqual(action.status, 'in_flight')
+
+        # 2. Extension crashes — never sends /result. Backdate queued_at
+        #    past the staleness window to simulate the wait.
+        OutreachAction.objects.filter(pk=action.pk).update(
+            queued_at=timezone.now() - STALE_INFLIGHT_AFTER - timedelta(minutes=1),
+        )
+
+        # 3. Next /next — should reclaim and re-dispatch the same action.
+        r = self.extension.get('/profiles/api/outreach/next', **self._ext_auth())
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()['id'], first_action_id)  # same action
+        action.refresh_from_db()
+        self.assertEqual(action.status, 'in_flight')
+        # attempts: 1 (initial) → 1 (preserved by reclaim) → 2 (this claim's bump)
+        self.assertEqual(action.attempts, 2)
+
+        # 4. Extension reports success this time.
+        self.extension.post(
+            f'/profiles/api/outreach/result/{first_action_id}/',
+            data=json.dumps({'status': 'sent'}),
+            content_type='application/json',
+            **self._ext_auth(),
+        )
+        action.refresh_from_db()
+        self.assertEqual(action.status, 'sent')
+
+        # 5. Event log: claim → recovery → claim → sent. The recovery
+        #    event is what proves the stale-recovery path actually fired
+        #    end-to-end (not just in unit tests).
+        events = OutreachActionEvent.objects.filter(action=action).order_by('created_at')
+        actors = list(events.values_list('actor', flat=True))
+        self.assertIn('server_recovery', actors)
+
+
 class TokenRotationTimestampTests(TestCase):
     """outreach_token_rotated_at gives the pairing UI an "issued N days
     ago" signal so users can spot a stale or potentially-leaked token
