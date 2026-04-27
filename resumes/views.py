@@ -424,10 +424,10 @@ def cover_letter_preview_view(request, letter_id):
 def resume_list_view(request):
     """View and manage all generated resumes.
 
-    Also fetches the user's profile name once so the per-card thumbnails
-    (rendered HTML previews of each resume in the grid) can show the
-    candidate's actual name in the header — falls back to the email
-    local-part when no profile/full_name is set yet.
+    Also fetches the user's profile so the per-card thumbnails (rendered
+    HTML previews of each resume in the grid) can show the candidate's
+    real name + contact line — same data the PDF template renders. Name
+    falls back to the email local-part when full_name isn't set yet.
     """
     from profiles.models import UserProfile
     profile = UserProfile.objects.filter(user=request.user).first()
@@ -442,6 +442,7 @@ def resume_list_view(request):
 
     return render(request, 'resumes/list.html', {
         'resumes': resumes,
+        'profile': profile,
         'profile_name': profile_name,
     })
 

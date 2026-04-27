@@ -454,12 +454,12 @@ class ResumeListThumbnailTests(TestCase):
 
     def test_profile_name_falls_back_to_email_local_part(self):
         """Users without a UserProfile.full_name should still get a header,
-        not an empty void. Email local-part is the fallback."""
+        not an empty void. The NAME slot specifically uses the email
+        local-part as the fallback (the email itself separately appears in
+        the contact line, which mirrors what the PDF template does)."""
         from profiles.models import UserProfile
         UserProfile.objects.filter(user=self.user).update(full_name='')
         resp = self.client.get(reverse('resume_list'))
         body = resp.content.decode('utf-8')
-        # Email local-part rendered (not the full email — that would leak
-        # the address into the visible UI).
-        self.assertIn('listthumb', body)
-        self.assertNotIn('listthumb@example.com', body)
+        # The name div uses the local-part, not the full email.
+        self.assertIn('<div class="p-name">listthumb</div>', body)

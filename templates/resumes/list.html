@@ -127,18 +127,22 @@
         --p-subtitle-color: #555;
     }
 
-    /* Size modifier for the list-page card thumbnails. A4 aspect ratio so
-       each card reads as a sheet of paper; overflow clipped with a soft
-       fade so trimmed content doesn't look broken. */
+    /* Size modifier for the list-page card thumbnails. A4 aspect ratio
+       so each card reads as a sheet of paper. The base .pdf-preview rules
+       above use pt units (which are absolute and don't respond to the
+       wrapper's font-size) so we explicitly redeclare every nested
+       element's size in pixels here — same pattern the editor's
+       .template-thumb uses (see edit.html lines 547-590). */
     .resume-list-thumb {
         width: 100%;
+        max-width: 220px;
         aspect-ratio: 210 / 297;
+        margin: 0 auto;
         padding: 10px 12px;
         background: #ffffff;
         overflow: hidden;
         pointer-events: none;
         user-select: none;
-        font-size: 4px;
         line-height: 1.3;
         position: relative;
     }
@@ -146,16 +150,39 @@
         content: "";
         position: absolute;
         inset: auto 0 0 0;
-        height: 28px;
+        height: 24px;
         background: linear-gradient(to bottom, transparent, #ffffff);
         pointer-events: none;
     }
+    /* Header: name (largest), professional title (accent), contact line */
+    .resume-list-thumb .p-header { margin-bottom: 5px; padding-bottom: 3px; }
+    .resume-list-thumb .p-name { font-size: 7px; font-weight: 700; margin-bottom: 1px; }
+    .resume-list-thumb .p-professional-title { font-size: 5.5px; margin-bottom: 1.5px; }
+    .resume-list-thumb .p-contact { font-size: 3.4px; color: #475569; line-height: 1.25; letter-spacing: 0.05px; }
+    /* Sections */
+    .resume-list-thumb .p-section { margin-bottom: 4px; }
+    .resume-list-thumb .p-section-title { font-size: 4.6px; padding-bottom: 0.5px; margin-bottom: 1.5px; }
+    /* Body content */
+    .resume-list-thumb .p-summary { font-size: 3.6px; line-height: 1.35; }
+    .resume-list-thumb .p-item { margin-bottom: 2.5px; }
+    .resume-list-thumb .p-item-title { font-size: 4px; margin-bottom: 0.3px; }
+    .resume-list-thumb .p-item-subtitle { font-size: 3.5px; margin-top: 0.3px; margin-bottom: 0.8px; }
+    .resume-list-thumb .p-item-description { font-size: 3.3px; line-height: 1.3; padding-left: 5px; margin: 0; }
+    .resume-list-thumb .p-item-description li { margin-bottom: 0.3px; }
     /* Minimalist's wider section gaps overflow a thumb; trim. */
-    .resume-list-thumb.pdf-preview--minimalist { --p-section-gap: 6px; }
+    .resume-list-thumb.pdf-preview--minimalist { --p-section-gap: 5px; }
+    .resume-list-thumb.pdf-preview--compact .p-item-subtitle { font-size: 3.2px; }
     /* Keep the printed-paper look in dark mode — it's still a page, not a card */
     @media (prefers-color-scheme: dark) {
         .resume-list-thumb { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06); }
     }
+    /* Bound the thumbnail wrapper so it doesn't dominate the card */
+    .resume-list-thumb-wrap {
+        background: #ffffff;
+        padding: 14px 0 10px;
+        border-bottom: 1px solid rgb(229 231 235 / 1);
+    }
+    .dark .resume-list-thumb-wrap { background: rgb(15 23 42 / 0.4); border-bottom-color: rgb(38 38 38 / 1); }
 </style>
 <div class="bg-neutral-50 dark:bg-neutral-950 py-10 sm:py-14">
     <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8">
@@ -178,26 +205,34 @@
             <article class="group relative flex flex-col overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 hover:ring-brand-300 dark:hover:ring-brand-700 hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_16px_40px_-20px_rgba(15,23,42,0.15)] transition-all">
                 <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500 z-10"></div>
 
-                {# At-a-glance preview of the actual resume content. Real data
-                   so two cards for two different jobs look genuinely
-                   different. Reuses the editor's .pdf-preview CSS so the
-                   chosen template's character carries through. #}
-                <a href="{% url 'resume_preview' resume.id %}" class="block bg-white">
+                {# At-a-glance preview of the actual résumé content #}
+                <a href="{% url 'resume_preview' resume.id %}" class="resume-list-thumb-wrap block">
                     <div class="resume-list-thumb pdf-preview pdf-preview--{{ resume.content.template_name|default:'standard' }}"
                          aria-hidden="true">
                         <div class="p-header">
                             <div class="p-name">{{ profile_name }}</div>
                             <div class="p-professional-title">{{ resume.content.professional_title|default:resume.gap_analysis.job.title }}</div>
+                            {% if profile.email or profile.phone or profile.location %}
+                            <div class="p-contact">
+                                {% if profile.email %}{{ profile.email }}{% endif %}{% if profile.phone %} · {{ profile.phone }}{% endif %}{% if profile.location %} · {{ profile.location }}{% endif %}
+                            </div>
+                            {% endif %}
                         </div>
                         {% if resume.content.professional_summary %}
                         <div class="p-section">
-                            <div class="p-section-title">Summary</div>
+                            <div class="p-section-title">Professional Summary</div>
                             <div class="p-summary">{{ resume.content.professional_summary|truncatewords:18 }}</div>
+                        </div>
+                        {% endif %}
+                        {% if resume.content.skills %}
+                        <div class="p-section">
+                            <div class="p-section-title">Skills</div>
+                            <div class="p-summary">{{ resume.content.skills|slice:":10"|join:" · " }}</div>
                         </div>
                         {% endif %}
                         {% if resume.content.experience %}
                         <div class="p-section">
-                            <div class="p-section-title">Experience</div>
+                            <div class="p-section-title">Professional Experience</div>
                             {% for exp in resume.content.experience|slice:":2" %}
                             <div class="p-item">
                                 <div class="p-item-title">{{ exp.title }}</div>
@@ -211,16 +246,21 @@
                             {% endfor %}
                         </div>
                         {% endif %}
-                        {% if resume.content.skills %}
+                        {% if resume.content.education %}
                         <div class="p-section">
-                            <div class="p-section-title">Skills</div>
-                            <div class="p-summary">{{ resume.content.skills|slice:":8"|join:" · " }}</div>
+                            <div class="p-section-title">Education</div>
+                            {% for edu in resume.content.education|slice:":1" %}
+                            <div class="p-item">
+                                <div class="p-item-title">{{ edu.degree }}{% if edu.field %} in {{ edu.field }}{% endif %}</div>
+                                <div class="p-item-subtitle">{{ edu.institution }}{% if edu.year or edu.graduation_year %} · {{ edu.graduation_year|default:edu.year }}{% endif %}</div>
+                            </div>
+                            {% endfor %}
                         </div>
                         {% endif %}
                     </div>
                 </a>
 
-                <a href="{% url 'resume_preview' resume.id %}" class="p-5 border-b border-t border-neutral-100 dark:border-neutral-800 space-y-2">
+                <a href="{% url 'resume_preview' resume.id %}" class="p-5 border-b border-neutral-100 dark:border-neutral-800 space-y-2">
                     {% include "components/section_label.html" with text=resume.gap_analysis.job.company|default:"—" tone="brand" %}
                     <h3 class="font-display text-xl leading-tight text-neutral-900 dark:text-neutral-50 line-clamp-2 min-h-[3rem]"
                         style="font-variation-settings: 'opsz' 24;"
