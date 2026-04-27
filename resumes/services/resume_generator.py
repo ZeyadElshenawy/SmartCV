@@ -320,13 +320,23 @@ COMPLETE CV DATA (the candidate's authoritative resume):
 
 === FIELD MAPPING (CRITICAL — the CV data uses different field names than the output schema) ===
 - CV `experiences[].highlights` array → output `experience[].description` array (rewrite each bullet)
-- CV `experiences[].start_date` / `end_date` → output `experience[].duration` (combine as "Aug 2025 - Present")
+- CV `experiences[].start_date` / `end_date` → output `experience[].duration` (combine as "Aug 2025 - Present"). Also pass through start_date and end_date verbatim into the output `experience[].start_date` / `experience[].end_date`.
 - CV `experiences[].title` → output `experience[].title`
+- CV `experiences[].location` → output `experience[].location` (PRESERVE)
+- CV `experiences[].industry` → output `experience[].industry` (PRESERVE)
 - CV `education[].graduation_year` → output `education[].year`
-- CV `education[].degree` + `field` → output `education[].degree` (combine as "Bachelor of Computer Science")
+- CV `education[].degree` → output `education[].degree`
+- CV `education[].field` → output `education[].field` (separate field, do NOT pre-combine into degree)
+- CV `education[].gpa` → output `education[].gpa` (PRESERVE; the renderer decides whether to display)
+- CV `education[].location` → output `education[].location` (PRESERVE)
+- CV `education[].honors` → output `education[].honors` (PRESERVE all)
 - CV `certifications[].url` → output `certifications[].url` (PRESERVE all certification URLs exactly)
+- CV `certifications[].duration` → output `certifications[].duration` (PRESERVE)
 - CV `projects[].description` or `highlights` → output `projects[].description` array (rewrite as bullets)
 - CV `projects[].url` → output `projects[].url` (PRESERVE all project URLs exactly)
+- CV `projects[].technologies` → output `projects[].technologies` array (PRESERVE; ATS scanner picks these up as keywords)
+- CV `projects[].highlights` → output `projects[].highlights` array (PRESERVE; structured outcomes that complement the bullet description)
+- CV `objective` → output `objective` (the standalone objective field; this is OPTIONAL — only include if the candidate's CV explicitly has one and it's not redundant with professional_summary)
 - Include ALL certifications from the CV data — do NOT truncate or omit any.
 
 === EVIDENCE-GROUNDED ENRICHMENT RULE (CRITICAL — read this twice) ===
@@ -610,7 +620,8 @@ def _build_offline_fallback(profile, job, raw_cv_data: dict) -> dict:
         summary = (', '.join(bits) + '.') if bits else ''
 
     # Experience — verbatim from profile, with bullets sourced from
-    # highlights/achievements/description (in that order).
+    # highlights/achievements/description (in that order). Pass through the
+    # full set of master-profile fields so the editor can surface them.
     experience = []
     for exp in (raw_cv_data.get('experiences') or []):
         if not isinstance(exp, dict):
@@ -625,24 +636,34 @@ def _build_offline_fallback(profile, job, raw_cv_data: dict) -> dict:
             'title': (exp.get('title') or '').strip(),
             'company': (exp.get('company') or '').strip(),
             'duration': duration,
+            'start_date': start,
+            'end_date': end,
+            'location': (exp.get('location') or '').strip(),
+            'industry': (exp.get('industry') or '').strip(),
             'description': bullets,
         })
 
-    # Education — verbatim, with field/year normalization
+    # Education — pass through every field; the editor / template decides
+    # which to render. `degree` stays separate from `field` so the renderer
+    # can join them in its own house style.
     education = []
     for edu in (raw_cv_data.get('education') or []):
         if not isinstance(edu, dict):
             continue
-        degree = (edu.get('degree') or '').strip()
-        field = (edu.get('field') or '').strip()
-        full_degree = f"{degree} of {field}".strip(' of') if field else degree
+        honors = edu.get('honors') or []
+        if isinstance(honors, str):
+            honors = [line.strip() for line in honors.split('\n') if line.strip()]
         education.append({
-            'degree': full_degree,
+            'degree': (edu.get('degree') or '').strip(),
+            'field': (edu.get('field') or '').strip(),
             'institution': (edu.get('institution') or '').strip(),
             'year': (edu.get('graduation_year') or edu.get('year') or '').strip(),
+            'gpa': (edu.get('gpa') or '').strip(),
+            'location': (edu.get('location') or '').strip(),
+            'honors': honors,
         })
 
-    # Projects — verbatim
+    # Projects — verbatim, preserving technologies and structured highlights.
     projects = []
     for proj in (raw_cv_data.get('projects') or []):
         if not isinstance(proj, dict):
@@ -650,13 +671,25 @@ def _build_offline_fallback(profile, job, raw_cv_data: dict) -> dict:
         bullets = proj.get('description') or proj.get('highlights') or []
         if isinstance(bullets, str):
             bullets = [line.strip() for line in bullets.split('\n') if line.strip()]
+        techs = proj.get('technologies') or []
+        if isinstance(techs, str):
+            techs = [t.strip() for t in techs.split(',') if t.strip()]
+        # `highlights` on master may double as the bullet source (above); only
+        # pass it through here when it's structurally distinct from description.
+        master_highlights = proj.get('highlights') or []
+        if isinstance(master_highlights, str):
+            master_highlights = [line.strip() for line in master_highlights.split('\n') if line.strip()]
+        if master_highlights == bullets:
+            master_highlights = []
         projects.append({
             'name': (proj.get('name') or '').strip(),
             'description': bullets,
             'url': (proj.get('url') or '').strip(),
+            'technologies': techs,
+            'highlights': master_highlights,
         })
 
-    # Certifications — verbatim
+    # Certifications — verbatim, including duration.
     certifications = []
     for cert in (raw_cv_data.get('certifications') or []):
         if not isinstance(cert, dict):
@@ -665,6 +698,7 @@ def _build_offline_fallback(profile, job, raw_cv_data: dict) -> dict:
             'name': (cert.get('name') or '').strip(),
             'issuer': (cert.get('issuer') or '').strip(),
             'date': (cert.get('date') or '').strip(),
+            'duration': (cert.get('duration') or '').strip(),
             'url': (cert.get('url') or '').strip(),
         })
 
@@ -684,6 +718,7 @@ def _build_offline_fallback(profile, job, raw_cv_data: dict) -> dict:
     return {
         'professional_title': title,
         'professional_summary': summary,
+        'objective': (raw_cv_data.get('objective') or '').strip(),
         'skills': skills,
         'experience': experience,
         'education': education,
@@ -720,30 +755,59 @@ def _ensure_profile_data_preserved(resume_content: dict, profile_data: dict) -> 
                 'title': exp.get('title', ''),
                 'company': exp.get('company', ''),
                 'duration': duration,
+                'start_date': start,
+                'end_date': end,
+                'location': exp.get('location') or '',
+                'industry': exp.get('industry') or '',
                 'description': description,
             })
+    elif resume_content.get('experience') and profile_data.get('experiences'):
+        # LLM returned experience but may have dropped supplemental fields the
+        # master profile carries (location/industry/start_date/end_date). Patch
+        # them in by positional index when blank, so the editor doesn't lose
+        # data the user typed on /profiles/setup/review/.
+        for i, exp in enumerate(resume_content['experience']):
+            if i >= len(profile_data['experiences']):
+                break
+            src = profile_data['experiences'][i]
+            for key in ('location', 'industry', 'start_date', 'end_date'):
+                if not exp.get(key) and src.get(key):
+                    exp[key] = src.get(key)
 
     # --- Education ---
     if profile_data.get('education'):
         existing_edu = resume_content.get('education') or []
-        # If LLM returned education but left `year` blank, patch from profile
+        # Patch missing fields from master by positional index. degree/field
+        # stay separate so the renderer (PDF/DOCX) joins them in its own style.
         for i, edu in enumerate(existing_edu):
-            if not edu.get('year') and i < len(profile_data['education']):
-                src = profile_data['education'][i]
+            if i >= len(profile_data['education']):
+                break
+            src = profile_data['education'][i]
+            if not edu.get('year'):
                 edu['year'] = src.get('graduation_year') or src.get('year') or ''
-                if not edu.get('degree') and src.get('field'):
-                    edu['degree'] = f"{src.get('degree', '')} of {src['field']}".strip(' of')
+            for key in ('field', 'gpa', 'location'):
+                if not edu.get(key) and src.get(key):
+                    edu[key] = src.get(key)
+            if not edu.get('honors') and src.get('honors'):
+                h = src['honors']
+                if isinstance(h, str):
+                    h = [line.strip() for line in h.split('\n') if line.strip()]
+                edu['honors'] = h
         # If LLM returned nothing, rebuild from profile
         if not existing_edu:
             existing_edu = []
             for edu in profile_data['education']:
-                degree = edu.get('degree', '')
-                field = edu.get('field', '')
-                full_degree = f"{degree} of {field}".strip(' of') if field else degree
+                honors = edu.get('honors') or []
+                if isinstance(honors, str):
+                    honors = [line.strip() for line in honors.split('\n') if line.strip()]
                 existing_edu.append({
-                    'degree': full_degree,
+                    'degree': edu.get('degree', ''),
+                    'field': edu.get('field', ''),
                     'institution': edu.get('institution', ''),
                     'year': edu.get('graduation_year') or edu.get('year') or '',
+                    'gpa': edu.get('gpa') or '',
+                    'location': edu.get('location') or '',
+                    'honors': honors,
                 })
         resume_content['education'] = existing_edu
 
@@ -754,11 +818,39 @@ def _ensure_profile_data_preserved(resume_content: dict, profile_data: dict) -> 
             description = proj.get('description') or proj.get('highlights') or []
             if isinstance(description, str):
                 description = [line.strip() for line in description.split('\n') if line.strip()]
+            techs = proj.get('technologies') or []
+            if isinstance(techs, str):
+                techs = [t.strip() for t in techs.split(',') if t.strip()]
+            master_highlights = proj.get('highlights') or []
+            if isinstance(master_highlights, str):
+                master_highlights = [line.strip() for line in master_highlights.split('\n') if line.strip()]
+            if master_highlights == description:
+                master_highlights = []
             resume_content['projects'].append({
                 'name': proj.get('name', ''),
                 'description': description,
                 'url': proj.get('url') or '',
+                'technologies': techs,
+                'highlights': master_highlights,
             })
+    elif resume_content.get('projects') and profile_data.get('projects'):
+        for i, proj in enumerate(resume_content['projects']):
+            if i >= len(profile_data['projects']):
+                break
+            src = profile_data['projects'][i]
+            if not proj.get('technologies') and src.get('technologies'):
+                t = src['technologies']
+                if isinstance(t, str):
+                    t = [x.strip() for x in t.split(',') if x.strip()]
+                proj['technologies'] = t
+            # Only patch highlights if master has them AND they differ from description.
+            if not proj.get('highlights') and src.get('highlights'):
+                h = src['highlights']
+                if isinstance(h, str):
+                    h = [line.strip() for line in h.split('\n') if line.strip()]
+                desc = proj.get('description') or []
+                if h != desc:
+                    proj['highlights'] = h
 
     # --- Certifications ---
     if not resume_content.get('certifications') and profile_data.get('certifications'):
@@ -768,8 +860,20 @@ def _ensure_profile_data_preserved(resume_content: dict, profile_data: dict) -> 
                 'name': cert.get('name', ''),
                 'issuer': cert.get('issuer') or '',
                 'date': cert.get('date') or '',
+                'duration': cert.get('duration') or '',
                 'url': cert.get('url') or '',
             })
+    elif resume_content.get('certifications') and profile_data.get('certifications'):
+        for i, cert in enumerate(resume_content['certifications']):
+            if i >= len(profile_data['certifications']):
+                break
+            src = profile_data['certifications'][i]
+            if not cert.get('duration') and src.get('duration'):
+                cert['duration'] = src['duration']
+
+    # --- Objective (passthrough; LLM strips by ATS rules, sync_from_master restores) ---
+    if not resume_content.get('objective') and profile_data.get('objective'):
+        resume_content['objective'] = (profile_data.get('objective') or '').strip()
 
     # --- Languages (spoken only) ---
     if not resume_content.get('languages') and profile_data.get('languages'):

@@ -158,6 +158,7 @@
                 <span class="section-title">Summary</span>
             </div>
             <p>{{ resume.professional_summary }}</p>
+            {% if resume.objective %}<p style="margin-top: 4px;"><strong>Objective:</strong> {{ resume.objective }}</p>{% endif %}
         </div>
         {% endif %}
         {% if section == "experience" and resume.experience %}
@@ -167,7 +168,7 @@
             </div>
             {% for exp in resume.experience %}
             <div class="item">
-                <div class="item-company">{{ exp.company }}</div>
+                <div class="item-company">{{ exp.company }}{% if exp.location %} &middot; {{ exp.location }}{% endif %}{% if exp.industry %} &middot; {{ exp.industry }}{% endif %}</div>
                 <table class="item-sub-header">
                     <tr>
                         <td class="item-title">{{ exp.title }}</td>
@@ -194,13 +195,14 @@
             </div>
             {% for edu in resume.education %}
             <div class="item" style="margin-bottom: 12px;">
-                <div class="item-company">{{ edu.institution }}</div>
+                <div class="item-company">{{ edu.institution }}{% if edu.location %} &middot; {{ edu.location }}{% endif %}{% if edu.gpa %} &middot; GPA {{ edu.gpa }}{% endif %}</div>
                 <table class="item-sub-header">
                     <tr>
-                        <td class="item-title">{{ edu.degree }}</td>
+                        <td class="item-title">{{ edu.degree }}{% if edu.field %} in {{ edu.field }}{% endif %}</td>
                         <td class="item-date">{{ edu.year }}</td>
                     </tr>
                 </table>
+                {% if edu.honors %}<div style="font-size: 9pt; color: #333; margin-top: 2px;">{{ edu.honors|join:" &middot; " }}</div>{% endif %}
             </div>
             {% endfor %}
         </div>
@@ -225,6 +227,7 @@
                 <div class="item-company" style="font-size: 11pt;">
                     {% if proj.url %}<a href="{{ proj.url }}" target="_blank" style="color: #000000; text-decoration: none;">{{ proj.name }}</a>{% else %}{{ proj.name }}{% endif %}
                 </div>
+                {% if proj.technologies %}<div style="font-size: 9pt; color: #475569; font-style: italic; margin: 2px 0 4px;">{{ proj.technologies|join:" &middot; " }}</div>{% endif %}
                 {% if proj.description %}
                 <div class="item-description">
                     {% if proj.description.0 %}
@@ -245,7 +248,7 @@
             </div>
             <ul style="margin: 0; padding-left: 20px; font-size: 9.5pt; color: #333;">
                 {% for cert in resume.certifications %}
-                <li style="margin-bottom: 4px;"><strong>{% if cert.url %}<a href="{{ cert.url }}" target="_blank" style="color: #000000; text-decoration: none;">{{ cert.name }}</a>{% else %}{{ cert.name }}{% endif %}</strong>{% if cert.issuer %} - {{ cert.issuer }}{% endif %}{% if cert.date %} ({{ cert.date }}){% endif %}</li>
+                <li style="margin-bottom: 4px;"><strong>{% if cert.url %}<a href="{{ cert.url }}" target="_blank" style="color: #000000; text-decoration: none;">{{ cert.name }}</a>{% else %}{{ cert.name }}{% endif %}</strong>{% if cert.issuer %} - {{ cert.issuer }}{% endif %}{% if cert.duration %} &middot; {{ cert.duration }}{% endif %}{% if cert.date %} ({{ cert.date }}){% endif %}</li>
                 {% endfor %}
             </ul>
         </div>

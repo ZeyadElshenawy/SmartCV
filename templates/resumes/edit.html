@@ -237,6 +237,11 @@
                             <textarea name="professional_summary" rows="5"
                                       class="block w-full px-4 py-3 text-sm rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none transition-[box-shadow] duration-150 resize-y leading-relaxed">{{ resume.content.professional_summary|default:'' }}</textarea>
                         </div>
+                        <div class="space-y-2">
+                            <label class="block text-xs font-medium uppercase tracking-[0.14em] text-neutral-600 dark:text-neutral-400">Objective <span class="text-neutral-400 normal-case tracking-normal text-[10px]">— optional, ATS-discouraged in most cases</span></label>
+                            <textarea name="objective" rows="2"
+                                      class="block w-full px-4 py-3 text-sm rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none transition-[box-shadow] duration-150 resize-y leading-relaxed">{{ resume.content.objective|default:'' }}</textarea>
+                        </div>
                     </div>
                 </section>
 
@@ -282,9 +287,17 @@
                                         <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Company</label>
                                         <input type="text" name="exp_company[]" value="{{ exp.company }}" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
                                     </div>
-                                    <div class="md:col-span-2 space-y-1.5">
+                                    <div class="space-y-1.5">
                                         <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Dates</label>
                                         <input type="text" name="exp_duration[]" value="{{ exp.duration }}" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                    </div>
+                                    <div class="space-y-1.5">
+                                        <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Location</label>
+                                        <input type="text" name="exp_location[]" value="{{ exp.location|default:'' }}" placeholder="Cairo, Egypt" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                    </div>
+                                    <div class="md:col-span-2 space-y-1.5">
+                                        <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Industry <span class="text-neutral-400 normal-case tracking-normal text-[10px]">— optional</span></label>
+                                        <input type="text" name="exp_industry[]" value="{{ exp.industry|default:'' }}" placeholder="SaaS, FinTech, Education" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
                                     </div>
                                 </div>
                                 <div class="space-y-1.5">
@@ -314,9 +327,13 @@
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                                 </button>
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div class="md:col-span-2 space-y-1.5">
+                                    <div class="space-y-1.5">
                                         <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Degree</label>
-                                        <input type="text" name="edu_degree[]" value="{{ edu.degree }}" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none font-medium text-neutral-900 dark:text-neutral-100">
+                                        <input type="text" name="edu_degree[]" value="{{ edu.degree }}" placeholder="Bachelor of Science" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none font-medium text-neutral-900 dark:text-neutral-100">
+                                    </div>
+                                    <div class="space-y-1.5">
+                                        <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Field of study</label>
+                                        <input type="text" name="edu_field[]" value="{{ edu.field|default:'' }}" placeholder="Computer Science" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
                                     </div>
                                     <div class="space-y-1.5">
                                         <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Institution</label>
@@ -325,6 +342,19 @@
                                     <div class="space-y-1.5">
                                         <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Year</label>
                                         <input type="text" name="edu_year[]" value="{{ edu.year }}" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                    </div>
+                                    <div class="space-y-1.5">
+                                        <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">GPA <span class="text-neutral-400 normal-case tracking-normal text-[10px]">— optional</span></label>
+                                        <input type="text" name="edu_gpa[]" value="{{ edu.gpa|default:'' }}" placeholder="3.8 / 4.0" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                    </div>
+                                    <div class="space-y-1.5">
+                                        <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Location</label>
+                                        <input type="text" name="edu_location[]" value="{{ edu.location|default:'' }}" placeholder="Cairo, Egypt" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                    </div>
+                                    <div class="md:col-span-2 space-y-1.5">
+                                        <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Honors / coursework <span class="text-neutral-400 normal-case tracking-normal text-[10px]">— one per line</span></label>
+                                        <textarea name="edu_honors[]" rows="2" placeholder="Dean's List 2024-25&#10;Magna cum laude" class="block w-full px-3 py-2.5 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none resize-y leading-relaxed text-neutral-900 dark:text-neutral-100">{% for h in edu.honors %}{{ h }}{% if not forloop.last %}
+{% endif %}{% endfor %}</textarea>
                                     </div>
                                 </div>
                             </div>
@@ -362,6 +392,10 @@
                                     <div class="space-y-1.5">
                                         <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">URL</label>
                                         <input type="url" name="proj_url[]" value="{{ proj.url|default:'' }}" placeholder="https://" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                    </div>
+                                    <div class="md:col-span-2 space-y-1.5">
+                                        <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Tech stack <span class="text-neutral-400 normal-case tracking-normal text-[10px]">— comma-separated, used as ATS keywords</span></label>
+                                        <input type="text" name="proj_technologies[]" value="{% for t in proj.technologies %}{{ t }}{% if not forloop.last %}, {% endif %}{% endfor %}" placeholder="React, TypeScript, PostgreSQL" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none font-mono text-neutral-900 dark:text-neutral-100">
                                     </div>
                                     <div class="md:col-span-2 space-y-1.5">
                                         <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Description · one bullet per line</label>
@@ -403,6 +437,10 @@
                                         <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Date</label>
                                         <input type="text" name="cert_date[]" value="{{ cert.date }}" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
                                     </div>
+                                    <div class="space-y-1.5">
+                                        <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Duration <span class="text-neutral-400 normal-case tracking-normal text-[10px]">— optional</span></label>
+                                        <input type="text" name="cert_duration[]" value="{{ cert.duration|default:'' }}" placeholder="80 hours" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+                                    </div>
                                     <div class="md:col-span-2 space-y-1.5">
                                         <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">URL</label>
                                         <input type="url" name="cert_url[]" value="{{ cert.url|default:'' }}" placeholder="https://" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
@@ -435,6 +473,12 @@
                         ← Back to preview
                     </a>
                     <div class="flex w-full sm:w-auto gap-2">
+                        <button type="button" onclick="syncFromMaster(this)"
+                                class="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 h-11 px-4 text-sm font-medium rounded-lg ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-700 dark:text-neutral-200 bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-wait"
+                                title="Pull the latest fields from your master profile (location, GPA, technologies, etc.) into this resume. Won't overwrite your existing bullets.">
+                            <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                            Sync from master
+                        </button>
                         <button type="submit" class="group/btn flex-1 sm:flex-none inline-flex items-center justify-center gap-2 h-11 px-5 text-sm font-medium rounded-lg bg-brand-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-brand-700 hover:-translate-y-px transition-[background-color,transform] duration-150">
                             <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                             Save changes
@@ -687,6 +731,10 @@
                         <div class="p-section" data-preview-section="summary">
                             <div class="p-section-title">Professional Summary</div>
                             <div id="preview-summary" class="p-summary">{{ resume.content.professional_summary }}</div>
+                            {% if resume.content.objective %}
+                            <div class="p-section-title" style="margin-top: 6px;">Objective</div>
+                            <div id="preview-objective" class="p-summary">{{ resume.content.objective }}</div>
+                            {% endif %}
                         </div>
                         {% endif %}
                         {% if section == "skills" %}
@@ -705,7 +753,7 @@
                                         <div class="p-item-title">{{ exp.title }}</div>
                                         <div class="p-item-date">{{ exp.duration }}</div>
                                     </div>
-                                    <div class="p-item-subtitle">{{ exp.company }}</div>
+                                    <div class="p-item-subtitle">{{ exp.company }}{% if exp.location %} · {{ exp.location }}{% endif %}{% if exp.industry %} · {{ exp.industry }}{% endif %}</div>
                                     <div class="p-item-description">{{ exp.description }}</div>
                                 </div>
                                 {% endfor %}
@@ -719,10 +767,13 @@
                                 {% for edu in resume.content.education %}
                                 <div class="p-item">
                                     <div class="p-item-header">
-                                        <div class="p-item-title">{{ edu.degree }}</div>
+                                        <div class="p-item-title">{{ edu.degree }}{% if edu.field %} in {{ edu.field }}{% endif %}</div>
                                         <div class="p-item-date">{{ edu.year }}</div>
                                     </div>
-                                    <div class="p-item-subtitle">{{ edu.institution }}</div>
+                                    <div class="p-item-subtitle">{{ edu.institution }}{% if edu.location %} · {{ edu.location }}{% endif %}{% if edu.gpa %} · GPA {{ edu.gpa }}{% endif %}</div>
+                                    {% if edu.honors %}
+                                    <div class="p-item-description" style="font-size: 7pt;">{{ edu.honors|join:" · " }}</div>
+                                    {% endif %}
                                 </div>
                                 {% endfor %}
                             </div>
@@ -735,6 +786,9 @@
                                 {% for proj in resume.content.projects %}
                                 <div class="p-item">
                                     <div class="p-item-title">{{ proj.name }}</div>
+                                    {% if proj.technologies %}
+                                    <div class="p-item-subtitle" style="font-size: 7pt;">{{ proj.technologies|join:" · " }}</div>
+                                    {% endif %}
                                     <div class="p-item-description">{{ proj.description }}</div>
                                 </div>
                                 {% endfor %}
@@ -746,7 +800,7 @@
                             <div class="p-section-title">Certifications</div>
                             <ul id="preview-certifications" style="margin: 0; padding-left: 14px; font-size: 7pt; color: #333;">
                                 {% for cert in resume.content.certifications %}
-                                <li style="margin-bottom: 2px;"><strong>{{ cert.name }}</strong>{% if cert.issuer %} - {{ cert.issuer }}{% endif %}</li>
+                                <li style="margin-bottom: 2px;"><strong>{{ cert.name }}</strong>{% if cert.issuer %} - {{ cert.issuer }}{% endif %}{% if cert.duration %} · {{ cert.duration }}{% endif %}{% if cert.date %} ({{ cert.date }}){% endif %}</li>
                                 {% endfor %}
                             </ul>
                         </div>
@@ -781,9 +835,17 @@
                 <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Company</label>
                 <input type="text" name="exp_company[]" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
             </div>
-            <div class="md:col-span-2 space-y-1.5">
+            <div class="space-y-1.5">
                 <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Dates</label>
                 <input type="text" name="exp_duration[]" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+            </div>
+            <div class="space-y-1.5">
+                <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Location</label>
+                <input type="text" name="exp_location[]" placeholder="Cairo, Egypt" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+            </div>
+            <div class="md:col-span-2 space-y-1.5">
+                <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Industry <span class="text-neutral-400 normal-case tracking-normal text-[10px]">— optional</span></label>
+                <input type="text" name="exp_industry[]" placeholder="SaaS, FinTech, Education" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
             </div>
         </div>
         <div class="space-y-1.5">
@@ -800,9 +862,13 @@
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="md:col-span-2 space-y-1.5">
+            <div class="space-y-1.5">
                 <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Degree</label>
-                <input type="text" name="edu_degree[]" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none font-medium text-neutral-900 dark:text-neutral-100">
+                <input type="text" name="edu_degree[]" placeholder="Bachelor of Science" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none font-medium text-neutral-900 dark:text-neutral-100">
+            </div>
+            <div class="space-y-1.5">
+                <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Field of study</label>
+                <input type="text" name="edu_field[]" placeholder="Computer Science" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
             </div>
             <div class="space-y-1.5">
                 <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Institution</label>
@@ -811,6 +877,18 @@
             <div class="space-y-1.5">
                 <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Year</label>
                 <input type="text" name="edu_year[]" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+            </div>
+            <div class="space-y-1.5">
+                <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">GPA <span class="text-neutral-400 normal-case tracking-normal text-[10px]">— optional</span></label>
+                <input type="text" name="edu_gpa[]" placeholder="3.8 / 4.0" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+            </div>
+            <div class="space-y-1.5">
+                <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Location</label>
+                <input type="text" name="edu_location[]" placeholder="Cairo, Egypt" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+            </div>
+            <div class="md:col-span-2 space-y-1.5">
+                <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Honors / coursework <span class="text-neutral-400 normal-case tracking-normal text-[10px]">— one per line</span></label>
+                <textarea name="edu_honors[]" rows="2" class="block w-full px-3 py-2.5 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none resize-y leading-relaxed text-neutral-900 dark:text-neutral-100"></textarea>
             </div>
         </div>
     </div>
@@ -830,6 +908,10 @@
             <div class="space-y-1.5">
                 <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">URL</label>
                 <input type="url" name="proj_url[]" placeholder="https://" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+            </div>
+            <div class="md:col-span-2 space-y-1.5">
+                <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Tech stack <span class="text-neutral-400 normal-case tracking-normal text-[10px]">— comma-separated, used as ATS keywords</span></label>
+                <input type="text" name="proj_technologies[]" placeholder="React, TypeScript, PostgreSQL" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none font-mono text-neutral-900 dark:text-neutral-100">
             </div>
             <div class="md:col-span-2 space-y-1.5">
                 <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Description · one bullet per line</label>
@@ -857,6 +939,10 @@
             <div class="space-y-1.5">
                 <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Date</label>
                 <input type="text" name="cert_date[]" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
+            </div>
+            <div class="space-y-1.5">
+                <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Duration <span class="text-neutral-400 normal-case tracking-normal text-[10px]">— optional</span></label>
+                <input type="text" name="cert_duration[]" placeholder="80 hours" class="block w-full h-10 px-3 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
             </div>
             <div class="md:col-span-2 space-y-1.5">
                 <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">URL</label>
@@ -1006,10 +1092,13 @@
             const t = row.querySelector('input[name="exp_title[]"]')?.value || '';
             const c = row.querySelector('input[name="exp_company[]"]')?.value || '';
             const d = row.querySelector('input[name="exp_duration[]"]')?.value || '';
+            const loc = row.querySelector('input[name="exp_location[]"]')?.value || '';
+            const ind = row.querySelector('input[name="exp_industry[]"]')?.value || '';
             const desc = row.querySelector('textarea[name="exp_description[]"]')?.value || '';
             if (t || c) {
                 experience.push({
                     title: t, company: c, duration: d,
+                    location: loc, industry: ind,
                     description: desc.split('\n').map(s => s.trim()).filter(Boolean),
                 });
             }
@@ -1018,10 +1107,12 @@
         document.querySelectorAll('.project-entry').forEach(row => {
             const n = row.querySelector('input[name="proj_name[]"]')?.value || '';
             const u = row.querySelector('input[name="proj_url[]"]')?.value || '';
+            const techRaw = row.querySelector('input[name="proj_technologies[]"]')?.value || '';
             const desc = row.querySelector('textarea[name="proj_description[]"]')?.value || '';
             if (n) {
                 projects.push({
                     name: n, url: u,
+                    technologies: techRaw.split(',').map(s => s.trim()).filter(Boolean),
                     description: desc.split('\n').map(s => s.trim()).filter(Boolean),
                 });
             }
@@ -1029,6 +1120,7 @@
         return {
             professional_title: get('input[name="professional_title"]'),
             professional_summary: get('textarea[name="professional_summary"]'),
+            objective: get('textarea[name="objective"]'),
             skills: skillsRaw.split(',').map(s => s.trim()).filter(Boolean),
             experience: experience,
             projects: projects,
@@ -1069,57 +1161,94 @@
 
         setText('preview-title', val('input[name="professional_title"]'));
         setText('preview-summary', val('textarea[name="professional_summary"]'));
+        // Objective is rendered conditionally — only show the row if non-empty
+        // (matches the server-side template, which gates on `if objective`).
+        const objectiveNode = document.getElementById('preview-objective');
+        if (objectiveNode) {
+            const objective = val('textarea[name="objective"]').trim();
+            objectiveNode.textContent = objective;
+            objectiveNode.style.display = objective ? '' : 'none';
+            const objLabel = objectiveNode.previousElementSibling;
+            if (objLabel && objLabel.classList.contains('p-section-title')) {
+                objLabel.style.display = objective ? '' : 'none';
+            }
+        }
 
         const skills = val('textarea[name="skills"]');
         setText('preview-skills', skills);
         setSectionVisible('preview-skills-section', skills.trim().length > 0);
 
-        // Experience
+        // Experience — subtitle = company · location · industry
         const expParent = document.getElementById('preview-experience');
         if (expParent) {
             clear(expParent);
             const titles = vals('input[name="exp_title[]"]');
             const comps = vals('input[name="exp_company[]"]');
             const dates = vals('input[name="exp_duration[]"]');
+            const locs = vals('input[name="exp_location[]"]');
+            const inds = vals('input[name="exp_industry[]"]');
             const descs = vals('textarea[name="exp_description[]"]');
             titles.forEach((t, i) => {
-                expParent.append(buildPItem(t, dates[i] || '', comps[i] || '', descs[i] || ''));
+                const subBits = [comps[i], locs[i], inds[i]].filter(Boolean);
+                expParent.append(buildPItem(t, dates[i] || '', subBits.join(' · '), descs[i] || ''));
             });
         }
 
-        // Education
+        // Education — title = degree (in field), subtitle = institution · location · GPA, optional honors line
         const eduParent = document.getElementById('preview-education');
         if (eduParent) {
             clear(eduParent);
             const degs = vals('input[name="edu_degree[]"]');
+            const fields = vals('input[name="edu_field[]"]');
             const insts = vals('input[name="edu_institution[]"]');
             const yrs = vals('input[name="edu_year[]"]');
+            const gpas = vals('input[name="edu_gpa[]"]');
+            const locs = vals('input[name="edu_location[]"]');
+            const honorsRaw = vals('textarea[name="edu_honors[]"]');
             degs.forEach((d, i) => {
-                eduParent.append(buildPItem(d, yrs[i] || '', insts[i] || '', ''));
+                const titleStr = (fields[i] && fields[i].trim()) ? `${d} in ${fields[i]}` : d;
+                const subBits = [insts[i], locs[i], gpas[i] ? `GPA ${gpas[i]}` : ''].filter(Boolean);
+                const item = buildPItem(titleStr, yrs[i] || '', subBits.join(' · '), '');
+                const honorsLines = (honorsRaw[i] || '').split('\n').map(s => s.trim()).filter(Boolean);
+                if (honorsLines.length) {
+                    const honorsEl = el('div', 'p-item-description', honorsLines.join(' · '));
+                    honorsEl.style.fontSize = '7pt';
+                    item.append(honorsEl);
+                }
+                eduParent.append(item);
             });
         }
 
-        // Projects
+        // Projects — title + tech stack subtitle + description
         const projParent = document.getElementById('preview-projects');
         if (projParent) {
             clear(projParent);
             const names = vals('input[name="proj_name[]"]');
+            const techs = vals('input[name="proj_technologies[]"]');
             const descs = vals('textarea[name="proj_description[]"]');
             names.forEach((n, i) => {
                 const item = el('div', 'p-item');
                 item.append(el('div', 'p-item-title', n));
+                const techList = (techs[i] || '').split(',').map(s => s.trim()).filter(Boolean);
+                if (techList.length) {
+                    const sub = el('div', 'p-item-subtitle', techList.join(' · '));
+                    sub.style.fontSize = '7pt';
+                    item.append(sub);
+                }
                 if (descs[i]) item.append(el('div', 'p-item-description', descs[i]));
                 projParent.append(item);
             });
             setSectionVisible('preview-projects-section', names.length > 0);
         }
 
-        // Certifications
+        // Certifications — name · issuer · duration · date
         const certParent = document.getElementById('preview-certifications');
         if (certParent) {
             clear(certParent);
             const names = vals('input[name="cert_name[]"]');
             const issuers = vals('input[name="cert_issuer[]"]');
+            const durations = vals('input[name="cert_duration[]"]');
+            const dates = vals('input[name="cert_date[]"]');
             names.forEach((n, i) => {
                 const li = document.createElement('li');
                 li.style.marginBottom = '2px';
@@ -1127,6 +1256,8 @@
                 strong.textContent = n;
                 li.append(strong);
                 if (issuers[i]) li.append(document.createTextNode(' - ' + issuers[i]));
+                if (durations[i]) li.append(document.createTextNode(' · ' + durations[i]));
+                if (dates[i]) li.append(document.createTextNode(' (' + dates[i] + ')'));
                 certParent.append(li);
             });
             setSectionVisible('preview-certifications-section', names.length > 0);
@@ -1136,6 +1267,40 @@
         const langs = val('textarea[name="languages"]');
         setText('preview-languages', langs);
         setSectionVisible('preview-languages-section', langs.trim().length > 0);
+    }
+
+    // Pull latest master-profile fields into this resume's content. Server-side
+    // merge via _ensure_profile_data_preserved; on success, reload so the form
+    // reflects the merged content.
+    async function syncFromMaster(btn) {
+        if (!btn || btn.disabled) return;
+        if (!confirm('Pull the latest fields from your master profile? Your typed bullets will be preserved; only blank/missing fields get filled in.')) return;
+        btn.disabled = true;
+        const originalLabel = btn.innerHTML;
+        btn.innerHTML = 'Syncing…';
+        try {
+            const url = window.location.pathname.replace('/edit/', '/sync-from-master/');
+            const csrf = document.querySelector('input[name=csrfmiddlewaretoken]')?.value || '';
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+                body: '{}',
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                alert(body.detail || body.error || ('Sync failed (' + res.status + ')'));
+                return;
+            }
+            // Hard reload — easiest way to get the merged content into all the
+            // dynamic experience/education/project rows.
+            window.location.reload();
+        } catch (err) {
+            console.error('sync-from-master failed', err);
+            alert('Sync failed — check the console.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalLabel;
+        }
     }
 
     function addExperience() {
