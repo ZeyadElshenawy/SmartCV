@@ -361,6 +361,129 @@ class ResumeEditPreviewTemplateClassTests(TestCase):
             )
 
 
+class RegenerateSectionEndpointTests(TestCase):
+    """The per-section regenerate endpoint lets the user iterate on a single
+    weak section (summary, skills, experience, projects) without losing
+    edits to other sections. Pinning the contract: auth scope, allowed
+    sections, persisted update, body shape that returns just the rewritten
+    value."""
+
+    def setUp(self):
+        from jobs.models import Job
+        from analysis.models import GapAnalysis
+        from profiles.models import UserProfile
+        from resumes.models import GeneratedResume
+        from django.contrib.auth import get_user_model
+        from django.urls import reverse  # noqa
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='regen@example.com', email='regen@example.com', password='x',
+        )
+        UserProfile.objects.create(
+            user=self.user, full_name='Test User', email='regen@example.com',
+            data_content={'skills': [{'name': 'Python'}]},
+        )
+        self.client.force_login(self.user)
+        job = Job.objects.create(
+            user=self.user, title='Backend Engineer', company='Acme',
+            description='We need Python and Postgres experts.',
+            extracted_skills=['Python', 'PostgreSQL'],
+        )
+        gap = GapAnalysis.objects.create(user=self.user, job=job, similarity_score=0.6)
+        self.resume = GeneratedResume.objects.create(
+            gap_analysis=gap,
+            content={
+                'professional_title': 'Backend Engineer',
+                'professional_summary': 'Old summary.',
+                'skills': ['Python'],
+                'experience': [],
+                'projects': [],
+            },
+        )
+
+    def _url(self, section):
+        return f'/resumes/regen/{self.resume.id}/{section}/'
+
+    def test_unsupported_section_returns_400(self):
+        resp = self.client.post(self._url('unknown'), data='{}', content_type='application/json')
+        self.assertEqual(resp.status_code, 400)
+
+    def test_regen_summary_persists_new_value(self):
+        from unittest.mock import patch
+        with patch('resumes.views.regenerate_section', return_value='Brand new tailored summary.') as m:
+            resp = self.client.post(
+                self._url('professional_summary'),
+                data='{"current_content": {"professional_summary": "old"}}',
+                content_type='application/json',
+            )
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        self.assertEqual(body['section'], 'professional_summary')
+        self.assertEqual(body['value'], 'Brand new tailored summary.')
+        self.resume.refresh_from_db()
+        self.assertEqual(
+            self.resume.content['professional_summary'],
+            'Brand new tailored summary.',
+        )
+        # Other sections must be untouched
+        self.assertEqual(self.resume.content['professional_title'], 'Backend Engineer')
+        m.assert_called_once()
+
+    def test_regen_skills_returns_list(self):
+        from unittest.mock import patch
+        new_skills = ['Python', 'PostgreSQL', 'Docker']
+        with patch('resumes.views.regenerate_section', return_value=new_skills):
+            resp = self.client.post(
+                self._url('skills'),
+                data='{}',
+                content_type='application/json',
+            )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['value'], new_skills)
+        self.resume.refresh_from_db()
+        self.assertEqual(self.resume.content['skills'], new_skills)
+
+    def test_regen_uses_in_flight_content_when_provided(self):
+        """The client sends current_content with unsaved edits; the
+        generator should see those, not the DB snapshot."""
+        from unittest.mock import patch
+        captured_content = {}
+        def fake(profile, job, gap, content, section):
+            captured_content.update(content)
+            return 'ok'
+        with patch('resumes.views.regenerate_section', side_effect=fake):
+            self.client.post(
+                self._url('professional_summary'),
+                data='{"current_content": {"professional_title": "EDITED IN BROWSER"}}',
+                content_type='application/json',
+            )
+        self.assertEqual(captured_content.get('professional_title'), 'EDITED IN BROWSER')
+
+    def test_regen_scoped_to_owner(self):
+        """Another user must not be able to regenerate someone else's resume."""
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        other = User.objects.create_user(
+            username='other@example.com', email='other@example.com', password='x',
+        )
+        self.client.force_login(other)
+        resp = self.client.post(self._url('professional_summary'),
+                                data='{}', content_type='application/json')
+        self.assertEqual(resp.status_code, 404)
+
+    def test_regen_failure_returns_502(self):
+        """When the LLM call raises, surface a 502 not a 500 stacktrace —
+        the UI handles 502 gracefully (alert + button reset)."""
+        from unittest.mock import patch
+        with patch('resumes.views.regenerate_section', side_effect=Exception('LLM down')):
+            resp = self.client.post(
+                self._url('skills'),
+                data='{}',
+                content_type='application/json',
+            )
+        self.assertEqual(resp.status_code, 502)
+
+
 class ResumeListThumbnailTests(TestCase):
     """Each card on the résumé list page now renders a thumbnail preview of
     the actual resume content (name, summary, first experience, top skills)
