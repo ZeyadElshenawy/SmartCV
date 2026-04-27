@@ -322,6 +322,24 @@ def resume_edit_view(request, resume_id):
             resume.ats_score = new_score
             resume.save()
             logger.info(f"Auto-regenerated resume {resume.id} from updated profile")
+        else:
+            # Cheap, no-LLM auto-sync of new master-profile fields into this
+            # resume's content. Patches blank/missing supplemental fields
+            # (experience location/industry, education field/gpa/honors,
+            # project technologies, certification duration, objective) by
+            # positional index. Preserves typed bullets and LLM-rewritten
+            # content. Idempotent: only saves if the merge actually changed
+            # something, so revisiting the page is a no-op.
+            from resumes.services.resume_generator import _ensure_profile_data_preserved
+            profile_data = profile.data_content or {}
+            if profile_data:
+                before = json.dumps(resume.content or {}, sort_keys=True, default=str)
+                merged = _ensure_profile_data_preserved(resume.content or {}, profile_data)
+                after = json.dumps(merged, sort_keys=True, default=str)
+                if before != after:
+                    resume.content = merged
+                    resume.save()
+                    logger.info(f"Auto-synced master fields into resume {resume.id}")
     except UserProfile.DoesNotExist:
         pass
     except Exception as e:
@@ -389,47 +407,6 @@ def resume_edit_view(request, resume_id):
         'section_order': section_order,
         'section_order_with_labels': section_order_with_labels,
     })
-
-
-@login_required
-@require_POST
-def sync_resume_from_master_view(request, resume_id):
-    """Pull the latest UserProfile.data_content fields into this resume.
-
-    Reuses _ensure_profile_data_preserved (which is the same path the
-    generator uses to recover from a half-empty LLM output) so we don't have
-    a second source of truth for "master → resume" field mapping.
-
-    Behavior:
-    - Existing resume content is preserved where present (LLM-rewritten
-      bullets aren't clobbered).
-    - Blank or missing fields get filled from the master profile —
-      experience location/industry/dates, education field/gpa/honors,
-      project technologies, certification duration, the objective field.
-    - On the rare race where the LLM dropped a section entirely, that
-      whole section gets rebuilt from the master.
-
-    Returns JSON so the editor can reload without a full form repost.
-    """
-    from resumes.services.resume_generator import _ensure_profile_data_preserved
-
-    resume = get_object_or_404(GeneratedResume, id=resume_id)
-    if resume.gap_analysis.job.user != request.user:
-        raise Http404
-
-    profile = getattr(request.user, 'profile', None)
-    profile_data = (profile.data_content if profile else None) or {}
-
-    if not profile_data:
-        return JsonResponse({
-            'error': 'no_master_profile',
-            'detail': 'Master profile is empty. Upload a CV or fill in /profiles/setup/review/ first.',
-        }, status=400)
-
-    merged = _ensure_profile_data_preserved(resume.content or {}, profile_data)
-    resume.content = merged
-    resume.save()
-    return JsonResponse({'ok': True, 'detail': 'Resume synced from master profile.'})
 
 
 @login_required

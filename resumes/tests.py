@@ -918,14 +918,16 @@ class SchemaSupersetTests(TestCase):
         self.assertEqual(c['projects'][0]['technologies'], ['Radiometry', 'Chemistry'])
         self.assertEqual(c['certifications'][0]['duration'], '4 years')
 
-    def test_sync_from_master_fills_blank_fields(self):
-        """Calling sync-from-master pulls master profile fields into the
-        resume without clobbering the existing typed bullets."""
+    def test_auto_sync_on_get_fills_blank_fields(self):
+        """Visiting /resumes/edit/<id>/ silently merges blank/missing fields
+        from the master profile into the resume content. No LLM call, no
+        manual button — just open the page and master fields are there."""
         from django.urls import reverse
-        url = reverse('sync_resume_from_master', args=[self.resume.id])
-        resp = self.client.post(url, data='{}', content_type='application/json')
+        # Force the auto-regen branch off so we exercise the cheap auto-sync.
+        # (Auto-regen fires when profile.updated_at > resume.created_at; we
+        # pass ?refresh=0 to match the existing escape-hatch contract.)
+        resp = self.client.get(reverse('resume_edit', args=[self.resume.id]) + '?refresh=0')
         self.assertEqual(resp.status_code, 200)
-        self.assertTrue(resp.json()['ok'])
         self.resume.refresh_from_db()
         c = self.resume.content
         # Master fields populated:
@@ -940,28 +942,34 @@ class SchemaSupersetTests(TestCase):
         # Existing typed bullet preserved (not clobbered):
         self.assertIn('Isolated polonium.', c['experience'][0]['description'])
 
-    def test_sync_from_master_rejects_other_users_resume(self):
-        from django.contrib.auth import get_user_model
+    def test_auto_sync_is_idempotent(self):
+        """Second visit produces identical content + must NOT call save()
+        again (idempotent merge prevents needless DB writes)."""
         from django.urls import reverse
-        User = get_user_model()
-        other = User.objects.create_user(
-            username='intruder@example.com', email='intruder@example.com', password='x',
-        )
-        self.client.force_login(other)
-        resp = self.client.post(reverse('sync_resume_from_master', args=[self.resume.id]),
-                                data='{}', content_type='application/json')
-        self.assertEqual(resp.status_code, 404)
+        from unittest.mock import patch
+        url = reverse('resume_edit', args=[self.resume.id]) + '?refresh=0'
+        # First hit: should save (master fields are being merged in for
+        # the first time).
+        self.client.get(url)
+        self.resume.refresh_from_db()
+        first_content = self.resume.content
+        # Second hit: nothing should change; assert resume.save() is NOT
+        # called by the auto-sync branch this time.
+        with patch('resumes.models.GeneratedResume.save') as save_mock:
+            self.client.get(url)
+            # Auto-sync detects no diff, skips save.
+            self.assertFalse(save_mock.called)
+        self.resume.refresh_from_db()
+        self.assertEqual(self.resume.content, first_content)
 
-    def test_sync_from_master_rejects_empty_master(self):
-        """If the user hasn't filled in the master profile, sync should
-        return 400 with a friendly message, not blow up."""
+    def test_auto_sync_skipped_when_master_empty(self):
+        """If the user hasn't filled in the master profile, opening the
+        edit page must not blow up — it just renders without changes."""
         from profiles.models import UserProfile
         from django.urls import reverse
         UserProfile.objects.filter(user=self.user).update(data_content={})
-        resp = self.client.post(reverse('sync_resume_from_master', args=[self.resume.id]),
-                                data='{}', content_type='application/json')
-        self.assertEqual(resp.status_code, 400)
-        self.assertEqual(resp.json()['error'], 'no_master_profile')
+        resp = self.client.get(reverse('resume_edit', args=[self.resume.id]) + '?refresh=0')
+        self.assertEqual(resp.status_code, 200)
 
     def test_docx_renders_new_fields(self):
         """The DOCX exporter surfaces location, GPA, honors, technologies,
