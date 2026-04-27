@@ -336,6 +336,7 @@ COMPLETE CV DATA (the candidate's authoritative resume):
 - CV `projects[].url` → output `projects[].url` (PRESERVE all project URLs exactly)
 - CV `projects[].technologies` → output `projects[].technologies` array (PRESERVE; ATS scanner picks these up as keywords)
 - CV `projects[].highlights` → output `projects[].highlights` array (PRESERVE; structured outcomes that complement the bullet description)
+- CV `projects[].source` (one of "github" / "scholar" / "kaggle") → SIGNAL ONLY (not output as a resume field). If a project has this field, it was enriched from an external signal source the candidate themselves has connected (their own GitHub, Scholar, or Kaggle account), and the user has explicitly confirmed it via the project review UI. Treat its existence, `name`, `url`, and `technologies` as ground truth — they are NOT fabrications. You may still rewrite the bullet phrasing to match the JD, but never drop a confirmed enriched project on the assumption that it's not "really" the candidate's. The bullets in such projects' `description` are typically derived from the source repo / paper / competition, so they are also pre-vetted; rewrite them for tone but don't strip evidence (star counts, citation counts, medal counts).
 - CV `objective` → output `objective` (the standalone objective field; this is OPTIONAL — only include if the candidate's CV explicitly has one and it's not redundant with professional_summary)
 - Include ALL certifications from the CV data — do NOT truncate or omit any.
 

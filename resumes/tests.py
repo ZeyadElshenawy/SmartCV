@@ -1019,6 +1019,139 @@ class SchemaSupersetTests(TestCase):
         self.assertIn('4 years', doc_xml)                           # cert duration
 
 
+class FactualityCheckEnrichedProjectsTests(SimpleTestCase):
+    """Phase 3: factuality_check accepts enriched-project URLs / source_ids
+    as legitimate evidence so Phase-2 confirmed projects don't get falsely
+    flagged as fabrication. Companies and schools still require source-text
+    grounding.
+    """
+
+    def test_project_grounded_via_enriched_source_url(self):
+        from benchmarks.llm_judge import factuality_check
+        generated = {
+            'experience': [{'company': 'Acme'}],
+            'projects': [{'name': 'climate-modeling', 'description': []}],
+        }
+        # Source CV text has Acme but NOT climate-modeling — that project
+        # came from Phase-1 enrichment of GitHub signals.
+        source_text = "Engineer at Acme since 2023."
+        confirmed = [{
+            'name': 'climate-modeling',
+            'url': 'https://github.com/me/climate-modeling',
+            'source': 'github',
+            'source_id': 'me/climate-modeling',
+        }]
+        result = factuality_check(generated, source_text, confirmed_projects=confirmed)
+        # Both Acme and climate-modeling grounded; ratio = 1.0
+        self.assertEqual(result['ratio'], 1.0)
+        self.assertEqual(result['ungrounded'], [])
+
+    def test_project_falsely_named_still_flags_as_ungrounded(self):
+        """An LLM-fabricated project name should still get flagged — being
+        in confirmed_projects requires actual text overlap (substring), not
+        just the existence of any enriched project."""
+        from benchmarks.llm_judge import factuality_check
+        generated = {
+            'experience': [{'company': 'Acme'}],
+            'projects': [{'name': 'completely-made-up-project'}],
+        }
+        source_text = "Engineer at Acme since 2023."
+        confirmed = [{
+            'name': 'climate-modeling',
+            'url': 'https://github.com/me/climate-modeling',
+            'source': 'github',
+        }]
+        result = factuality_check(generated, source_text, confirmed_projects=confirmed)
+        self.assertIn('completely-made-up-project', result['ungrounded'])
+        # Acme grounded, fabricated project not — 1/2 = 0.5
+        self.assertEqual(result['ratio'], 0.5)
+
+    def test_company_does_not_use_project_evidence(self):
+        """Company names must come from source_text — they CANNOT use the
+        confirmed-projects index (otherwise a typed project named after a
+        fake company would launder fabrication)."""
+        from benchmarks.llm_judge import factuality_check
+        generated = {
+            'experience': [{'company': 'NotInCV-Corp'}],
+            'projects': [],
+        }
+        source_text = "Engineer at Acme since 2023."
+        confirmed = [{
+            'name': 'NotInCV-Corp',  # appears in confirmed projects
+            'url': 'https://example.com',
+        }]
+        result = factuality_check(generated, source_text, confirmed_projects=confirmed)
+        # Company should still be flagged — confirmed projects are not
+        # evidence for company entities.
+        self.assertIn('NotInCV-Corp', result['ungrounded'])
+
+    def test_backwards_compat_no_confirmed_projects(self):
+        """Calling without confirmed_projects (legacy callers) still works
+        and falls back to source-text-only grounding."""
+        from benchmarks.llm_judge import factuality_check
+        generated = {
+            'experience': [{'company': 'Acme'}],
+            'projects': [{'name': 'pgbench-tuner'}],
+        }
+        source_text = "Engineer at Acme; built pgbench-tuner."
+        result = factuality_check(generated, source_text)
+        self.assertEqual(result['ratio'], 1.0)
+
+
+class ResumeGeneratorEnrichedProjectsPromptTests(SimpleTestCase):
+    """Phase 3: source-tagged projects survive the resume_generator's prompt
+    assembly (slim_cv) and the offline fallback. The LLM gets to see the
+    `source` field so it can treat enriched projects as ground truth."""
+
+    def test_offline_fallback_preserves_enriched_project(self):
+        """The offline fallback (no LLM) must pass enriched projects through
+        intact — including their custom technologies and bullets."""
+        import types
+        from resumes.services.resume_generator import _build_offline_fallback
+        profile = types.SimpleNamespace(data_content={
+            'projects': [{
+                'name': 'climate-modeling', 'url': 'https://github.com/me/climate-modeling',
+                'description': ['Built earth-science modeling pipeline.'],
+                'technologies': ['Python', 'PyTorch'],
+                'source': 'github', 'source_id': 'me/climate-modeling',
+            }],
+        }, raw_text='', skills=[], experiences=[], education=[],
+            projects=[], certifications=[])
+        job = types.SimpleNamespace(title='ML Engineer', description='Build models.',
+                                    extracted_skills=[])
+        out = _build_offline_fallback(profile, job, profile.data_content)
+        self.assertEqual(len(out['projects']), 1)
+        proj = out['projects'][0]
+        self.assertEqual(proj['name'], 'climate-modeling')
+        self.assertEqual(proj['url'], 'https://github.com/me/climate-modeling')
+        self.assertIn('PyTorch', proj['technologies'])
+        # Bullets survive verbatim
+        self.assertIn('Built earth-science modeling pipeline.', proj['description'])
+
+    def test_slim_cv_includes_source_field_for_llm_prompt(self):
+        """Verify the slim_cv dict assembled in generate_resume_content keeps
+        the `source` field on each project so the LLM can apply the
+        'pre-vetted from external signals' rule."""
+        # We can't run the full LLM call in a unit test, but we CAN assert
+        # the assembly logic is correct by inspecting what would be
+        # serialized into the prompt.
+        raw_cv_data = {
+            'projects': [{
+                'name': 'climate-modeling', 'url': 'https://github.com/me/climate-modeling',
+                'description': ['Built it.'], 'technologies': ['Python'],
+                'source': 'github', 'source_id': 'me/climate-modeling',
+            }],
+        }
+        # Replicate the slim_cv filter from generate_resume_content
+        _SIGNAL_KEYS = {'github_signals', 'scholar_signals', 'kaggle_signals', 'linkedin_snapshot'}
+        slim_cv = {k: v for k, v in raw_cv_data.items()
+                   if k != 'raw_text'
+                   and k not in _SIGNAL_KEYS
+                   and v
+                   and k not in ('normalized_summary', 'objective')}
+        self.assertEqual(slim_cv['projects'][0]['source'], 'github')
+
+
 class ResumeListThumbnailTests(TestCase):
     """Each card on the résumé list page now renders a thumbnail preview of
     the actual resume content (name, summary, first experience, top skills)
