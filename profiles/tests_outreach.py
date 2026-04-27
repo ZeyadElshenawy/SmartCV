@@ -128,6 +128,153 @@ class DispatcherTests(TestCase):
             record_action_result(action, 'whatever')
 
 
+class OutreachLLMFallbackPathTests(TestCase):
+    """The outreach generator has a 3-tier recovery chain when Groq's
+    structured-output tool call fails (which happens ~5% of calls for
+    flaky reasons: invalid tool-name, max_tokens cut mid-tool-use,
+    upstream model drift). Without these fallbacks, the user sees an
+    empty draft on a per-target retry. Pinning the chain so it can't
+    silently regress.
+
+    Chain (profiles/services/outreach_generator.py:_invoke_with_fallback):
+      1. Structured call succeeds → return parsed Pydantic dict
+      2. Groq raises tool_use_failed with `failed_generation` → recover
+         the parameters dict from the raw text
+      3. Recovery fails → fallback to plain-text JSON LLM call
+      4. That fails too → re-raise the original exception
+    """
+
+    def _exc_with_failed_generation(self, raw):
+        """Build a fake exception shaped like a Groq BadRequestError so
+        _extract_failed_generation_payload has something to grab."""
+        exc = Exception('tool_use_failed')
+        exc.body = {'error': {
+            'message': 'tool call validation failed',
+            'type': 'invalid_request_error',
+            'code': 'tool_use_failed',
+            'failed_generation': raw,
+        }}
+        return exc
+
+    def test_recovers_from_failed_generation_when_payload_is_a_dict(self):
+        """Common case: Groq's failed_generation contains the dict
+        directly (not wrapped in a list). Recovery should pull
+        parameters out of the wrapper if present, or use the raw dict."""
+        from profiles.services.outreach_generator import _invoke_with_fallback
+        raw_payload = json.dumps({
+            'name': 'OutreachCampaignResult',
+            'parameters': {
+                'linkedin_message': 'Hi Alice, saw your post on caching',
+                'cold_email_subject': 'Caching question',
+                'cold_email_body': 'Quick thought on your blog post...',
+            },
+        })
+        fake_llm = MagicMock()
+        fake_llm.invoke.side_effect = self._exc_with_failed_generation(raw_payload)
+        with patch('profiles.services.outreach_generator.get_structured_llm', return_value=fake_llm):
+            result = _invoke_with_fallback('test prompt')
+        self.assertEqual(result['linkedin_message'], 'Hi Alice, saw your post on caching')
+        self.assertEqual(result['cold_email_subject'], 'Caching question')
+
+    def test_recovers_from_failed_generation_when_wrapped_in_list(self):
+        """Groq sometimes wraps the tool call in a single-element list:
+        `[{"name": "...", "parameters": {...}}]`. Recovery should peel
+        off the list and grab the parameters from the first element."""
+        from profiles.services.outreach_generator import _invoke_with_fallback
+        raw_payload = json.dumps([{
+            'name': 'OutreachCampaignResult',
+            'parameters': {
+                'linkedin_message': 'Hi Bob',
+                'cold_email_subject': 'Hello',
+                'cold_email_body': 'Body text',
+            },
+        }])
+        fake_llm = MagicMock()
+        fake_llm.invoke.side_effect = self._exc_with_failed_generation(raw_payload)
+        with patch('profiles.services.outreach_generator.get_structured_llm', return_value=fake_llm):
+            result = _invoke_with_fallback('test prompt')
+        self.assertEqual(result['linkedin_message'], 'Hi Bob')
+
+    def test_falls_back_to_plaintext_json_when_failed_generation_unparseable(self):
+        """failed_generation is missing or not valid JSON → recovery
+        returns None → fallback to a plain-text JSON LLM call. Pin the
+        full chain so the second LLM is actually invoked."""
+        from profiles.services.outreach_generator import _invoke_with_fallback
+        # Structured call raises with no useful failed_generation
+        broken_exc = self._exc_with_failed_generation('this is not json {{{')
+
+        # Plain-text fallback returns a clean JSON reply
+        fake_plaintext_llm = MagicMock()
+        fake_reply = MagicMock()
+        fake_reply.content = json.dumps({
+            'linkedin_message': 'Hi Carol',
+            'cold_email_subject': 'Hello',
+            'cold_email_body': 'Body',
+        })
+        fake_plaintext_llm.invoke.return_value = fake_reply
+
+        fake_structured = MagicMock()
+        fake_structured.invoke.side_effect = broken_exc
+
+        with patch('profiles.services.outreach_generator.get_structured_llm',
+                   return_value=fake_structured), \
+             patch('profiles.services.outreach_generator.get_llm',
+                   return_value=fake_plaintext_llm):
+            result = _invoke_with_fallback('test prompt')
+        self.assertEqual(result['linkedin_message'], 'Hi Carol')
+        # Confirms the plaintext path was actually taken (not just the structured retry)
+        fake_plaintext_llm.invoke.assert_called_once()
+
+    def test_plaintext_fallback_handles_fenced_json(self):
+        """The plaintext LLM often wraps the JSON in ```json fences.
+        _parse_json_object must extract the object from inside the fence."""
+        from profiles.services.outreach_generator import _invoke_with_fallback
+        broken_exc = self._exc_with_failed_generation(None)
+        fake_plaintext_llm = MagicMock()
+        fake_reply = MagicMock()
+        fake_reply.content = (
+            "Sure, here's the message:\n```json\n"
+            + json.dumps({
+                'linkedin_message': 'Hi Dan',
+                'cold_email_subject': 'Hi',
+                'cold_email_body': 'Body',
+            })
+            + "\n```\nLet me know if you want changes."
+        )
+        fake_plaintext_llm.invoke.return_value = fake_reply
+        fake_structured = MagicMock()
+        fake_structured.invoke.side_effect = broken_exc
+
+        with patch('profiles.services.outreach_generator.get_structured_llm',
+                   return_value=fake_structured), \
+             patch('profiles.services.outreach_generator.get_llm',
+                   return_value=fake_plaintext_llm):
+            result = _invoke_with_fallback('test prompt')
+        self.assertEqual(result['linkedin_message'], 'Hi Dan')
+
+    def test_reraises_when_all_three_tiers_fail(self):
+        """If structured fails AND failed_generation is unparseable AND
+        the plaintext fallback ALSO fails, the original exception
+        propagates so the caller can decide what to do (currently the
+        outreach API surfaces it as a 502 to the UI)."""
+        from profiles.services.outreach_generator import _invoke_with_fallback
+        broken_exc = self._exc_with_failed_generation(None)
+        fake_plaintext_llm = MagicMock()
+        fake_plaintext_llm.invoke.side_effect = Exception('plaintext also dead')
+        fake_structured = MagicMock()
+        fake_structured.invoke.side_effect = broken_exc
+
+        with patch('profiles.services.outreach_generator.get_structured_llm',
+                   return_value=fake_structured), \
+             patch('profiles.services.outreach_generator.get_llm',
+                   return_value=fake_plaintext_llm):
+            with self.assertRaises(Exception) as ctx:
+                _invoke_with_fallback('test prompt')
+        # The ORIGINAL structured-call exception is what re-raises, not
+        # the plaintext one — that's the contract callers depend on.
+        self.assertEqual(str(ctx.exception), 'tool_use_failed')
+
+
 class CampaignE2EIntegrationTests(TestCase):
     """End-to-end pipeline through HTTP: create campaign via the session
     API, simulate the extension polling /next + reporting /result, and
