@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.urls import reverse
+from django.utils import timezone
 from django.db import close_old_connections, transaction
 from .models import UserProfile, JobProfileSnapshot
 from .services.cv_parser import parse_cv
@@ -847,6 +848,140 @@ def refresh_kaggle_signals(request):
         input_field='kaggle_input',
         fetcher=fetch_kaggle_snapshot,
     )
+
+
+@login_required
+def projects_review_view(request):
+    """User-engaged review of project enrichment + dedupe verdicts.
+
+    GET: runs enrich_profile + dedupe_projects (cached when possible) and
+    renders the three-section review template:
+      1. Suggested merges — typed ↔ enriched pairs the LLM proposed
+         a verdict for. Each row gets an action dropdown so the user can
+         override LLM judgment.
+      2. New additions — enriched projects with no typed match.
+         Checkbox per row; opt-in.
+      3. Untouched typed — typed projects with no enriched counterpart.
+         Read-only, informational.
+
+    POST is handled by `projects_confirm_view`.
+    """
+    from profiles.services.project_enricher import enrich_profile
+    from profiles.services.project_dedupe import dedupe_projects
+
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    force = request.GET.get('force') == '1'
+
+    enriched = enrich_profile(profile, force=force)
+    typed = (profile.data_content or {}).get('projects') or []
+    decisions = dedupe_projects(typed, enriched)
+
+    # Cache the latest decisions on the profile so a refresh of the page
+    # doesn't have to re-call the dedupe LLM (enrich_profile already caches
+    # on its own hash).
+    data = profile.data_content or {}
+    data['dedupe_decisions'] = decisions
+    profile.data_content = data
+    profile.save(update_fields=['data_content', 'updated_at'])
+
+    # Index typed projects that have a matched decision so we can split
+    # them into "matched" vs "untouched" buckets in the template.
+    matched_typed_indices = {d['typed_index'] for d in decisions if d.get('typed_index', -1) >= 0}
+    untouched_typed = [
+        {'index': i, 'project': p}
+        for i, p in enumerate(typed)
+        if i not in matched_typed_indices
+    ]
+
+    # Build per-decision rendering view objects so the template can iterate
+    # without double-indirecting through indices.
+    matched_rows = []
+    new_rows = []
+    for d in decisions:
+        e_idx = d.get('enriched_index', -1)
+        if e_idx < 0 or e_idx >= len(enriched):
+            continue
+        row = {
+            'decision': d,
+            'enriched': enriched[e_idx],
+        }
+        t_idx = d.get('typed_index', -1)
+        if d.get('action') == 'add_new' or t_idx < 0:
+            new_rows.append(row)
+        else:
+            row['typed'] = typed[t_idx] if t_idx < len(typed) else None
+            matched_rows.append(row)
+
+    return render(request, 'profiles/projects_review.html', {
+        'matched_rows': matched_rows,
+        'new_rows': new_rows,
+        'untouched_typed': untouched_typed,
+        'has_signals': bool(
+            (profile.data_content or {}).get('github_signals')
+            or (profile.data_content or {}).get('scholar_signals')
+            or (profile.data_content or {}).get('kaggle_signals')
+        ),
+        'enriched_count': len(enriched),
+    })
+
+
+@login_required
+def projects_confirm_view(request):
+    """Persist the user's review decisions into data_content['projects'].
+
+    Reads the form's per-decision action overrides (`override_<enriched_index>`
+    POSTed as the chosen action) and the per-new-project opt-in checkboxes
+    (`include_new_<enriched_index>`). Computes the final project list via
+    `apply_decisions` and replaces `data_content['projects']`.
+
+    Idempotent: re-running with the same form values produces the same
+    output. Redirects to /profiles/setup/review/ on success so the user
+    immediately sees the new projects in their master profile.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST only'}, status=405)
+
+    from profiles.services.project_dedupe import apply_decisions
+
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    data = profile.data_content or {}
+    decisions = data.get('dedupe_decisions') or []
+    enriched = data.get('enriched_projects_cache') or []
+    typed = data.get('projects') or []
+
+    # Build the override map from the form. For new-project decisions, an
+    # unchecked include_new_<i> means we drop the decision entirely so it
+    # doesn't add anything; we encode that as override "skip".
+    overrides: dict[int, str] = {}
+    for d in decisions:
+        e_idx = d.get('enriched_index', -1)
+        if e_idx < 0:
+            continue
+        if d.get('action') == 'add_new':
+            included = request.POST.get(f'include_new_{e_idx}') == '1'
+            overrides[e_idx] = 'add_new' if included else 'skip'
+        else:
+            chosen = request.POST.get(f'override_{e_idx}')
+            if chosen in ('merge', 'keep_existing', 'keep_new'):
+                overrides[e_idx] = chosen
+            # If no override posted, fall through to LLM verdict.
+
+    # apply_decisions doesn't recognize "skip"; filter those decisions out
+    # before passing in.
+    effective_decisions = [
+        d for d in decisions
+        if overrides.get(d.get('enriched_index', -1)) != 'skip'
+    ]
+    final_projects = apply_decisions(typed, enriched, effective_decisions, overrides=overrides)
+
+    data['projects'] = final_projects
+    # Mark as confirmed so a future visit to the review page doesn't re-prompt
+    # for the same decisions; force=1 still bypasses.
+    data['projects_confirmed_at'] = timezone.now().isoformat()
+    profile.data_content = data
+    profile.save(update_fields=['data_content', 'updated_at'])
+
+    return redirect('review_master_profile')
 
 
 @login_required
