@@ -1,0 +1,1327 @@
+{
+  "benchmark": "gap_eval",
+  "version": 1,
+  "fixture_kind": "real_anonymized_cv_x_jd",
+  "n_cvs": 10,
+  "n_jds": 5,
+  "n_pairs_evaluated": 50,
+  "repeats_per_pair": 1,
+  "parse_wall_seconds": 1.87,
+  "wall_seconds": 188.63,
+  "parse_errors": [],
+  "buckets": {
+    "strong": {
+      "n": 10,
+      "min": 0.0,
+      "mean": 0.465,
+      "median": 0.5,
+      "p95": 0.85,
+      "max": 0.9,
+      "std": 0.3091,
+      "scores": [
+        0.65,
+        0.75,
+        0.8,
+        0.0,
+        0.0,
+        0.2,
+        0.4,
+        0.9,
+        0.6,
+        0.35
+      ]
+    },
+    "partial": {
+      "n": 6,
+      "min": 0.15,
+      "mean": 0.3833,
+      "median": 0.4,
+      "p95": 0.53,
+      "max": 0.55,
+      "std": 0.1247,
+      "scores": [
+        0.45,
+        0.35,
+        0.55,
+        0.45,
+        0.15,
+        0.35
+      ]
+    },
+    "weak": {
+      "n": 34,
+      "min": 0.0,
+      "mean": 0.1412,
+      "median": 0.1,
+      "p95": 0.35,
+      "max": 0.4,
+      "std": 0.1447,
+      "scores": [
+        0.35,
+        0.35,
+        0.15,
+        0.25,
+        0.35,
+        0.35,
+        0.05,
+        0.35,
+        0.4,
+        0.05,
+        0.15,
+        0.35,
+        0.15,
+        0.05,
+        0.35,
+        0.05,
+        0.05,
+        0.15,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.35,
+        0.15,
+        0.2,
+        0.0,
+        0.0,
+        0.0,
+        0.15,
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "separation": {
+    "strong_vs_weak_cohens_d": 1.685,
+    "strong_mean_gt_weak_mean": true
+  },
+  "coverage": {
+    "n": 50,
+    "min": 0.9286,
+    "mean": 0.9966,
+    "median": 1.0,
+    "p95": 1.0,
+    "max": 1.0,
+    "std": 0.0142,
+    "perfect_coverage_pairs": 47
+  },
+  "latency_ms": {
+    "n": 50,
+    "min": 1135.3,
+    "mean": 3772.5894,
+    "median": 4394.115,
+    "p95": 5412.18,
+    "max": 5794.44,
+    "std": 1464.5958
+  },
+  "rows": [
+    {
+      "cv_id": "cv_backend_jr_rust",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "weak",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 6,
+          "n_missing": 24,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1684.2,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_backend_jr_rust",
+      "jd_id": "jd_backend_python_node",
+      "expected": "partial",
+      "similarity_mean": 0.45,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.45,
+          "n_matched": 8,
+          "n_missing": 10,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1231.49,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_backend_jr_rust",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 8,
+          "n_missing": 21,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 29,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1667.57,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_backend_jr_rust",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.15,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.15,
+          "n_matched": 3,
+          "n_missing": 26,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 29,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1377.25,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_backend_jr_rust",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "weak",
+      "similarity_mean": 0.25,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.25,
+          "n_matched": 4,
+          "n_missing": 11,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 15,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1733.04,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_jr_react",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "partial",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 8,
+          "n_missing": 22,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1400.18,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_jr_react",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 6,
+          "n_missing": 12,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1220.92,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_jr_react",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 7,
+          "n_missing": 22,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 29,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1379.48,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_jr_react",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.05,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.05,
+          "n_matched": 11,
+          "n_missing": 26,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 37,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1424.79,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_jr_react",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "strong",
+      "similarity_mean": 0.65,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.65,
+          "n_matched": 7,
+          "n_missing": 7,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 14,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1135.3,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_devops_jr",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "weak",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 7,
+          "n_missing": 23,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1340.83,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_devops_jr",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.4,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.4,
+          "n_matched": 8,
+          "n_missing": 10,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1262.15,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_devops_jr",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "partial",
+      "similarity_mean": 0.55,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.55,
+          "n_matched": 11,
+          "n_missing": 19,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 30,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1391.37,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_devops_jr",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.05,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.05,
+          "n_matched": 1,
+          "n_missing": 26,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 27,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4397.54,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_devops_jr",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "weak",
+      "similarity_mean": 0.15,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.15,
+          "n_matched": 3,
+          "n_missing": 11,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 14,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 5315.94,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_flutter_intern",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "weak",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 8,
+          "n_missing": 22,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4409.87,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_flutter_intern",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.15,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.15,
+          "n_matched": 11,
+          "n_missing": 17,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 28,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 5403.66,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_flutter_intern",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.05,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.05,
+          "n_matched": 1,
+          "n_missing": 28,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 29,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 5553.39,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_flutter_intern",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "strong",
+      "similarity_mean": 0.75,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.75,
+          "n_matched": 17,
+          "n_missing": 10,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 27,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4444.1,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_flutter_intern",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "weak",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 10,
+          "n_missing": 10,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 20,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 5332.47,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_diploma_react",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "partial",
+      "similarity_mean": 0.45,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.45,
+          "n_matched": 9,
+          "n_missing": 21,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4487.86,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_diploma_react",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.05,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.05,
+          "n_matched": 2,
+          "n_missing": 16,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4339.72,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_diploma_react",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.05,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.05,
+          "n_matched": 2,
+          "n_missing": 27,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 29,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4416.55,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_diploma_react",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.15,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.15,
+          "n_matched": 8,
+          "n_missing": 26,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 34,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4459.15,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_diploma_react",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "strong",
+      "similarity_mean": 0.8,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.8,
+          "n_matched": 11,
+          "n_missing": 3,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 14,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 5794.44,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "strong",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 30,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 3448.07,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 18,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4303.93,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 28,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 28,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 5419.15,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 27,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 27,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4395.6,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "strong",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 14,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 14,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4378.94,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_mid_react",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "strong",
+      "similarity_mean": 0.2,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.2,
+          "n_matched": 4,
+          "n_missing": 27,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 31,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 0.9333
+          },
+          "latency_ms": 4472.42,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_mid_react",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 18,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4389.13,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_mid_react",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 28,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 28,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4528.53,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_mid_react",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 27,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 27,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4427.92,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_mid_react",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "strong",
+      "similarity_mean": 0.4,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.4,
+          "n_matched": 4,
+          "n_missing": 13,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 17,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 5245.87,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue_v2",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "strong",
+      "similarity_mean": 0.9,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.9,
+          "n_matched": 28,
+          "n_missing": 2,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4391.74,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue_v2",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 6,
+          "n_missing": 12,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4237.31,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue_v2",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.15,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.15,
+          "n_matched": 6,
+          "n_missing": 22,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 28,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4487.42,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue_v2",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.2,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.2,
+          "n_matched": 4,
+          "n_missing": 23,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 27,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4392.63,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue_v2",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "strong",
+      "similarity_mean": 0.6,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.6,
+          "n_matched": 9,
+          "n_missing": 5,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 14,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4175.18,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_jquery_legacy",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "partial",
+      "similarity_mean": 0.15,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.15,
+          "n_matched": 10,
+          "n_missing": 28,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 38,
+            "n_covered_of_job": 29,
+            "coverage_ratio": 0.9667
+          },
+          "latency_ms": 4627.02,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_jquery_legacy",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 18,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4277.85,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_jquery_legacy",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 28,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 28,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4489.08,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_jquery_legacy",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 27,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 27,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4524.2,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_jquery_legacy",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "strong",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 7,
+          "n_missing": 12,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 19,
+            "n_covered_of_job": 13,
+            "coverage_ratio": 0.9286
+          },
+          "latency_ms": 4334.99,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_entry_no_role",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "weak",
+      "similarity_mean": 0.15,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.15,
+          "n_matched": 6,
+          "n_missing": 24,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4463.18,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_entry_no_role",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 18,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 5326.77,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_entry_no_role",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 28,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 28,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4499.77,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_entry_no_role",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 27,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 27,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4561.46,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_entry_no_role",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "partial",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 5,
+          "n_missing": 9,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 14,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4228.05,
+          "error": null
+        }
+      ]
+    }
+  ],
+  "method": {
+    "service": "analysis.services.gap_analyzer.compute_gap_analysis",
+    "buckets_source": "fixtures/manifest.json -> expected_match_strength"
+  },
+  "disclosure": "LLM-driven (Groq llama-4-scout). Mean of 1 run(s) per pair. Per-skill ground-truth labels not provided \u2014 separation is measured by similarity_score across hand-graded strong/partial/weak buckets, and coverage validates the analyzer's '100% reconciliation' claim."
+}

@@ -1,0 +1,1235 @@
+{
+  "benchmark": "parser_eval",
+  "version": 1,
+  "fixture_kind": "real_anonymized_cv",
+  "n_cvs": 10,
+  "repeats_per_cv": 1,
+  "wall_seconds": 1.76,
+  "aggregate": {
+    "personal_info_accuracy": {
+      "n": 10,
+      "min": 0.6667,
+      "mean": 0.9417,
+      "median": 1.0,
+      "p95": 1.0,
+      "max": 1.0,
+      "std": 0.1181
+    },
+    "section_presence_accuracy": {
+      "n": 10,
+      "min": 0.4,
+      "mean": 0.68,
+      "median": 0.6,
+      "p95": 1.0,
+      "max": 1.0,
+      "std": 0.1833
+    },
+    "skills_jaccard": {
+      "n": 10,
+      "min": 0.0,
+      "mean": 0.197,
+      "median": 0.1412,
+      "p95": 0.61,
+      "max": 0.8333,
+      "std": 0.2365
+    },
+    "skills_f1": {
+      "n": 10,
+      "min": 0.0,
+      "mean": 0.2956,
+      "median": 0.2758,
+      "p95": 0.77,
+      "max": 0.9091,
+      "std": 0.2738
+    },
+    "skills_f1_with_section": {
+      "n": 5,
+      "min": 0.2609,
+      "mean": 0.4294,
+      "median": 0.3019,
+      "p95": 0.8,
+      "max": 0.9091,
+      "std": 0.2433
+    },
+    "skills_jaccard_with_section": {
+      "n": 5,
+      "min": 0.1395,
+      "mean": 0.3034,
+      "median": 0.1739,
+      "p95": 0.71,
+      "max": 0.8333,
+      "std": 0.2668
+    },
+    "latency_ms": {
+      "n": 10,
+      "min": 26.28,
+      "mean": 159.383,
+      "median": 119.14,
+      "p95": 411.48,
+      "max": 560.96,
+      "std": 151.6641
+    }
+  },
+  "rows": [
+    {
+      "cv_id": "cv_backend_jr_rust",
+      "primary_role": "backend",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 1.0,
+      "section_presence_accuracy_mean": 0.6,
+      "skill_jaccard_mean": 0.1395,
+      "skill_f1_mean": 0.2907,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "Ahmed Mahmoud Abbas",
+                "labeled": "Ahmed Mahmoud Abbas"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "ahmedabbass871@gmail.com",
+                "labeled": "ahmedabbass871@gmail.com"
+              },
+              "phone": {
+                "status": "match",
+                "parsed": "+20 1114993108",
+                "labeled": "+20 1114993108"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "Egypt, Cairo",
+                "labeled": "Egypt, Cairo"
+              }
+            },
+            "considered": 4,
+            "correct": 4,
+            "accuracy": 1.0
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "experience": {
+                "expected": true,
+                "actual": false,
+                "match": false
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": true,
+                "actual": false,
+                "match": false
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 0.6
+          },
+          "skills": {
+            "n_parsed": 33,
+            "n_labeled": 13,
+            "precision": 0.2121,
+            "recall": 0.4615,
+            "f1": 0.2907,
+            "jaccard": 0.1395,
+            "missed": [
+              "Multithreading",
+              "Active Directory",
+              "DHCP",
+              "VLANs",
+              "VPNs",
+              "Sophos",
+              "FortiGate"
+            ],
+            "extra": [
+              "upcoming",
+              "Design Thinking",
+              "DNS",
+              "Fedora)",
+              "Kubernetes",
+              "JavaScript",
+              "basic",
+              "NAT",
+              "Packet Tracer",
+              "APIs",
+              "Clean Code",
+              "Firewalls",
+              "Bash",
+              "Python",
+              "System",
+              "Self",
+              "CLI Tools",
+              "DevOps & Deployment: CI/CD",
+              "Ansible",
+              "VirtualBox",
+              "Jenkins",
+              "REST",
+              "Wireshark",
+              "Learner",
+              "Git",
+              "Docker"
+            ]
+          },
+          "counts": {
+            "experience": {
+              "labeled": 1,
+              "parsed": 0
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 1
+            }
+          },
+          "latency_ms": 200.84,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_jr_react",
+      "primary_role": "frontend",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 1.0,
+      "section_presence_accuracy_mean": 0.6,
+      "skill_jaccard_mean": 0.1739,
+      "skill_f1_mean": 0.3019,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "Ahmed Mahmoud Abbas",
+                "labeled": "Ahmed Mahmoud Abbas"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "ahmedabbass871@gmail.com",
+                "labeled": "ahmedabbass871@gmail.com"
+              },
+              "phone": {
+                "status": "match",
+                "parsed": "+20 1114993108",
+                "labeled": "+20 1114993108"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "Egypt, Cairo",
+                "labeled": "Egypt, Cairo"
+              }
+            },
+            "considered": 4,
+            "correct": 4,
+            "accuracy": 1.0
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "experience": {
+                "expected": true,
+                "actual": false,
+                "match": false
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": true,
+                "actual": false,
+                "match": false
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 0.6
+          },
+          "skills": {
+            "n_parsed": 45,
+            "n_labeled": 8,
+            "precision": 0.1778,
+            "recall": 1.0,
+            "f1": 0.3019,
+            "jaccard": 0.1739,
+            "missed": [],
+            "extra": [
+              "Node.js",
+              "DNS",
+              "Frontend: DOM manipulation",
+              "starting soon",
+              "Fedora)",
+              "Kubernetes",
+              "basic",
+              "NAT",
+              "Packet Tracer",
+              "VLANs",
+              "Terraform",
+              "Flexbox/Grid",
+              "Administration:",
+              "Cisco",
+              "Accessibility",
+              "Backend & DevOps",
+              "DHCP",
+              "Firewalls",
+              "Python",
+              "Bash scripting",
+              "System",
+              "MySQL",
+              "Self",
+              "Ansible",
+              "Rust",
+              "Networking & Security: TCP/IP",
+              "VirtualBox",
+              "Adaptability",
+              "Learning",
+              "Wireshark",
+              "Learner",
+              "Teamwork",
+              "GitHub Pages",
+              "Linux",
+              "Tools & Platforms: Git",
+              "Docker",
+              "GitHub"
+            ]
+          },
+          "counts": {
+            "experience": {
+              "labeled": 1,
+              "parsed": 0
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 1
+            }
+          },
+          "latency_ms": 184.25,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_devops_jr",
+      "primary_role": "devops",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 1.0,
+      "section_presence_accuracy_mean": 0.6,
+      "skill_jaccard_mean": 0.1429,
+      "skill_f1_mean": 0.2609,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "Ahmed Mahmoud Abbas",
+                "labeled": "Ahmed Mahmoud Abbas"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "ahmedabbass871@gmail.com",
+                "labeled": "ahmedabbass871@gmail.com"
+              },
+              "phone": {
+                "status": "match",
+                "parsed": "+20 1114993108",
+                "labeled": "+20 1114993108"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "Egypt, Cairo",
+                "labeled": "Egypt, Cairo"
+              }
+            },
+            "considered": 4,
+            "correct": 4,
+            "accuracy": 1.0
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "experience": {
+                "expected": true,
+                "actual": false,
+                "match": false
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": true,
+                "actual": false,
+                "match": false
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 0.6
+          },
+          "skills": {
+            "n_parsed": 37,
+            "n_labeled": 9,
+            "precision": 0.1622,
+            "recall": 0.6667,
+            "f1": 0.2609,
+            "jaccard": 0.1429,
+            "missed": [
+              "Containerization",
+              "Infrastructure as Code",
+              "Active Directory"
+            ],
+            "extra": [
+              "FortiGate",
+              "DNS",
+              "Nmap",
+              "Fedora)",
+              "Kubernetes",
+              "JavaScript",
+              "Problem Solving",
+              "basic",
+              "NAT",
+              "Sophos",
+              "Terraform",
+              "pfSense",
+              "Bash",
+              "Python",
+              "Subnetting",
+              "Burp Suite",
+              "Self",
+              "Ansible",
+              "VirtualBox",
+              "Adaptability",
+              "Jenkins",
+              "Cisco Packet Tracer",
+              "Networking: TCP/IP",
+              "Wireshark",
+              "C++",
+              "Learner",
+              "fundamentals",
+              "Tools: Git",
+              "AWS",
+              "Docker",
+              "GitHub"
+            ]
+          },
+          "counts": {
+            "experience": {
+              "labeled": 1,
+              "parsed": 0
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 1
+            }
+          },
+          "latency_ms": 169.92,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_flutter_intern",
+      "primary_role": "mobile",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 1.0,
+      "section_presence_accuracy_mean": 1.0,
+      "skill_jaccard_mean": 0.2273,
+      "skill_f1_mean": 0.3846,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "Mohamed Abd Elghany",
+                "labeled": "Mohamed Abd Elghany"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "info.mohamedabdelghany@gmail.com",
+                "labeled": "info.mohamedabdelghany@gmail.com"
+              },
+              "phone": {
+                "status": "match",
+                "parsed": "01287002189",
+                "labeled": "01287002189"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "My Portfolio Mansoura, Egypt",
+                "labeled": "Mansoura, Egypt"
+              }
+            },
+            "considered": 4,
+            "correct": 4,
+            "accuracy": 1.0
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "experience": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 1.0
+          },
+          "skills": {
+            "n_parsed": 39,
+            "n_labeled": 13,
+            "precision": 0.2564,
+            "recall": 0.7692,
+            "f1": 0.3846,
+            "jaccard": 0.2273,
+            "missed": [
+              "Clean Architecture",
+              "REST API",
+              "Agile"
+            ],
+            "extra": [
+              "Dependency Injection",
+              "Dio",
+              "Ghany]",
+              "Android Studio",
+              "abd",
+              "Problem Solving",
+              "VS Code",
+              "aLrjlug92F/view?usp=sharing]",
+              "Data & Storage: Firebase",
+              "MVVM",
+              "Local Notifications",
+              "elghany7/]",
+              "elghany",
+              "SOLID Principles",
+              "Localization",
+              "Others: Google Maps",
+              "Postman",
+              "Abd",
+              "Payment Gateway Integration",
+              "Adaptability",
+              "Hive",
+              "SQLite",
+              "Elghany'",
+              "Shared Preferences",
+              "El",
+              "portfolio.netlify.app/]",
+              "Communication",
+              "Tools & DevOps: Git",
+              "GitHub"
+            ]
+          },
+          "counts": {
+            "experience": {
+              "labeled": 2,
+              "parsed": 1
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 2
+            }
+          },
+          "latency_ms": 560.96,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_diploma_react",
+      "primary_role": "frontend",
+      "skills_section_present": false,
+      "personal_info_accuracy_mean": 1.0,
+      "section_presence_accuracy_mean": 0.6,
+      "skill_jaccard_mean": 0.3462,
+      "skill_f1_mean": 0.602,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "Sara Ahmed",
+                "labeled": "Sara Ahmed"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "sarahmedd72@gmail.com",
+                "labeled": "sarahmedd72@gmail.com"
+              },
+              "phone": {
+                "status": "match",
+                "parsed": "01068726072",
+                "labeled": "01068726072"
+              },
+              "location": {
+                "status": "skipped_null_label",
+                "parsed": null
+              }
+            },
+            "considered": 3,
+            "correct": 3,
+            "accuracy": 1.0
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "experience": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "education": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "projects": {
+                "expected": true,
+                "actual": false,
+                "match": false
+              },
+              "skills": {
+                "expected": false,
+                "actual": true,
+                "match": false
+              }
+            },
+            "accuracy": 0.6
+          },
+          "skills": {
+            "n_parsed": 21,
+            "n_labeled": 11,
+            "precision": 0.4762,
+            "recall": 0.8182,
+            "f1": 0.602,
+            "jaccard": 0.3462,
+            "missed": [
+              "React Router",
+              "Local Storage"
+            ],
+            "extra": [
+              "C#",
+              "Courses & Diplomas",
+              "UI/ UX principles",
+              "Python",
+              "Routing)",
+              "Project Link",
+              "Front",
+              "Responsive designs",
+              "Completed",
+              "C++",
+              "GitHub"
+            ]
+          },
+          "counts": {
+            "experience": {
+              "labeled": 0,
+              "parsed": 0
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 0
+            }
+          },
+          "latency_ms": 228.78,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue",
+      "primary_role": "frontend",
+      "skills_section_present": false,
+      "personal_info_accuracy_mean": 1.0,
+      "section_presence_accuracy_mean": 0.6,
+      "skill_jaccard_mean": 0.0,
+      "skill_f1_mean": 0.0,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "Charlotte May",
+                "labeled": "Charlotte May"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "john.smith@gmail.com",
+                "labeled": "john.smith@gmail.com"
+              },
+              "phone": {
+                "status": "skipped_null_label",
+                "parsed": null
+              },
+              "location": {
+                "status": "match",
+                "parsed": "London, UK",
+                "labeled": "London, UK"
+              }
+            },
+            "considered": 3,
+            "correct": 3,
+            "accuracy": 1.0
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "experience": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "education": {
+                "expected": false,
+                "actual": true,
+                "match": false
+              },
+              "projects": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "skills": {
+                "expected": false,
+                "actual": true,
+                "match": false
+              }
+            },
+            "accuracy": 0.6
+          },
+          "skills": {
+            "n_parsed": 16,
+            "n_labeled": 9,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "jaccard": 0.0,
+            "missed": [
+              "JavaScript",
+              "React",
+              "Vue",
+              "Redux",
+              "Responsive Design",
+              "UI Performance",
+              "Accessibility",
+              "Automated Testing",
+              "User Testing"
+            ],
+            "extra": [
+              "Powered by",
+              "mentorship to junior developers",
+              "Cross",
+              "Developing a High",
+              "Provided guidance and",
+              "Powered by'",
+              "over 100",
+              "resulting in their successful",
+              "Mentoring Junior Developers",
+              "Achievements",
+              "profile projects and increased",
+              "Led the frontend development",
+              "commerce website that handled",
+              "commerce Website",
+              "completion of several high",
+              "Traffic E"
+            ]
+          },
+          "counts": {
+            "experience": {
+              "labeled": 2,
+              "parsed": 3
+            },
+            "education": {
+              "labeled": 0,
+              "parsed": 2
+            }
+          },
+          "latency_ms": 68.1,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_mid_react",
+      "primary_role": "frontend",
+      "skills_section_present": false,
+      "personal_info_accuracy_mean": 0.75,
+      "section_presence_accuracy_mean": 0.6,
+      "skill_jaccard_mean": 0.0,
+      "skill_f1_mean": 0.0,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "",
+                "labeled": "Enrique Veragoza"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "e.veragoza@email.com",
+                "labeled": "e.veragoza@email.com"
+              },
+              "phone": {
+                "status": "miss",
+                "parsed": "",
+                "labeled": "(123) 456-7890"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "Stockton, CA",
+                "labeled": "Stockton, CA"
+              }
+            },
+            "considered": 4,
+            "correct": 3,
+            "accuracy": 0.75
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": false,
+                "actual": true,
+                "match": false
+              },
+              "experience": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "skills": {
+                "expected": false,
+                "actual": true,
+                "match": false
+              }
+            },
+            "accuracy": 0.6
+          },
+          "skills": {
+            "n_parsed": 4,
+            "n_labeled": 7,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "jaccard": 0.0,
+            "missed": [
+              "Front-End Development",
+              "Code Review",
+              "Mentorship",
+              "UI/UX",
+              "Reusable Components",
+              "Automated Testing",
+              "Performance Optimization"
+            ],
+            "extra": [
+              "HTML",
+              "CSS",
+              "JavaScript",
+              "React.js"
+            ]
+          },
+          "counts": {
+            "experience": {
+              "labeled": 3,
+              "parsed": 3
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 1
+            }
+          },
+          "latency_ms": 34.6,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue_v2",
+      "primary_role": "frontend",
+      "skills_section_present": false,
+      "personal_info_accuracy_mean": 1.0,
+      "section_presence_accuracy_mean": 0.8,
+      "skill_jaccard_mean": 0.0,
+      "skill_f1_mean": 0.0,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "Charlotte May",
+                "labeled": "Charlotte May"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "john.smith@gmail.com",
+                "labeled": "john.smith@gmail.com"
+              },
+              "phone": {
+                "status": "skipped_null_label",
+                "parsed": null
+              },
+              "location": {
+                "status": "match",
+                "parsed": "London, UK",
+                "labeled": "London, UK"
+              }
+            },
+            "considered": 3,
+            "correct": 3,
+            "accuracy": 1.0
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "experience": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "education": {
+                "expected": false,
+                "actual": true,
+                "match": false
+              },
+              "projects": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "skills": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              }
+            },
+            "accuracy": 0.8
+          },
+          "skills": {
+            "n_parsed": 0,
+            "n_labeled": 9,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "jaccard": 0.0,
+            "missed": [
+              "JavaScript",
+              "React",
+              "Vue",
+              "Redux",
+              "Responsive Design",
+              "UI Performance",
+              "Accessibility",
+              "Automated Testing",
+              "User Testing"
+            ],
+            "extra": []
+          },
+          "counts": {
+            "experience": {
+              "labeled": 2,
+              "parsed": 3
+            },
+            "education": {
+              "labeled": 0,
+              "parsed": 2
+            }
+          },
+          "latency_ms": 68.36,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_jquery_legacy",
+      "primary_role": "frontend",
+      "skills_section_present": false,
+      "personal_info_accuracy_mean": 1.0,
+      "section_presence_accuracy_mean": 0.4,
+      "skill_jaccard_mean": 0.1071,
+      "skill_f1_mean": 0.2069,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "",
+                "labeled": "First Last"
+              },
+              "email": {
+                "status": "skipped_null_label",
+                "parsed": "first.last@gmail.com"
+              },
+              "phone": {
+                "status": "skipped_null_label",
+                "parsed": null
+              },
+              "location": {
+                "status": "match",
+                "parsed": "",
+                "labeled": "London, United Kingdom"
+              }
+            },
+            "considered": 2,
+            "correct": 2,
+            "accuracy": 1.0
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": false,
+                "actual": true,
+                "match": false
+              },
+              "experience": {
+                "expected": true,
+                "actual": false,
+                "match": false
+              },
+              "education": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "projects": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "skills": {
+                "expected": false,
+                "actual": true,
+                "match": false
+              }
+            },
+            "accuracy": 0.4
+          },
+          "skills": {
+            "n_parsed": 22,
+            "n_labeled": 7,
+            "precision": 0.1364,
+            "recall": 0.4286,
+            "f1": 0.2069,
+            "jaccard": 0.1071,
+            "missed": [
+              "HTML",
+              "JavaScript",
+              "SEO",
+              "Web Maintenance"
+            ],
+            "extra": [
+              "Techniques:",
+              "AJAX",
+              "Browser Development",
+              "English",
+              "Agile Methodologies",
+              "Web Development",
+              "Spanish",
+              "Romanian",
+              "Command Line",
+              "Cross",
+              "Languages:",
+              "Troubleshooting",
+              "Tools and Software:",
+              "Vue.js",
+              "Testing",
+              "TypeScript",
+              "Conversational",
+              "Native",
+              "Debugging"
+            ]
+          },
+          "counts": {
+            "experience": {
+              "labeled": 2,
+              "parsed": 0
+            },
+            "education": {
+              "labeled": 0,
+              "parsed": 0
+            }
+          },
+          "latency_ms": 26.28,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_entry_no_role",
+      "primary_role": "frontend",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 0.6667,
+      "section_presence_accuracy_mean": 1.0,
+      "skill_jaccard_mean": 0.8333,
+      "skill_f1_mean": 0.9091,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "skipped_null_label",
+                "parsed": null
+              },
+              "email": {
+                "status": "match",
+                "parsed": "g.price@email.com",
+                "labeled": "g.price@email.com"
+              },
+              "phone": {
+                "status": "miss",
+                "parsed": "",
+                "labeled": "(123) 456-7890"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "Austin, TX",
+                "labeled": "Austin, TX"
+              }
+            },
+            "considered": 3,
+            "correct": 2,
+            "accuracy": 0.6667
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "experience": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 1.0
+          },
+          "skills": {
+            "n_parsed": 12,
+            "n_labeled": 10,
+            "precision": 0.8333,
+            "recall": 1.0,
+            "f1": 0.9091,
+            "jaccard": 0.8333,
+            "missed": [],
+            "extra": [
+              "CAREER OBJECTIVE",
+              "Aspiring junior front"
+            ]
+          },
+          "counts": {
+            "experience": {
+              "labeled": 2,
+              "parsed": 2
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 2
+            }
+          },
+          "latency_ms": 51.74,
+          "error": null
+        }
+      ]
+    }
+  ],
+  "method": {
+    "service": "profiles.services.cv_parser.parse_cv",
+    "fuzzy_cutoff": 0.85,
+    "scoring": {
+      "personal_info": "case-insensitive match; phone digit-normalized; null labels skipped",
+      "skills": "lowercased exact + difflib >= 0.85 + substring tolerance",
+      "section_presence": "labeled section true => parsed list/text non-empty"
+    }
+  },
+  "disclosure": "LLM-driven (Groq llama-4-scout via the parser's structured-output stage). Mean of 1 run(s) per CV. PII normalization is intentionally lenient (case- and whitespace-insensitive) so cosmetic differences don't dominate the score."
+}
