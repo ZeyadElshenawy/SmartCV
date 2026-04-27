@@ -2,6 +2,10 @@
 {% block title %}Dashboard — SmartCV{% endblock %}
 
 {% block content %}
+{# Hidden CSRF token for AJAX endpoints called from the dashboard
+   (banner dismiss, kanban reorder, etc.). Cleaner than threading the
+   token through Alpine state. #}
+<form style="display:none">{% csrf_token %}</form>
 <div class="bg-neutral-50 dark:bg-neutral-950 py-10 sm:py-14"
      x-data="kanbanBoard()" x-init="initBoard()">
     <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-10">
@@ -16,10 +20,17 @@
             <p class="text-neutral-500 dark:text-neutral-400 text-sm sm:text-base max-w-2xl leading-relaxed">{{ career_stage.detail }}</p>
         </header>
 
-        {# ---- Onboarding banner (conditional) ---- #}
+        {# ---- Onboarding banner (conditional + dismissible) ---- #}
         {% if show_onboarding %}
-        <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+        <section x-data="{visible: true}" x-show="visible" class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
             <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-accent-500"></div>
+            <button type="button"
+                    @click="visible = false; fetch('{% url 'dismiss_onboarding_banner' %}', {method: 'POST', headers: {'X-CSRFToken': document.querySelector('input[name=csrfmiddlewaretoken]')?.value || ''}})"
+                    aria-label="Dismiss"
+                    class="absolute top-3 right-3 w-8 h-8 rounded-full text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 flex items-center justify-center transition-colors z-10"
+                    title="Dismiss — you can re-enable from your profile settings">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
             <div class="p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center gap-6">
                 <div class="flex-1 space-y-2">
                     {% include "components/section_label.html" with text="Getting started" tone="accent" %}
@@ -286,6 +297,52 @@
                 {% endfor %}
             </div>
         </section>
+
+        {# ---- Tools tile (B4 + B6): surfaces previously-buried features. ----
+           Cover letter was only reachable from the resume preview page.
+           Project review only had a discovery hook on the connect-accounts
+           page (so users who skipped that flow never found it). Each tool
+           gets a one-line rationale so users can decide which is relevant. #}
+        {% if has_jobs %}
+        <section class="space-y-4">
+            {% include "components/section_label.html" with text="Tools" tone="brand" %}
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <a href="{% url 'resume_list' %}"
+                   class="group rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 hover:ring-brand-300 dark:hover:ring-brand-700 transition-all p-4 space-y-2">
+                    <div class="text-sm font-medium text-neutral-900 dark:text-neutral-100 flex items-center justify-between">
+                        Cover letters
+                        <span aria-hidden="true" class="text-brand-700 dark:text-brand-400 transition-transform group-hover:translate-x-0.5">→</span>
+                    </div>
+                    <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">Generate a tailored cover letter alongside any résumé. Open a résumé and click "Cover letter".</p>
+                </a>
+                <a href="{% url 'projects_review' %}"
+                   class="group rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 hover:ring-brand-300 dark:hover:ring-brand-700 transition-all p-4 space-y-2">
+                    <div class="text-sm font-medium text-neutral-900 dark:text-neutral-100 flex items-center justify-between">
+                        Review external projects
+                        <span aria-hidden="true" class="text-brand-700 dark:text-brand-400 transition-transform group-hover:translate-x-0.5">→</span>
+                    </div>
+                    <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">Pull GitHub, Scholar, and Kaggle entries as projects. Match against your master profile.</p>
+                </a>
+                <a href="{% url 'learning_path_global' %}"
+                   class="group rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 hover:ring-brand-300 dark:hover:ring-brand-700 transition-all p-4 space-y-2">
+                    <div class="text-sm font-medium text-neutral-900 dark:text-neutral-100 flex items-center justify-between">
+                        Learning path
+                        <span aria-hidden="true" class="text-brand-700 dark:text-brand-400 transition-transform group-hover:translate-x-0.5">→</span>
+                    </div>
+                    <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">A curriculum across the skills holding you back the most across applications.</p>
+                </a>
+                <a href="{% url 'connect_accounts' %}"
+                   class="group rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 hover:ring-brand-300 dark:hover:ring-brand-700 transition-all p-4 space-y-2">
+                    <div class="text-sm font-medium text-neutral-900 dark:text-neutral-100 flex items-center justify-between">
+                        Connected accounts
+                        <span aria-hidden="true" class="text-brand-700 dark:text-brand-400 transition-transform group-hover:translate-x-0.5">→</span>
+                    </div>
+                    <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">Add or refresh GitHub / LinkedIn / Scholar / Kaggle connections.</p>
+                </a>
+            </div>
+        </section>
+        {% endif %}
+
 <section class="space-y-4">
             {% include "components/section_label.html" with text="Recommended · scanning the web" %}
             <div class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 overflow-hidden">

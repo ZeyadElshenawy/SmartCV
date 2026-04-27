@@ -4,6 +4,7 @@ from django.http import JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.db import close_old_connections, transaction
+from django.views.decorators.http import require_POST
 from .models import UserProfile, JobProfileSnapshot
 from .services.cv_parser import parse_cv
 from .services.llm_validator import validate_and_map_cv_data, get_missing_fields
@@ -500,10 +501,15 @@ def dashboard(request):
     # Recommended Jobs Feed
     recommended_jobs = RecommendedJob.objects.filter(user=request.user, status='new').order_by('-match_score')[:5]
     
-    # Onboarding logic
+    # Onboarding logic. The "two steps" banner gates on profile-complete +
+    # has-jobs (objective need) AND on the user not having explicitly
+    # dismissed it (subjective preference). The dismiss flag is set by the
+    # welcome page's "Just show me around" action and by the X button on
+    # the banner itself (POST to dismiss_onboarding_banner_view).
     profile_complete = bool(profile.full_name and profile.skills)
     has_jobs = total_applications > 0
-    show_onboarding = not (profile_complete and has_jobs)
+    banner_dismissed = bool((profile.data_content or {}).get('onboarding_banner_dismissed'))
+    show_onboarding = not (profile_complete and has_jobs) and not banner_dismissed
     
     # AI-recommended next steps
     next_actions = get_recommended_actions(request.user)
@@ -855,6 +861,23 @@ def refresh_kaggle_signals(request):
         input_field='kaggle_input',
         fetcher=fetch_kaggle_snapshot,
     )
+
+
+@login_required
+@require_POST
+def dismiss_onboarding_banner_view(request):
+    """Persist the user's dismissal of the dashboard "two steps to unlock"
+    banner so it doesn't reappear on every dashboard visit.
+
+    Idempotent. Returns JSON for the client; the banner is hidden via JS
+    immediately on click without waiting for the response.
+    """
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    data = profile.data_content or {}
+    data['onboarding_banner_dismissed'] = True
+    profile.data_content = data
+    profile.save(update_fields=['data_content', 'updated_at'])
+    return JsonResponse({'ok': True})
 
 
 @login_required

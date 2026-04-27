@@ -40,6 +40,40 @@
 
         {# Message area #}
         <div class="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-5" x-ref="messages">
+            {# Primer panel (B2): shown until the first bot message arrives.
+               Frames what to expect before the user faces a blank input
+               and a black-box LLM call. "Suggested answers" are illustrative,
+               not clickable — they show what a useful answer looks like
+               so the user knows how to phrase their own. #}
+            <template x-if="messages.length === 0">
+                <div class="max-w-2xl mx-auto space-y-5 py-4">
+                    <div class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-4">
+                        <div class="flex items-start gap-3">
+                            <div class="shrink-0 w-8 h-8 rounded-lg bg-brand-50 dark:bg-brand-950/40 text-brand-700 dark:text-brand-400 flex items-center justify-center">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                            </div>
+                            <div class="flex-1 space-y-2">
+                                <h3 class="font-display text-lg leading-tight text-neutral-900 dark:text-neutral-50" style="font-variation-settings: 'opsz' 28;">
+                                    A few quick questions to fill gaps for this job.
+                                </h3>
+                                <p class="text-sm text-neutral-600 dark:text-neutral-300 leading-relaxed">
+                                    The agent will ask 4-6 questions. Skip any one. The whole thing takes about 5 minutes. Specific answers help most — what you shipped, scale numbers, tools you used.
+                                </p>
+                            </div>
+                        </div>
+                        <div class="border-t border-neutral-100 dark:border-neutral-800 pt-4 space-y-2">
+                            <div class="text-[11px] uppercase tracking-[0.16em] font-medium text-neutral-500 dark:text-neutral-400">
+                                Examples of useful answers
+                            </div>
+                            <ul class="space-y-1.5 text-sm text-neutral-700 dark:text-neutral-300">
+                                <li class="flex gap-2"><span class="text-brand-500">›</span> "I led a team of 5 building the checkout rewrite — conversion +8% over Q3."</li>
+                                <li class="flex gap-2"><span class="text-brand-500">›</span> "Shipped a Rust-to-Go migration; cut p99 latency from 1.2s to 380ms."</li>
+                                <li class="flex gap-2"><span class="text-brand-500">›</span> "Owned the React design-system rollout for 12 product teams."</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </template>
             <template x-for="msg in messages" :key="msg.id">
                 <div>
                     {# Bot message #}

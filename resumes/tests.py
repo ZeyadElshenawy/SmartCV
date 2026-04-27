@@ -1098,6 +1098,161 @@ class DashboardResumeCountTests(TestCase):
         self.assertContains(resp, '3 résumés')
 
 
+class AutoSyncBannerTests(TestCase):
+    """M10: when the auto-sync branch patches fields into resume.content,
+    the next page render shows a one-shot banner so the user knows the
+    page didn't render exactly what they last saved."""
+
+    def setUp(self):
+        from jobs.models import Job
+        from analysis.models import GapAnalysis
+        from profiles.models import UserProfile
+        from resumes.models import GeneratedResume
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='sync@example.com', email='sync@example.com', password='x',
+        )
+        UserProfile.objects.create(
+            user=self.user, full_name='Synced User',
+            data_content={
+                # Master profile has fields the resume snapshot lacks.
+                'experiences': [{'title': 'Engineer', 'company': 'Acme',
+                                 'location': 'Berlin, DE', 'industry': 'SaaS',
+                                 'highlights': ['Shipped X.']}],
+            },
+        )
+        self.client.force_login(self.user)
+        job = Job.objects.create(
+            user=self.user, title='Engineer', company='Acme',
+            description='x', extracted_skills=[],
+        )
+        gap = GapAnalysis.objects.create(user=self.user, job=job, similarity_score=0.7)
+        # Resume content lacks the supplemental fields (location/industry).
+        self.resume = GeneratedResume.objects.create(
+            gap_analysis=gap,
+            content={
+                'experience': [{'title': 'Engineer', 'company': 'Acme',
+                                'duration': '', 'description': ['Shipped X.']}],
+            },
+        )
+
+    def test_auto_sync_banner_shows_on_first_visit_after_change(self):
+        """Visiting the edit page when auto-sync writes new fields surfaces
+        a banner. The session flag is consumed so it doesn't reappear."""
+        from django.urls import reverse
+        url = reverse('resume_edit', args=[self.resume.id]) + '?refresh=0'
+        # First visit — auto-sync fires (resume content was missing
+        # location/industry; master has them) and banner shows.
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Synced from your master profile')
+        # Second visit — content already merged on the first hit, no diff,
+        # no banner.
+        resp = self.client.get(url)
+        self.assertNotContains(resp, 'Synced from your master profile')
+
+    def test_no_sync_banner_when_nothing_to_sync(self):
+        """If the master has no new fields beyond what the resume already
+        has, no banner appears."""
+        from profiles.models import UserProfile
+        from django.urls import reverse
+        # Empty data_content → nothing to merge → no banner.
+        UserProfile.objects.filter(user=self.user).update(data_content={})
+        resp = self.client.get(reverse('resume_edit', args=[self.resume.id]) + '?refresh=0')
+        self.assertNotContains(resp, 'Synced from your master profile')
+
+
+class OnboardingBannerDismissTests(TestCase):
+    """M9: dismissing the dashboard onboarding banner persists across
+    visits. Welcome's 'Just show me around' also sets the dismiss flag."""
+
+    def setUp(self):
+        from profiles.models import UserProfile
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='banner@example.com', email='banner@example.com', password='x',
+        )
+        # Profile with no name + no skills + no jobs → banner SHOULD show
+        # by default.
+        UserProfile.objects.create(user=self.user)
+        self.client.force_login(self.user)
+
+    def test_dashboard_shows_banner_for_new_user_by_default(self):
+        resp = self.client.get('/profiles/dashboard/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Two steps to unlock')
+
+    def test_dismiss_endpoint_persists_across_visits(self):
+        from profiles.models import UserProfile
+        # Click the dismiss endpoint
+        resp = self.client.post('/profiles/api/onboarding/dismiss/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json()['ok'])
+        # Flag persisted
+        profile = UserProfile.objects.get(user=self.user)
+        self.assertTrue(profile.data_content.get('onboarding_banner_dismissed'))
+        # Subsequent dashboard visits don't show the banner
+        resp = self.client.get('/profiles/dashboard/')
+        self.assertNotContains(resp, 'Two steps to unlock')
+
+    def test_dismiss_endpoint_rejects_get(self):
+        resp = self.client.get('/profiles/api/onboarding/dismiss/')
+        self.assertEqual(resp.status_code, 405)
+
+    def test_welcome_skip_also_dismisses_banner(self):
+        from profiles.models import UserProfile
+        resp = self.client.post('/welcome/', {'action': 'skip'})
+        self.assertEqual(resp.status_code, 302)
+        profile = UserProfile.objects.get(user=self.user)
+        self.assertTrue(profile.data_content.get('has_seen_welcome'))
+        # Critical: welcome's skip ALSO sets the banner-dismissed flag
+        # (M9 fix — without this, dashboard re-nags after the user
+        # explicitly opted out of guided onboarding).
+        self.assertTrue(profile.data_content.get('onboarding_banner_dismissed'))
+
+
+class AgentChatProfileAwareTests(TestCase):
+    """B1: /agent/ adapts to zero-data state. Input stays enabled (per
+    user feedback — disabled inputs feel broken), but a banner above the
+    chat warns the user the agent has nothing to ground answers in."""
+
+    def test_zero_data_user_sees_setup_banner(self):
+        from django.contrib.auth import get_user_model
+        from profiles.models import UserProfile
+        User = get_user_model()
+        user = User.objects.create_user(
+            username='zero@example.com', email='zero@example.com', password='x',
+        )
+        UserProfile.objects.create(user=user)  # empty: no name, no skills
+        self.client.force_login(user)
+        resp = self.client.get('/agent/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'This will be more useful once you set up your profile')
+        # Header text reflects the empty state too — no false "knows your
+        # profile and pipeline" claim.
+        self.assertContains(resp, 'profile not set up yet')
+        self.assertNotContains(resp, 'knows your profile and pipeline')
+
+    def test_populated_user_does_not_see_banner(self):
+        from django.contrib.auth import get_user_model
+        from profiles.models import UserProfile
+        User = get_user_model()
+        user = User.objects.create_user(
+            username='full@example.com', email='full@example.com', password='x',
+        )
+        UserProfile.objects.create(
+            user=user, full_name='Marie Curie',
+            data_content={'skills': [{'name': 'Python'}]},
+        )
+        self.client.force_login(user)
+        resp = self.client.get('/agent/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, 'This will be more useful once you set up your profile')
+        self.assertContains(resp, 'knows your profile and pipeline')
+
+
 class FactualityCheckEnrichedProjectsTests(SimpleTestCase):
     """Phase 3: factuality_check accepts enriched-project URLs / source_ids
     as legitimate evidence so Phase-2 confirmed projects don't get falsely

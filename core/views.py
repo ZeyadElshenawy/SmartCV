@@ -77,9 +77,18 @@ def agent_chat_view(request):
             messages.warning(request, "That job couldn't be found.")
             return redirect('agent_chat')
 
+    # Detect zero-data state so the template can show a "set up your profile
+    # first" banner above the chat. We KEEP the input enabled — disabled
+    # inputs feel broken — but warn the user the agent has nothing to ground
+    # answers in yet.
+    from profiles.models import UserProfile
+    profile = UserProfile.objects.filter(user=request.user).first()
+    profile_empty = not (profile and (profile.full_name or profile.skills))
+
     return render(request, 'core/agent_chat.html', {
         'job': job,
         'job_id': str(job.id) if job else None,
+        'profile_empty': profile_empty,
     })
 
 
@@ -148,9 +157,13 @@ def welcome_view(request):
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
     data = profile.data_content or {}
 
-    # POST: user clicked "skip to dashboard" — mark seen and go.
+    # POST: user clicked "skip to dashboard" — mark seen and go. Also set
+    # `onboarding_banner_dismissed` so the dashboard's "two steps to unlock"
+    # banner doesn't immediately re-nag them. The user's intent here is "I
+    # don't want to be hand-held"; respect that on the next page too.
     if request.method == 'POST' and request.POST.get('action') == 'skip':
         data['has_seen_welcome'] = True
+        data['onboarding_banner_dismissed'] = True
         profile.data_content = data
         profile.save(update_fields=['data_content', 'updated_at'])
         return redirect('dashboard')

@@ -4,6 +4,29 @@
 {% block content %}
 <div x-data="resumeEditor()" x-init="init()">
 
+    {% if sync_banner %}
+    {# Auto-sync banner (M10): when the GET handler patched master-profile
+       fields into resume.content (location/industry/GPA/honors/technologies/
+       cert duration/objective), surface it explicitly so the user knows
+       the page didn't render exactly what they last saved. One-shot —
+       the session flag is consumed on render. #}
+    <div x-data="{visible: true}" x-show="visible"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-end="opacity-0"
+         class="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800/50 px-4 py-3">
+        <div class="max-w-5xl mx-auto flex items-center gap-3">
+            <svg class="w-4 h-4 text-amber-700 dark:text-amber-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            <span class="text-sm text-amber-900 dark:text-amber-200 flex-1">
+                <strong class="font-medium">Synced from your master profile.</strong>
+                We patched in fields that were missing on this résumé (location, GPA, project tech stacks, etc.). Your bullets weren't touched.
+            </span>
+            <button type="button" @click="visible = false" aria-label="Dismiss" class="shrink-0 text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-200">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+    </div>
+    {% endif %}
+
     {# ---- Save Success Toast ---- #}
     <div x-show="showSaveToast" x-cloak
          x-transition:enter="transition ease-out duration-300"
@@ -1025,6 +1048,21 @@
     // which the user opted into by clicking the "↻ Regenerate bullets" button.
     async function regenSection(section, btn, reload) {
         if (!btn || btn.disabled) return;
+        // For destructive `reload`-style regen (experience/projects bullets),
+        // the server only persists the regenerated field — the user's
+        // unsaved edits in OTHER sections are NOT saved before the page
+        // reloads. Without this confirm those edits silently vanish.
+        // Server contract: regenerate_section_view writes only `saved[section]`
+        // back; everything else loads from the stored snapshot on reload.
+        if (reload && _resumeFormDirty) {
+            const ok = confirm(
+                "Regenerating bullets reloads the page. Any unsaved edits you " +
+                "typed in OTHER sections will be lost.\n\n" +
+                "Save first (use the Save button), or click OK to regenerate " +
+                "and discard those edits."
+            );
+            if (!ok) return;
+        }
         btn.disabled = true;
         const originalLabel = btn.innerHTML;
         btn.innerHTML = 'Regenerating…';
