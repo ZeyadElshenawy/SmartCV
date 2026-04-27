@@ -1253,6 +1253,60 @@ class AgentChatProfileAwareTests(TestCase):
         self.assertContains(resp, 'knows your profile and pipeline')
 
 
+class SubstepLoadingComponentTests(TestCase):
+    """Tier 3: the substep loading component replaces the old static-string
+    overlay. These tests cover the JS / template contract — the component
+    is registered globally on every page (via base.html), the registry has
+    every operation we expect, and call sites use the {op: '...'} form
+    rather than legacy strings."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from profiles.models import UserProfile
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='loader@example.com', email='loader@example.com', password='x',
+        )
+        UserProfile.objects.create(user=self.user, full_name='Loader User')
+        self.client.force_login(self.user)
+
+    def test_base_template_exposes_loading_ops_registry(self):
+        """Every page should have the LoadingOps registry available so any
+        client-side code can drive the overlay without re-declaring keys."""
+        resp = self.client.get('/profiles/dashboard/')
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode('utf-8')
+        # Registry keys we rely on across pages:
+        for op in ('cv-upload', 'job-scrape', 'job-paste', 'gap-analysis',
+                   'resume-gen', 'cover-letter', 'outreach', 'outreach-campaign',
+                   'learning-path', 'salary'):
+            self.assertIn(f"'{op}'", body, f"LoadingOps registry missing key {op!r}")
+        # Component pieces that pages target:
+        self.assertIn('id="loading-steps"', body)
+        self.assertIn('id="loading-failure"', body)
+        self.assertIn('id="loading-retry"', body)
+        # Legacy single-line mode still supported.
+        self.assertIn('id="loading-msg"', body)
+
+    def test_cv_upload_uses_substep_op_key(self):
+        """upload_cv.html should call showLoading({op: 'cv-upload'}), not
+        the legacy plain-string form."""
+        resp = self.client.get('/profiles/setup/upload/')
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode('utf-8')
+        self.assertIn("showLoading({op: 'cv-upload'})", body)
+        # The legacy single-string call must NOT be there — catches regression.
+        self.assertNotIn("Your agent is reading your CV — up to a minute on first run.", body)
+
+    def test_job_input_uses_substep_op_keys(self):
+        resp = self.client.get('/jobs/input/')
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode('utf-8')
+        # Both URL-mode and paste-mode forms migrated:
+        self.assertIn("showLoading({op: 'job-scrape'})", body)
+        self.assertIn("showLoading({op: 'job-paste'})", body)
+
+
 class FactualityCheckEnrichedProjectsTests(SimpleTestCase):
     """Phase 3: factuality_check accepts enriched-project URLs / source_ids
     as legitimate evidence so Phase-2 confirmed projects don't get falsely

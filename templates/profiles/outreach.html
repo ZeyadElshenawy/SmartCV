@@ -24,7 +24,7 @@
             </div>
             {% if not campaign %}
             <div class="flex flex-col items-stretch md:items-end gap-2">
-                <form method="POST" onsubmit="showLoading('Your agent is drafting outreach — up to 60 seconds.')">
+                <form method="POST" onsubmit="showLoading({op: 'outreach'})">
                     {% csrf_token %}
                     {% include "components/button.html" with variant="primary" label="Generate outreach" arrow=True %}
                 </form>
@@ -111,7 +111,7 @@
                 Draft both messages in one go.
             </h3>
             <p class="text-neutral-500 dark:text-neutral-400 max-w-md mx-auto">One short LinkedIn connection request + one direct cold email — both anchored in specifics of the role and your evidence.</p>
-            <form method="POST" onsubmit="showLoading('Your agent is drafting outreach — up to 60 seconds.')">
+            <form method="POST" onsubmit="showLoading({op: 'outreach'})">
                 {% csrf_token %}
                 <div class="flex justify-center">
                     {% include "components/button.html" with variant="primary" label="Generate drafts" size="lg" arrow=True %}

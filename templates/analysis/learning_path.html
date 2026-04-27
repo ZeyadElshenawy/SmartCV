@@ -39,7 +39,7 @@
                     </ul>
 
                     {% if not learning_path %}
-                    <form method="POST" onsubmit="showLoading('Your agent is building your path — up to 60 seconds.')">
+                    <form method="POST" onsubmit="showLoading({op: 'learning-path'})">
                         {% csrf_token %}
                         <div class="pt-2">
                             {% include "components/button.html" with variant="primary" label="Generate curriculum" arrow=True block=True %}

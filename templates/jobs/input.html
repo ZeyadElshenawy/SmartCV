@@ -36,7 +36,7 @@
 
             {# ---- URL form ---- #}
             <div x-show="mode === 'url'" x-cloak class="p-6 sm:p-8">
-                <form method="post" class="space-y-6" onsubmit="showLoading('Your agent is reading the job — 5 to 15 seconds.')">
+                <form method="post" class="space-y-6" onsubmit="showLoading({op: 'job-scrape'})">
                     {% csrf_token %}
                     <input type="hidden" name="input_method" value="url">
                     <input type="hidden" name="source_hint" value="auto">
@@ -76,7 +76,7 @@
 
             {# ---- Manual entry ---- #}
             <div x-show="mode === 'manual'" x-cloak class="p-6 sm:p-8">
-                <form method="post" class="space-y-6" onsubmit="showLoading('Your agent is reading the job description.')">
+                <form method="post" class="space-y-6" onsubmit="showLoading({op: 'job-paste'})">
                     {% csrf_token %}
                     <input type="hidden" name="input_method" value="text">
 

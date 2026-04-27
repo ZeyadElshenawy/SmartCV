@@ -6,10 +6,11 @@
     <div class="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8 space-y-10">
 
         {% if generating %}
+{# Tier 3: real substeps + AbortController-based 60s timeout. The previous
+   fake bar advanced regardless of API state, hiding stuck requests. Now
+   the user sees the actual work being attempted, and a hung Groq call
+   surfaces a real error with retry instead of an infinite spinner. #}
 <div id="generating-state" class="text-center space-y-8">
-            <div class="flex justify-center">
-                <div aria-hidden="true" class="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></div>
-            </div>
             <div class="space-y-4">
                 {% include "components/section_label.html" with text="Tailoring · in flight" tone="brand" %}
                 <h1 class="font-display text-5xl sm:text-6xl leading-[1.02] tracking-tight text-neutral-900 dark:text-neutral-50"
@@ -21,52 +22,93 @@
                     where it fits. Usually 10–30 seconds.
                 </p>
             </div>
-            <div class="max-w-md mx-auto space-y-2">
-                <div class="relative h-0.5 w-full bg-neutral-200 dark:bg-neutral-800 rounded-full overflow-hidden">
-                    <div id="progress-bar" class="absolute inset-y-0 left-0 bg-brand-500 transition-all duration-700" style="width: 5%"></div>
-                </div>
-                <p id="progress-label" class="text-[11px] uppercase tracking-[0.18em] font-medium text-neutral-500 dark:text-neutral-400">Starting</p>
+            <ol id="resume-gen-steps" class="text-left space-y-2.5 max-w-sm mx-auto"></ol>
+            <div id="resume-gen-failure" class="hidden space-y-3">
+                <p id="resume-gen-fail-msg" class="text-sm text-red-600 dark:text-red-400">Something went wrong.</p>
+                <a id="resume-gen-retry" href="{{ request.get_full_path }}"
+                   class="inline-flex items-center gap-2 h-11 px-5 text-sm font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors">
+                    Retry generation
+                </a>
             </div>
         </div>
 
         <script>
         (function() {
-            const bar = document.getElementById('progress-bar');
-            const label = document.getElementById('progress-label');
-            let pct = 5;
-            const grow = setInterval(() => {
-                if (pct < 90) { pct += 2; bar.style.width = pct + '%'; }
-            }, 800);
+            const op = LoadingOps['resume-gen'];
+            const list = document.getElementById('resume-gen-steps');
+            const failure = document.getElementById('resume-gen-failure');
+            const failMsg = document.getElementById('resume-gen-fail-msg');
+
+            const liNodes = op.steps.map((s, i) => {
+                const li = document.createElement('li');
+                _renderStep(li, i === 0 ? 'active' : 'pending', s.label);
+                list.appendChild(li);
+                return li;
+            });
+            let cumulative = 0;
+            const timers = [];
+            for (let i = 0; i < op.steps.length - 1; i++) {
+                cumulative += op.steps[i].ms;
+                timers.push(setTimeout(() => {
+                    _renderStep(liNodes[i], 'done', op.steps[i].label);
+                    if (i + 1 < op.steps.length) {
+                        _renderStep(liNodes[i + 1], 'active', op.steps[i + 1].label);
+                    }
+                }, cumulative));
+            }
+            function clearTimers() { timers.forEach((t) => clearTimeout(t)); }
+
+            function showFailure(message) {
+                clearTimers();
+                const activeIdx = Array.from(list.children).findIndex(
+                    (li) => li.querySelector('.animate-pulse')
+                );
+                if (activeIdx >= 0) {
+                    _renderStep(list.children[activeIdx], 'failed', op.steps[activeIdx].label);
+                }
+                failMsg.textContent = message;
+                failure.classList.remove('hidden');
+            }
+
+            // M3: hard timeout via AbortController. If Groq hangs (TPD,
+            // network), abort the fetch and surface a real error rather
+            // than letting the user stare at a spinner indefinitely.
+            const controller = new AbortController();
+            const timeoutMs = op.timeoutMs || 60000;
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
             fetch(`{% url 'trigger_resume_api' job.id %}`, {
                 method: 'POST',
-                headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json'}
+                headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json'},
+                signal: controller.signal,
             })
-            .then(response => {
-                if (!response.ok) throw new Error('Generation failed');
+            .then((response) => {
+                clearTimeout(timeoutId);
+                if (!response.ok) throw new Error('Generation failed (' + response.status + ')');
                 return response.json();
             })
-            .then(data => {
+            .then((data) => {
                 if (data.success && data.resume_id) {
-                    clearInterval(grow);
-                    bar.style.width = '100%';
-                    label.textContent = 'Done — redirecting';
+                    clearTimers();
+                    liNodes.forEach((li, i) => _renderStep(li, 'done', op.steps[i].label));
                     setTimeout(() => {
                         window.location.href = `/resumes/edit/${data.resume_id}/`;
-                    }, 500);
+                    }, 400);
                 } else {
                     throw new Error(data.error || 'Unknown error');
                 }
             })
-            .catch(err => {
+            .catch((err) => {
+                clearTimeout(timeoutId);
                 console.error('Generation error:', err);
-                clearInterval(grow);
-                label.textContent = 'Error: ' + err.message;
-                const retry = document.createElement('a');
-                retry.href = window.location.href;
-                retry.className = 'mt-6 inline-flex items-center gap-2 h-11 px-5 text-sm font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors';
-                retry.textContent = 'Retry';
-                document.getElementById('generating-state').append(retry);
+                if (err.name === 'AbortError') {
+                    showFailure(
+                        "Generation timed out after " + Math.round(timeoutMs / 1000) +
+                        " seconds. The model may be rate-limited — try again in a minute."
+                    );
+                } else {
+                    showFailure(err.message);
+                }
             });
         })();
         </script>

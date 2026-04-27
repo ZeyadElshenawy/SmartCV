@@ -5,85 +5,98 @@
 
 {% block content %}
 {% if is_computing %}
-<div id="computing-state" class="bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center px-4">
-    <div class="max-w-xl text-center space-y-8">
-        <div class="flex justify-center">
-            <div aria-hidden="true" class="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></div>
-        </div>
+{# Tier 3: kill the fake progress bar. The substep component shows real
+   stage labels (Comparing skills → Reconciling fuzzy matches → Computing
+   similarity) advancing on the same time budget the actual operation
+   typically uses. The last step holds at "active" until the API returns,
+   so a slow run doesn't pretend to be done. #}
+<div id="computing-state" class="bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center px-4 py-16">
+    <div class="max-w-xl text-center space-y-8 w-full">
         <h1 class="font-display text-5xl sm:text-6xl leading-[1.02] tracking-tight text-neutral-900 dark:text-neutral-50"
             style="font-variation-settings: 'opsz' 144;">
             Reading the <em class="font-medium text-brand-700 dark:text-brand-400">job</em>…
         </h1>
         <p class="text-lg text-neutral-600 dark:text-neutral-400 leading-relaxed">
             Comparing your profile against <span class="font-medium text-neutral-900 dark:text-neutral-100">{{ job.title }}</span>
-            — we check every skill, every bullet, and every signal of seniority.
+            — every skill, every bullet, every signal of seniority.
         </p>
-        <div class="w-full max-w-md mx-auto space-y-2">
-            <div class="relative h-0.5 w-full bg-neutral-200 dark:bg-neutral-800 rounded-full overflow-hidden">
-                <div id="gap-progress" class="absolute inset-y-0 left-0 bg-brand-500 transition-all duration-700" style="width: 5%"></div>
-            </div>
-            <p id="gap-label" class="text-[11px] uppercase tracking-[0.18em] font-medium text-neutral-500 dark:text-neutral-400">Starting analysis</p>
+        <ol id="gap-steps" class="text-left space-y-2.5 max-w-sm mx-auto"></ol>
+        <div id="gap-failure" class="hidden space-y-3">
+            <p id="gap-fail-msg" class="text-sm text-red-600 dark:text-red-400">Something went wrong.</p>
+            <a id="gap-retry" href="{{ request.get_full_path }}"
+               class="inline-flex items-center gap-2 h-11 px-5 text-sm font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors">
+                Retry analysis
+            </a>
         </div>
     </div>
 </div>
 
 <script>
 (function() {
-    const bar = document.getElementById('gap-progress');
-    const label = document.getElementById('gap-label');
-    let pct = 5;
+    // Inline-mode substep panel using the same component vocabulary as the
+    // overlay (LoadingOps / _renderStep). We render directly into #gap-steps
+    // instead of the overlay's #loading-steps because this is a full-page
+    // computing state, not a modal.
+    const op = LoadingOps['gap-analysis'];
+    const list = document.getElementById('gap-steps');
+    const failure = document.getElementById('gap-failure');
+    const failMsg = document.getElementById('gap-fail-msg');
 
-    const grow = setInterval(() => {
-        if (pct < 90) { pct += 2; bar.style.width = pct + '%'; }
-    }, 1000);
+    const liNodes = op.steps.map((s, i) => {
+        const li = document.createElement('li');
+        _renderStep(li, i === 0 ? 'active' : 'pending', s.label);
+        list.appendChild(li);
+        return li;
+    });
+    let cumulative = 0;
+    const timers = [];
+    for (let i = 0; i < op.steps.length - 1; i++) {
+        cumulative += op.steps[i].ms;
+        timers.push(setTimeout(() => {
+            _renderStep(liNodes[i], 'done', op.steps[i].label);
+            if (i + 1 < op.steps.length) {
+                _renderStep(liNodes[i + 1], 'active', op.steps[i + 1].label);
+            }
+        }, cumulative));
+    }
+    function clearTimers() { timers.forEach((t) => clearTimeout(t)); }
+
+    function showRetry(message) {
+        clearTimers();
+        // Mark active step as failed.
+        const activeIdx = Array.from(list.children).findIndex(
+            (li) => li.querySelector('.animate-pulse')
+        );
+        if (activeIdx >= 0) {
+            _renderStep(list.children[activeIdx], 'failed', op.steps[activeIdx].label);
+        }
+        failMsg.textContent = message;
+        failure.classList.remove('hidden');
+    }
 
     fetch('{% url "compute_gap_api" job.id %}', {
         method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-            'Content-Type': 'application/json'
-        }
+        headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json'},
     })
-    .then(response => {
-        if (!response.ok) throw new Error('API failed');
+    .then((response) => {
+        if (!response.ok) throw new Error('API failed (' + response.status + ')');
         return response.json();
     })
-    .then(data => {
+    .then((data) => {
         if (data.success) {
-            clearInterval(grow);
-            bar.style.width = '100%';
-            label.textContent = 'Analysis complete — refreshing';
-            setTimeout(() => { window.location.reload(); }, 500);
+            clearTimers();
+            // Mark every step done before reloading so the user briefly
+            // sees the "completed" state instead of an in-flight panel.
+            liNodes.forEach((li, i) => _renderStep(li, 'done', op.steps[i].label));
+            setTimeout(() => { window.location.reload(); }, 400);
         } else {
             throw new Error(data.error || 'Unknown error');
         }
     })
-    .catch(err => {
+    .catch((err) => {
         console.error('Compute error:', err);
-        clearInterval(grow);
         showRetry(err.message);
     });
-
-    function showRetry(message) {
-        const container = document.getElementById('computing-state');
-        if (!container) return;
-        container.replaceChildren();
-        const wrap = document.createElement('div');
-        wrap.className = 'max-w-xl text-center space-y-6';
-        const h = document.createElement('h2');
-        h.className = 'font-display text-4xl text-red-600 dark:text-red-400';
-        h.style = "font-variation-settings: 'opsz' 72;";
-        h.textContent = 'Analysis failed';
-        const p = document.createElement('p');
-        p.className = 'text-neutral-600 dark:text-neutral-400';
-        p.textContent = message;
-        const link = document.createElement('a');
-        link.href = window.location.href;
-        link.className = 'inline-flex items-center gap-2 h-11 px-5 text-sm font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors';
-        link.textContent = 'Retry analysis';
-        wrap.append(h, p, link);
-        container.append(wrap);
-    }
 })();
 </script>
 
