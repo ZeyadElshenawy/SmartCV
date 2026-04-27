@@ -51,6 +51,48 @@ class UserProfile(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    # --- URL accessors surfaced in the rendered CV's contact line ---
+    # The parser writes these into data_content; the PDF templates + live
+    # preview read them via these helpers so contact info stays consistent
+    # without digging into the JSONB shape in template code.
+    @property
+    def portfolio_url(self):
+        return (self.data_content or {}).get('portfolio_url') or ''
+
+    @property
+    def kaggle_url(self):
+        """Pulled from explicit kaggle_url, or built from kaggle_signals.username
+        when only the handle is known."""
+        data = self.data_content or {}
+        explicit = data.get('kaggle_url') or ''
+        if explicit:
+            return explicit
+        kg = data.get('kaggle_signals') or {}
+        if isinstance(kg, dict):
+            u = (kg.get('username') or '').strip()
+            if u:
+                return f"https://www.kaggle.com/{u}"
+        return ''
+
+    @property
+    def scholar_url(self):
+        data = self.data_content or {}
+        explicit = data.get('scholar_url') or ''
+        if explicit:
+            return explicit
+        sc = data.get('scholar_signals') or {}
+        if isinstance(sc, dict):
+            return (sc.get('profile_url') or sc.get('url') or '').strip()
+        return ''
+
+    @property
+    def other_urls(self):
+        """Catch-all list — any URL the parser captured that doesn't fit
+        a named slot. Rendered as labeled chips at the end of the contact
+        line so nothing gets dropped silently."""
+        urls = (self.data_content or {}).get('other_urls') or []
+        return [u for u in urls if isinstance(u, str) and u.strip()]
+
     # Properties for backward compatibility
     @property
     def skills(self):

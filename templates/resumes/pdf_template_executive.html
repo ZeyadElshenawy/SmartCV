@@ -132,6 +132,10 @@
             {% if profile.location %} &middot; {{ profile.location }}{% endif %}
             {% if profile.linkedin_url %} &middot; <a href="{{ profile.linkedin_url }}">LinkedIn</a>{% endif %}
             {% if profile.github_url %} &middot; <a href="{{ profile.github_url }}">GitHub</a>{% endif %}
+            {% if profile.portfolio_url %} &middot; <a href="{{ profile.portfolio_url }}">Portfolio</a>{% endif %}
+            {% if profile.kaggle_url %} &middot; <a href="{{ profile.kaggle_url }}">Kaggle</a>{% endif %}
+            {% if profile.scholar_url %} &middot; <a href="{{ profile.scholar_url }}">Scholar</a>{% endif %}
+            {% for u in profile.other_urls %} &middot; <a href="{{ u }}">{{ u|cut:"https://"|cut:"http://"|cut:"www."|truncatechars:24 }}</a>{% endfor %}
         </div>
     </div>
 

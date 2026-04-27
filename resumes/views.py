@@ -320,8 +320,18 @@ def resume_edit_view(request, resume_id):
         {'value': 'zeyad',       'label': 'Modern',      'subtitle': 'Bold sans-serif',    'tag': 'Color'},
     ]
 
+    # Pass the user's profile so the live preview's contact line can render
+    # the same portfolio / Kaggle / Scholar / other links the PDF templates
+    # render. Without this, the preview's contact info would diverge from
+    # the downloaded PDF — confusing the user about what's actually there.
+    try:
+        profile = UserProfile.objects.get(user=request.user)
+    except UserProfile.DoesNotExist:
+        profile = None
+
     return render(request, 'resumes/edit.html', {
         'resume': resume,
+        'profile': profile,
         'template_choices': template_choices,
     })
 
