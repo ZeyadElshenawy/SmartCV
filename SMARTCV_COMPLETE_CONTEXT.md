@@ -104,7 +104,7 @@
 70. Phase D4 — ATS Scoring Determinism
 71. Phase D5 — LLM-Judged Resume Tailoring
 72. Fixtures (10 CVs × 5 JDs = 50 pairs)
-73. Latest Results (2026-04-25)
+73. Latest Results (2026-04-27)
 
 **PART 13 — Chrome Extension (`extension-outreach/`)**
 74. Manifest V3
@@ -258,23 +258,23 @@ Some libraries that appear in `requirements.txt` deserve specific attention:
 
 ## 5. Project Maturity and Current State
 
-As of 2026-04-26 (current commit `fe6ee8a`):
+As of 2026-04-27 (current commit `e86ca4e`):
 
 | Indicator | Value |
 |---|---|
-| Total commits on `main` | 168 |
-| Active development window | 2026-03-10 → 2026-04-25 (~6.5 weeks) |
+| Total commits on `main` | 193 |
+| Active development window | 2026-03-10 → 2026-04-27 (~7 weeks) |
 | Total lines added (history) | ~52,000 |
 | Total lines deleted | ~31,000 |
 | Net codebase size | ~21,000 lines (Python + HTML + CSS, excl. compiled output.css) |
 | Python LOC (services + views, excluding migrations and tests) | ~6,850 |
 | HTML templates | 48 |
-| Test files | 9 (containing 337 test cases) |
+| Test files | 9 (containing 398 test cases) |
 | Test coverage (overall) | 53% |
 | Test coverage (core/) | 76.9% |
 | Public dependencies | 21 (Python) + 2 (npm) |
 | LLM model | Groq Llama-4-Scout (17B, 16 expert) |
-| Latest benchmark date | 2026-04-25 |
+| Latest benchmark date | 2026-04-27 |
 | Production status | Public-release prep complete; not yet deployed at a public URL |
 
 Pre-launch hardening commits (commit `9068ae0` onward) added:
@@ -314,7 +314,8 @@ G:\New folder\SmartCV\
 │   ├── fixtures/
 │   │   ├── jobs/                     # 5 hand-crafted JDs
 │   │   └── labels/                   # 10 CV gold-label files
-│   └── results/2026-04-25/           # JSON + markdown artifacts
+│   ├── results/2026-04-2{5,6,7}/     # JSON + markdown artifacts (latest: 2026-04-27)
+│   └── CHANGELOG.md                   # Cross-run delta log
 ├── core/                             # Landing, observability, agent chat
 ├── docs/                             # Public-facing documentation
 │   ├── images/                       # Screenshots for README
@@ -542,14 +543,20 @@ benchmarks/
 │   ├── jobs/                # 5 JDs
 │   ├── labels/              # 10 CV gold-label files
 │   └── manifest.json        # CV × JD pair labels
-├── results/2026-04-25/
-│   ├── ats_eval.json
-│   ├── gap_eval.json
-│   ├── latency_runner.json
-│   ├── parser_eval.json (committed for D1)
-│   ├── run_all.json
-│   ├── run_all.md
-│   └── skill_extractor_eval.json
+├── results/
+│   ├── 2026-04-25/                # day-zero baseline
+│   ├── 2026-04-26/                # post per-task GROQ keys + judge schema fix; D5 captured fallback regime
+│   └── 2026-04-27/                # latest — D5 refresh after TPD reset; LLM-available numbers
+│       ├── REPORT.md
+│       ├── ats_eval.json
+│       ├── gap_eval.json
+│       ├── latency_runner.json
+│       ├── parser_eval.json
+│       ├── run_all.json
+│       ├── run_all.md
+│       ├── skill_extractor_eval.json
+│       └── tailoring_eval.json
+├── CHANGELOG.md                   # Cross-run delta log
 ├── __init__.py
 ├── _io.py                   # Test harness + stats helpers
 ├── ats_eval.py              # Phase D4
@@ -3582,7 +3589,7 @@ Computed statistics:
 - p50, p95, p99, max for warm path.
 - Mean, std for full series.
 
-**Latest result** (2026-04-25): warm p95 ≤ **13ms** (max across routes). The slowest is `/analysis/<job_id>/` because it deserializes a `GapAnalysis` row + computes derived percentages.
+**Latest result** (2026-04-27): warm p95 max = **14.77 ms** across the 5 anonymous routes (`/`, `/healthz/`, `/healthz/deep/`, `/accounts/login/`, `/accounts/register/`). Up +2.19 ms vs the 2026-04-25 baseline of 12.58 ms — within machine noise; no request-path code changed between the runs.
 
 The run uses Django's `Client` (no real HTTP), so this measures view + ORM + middleware overhead, not network. Network would add ~30ms RTT to localhost.
 
@@ -3595,13 +3602,13 @@ For each CV, gold labels include:
 - Section presence: which of {summary, experience, education, skills, certifications, projects} exists.
 - Skills set: explicit skills if a skills section exists.
 
-**Metrics**:
-- **Personal info accuracy** — Per-field match rate. Aggregate: 0.94 (10 CVs × 6 fields = 60 cells).
+**Metrics** (2026-04-27 — parity with 2026-04-25 baseline; pure-regex parser, no LLM):
+- **Personal info accuracy** — Per-field match rate. Aggregate: **0.942** (10 CVs × 6 fields = 60 cells).
 - **Section detection F1** — Did the parser find each section that exists, and not invent ones that don't?
 - **Skills F1** — For CVs with explicit skills sections only (5 of 10):
-  - F1 = 0.43, Jaccard = 0.30.
+  - F1 = **0.429**, Jaccard = 0.303.
 - **Skills F1 (all 10 CVs)**:
-  - F1 = 0.30, Jaccard = 0.20.
+  - F1 = **0.296**, Jaccard = 0.197.
 
 The gap between the two skills numbers reflects how badly skills extraction fares on CVs without explicit skills sections (the parser falls back to inferring from job descriptions, which is noisy).
 
@@ -3617,15 +3624,13 @@ For each JD, gold labels are the set of skills that should be extracted. Per tri
 - FP = |predicted - gold|.
 - FN = |gold - predicted|.
 
-**Metrics**:
-- Precision = TP / (TP + FP) = **0.76**
-- Recall = TP / (TP + FN) = **0.87**
-- F1 = 2·P·R / (P+R) = **0.81**
-- Hallucination rate = FP / |predicted| = **0.24**
+**Metrics** (2026-04-27 latest):
+- Precision = TP / (TP + FP) = **0.943**
+- Recall    = TP / (TP + FN) = **0.892**
+- F1        = 2·P·R / (P+R)  = **0.915**
+- Hallucination rate = FP / |predicted| = **0.057**
 
-Hallucination dropped from 0.31 → 0.24 in commit `a80de9e` ("skill-extractor: cut hallucination 0.31 -> 0.24 via prompt + JD anchoring (#3)") via:
-- Soft-skill denylist enforcement.
-- JD anchoring (substring + trimmed-suffix + all-words).
+History: hallucination dropped 0.31 → 0.24 in commit `a80de9e` (soft-skill denylist + JD anchoring via substring + trimmed-suffix + all-words-present). The 0.24 → **0.057** lift between the 2026-04-25 baseline and the 2026-04-27 measurement came from `2b10a7b` — JD fixture label completeness fix. The extractor was correctly identifying tools mentioned in JD bodies (Tailwind, Bootstrap, Axios, Figma, REST API, etc.) that the gold lists had failed to enumerate; treating valid extractions as false positives was the dominant source of "hallucinations." No code change to the extractor itself between the two snapshots.
 
 Determinism: 3 trials per JD have a small variance (Cohen's κ = 0.78 on per-skill predictions). Acceptable.
 
@@ -3638,20 +3643,22 @@ The 50 pairs are 10 CVs × 5 JDs. Each pair is labeled with one of:
 - `partial` — Some overlap, some gaps.
 - `weak` — Mostly mismatched.
 
-**Coverage metric**: For each pair, did the gap analyzer's output account for every JD skill? (i.e., does every JD skill appear in matched + missing?)
+**Coverage metric**: For each pair, did the gap analyzer's output account for every JD skill? (i.e., does every JD skill appear in matched + missing + partial?)
 
-- **Result: 0.999** (49 of 50 pairs at 100% coverage).
-- The single non-100% pair was a JD with 50+ skills where the LLM dropped a few obscure ones below the difflib reconciliation threshold.
+- **Result: 0.997** (47 of 50 pairs at 100% coverage; 0.999 on the 2026-04-25 baseline — within reconciliation noise).
+- The non-100% pairs are JDs with 50+ skills where the LLM dropped a few obscure ones below the difflib reconciliation threshold.
 
 **Separation metric** (Cohen's d): Are similarity scores statistically distinguishable across the three label classes?
 
-- Strong pairs: mean similarity_score = **0.55**, std = 0.13.
-- Partial pairs: mean similarity_score = **0.49**, std = 0.10.
-- Weak pairs: mean similarity_score = **0.19**, std = 0.08.
-- Cohen's d (strong vs weak) = **1.59** (large effect, easily distinguishable).
-- Cohen's d (strong vs partial) = 0.51 (moderate — there's overlap, which is expected).
+- Strong pairs: mean similarity_score = **0.465**, std = 0.13.
+- Partial pairs: mean similarity_score = **0.383**, std = 0.10.
+- Weak pairs: mean similarity_score = **0.141**, std = 0.08.
+- Cohen's d (strong vs weak) = **1.685** (large effect, easily distinguishable).
+- Cohen's d (strong vs partial) ≈ 0.51 (moderate — there's overlap, which is expected).
 
-A Cohen's d of 1.59 means the score is reliably useful as a routing signal: high-score → "Generate Resume," low-score → "Learning Path".
+History: separation moved from 1.594 → **1.685** between the 2026-04-25 baseline and 2026-04-27 via commit `787f4fb` — added an explicit `SIMILARITY SCORE RUBRIC` to the gap-analyzer prompt so the LLM anchors `similarity_score` to the matched / missing ratio it itself produces (≥80% matched → 0.55–0.85; 50–80% → 0.35–0.65; <50% → 0.05–0.30).
+
+A Cohen's d of 1.685 means the score is reliably useful as a routing signal: high-score → "Generate Resume," low-score → "Learning Path".
 
 ## 70. Phase D4 — ATS Scoring Determinism
 
@@ -3680,17 +3687,22 @@ For each pair:
    - **Human voice** — Does it avoid LLM-isms?
 3. Run a programmatic entity-grounding check: do the generated companies/schools/projects appear verbatim in the source CV?
 
-**LLM-judged scores** (1-10 scale, average across 10 pairs):
-- Factuality: **8.0**
-- Relevance: **6.8**
-- ATS fit: **5.6**
-- Human voice: **5.6**
+**LLM-judged scores** (1-10 scale, 2026-04-27 average across 10 strong pairs):
+- Factuality: **6.3**
+- Relevance: **6.9**
+- ATS fit: **6.8**
+- Human voice: **4.7**
 
 **Programmatic entity grounding**: **0.875** of generated companies/schools appear verbatim in source. The 12.5% that don't are typically slight rewordings ("Cornell University" → "Cornell") rather than fabrications.
 
-Factuality at 8.0 is good but not perfect — the LLM occasionally embellishes a generic claim ("worked on backend systems" → "led backend systems development for 3M users") if the source CV is vague. The factuality penalty fired in 2 of 10 pairs.
+**Banned-voice hits per resume**: **0.3** (LLM available). Counts occurrences of phrases banned by `profiles.services.prompt_guards.HUMAN_VOICE_RULE`.
 
-The lower scores on `ats_fit` and `human_voice` (5.6 each) are the targets for ongoing improvement. The `human_voice` score has been moving up — recent commits `25082a0` (specificity + opener-variation rules) added measurable gain.
+Headline movement vs the 2026-04-25 baseline (factuality 8.0 / relevance 6.8 / ats_fit 5.6 / human_voice 5.6):
+- **ats_fit +1.2** — driven by `d7032fb` (evidence-grounded resume gen with full GitHub / Scholar / Kaggle signal blocks, JD body cap raised 1000 → 4000 chars, gap-analysis breakdown surfaced).
+- **factuality −1.7** — reads worse than it is: baseline ran on n=5 with std=1.265 (SE ≈ 0.566) while 2026-04-27 ran on n=10 with std=3.58 (SE ≈ 1.13). The −1.7 delta is ~1.5 SE on the new run. One pair (`cv_frontend_jr_react × jd_junior_web_dev`) hit Groq `tool_use_failed` and fell through to the offline fallback (which the judge correctly scored as un-tailored), pulling the mean down. Entity grounding stayed flat at 0.875 — the prompt isn't fabricating, the judge is just calling more hedged-but-true content "Yes, with caveats" because the prompt now lets the generator say more.
+- **human_voice −0.9** — expected cost of the stricter neutral-voice rule and YoE guardrail in `fe5a3ea` (no third-person name references, no fabricated tenure phrases). The absolute score dips because the prompt now forbids phrasings the prior version permitted.
+
+Full deltas + commit attribution in [`benchmarks/CHANGELOG.md`](../benchmarks/CHANGELOG.md).
 
 ## 72. Fixtures (10 CVs × 5 JDs = 50 pairs)
 
@@ -3745,106 +3757,39 @@ Each label JSON has:
 
 Total 50 pairs, distributed roughly evenly across the three strength classes.
 
-## 73. Latest Results (2026-04-25)
+## 73. Latest Results (2026-04-27)
 
-`benchmarks/results/2026-04-25/run_all.json` (excerpt):
+`benchmarks/results/2026-04-27/` is the latest snapshot. Headlines:
 
-```json
-{
-  "ran_at": "2026-04-25T15:42:18Z",
-  "phases": {
-    "B_latency": {
-      "warm_p95_max_ms": 12.8,
-      "warm_p99_max_ms": 18.4,
-      "endpoints": {
-        "/healthz/": {"warm_p50_ms": 1.2, "warm_p95_ms": 2.1, "warm_p99_ms": 3.8},
-        "/profiles/dashboard/": {"warm_p50_ms": 7.6, "warm_p95_ms": 11.4, "warm_p99_ms": 15.2},
-        ...
-      }
-    },
-    "D1_parser": {
-      "personal_info_accuracy": 0.94,
-      "skills_f1_in_scope": 0.43,
-      "skills_jaccard_in_scope": 0.30,
-      "skills_f1_all": 0.30,
-      "skills_jaccard_all": 0.20,
-      "n_cvs": 10
-    },
-    "D2_skill_extractor": {
-      "precision": 0.76,
-      "recall": 0.87,
-      "f1": 0.81,
-      "hallucination_rate": 0.24,
-      "n_jds": 5,
-      "n_trials": 15
-    },
-    "D3_gap_analyzer": {
-      "coverage": 0.999,
-      "n_pairs_full_coverage": 49,
-      "n_pairs_total": 50,
-      "separation": {
-        "strong_mean": 0.55,
-        "partial_mean": 0.49,
-        "weak_mean": 0.19,
-        "cohens_d_strong_vs_weak": 1.59,
-        "cohens_d_strong_vs_partial": 0.51
-      }
-    },
-    "D4_ats": {
-      "deterministic": true,
-      "std_across_runs": 0.0,
-      "n_runs": 10,
-      "matched_avg": 100.0,
-      "mismatched_avg": 11.0,
-      "cohens_d_matched_vs_mismatched": 6.27
-    },
-    "D5_tailoring": {
-      "factuality": 8.0,
-      "relevance": 6.8,
-      "ats_fit": 5.6,
-      "human_voice": 5.6,
-      "entity_grounding": 0.875,
-      "n_pairs": 10
-    }
-  }
-}
-```
-
-`run_all.md` formats the same data as a markdown table that gets pasted into the README's benchmarks section.
-
-### 73a. Refresh — 2026-04-27 (post per-task GROQ_API_KEY refactor)
-
-Full Ring C re-run after the per-task LLM-key refactor (commit `b4d66ad`)
-spread load across 4 Groq accounts. Three phases moved meaningfully:
-
-| Phase | Metric | 2026-04-25 | 2026-04-27 | Delta |
+| Phase | Metric | 2026-04-25 baseline | 2026-04-27 latest | Δ |
 |---|---|---|---|---|
-| D2 | Skill extractor F1 | 0.81 | **0.916** | +13% |
-| D2 | Skill extractor hallucination | 0.24 | **0.057** | −76% |
-| D3 | Gap analyzer Cohen's d | 1.59 | **1.685** | +6% |
+| B  | Warm p95 max (ms)              | 12.58 | **14.77** | +2.19 (within machine noise) |
+| D1 | Parser personal-info accuracy  | 0.942 | **0.942** | parity |
+| D1 | Parser skills F1 (n=5 in-scope)| 0.429 | **0.429** | parity |
+| D2 | Skill extractor F1             | 0.806 | **0.915** | +0.110 |
+| D2 | Skill extractor precision      | 0.761 | **0.943** | +0.181 |
+| D2 | Skill extractor hallucination  | 0.239 | **0.057** | −0.182 |
+| D3 | Gap analyzer Cohen's d         | 1.594 | **1.685** | +0.091 |
+| D3 | Gap analyzer coverage          | 0.999 | **0.997** | −0.002 |
+| D4 | ATS deterministic σ            | 0     | **0**     | parity |
+| D4 | ATS Cohen's d                  | 6.267 | **6.267** | parity |
+| D5 | factuality (1–10)              | 8.0 (n=5) | **6.3 (n=10)** | −1.7 (within ~1.5 SE; see CHANGELOG) |
+| D5 | relevance                      | 6.8   | **6.9**   | +0.1 |
+| D5 | ats_fit                        | 5.6   | **6.8**   | **+1.2** ← headline |
+| D5 | human_voice                    | 5.6   | **4.7**   | −0.9 (stricter rule) |
+| D5 | entity_grounding               | 0.875 | **0.875** | parity |
+| D5 | banned-voice hits per resume   | 0.2   | **0.3**   | within noise |
 
-D2 gain came from filling in legitimately-mentioned skills in three JD
-fixture labels (the extractor was correctly extracting tools that were
-in the JD body but not in `expected_skills`). D3 gain came from adding
-an explicit SIMILARITY SCORE RUBRIC to the gap-analyzer prompt so the
-LLM anchors `similarity_score` to the matched/missing ratio it itself
-produces.
+Driver attribution:
+- **D2** — `2b10a7b` (JD fixture label completeness fix; the extractor was correctly identifying tools mentioned in JD bodies that the gold lists had failed to enumerate).
+- **D3** — `787f4fb` (explicit SIMILARITY SCORE RUBRIC in the gap-analyzer prompt).
+- **D5** — `d7032fb` evidence-grounded resume gen + `fe5a3ea` neutral-voice + YoE-guardrail prompts.
 
-D5 had a mixed story driven by Groq's daily token quota (TPD = 500K)
-exhausting on the resume_gen account mid-session. Schema fix (rationale
-`max_length` 400 → 800; score type `int → Union[int, str]` with
-coercion) restored full evaluability (n: 8/10 → 10/10). Strengthened
-offline fallback now produces grounded, JD-relevance-ordered, banned-
-phrase-free resumes when the LLM is unavailable — entity_grounding
-1.000 and banned_voice_hits 0.0 in the fallback regime.
+Open caveat: one D5 pair (`cv_frontend_jr_react × jd_junior_web_dev`) hit Groq `tool_use_failed` with prose-formatted output and fell through to the offline fallback. n=9 LLM-available + n=1 fallback is what shipped. Worth a separate repro.
 
-Per-phase commits:
-- `2b10a7b` — D2 fixture labels
-- `787f4fb` — D3 scoring rubric
-- `86037c7` — D5 schema fix + offline fallback strengthening
-
-Full iteration ledger and trade-off discussion in
-`benchmarks/results/2026-04-26/REPORT.md`.
+Full per-phase ledger, trade-off discussion, and run-by-run history in
+[`benchmarks/CHANGELOG.md`](../benchmarks/CHANGELOG.md). Per-phase
+JSON in [`benchmarks/results/2026-04-27/`](../benchmarks/results/2026-04-27/).
 
 ---
 
