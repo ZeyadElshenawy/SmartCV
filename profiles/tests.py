@@ -334,6 +334,34 @@ class FetchGithubSnapshotTests(SimpleTestCase):
         # Recent commits = sum of PushEvent sizes within 90 days
         self.assertEqual(snap['recent_commit_count'], 5)
 
+    def test_authorization_header_set_when_token_configured(self):
+        captured = {}
+        routes = {
+            '/users/octocat/repos': _fake_response([]),
+            '/users/octocat/events/public': _fake_response([]),
+            '/users/octocat': _fake_response({'name': 'Octo'}),
+        }
+        stub = _stub_session(routes)
+        stub.headers.update.side_effect = lambda h: captured.update(h)
+        with patch('profiles.services.github_aggregator.GITHUB_TOKEN', 'ghp_test123'), \
+             patch('profiles.services.github_aggregator.requests.Session', return_value=stub):
+            fetch_github_snapshot('octocat')
+        self.assertEqual(captured.get('Authorization'), 'Bearer ghp_test123')
+
+    def test_authorization_header_absent_when_token_unset(self):
+        captured = {}
+        routes = {
+            '/users/octocat/repos': _fake_response([]),
+            '/users/octocat/events/public': _fake_response([]),
+            '/users/octocat': _fake_response({'name': 'Octo'}),
+        }
+        stub = _stub_session(routes)
+        stub.headers.update.side_effect = lambda h: captured.update(h)
+        with patch('profiles.services.github_aggregator.GITHUB_TOKEN', ''), \
+             patch('profiles.services.github_aggregator.requests.Session', return_value=stub):
+            fetch_github_snapshot('octocat')
+        self.assertNotIn('Authorization', captured)
+
 
 
 

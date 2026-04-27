@@ -14,6 +14,7 @@ by the calling view so we don't re-hit the API on every page view.
 from __future__ import annotations
 
 import logging
+import os
 import re
 from datetime import datetime, timezone, timedelta
 from typing import Optional, TypedDict
@@ -25,6 +26,8 @@ logger = logging.getLogger(__name__)
 GITHUB_API = "https://api.github.com"
 USER_AGENT = "SmartCV/1.0 (github-aggregator)"
 DEFAULT_TIMEOUT = 8  # seconds per request — fail fast, not slow
+# Optional. When set, raises the per-token rate limit from 60/hr to 5000/hr.
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 
 # Languages we don't surface as "skills" because they're too generic
 # or are formatting/data declarations rather than programming languages.
@@ -105,9 +108,16 @@ def _get(session: requests.Session, path: str, **params) -> Optional[dict | list
     if r.status_code == 404:
         return None
     if r.status_code == 403:
-        # Rate-limited or forbidden
-        logger.warning("GitHub API 403 (rate limit?): %s — remaining=%s",
-                       path, r.headers.get('X-RateLimit-Remaining', '?'))
+        remaining = r.headers.get('X-RateLimit-Remaining', '?')
+        reset = r.headers.get('X-RateLimit-Reset')
+        reset_str = (
+            datetime.fromtimestamp(int(reset), tz=timezone.utc).isoformat()
+            if reset and reset.isdigit() else '?'
+        )
+        logger.warning(
+            "GitHub API 403 (rate limit?): %s — remaining=%s, reset_at=%s",
+            path, remaining, reset_str,
+        )
         return None
     if not r.ok:
         logger.warning("GitHub API %s for %s: %s", r.status_code, path, r.text[:200])
@@ -137,7 +147,10 @@ def fetch_github_snapshot(username_or_url: str, top_n: int = 6) -> GithubSnapsho
         )
 
     session = requests.Session()
-    session.headers.update({"User-Agent": USER_AGENT, "Accept": "application/vnd.github+json"})
+    headers = {"User-Agent": USER_AGENT, "Accept": "application/vnd.github+json"}
+    if GITHUB_TOKEN:
+        headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
+    session.headers.update(headers)
 
     user = _get(session, f"/users/{username}")
     if not user:
