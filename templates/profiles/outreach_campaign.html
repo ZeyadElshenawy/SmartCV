@@ -250,6 +250,17 @@
                         <span class="font-medium">Status:</span>
                         <span class="capitalize" x-text="campaignStatus.campaign.status"></span>
                         <span class="text-neutral-500 dark:text-neutral-400" x-text="`· ${campaignStatus.campaign.sent_today}/${campaignStatus.campaign.daily_invite_cap} sent today`"></span>
+                        {# Cached per-status counts (see refresh_campaign_summary). Renders only when at least one count is non-zero so a fresh empty campaign isn't littered with "0 sent · 0 failed · ..." chips. #}
+                        <template x-if="campaignStatus.campaign.summary && campaignStatus.campaign.summary.total > 0">
+                            <span class="flex items-center gap-1.5 ml-1 text-[11px] uppercase tracking-[0.14em]">
+                                <template x-if="campaignStatus.campaign.summary.sent > 0"><span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300" x-text="`${campaignStatus.campaign.summary.sent} sent`"></span></template>
+                                <template x-if="campaignStatus.campaign.summary.accepted > 0"><span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200" x-text="`${campaignStatus.campaign.summary.accepted} accepted`"></span></template>
+                                <template x-if="campaignStatus.campaign.summary.queued > 0"><span class="px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300" x-text="`${campaignStatus.campaign.summary.queued} queued`"></span></template>
+                                <template x-if="campaignStatus.campaign.summary.in_flight > 0"><span class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300" x-text="`${campaignStatus.campaign.summary.in_flight} in flight`"></span></template>
+                                <template x-if="campaignStatus.campaign.summary.failed > 0"><span class="px-1.5 py-0.5 rounded bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300" x-text="`${campaignStatus.campaign.summary.failed} failed`"></span></template>
+                                <template x-if="campaignStatus.campaign.summary.skipped > 0"><span class="px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400" x-text="`${campaignStatus.campaign.summary.skipped} skipped`"></span></template>
+                            </span>
+                        </template>
                         <div class="ml-auto flex items-center gap-3">
                             {# Retry-failed only renders when there's at least one failed action — otherwise the button is just noise. #}
                             <button x-show="failedCount() > 0" @click="retryFailed()"

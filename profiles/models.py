@@ -131,6 +131,17 @@ class OutreachCampaign(models.Model):
     job = models.ForeignKey('jobs.Job', on_delete=models.CASCADE, related_name='outreach_campaigns')
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default='draft')
     daily_invite_cap = models.PositiveSmallIntegerField(default=15)
+
+    # Cached per-status counts of OutreachAction children, refreshed on
+    # every state transition. Lets the status panel render in O(1) instead
+    # of doing a COUNT(*) GROUP BY status on every poll. Shape mirrors
+    # OutreachAction.STATUS_CHOICES keys: queued/in_flight/sent/accepted/
+    # failed/skipped/total. Optional `reason_finished` records why a
+    # campaign settled (e.g. 'all_sent', 'all_failed', 'user_paused')
+    # so the UI can explain the dot color without a click-through.
+    summary_stats = models.JSONField(default=dict, blank=True)
+    last_activity_at = models.DateTimeField(null=True, blank=True, db_index=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

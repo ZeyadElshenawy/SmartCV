@@ -27,6 +27,7 @@ from profiles.services.outreach_dispatcher import (
     claim_next_action,
     invites_sent_today,
     record_action_result,
+    refresh_campaign_summary,
 )
 
 logger = logging.getLogger(__name__)
@@ -281,6 +282,10 @@ def create_campaign(request):
         )
         created += 1
 
+    # Initialize the summary cache so the status panel has counts before
+    # the first action transitions.
+    refresh_campaign_summary(campaign)
+
     return JsonResponse({
         'campaign_id': str(campaign.id),
         'queued': created,
@@ -356,6 +361,11 @@ def retry_failed_actions(request, campaign_id):
         campaign.status = 'running'
         campaign.save(update_fields=['status', 'updated_at'])
 
+    # Cached counts shifted; refresh so the status panel stays correct
+    # without waiting for the next dispatch.
+    if requeued:
+        refresh_campaign_summary(campaign)
+
     return JsonResponse({
         'requeued': requeued,
         'campaign_status': campaign.status,
@@ -371,12 +381,25 @@ def campaign_status(request, campaign_id):
         'id', 'target_handle', 'target_name', 'target_role',
         'kind', 'status', 'last_error', 'attempts', 'completed_at',
     ))
+    # Summary stats are cached on the campaign row by refresh_campaign_summary
+    # (called on every state transition). If the cache is empty (legacy row
+    # from before migration 0017 ran), fall back to a fresh recompute so the
+    # first poll after deploy doesn't show empty counts.
+    stats = campaign.summary_stats
+    if not stats:
+        stats = refresh_campaign_summary(campaign)
+
     return JsonResponse({
         'campaign': {
             'id': str(campaign.id),
             'status': campaign.status,
             'daily_invite_cap': campaign.daily_invite_cap,
             'sent_today': invites_sent_today(request.user),
+            'summary': stats,
+            'last_activity_at': (
+                campaign.last_activity_at.isoformat()
+                if campaign.last_activity_at else None
+            ),
         },
         'actions': [
             {**a, 'id': str(a['id']),

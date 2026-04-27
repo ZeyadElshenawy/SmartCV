@@ -26,6 +26,7 @@ from profiles.services.outreach_dispatcher import (
     invites_sent_today,
     reclaim_stale_inflight,
     record_action_result,
+    refresh_campaign_summary,
 )
 
 User = get_user_model()
@@ -125,6 +126,90 @@ class DispatcherTests(TestCase):
         )
         with self.assertRaises(ValueError):
             record_action_result(action, 'whatever')
+
+
+class CampaignSummaryStatsTests(TestCase):
+    """summary_stats is the cached per-status breakdown of OutreachAction
+    children. Refreshed on every state transition so the status panel
+    renders in O(1) without re-aggregating actions on every poll."""
+
+    def test_refresh_recomputes_per_status_counts(self):
+        user = _make_user()
+        job = _make_job(user)
+        campaign = _make_campaign(user, job)
+        OutreachAction.objects.create(
+            campaign=campaign, target_handle='a', kind='connect', payload='hi',
+            status='queued',
+        )
+        OutreachAction.objects.create(
+            campaign=campaign, target_handle='b', kind='connect', payload='hi',
+            status='sent', completed_at=timezone.now(),
+        )
+        OutreachAction.objects.create(
+            campaign=campaign, target_handle='c', kind='connect', payload='hi',
+            status='failed', attempts=3, completed_at=timezone.now(),
+        )
+        stats = refresh_campaign_summary(campaign)
+        self.assertEqual(stats['queued'], 1)
+        self.assertEqual(stats['sent'], 1)
+        self.assertEqual(stats['failed'], 1)
+        self.assertEqual(stats['accepted'], 0)
+        self.assertEqual(stats['total'], 3)
+        # Persisted on the campaign row
+        campaign.refresh_from_db()
+        self.assertEqual(campaign.summary_stats, stats)
+        self.assertIsNotNone(campaign.last_activity_at)
+
+    def test_claim_refreshes_summary(self):
+        """A queued -> in_flight transition via claim_next_action must
+        update summary_stats so the status panel sees the change on
+        the next poll without doing its own COUNT."""
+        user = _make_user()
+        job = _make_job(user)
+        campaign = _make_campaign(user, job)
+        OutreachAction.objects.create(
+            campaign=campaign, target_handle='a', kind='connect', payload='hi',
+        )
+        claim_next_action(user)
+        campaign.refresh_from_db()
+        self.assertEqual(campaign.summary_stats.get('in_flight'), 1)
+        self.assertEqual(campaign.summary_stats.get('queued'), 0)
+
+    def test_record_result_refreshes_summary_and_finishes_campaign(self):
+        user = _make_user()
+        job = _make_job(user)
+        campaign = _make_campaign(user, job)
+        action = OutreachAction.objects.create(
+            campaign=campaign, target_handle='a', kind='connect', payload='hi',
+            status='in_flight', attempts=1,
+        )
+        record_action_result(action, 'sent')
+        campaign.refresh_from_db()
+        self.assertEqual(campaign.summary_stats.get('sent'), 1)
+        self.assertEqual(campaign.summary_stats.get('total'), 1)
+        # _maybe_finish_campaign should have flipped status to done since
+        # there are no more open actions.
+        self.assertEqual(campaign.status, 'done')
+
+    def test_status_endpoint_exposes_summary(self):
+        """The /status/ endpoint must include the cached summary so the UI
+        can render the per-status chip row without doing its own count."""
+        user = _make_user()
+        job = _make_job(user)
+        campaign = _make_campaign(user, job)
+        OutreachAction.objects.create(
+            campaign=campaign, target_handle='a', kind='connect', payload='hi',
+            status='sent', completed_at=timezone.now(),
+        )
+        refresh_campaign_summary(campaign)
+        client = Client()
+        client.force_login(user)
+        res = client.get(f'/profiles/api/outreach/campaigns/{campaign.id}/status/')
+        self.assertEqual(res.status_code, 200)
+        body = res.json()
+        self.assertIn('summary', body['campaign'])
+        self.assertEqual(body['campaign']['summary']['sent'], 1)
+        self.assertEqual(body['campaign']['summary']['total'], 1)
 
 
 class ActionEventLogTests(TestCase):
