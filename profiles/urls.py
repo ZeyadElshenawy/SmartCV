@@ -42,6 +42,8 @@ urlpatterns = [
     path('refresh-scholar/',  views.refresh_scholar_signals,  name='refresh_scholar_signals'),
     path('refresh-kaggle/',   views.refresh_kaggle_signals,   name='refresh_kaggle_signals'),
 
-    # Project enrichment + dedupe (Phase 1 — JSON only, no UI yet)
+    # Project enrichment + dedupe
     path('api/projects/enrich-from-signals/', views.enrich_from_signals_view, name='enrich_from_signals'),
+    path('projects/review/', views.projects_review_view, name='projects_review'),
+    path('projects/confirm/', views.projects_confirm_view, name='projects_confirm'),
 ]

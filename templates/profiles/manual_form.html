@@ -266,7 +266,15 @@
                 <div class="p-6 sm:p-8 space-y-5">
                     <div class="flex items-center justify-between flex-wrap gap-2">
                         {% include "components/section_label.html" with text="04 · Projects" tone="brand" %}
-                        <button type="button" @click="addProject()" class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline">+ Add project</button>
+                        <div class="flex items-center gap-3">
+                            {% if is_master and profile.data_content.github_signals or profile.data_content.scholar_signals or profile.data_content.kaggle_signals %}
+                            <a href="{% url 'projects_review' %}"
+                               class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline"
+                               title="Pull GitHub / Scholar / Kaggle entries as projects.">↗ Pull from signals</a>
+                            <span class="text-neutral-300 dark:text-neutral-700">|</span>
+                            {% endif %}
+                            <button type="button" @click="addProject()" class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline">+ Add project</button>
+                        </div>
                     </div>
 
                     <template x-for="(proj, index) in projects" :key="index">
