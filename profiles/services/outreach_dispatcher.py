@@ -118,6 +118,13 @@ def reclaim_stale_inflight(user) -> int:
             "outreach: reclaimed %d stale in_flight actions, abandoned %d at max attempts (user=%s)",
             requeued, abandoned, getattr(user, 'id', '?'),
         )
+        # Refresh summary on every campaign that had a touched action.
+        # Cheap — usually one campaign, occasionally two.
+        affected = OutreachCampaign.objects.filter(
+            id__in=stuck.values_list('campaign_id', flat=True).distinct()
+        )
+        for c in affected:
+            refresh_campaign_summary(c)
     return requeued + abandoned
 
 
@@ -163,6 +170,7 @@ def claim_next_action(user) -> Optional[OutreachAction]:
     action.save(update_fields=['status', 'attempts'])
     _log_event(action, from_status=prev_status, to_status='in_flight',
                actor='server_dispatch', reason='claimed')
+    refresh_campaign_summary(action.campaign)
     return action
 
 
@@ -188,7 +196,52 @@ def record_action_result(action: OutreachAction, status: str, error: str = '') -
     return action
 
 
+def refresh_campaign_summary(campaign: OutreachCampaign) -> dict:
+    """Recompute and persist the campaign's per-status action counts.
+
+    Called from every place that transitions an action's state. Cheap
+    (one COUNT(*) GROUP BY status query per campaign) and gives the
+    status panel an O(1) render instead of re-aggregating on every poll.
+
+    Also bumps last_activity_at — needed for the eventual stale-campaign
+    cleanup (any campaign with last_activity_at older than N days and
+    no open actions can be auto-completed). Even without that cleanup
+    in place, the timestamp is useful for debugging "is this campaign
+    actually doing anything?".
+
+    Returns the new stats dict.
+    """
+    from django.db.models import Count
+    rows = (
+        campaign.actions
+        .values('status')
+        .annotate(n=Count('id'))
+    )
+    by_status = {r['status']: r['n'] for r in rows}
+    stats = {
+        'queued':    by_status.get('queued', 0),
+        'in_flight': by_status.get('in_flight', 0),
+        'sent':      by_status.get('sent', 0),
+        'accepted':  by_status.get('accepted', 0),
+        'failed':    by_status.get('failed', 0),
+        'skipped':   by_status.get('skipped', 0),
+    }
+    stats['total'] = sum(stats.values())
+    campaign.summary_stats = stats
+    campaign.last_activity_at = timezone.now()
+    campaign.save(update_fields=['summary_stats', 'last_activity_at', 'updated_at'])
+    return stats
+
+
 def _maybe_finish_campaign(campaign: OutreachCampaign) -> None:
+    """Auto-transition campaign to done/failed when no actions are open.
+
+    Always refresh the summary cache (so the status panel reflects the
+    latest counts even when this call is a no-op), then check whether
+    the campaign has settled.
+    """
+    refresh_campaign_summary(campaign)
+
     open_actions = campaign.actions.filter(status__in=['queued', 'in_flight']).exists()
     if open_actions:
         return
