@@ -361,6 +361,161 @@ class ResumeEditPreviewTemplateClassTests(TestCase):
             )
 
 
+class DocxExportTests(TestCase):
+    """The DOCX exporter mirrors PDF export's section_order, the same
+    fields, and the same authorization. The output should be a valid
+    .docx (zip with [Content_Types].xml) carrying the candidate's
+    name, professional title, all section headings the saved
+    section_order asks for, and content for each.
+
+    We don't try to verify visual fidelity — DOCX rendering varies by
+    Word version and ATS pipelines re-style aggressively anyway.
+    """
+
+    def setUp(self):
+        from jobs.models import Job
+        from analysis.models import GapAnalysis
+        from profiles.models import UserProfile
+        from resumes.models import GeneratedResume
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='docx@example.com', email='docx@example.com', password='x',
+        )
+        UserProfile.objects.create(
+            user=self.user, full_name='Ada Lovelace', email='docx@example.com',
+            phone='+1-555-0100', location='London, UK',
+            linkedin_url='https://www.linkedin.com/in/ada/',
+            github_url='https://github.com/ada/',
+            data_content={'portfolio_url': 'https://ada.example.com'},
+        )
+        self.client.force_login(self.user)
+        job = Job.objects.create(
+            user=self.user, title='Backend Engineer', company='Acme Corp',
+            description='Need a Python backend dev.',
+            extracted_skills=['Python', 'PostgreSQL'],
+        )
+        gap = GapAnalysis.objects.create(user=self.user, job=job, similarity_score=0.7)
+        self.resume = GeneratedResume.objects.create(
+            gap_analysis=gap,
+            content={
+                'professional_title': 'Backend Systems Engineer',
+                'professional_summary': 'Built distributed Python systems.',
+                'skills': ['Python', 'PostgreSQL', 'Redis'],
+                'experience': [{
+                    'title': 'Backend Engineer',
+                    'company': 'PriorCo',
+                    'duration': '2023 - Present',
+                    'description': ['Cut p99 latency from 1.2s to 380ms.', 'Owned async migration.'],
+                }],
+                'education': [{
+                    'degree': 'BSc Computer Science',
+                    'institution': 'Cairo University',
+                    'graduation_year': '2024',
+                }],
+                'projects': [{
+                    'name': 'pgbench-tuner',
+                    'url': 'https://github.com/ada/pgbench-tuner',
+                    'description': ['Auto-tunes PostgreSQL parameters.'],
+                }],
+                'certifications': [{
+                    'name': 'AWS SAA',
+                    'issuer': 'Amazon',
+                    'date': '2024',
+                    'url': 'https://example.com/cert',
+                }],
+                'languages': ['English', 'Arabic'],
+            },
+        )
+
+    def _url(self):
+        return f'/resumes/export-docx/{self.resume.id}/'
+
+    def test_export_returns_docx_content_type(self):
+        resp = self.client.get(self._url())
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(
+            resp['Content-Type'],
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        )
+        self.assertIn('attachment', resp['Content-Disposition'])
+        self.assertIn('.docx', resp['Content-Disposition'])
+
+    def test_export_produces_valid_zip_with_required_parts(self):
+        """A real DOCX is a zip containing [Content_Types].xml and
+        word/document.xml. If we accidentally returned plain text or
+        a corrupted file, this catches it."""
+        import io
+        import zipfile
+        resp = self.client.get(self._url())
+        buf = io.BytesIO(resp.content)
+        with zipfile.ZipFile(buf) as z:
+            names = set(z.namelist())
+            self.assertIn('[Content_Types].xml', names)
+            self.assertIn('word/document.xml', names)
+            doc_xml = z.read('word/document.xml').decode('utf-8')
+        # Spot-check: the candidate's name should appear in the document XML
+        self.assertIn('ADA LOVELACE', doc_xml)
+        # Section headings the saved order asks for should all be present
+        self.assertIn('PROFESSIONAL SUMMARY', doc_xml)
+        self.assertIn('SKILLS', doc_xml)
+        self.assertIn('PROFESSIONAL EXPERIENCE', doc_xml)
+        self.assertIn('EDUCATION', doc_xml)
+        self.assertIn('PROJECTS', doc_xml)
+        self.assertIn('CERTIFICATIONS', doc_xml)
+        self.assertIn('LANGUAGES', doc_xml)
+        # Content sample — bullet text from experience
+        self.assertIn('Cut p99 latency', doc_xml)
+
+    def test_export_honors_saved_section_order(self):
+        """Sections in the DOCX should appear in the user's saved
+        section_order, not the default. Verify by extracting all section
+        heading positions and asserting the order matches what's saved."""
+        import io, zipfile, re
+        # Reorder: projects → skills → summary, rest fills in after.
+        self.resume.content = {
+            **self.resume.content,
+            'section_order': ['projects', 'skills', 'summary'],
+        }
+        self.resume.save()
+        resp = self.client.get(self._url())
+        with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
+            doc_xml = z.read('word/document.xml').decode('utf-8')
+        proj_pos = doc_xml.find('PROJECTS')
+        skills_pos = doc_xml.find('SKILLS')
+        summary_pos = doc_xml.find('PROFESSIONAL SUMMARY')
+        # All three must appear, and in the order the user saved
+        self.assertGreater(proj_pos, 0)
+        self.assertGreater(skills_pos, 0)
+        self.assertGreater(summary_pos, 0)
+        self.assertLess(proj_pos, skills_pos)
+        self.assertLess(skills_pos, summary_pos)
+
+    def test_export_per_owner_scope(self):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        other = User.objects.create_user(
+            username='other@example.com', email='other@example.com', password='x',
+        )
+        self.client.force_login(other)
+        resp = self.client.get(self._url())
+        self.assertEqual(resp.status_code, 404)
+
+    def test_export_handles_empty_sections_gracefully(self):
+        """A nearly-empty resume must still produce a valid DOCX (just
+        with a header and whatever sections do have content)."""
+        import io, zipfile
+        self.resume.content = {'professional_title': 'Engineer'}
+        self.resume.save()
+        resp = self.client.get(self._url())
+        self.assertEqual(resp.status_code, 200)
+        with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
+            doc_xml = z.read('word/document.xml').decode('utf-8')
+        self.assertIn('ADA LOVELACE', doc_xml)
+        # No Skills heading because skills was empty
+        self.assertNotIn('SKILLS', doc_xml)
+
+
 class SectionOrderEndpointTests(TestCase):
     """The user can drag-reorder sections on the edit page; the order is
     persisted on resume.content['section_order'] and applied uniformly

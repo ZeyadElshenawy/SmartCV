@@ -19,6 +19,7 @@ RESUME_SECTION_KEYS = (
 )
 DEFAULT_SECTION_ORDER = list(RESUME_SECTION_KEYS)
 from .services.pdf_exporter import generate_pdf
+from .services.docx_exporter import generate_docx
 from .services.cover_letter_generator import generate_cover_letter_content
 from .services.pdf_generator import generate_optimized_pdf
 import logging
@@ -461,6 +462,32 @@ def regenerate_section_view(request, resume_id, section):
     resume.save(update_fields=['content'])
 
     return JsonResponse({'section': section, 'value': new_value})
+
+
+@login_required
+def export_docx_view(request, resume_id):
+    """Export resume as a DOCX file.
+
+    Same authorization + section_order resolution as the PDF export, but
+    produces an ATS-friendly DOCX via python-docx instead of xhtml2pdf.
+    """
+    resume = get_object_or_404(GeneratedResume, id=resume_id)
+    if resume.gap_analysis.job.user != request.user:
+        raise Http404
+    _normalize_legacy_resume_content(resume)
+    try:
+        buf = generate_docx(resume)
+        data = buf.getvalue()
+    except Exception:
+        logger.exception("DOCX export failed for resume %s", resume_id)
+        return HttpResponse("DOCX generation failed. Please try again.", status=500)
+    response = HttpResponse(
+        data,
+        content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    )
+    safe_title = resume.gap_analysis.job.title.replace('/', '-')
+    response['Content-Disposition'] = f'attachment; filename="resume_{safe_title}.docx"'
+    return response
 
 
 @login_required
