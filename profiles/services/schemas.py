@@ -251,3 +251,73 @@ class LearningPathItem(BaseModel):
 class LearningPathResult(BaseModel):
     """Output schema for learning_path_generator.py"""
     items: List[LearningPathItem] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Project enrichment + dedupe (Phase 1 of the GitHub/Scholar/Kaggle → resume
+# pipeline). The aggregators pull raw signal data; project_enricher.py turns
+# each repo / paper / competition into a project-shaped artifact with
+# resume bullets; project_dedupe.py decides per pair whether the enriched
+# project is the same as something the user already has typed in.
+# ---------------------------------------------------------------------------
+
+class EnrichedProject(BaseModel):
+    """One source-derived project with resume-ready content.
+
+    `source` is one of {"github", "scholar", "kaggle"}; `source_id` is the
+    aggregator's stable identifier for the item (repo full_name, paper
+    citation_id, competition slug). `source_url` is the canonical web URL.
+    """
+    name: str = ""
+    summary: str = ""
+    tech_stack: List[str] = Field(default_factory=list)
+    bullets: List[str] = Field(default_factory=list)
+    source: str = ""
+    source_id: str = ""
+    source_url: str = ""
+
+    @model_validator(mode='before')
+    @classmethod
+    def normalize(cls, values):
+        # Allow LLM to return tech_stack as a comma-separated string
+        ts = values.get('tech_stack', [])
+        if isinstance(ts, str):
+            values['tech_stack'] = [t.strip() for t in ts.split(',') if t.strip()]
+        # Allow bullets as newline-separated string too
+        b = values.get('bullets', [])
+        if isinstance(b, str):
+            values['bullets'] = [line.strip() for line in b.split('\n') if line.strip()]
+        return values
+
+
+class EnrichedProjectBatch(BaseModel):
+    """LLM output schema for batch enrichment of multiple repos at once."""
+    projects: List[EnrichedProject] = Field(default_factory=list)
+
+
+class DedupeDecision(BaseModel):
+    """One per-pair dedupe verdict from the LLM.
+
+    `enriched_index` is the index into the enriched-projects list; `typed_index`
+    is the index into the user's typed projects (matched_skills if action is
+    not "add_new"). When `action == "add_new"`, typed_index is -1.
+
+    `action`:
+      - "merge": the two represent the same project; keep both signals
+        (we'll union tech stacks + concatenate bullets, prefer typed name).
+      - "keep_existing": same project; keep the typed version, drop enriched.
+      - "keep_new": same project; replace typed with enriched.
+      - "add_new": enriched has no typed counterpart; add it as a new project.
+
+    `confidence` is the LLM's stated confidence in the verdict (0–1).
+    """
+    enriched_index: int = -1
+    typed_index: int = -1
+    action: str = "add_new"
+    confidence: float = 0.0
+    reason: str = ""
+
+
+class DedupeBatch(BaseModel):
+    """LLM output schema for batched dedupe across all (typed, enriched) pairs."""
+    decisions: List[DedupeDecision] = Field(default_factory=list)

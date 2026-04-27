@@ -847,3 +847,50 @@ def refresh_kaggle_signals(request):
         input_field='kaggle_input',
         fetcher=fetch_kaggle_snapshot,
     )
+
+
+@login_required
+def enrich_from_signals_view(request):
+    """Run project enrichment + dedupe over the user's stored signal blobs.
+
+    POST: returns JSON with three lists:
+      - `enriched`: every project derived from GitHub/Scholar/Kaggle
+      - `decisions`: per-pair dedupe verdicts (action + confidence + reason)
+      - `typed`: the user's existing typed projects (for the review UI)
+
+    Phase 1 is JSON-only — no UI yet. The endpoint runs the LLM calls and
+    caches enrichment results, but does NOT mutate `data_content['projects']`.
+    Phase 2's review UI will let the user accept/override the verdicts and
+    persist the final pool to `data_content['confirmed_projects']`.
+
+    Bypasses the enrichment cache when the request body has `force=1`.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST only'}, status=405)
+
+    from profiles.services.project_enricher import enrich_profile
+    from profiles.services.project_dedupe import dedupe_projects
+
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    force = bool(request.POST.get('force')) or request.GET.get('force') == '1'
+
+    # Run enrichment (cached unless force=True). Mutates profile.data_content
+    # in-memory but doesn't save — we save once after dedupe so the cache and
+    # decision history land in one transaction.
+    enriched = enrich_profile(profile, force=force)
+
+    typed_projects = (profile.data_content or {}).get('projects') or []
+    decisions = dedupe_projects(typed_projects, enriched)
+
+    # Persist the enrichment cache + the latest dedupe decisions so the
+    # Phase 2 review UI can pick up where this left off without re-running.
+    data = profile.data_content or {}
+    data['dedupe_decisions'] = decisions
+    profile.data_content = data
+    profile.save(update_fields=['data_content', 'updated_at'])
+
+    return JsonResponse({
+        'enriched': enriched,
+        'decisions': decisions,
+        'typed': typed_projects,
+    })

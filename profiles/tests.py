@@ -1396,3 +1396,292 @@ class ComputeYearsOfExperienceTests(SimpleTestCase):
         self.assertEqual(
             self._yoe([{'start_date': '', 'end_date': 'Dec 2022'}]), 0,
         )
+
+
+# ============================================================
+# Project enrichment + dedupe (Phase 1)
+# ============================================================
+
+class ProjectEnricherTests(TestCase):
+    """The enricher transforms GitHub/Scholar/Kaggle signal blobs into
+    project-shaped artifacts. We mock the LLM and assert the prompt
+    structure + cache + fallback behaviour, NOT the LLM's stylistic choices.
+    """
+
+    def setUp(self):
+        from profiles.models import UserProfile
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='enrich@example.com', email='enrich@example.com', password='x',
+        )
+        self.profile = UserProfile.objects.create(
+            user=self.user,
+            data_content={
+                'github_signals': {
+                    'username': 'octocat',
+                    'profile_url': 'https://github.com/octocat',
+                    'public_repos': 3,
+                    'total_stars': 50,
+                    'top_repos': [
+                        {
+                            'name': 'alpha', 'full_name': 'octocat/alpha',
+                            'description': 'A neat thing', 'html_url': 'https://github.com/octocat/alpha',
+                            'stargazers_count': 30, 'forks_count': 4, 'language': 'Python',
+                        },
+                    ],
+                    'language_breakdown': [{'language': 'Python', 'count': 1, 'share': 1.0}],
+                    'recent_commit_count': 5,
+                },
+                'scholar_signals': {
+                    'profile_url': 'https://scholar.google.com/citations?user=ABC',
+                    'top_publications': [{'title': 'Tabular Deep Learning Survey',
+                                          'venue': 'NeurIPS', 'year': '2024', 'citations': 12}],
+                },
+                'kaggle_signals': {
+                    'profile_url': 'https://www.kaggle.com/octocat',
+                    'overall_tier': 'Competitions Expert',
+                    'competitions': {'count': 12, 'tier': 'Expert',
+                                     'medals': {'gold': 0, 'silver': 3, 'bronze': 4}},
+                    'datasets': {'count': 0, 'tier': None,
+                                 'medals': {'gold': 0, 'silver': 0, 'bronze': 0}},
+                    'notebooks': {'count': 5, 'tier': 'Contributor',
+                                  'medals': {'gold': 0, 'silver': 0, 'bronze': 1}},
+                    'discussion': {'count': 0, 'tier': None,
+                                   'medals': {'gold': 0, 'silver': 0, 'bronze': 0}},
+                },
+            },
+        )
+
+    def test_fallback_used_when_llm_unavailable(self):
+        """When the LLM raises, the deterministic fallback fires per source
+        and produces grounded entries straight from the API payload."""
+        from profiles.services import project_enricher
+
+        with patch.object(project_enricher, 'get_structured_llm') as mock_llm:
+            mock_llm.return_value.invoke.side_effect = RuntimeError('boom')
+            out = project_enricher.enrich_profile(self.profile, force=True)
+
+        # 1 GitHub repo + 1 Scholar publication + 2 Kaggle categories with activity
+        self.assertEqual(len(out), 4)
+        sources = [p['source'] for p in out]
+        self.assertEqual(sources.count('github'), 1)
+        self.assertEqual(sources.count('scholar'), 1)
+        self.assertEqual(sources.count('kaggle'), 2)
+        # GitHub fallback grounds claims in the actual API payload
+        gh = next(p for p in out if p['source'] == 'github')
+        self.assertEqual(gh['name'], 'alpha')
+        self.assertEqual(gh['source_url'], 'https://github.com/octocat/alpha')
+        self.assertIn('Python', gh['tech_stack'])
+        # Should mention 30 stars (from the payload), nothing fabricated
+        joined = ' '.join(gh['bullets']).lower()
+        self.assertIn('30 stars', joined)
+        # Scholar fallback uses the title verbatim
+        sc = next(p for p in out if p['source'] == 'scholar')
+        self.assertEqual(sc['name'], 'Tabular Deep Learning Survey')
+        self.assertIn('NeurIPS', sc['summary'])
+        # Kaggle fallback excludes the empty datasets/discussion categories
+        kaggle_names = [p['name'] for p in out if p['source'] == 'kaggle']
+        self.assertIn('Kaggle Competitions', kaggle_names)
+        self.assertIn('Kaggle Notebooks', kaggle_names)
+        self.assertNotIn('Kaggle Datasets', kaggle_names)
+
+    def test_cache_hit_skips_llm_when_inputs_unchanged(self):
+        """A second call with identical inputs reads the cached output and
+        does NOT invoke the LLM."""
+        from profiles.services import project_enricher
+
+        # Prime the cache via the fallback path (LLM forced to error).
+        with patch.object(project_enricher, 'get_structured_llm') as mock_llm:
+            mock_llm.return_value.invoke.side_effect = RuntimeError('boom')
+            first = project_enricher.enrich_profile(self.profile, force=True)
+            # Save so the cache survives DB reload.
+            self.profile.save()
+
+        # Second call: LLM should NEVER be reached because the hash is unchanged.
+        with patch.object(project_enricher, 'get_structured_llm') as mock_llm:
+            mock_llm.return_value.invoke.side_effect = AssertionError('LLM must not be called')
+            second = project_enricher.enrich_profile(self.profile, force=False)
+
+        self.assertEqual(first, second)
+
+    def test_force_bypasses_cache(self):
+        """force=True invalidates the cache even when inputs are unchanged."""
+        from profiles.services import project_enricher
+
+        # Prime the cache.
+        with patch.object(project_enricher, 'get_structured_llm') as mock_llm:
+            mock_llm.return_value.invoke.side_effect = RuntimeError('boom')
+            project_enricher.enrich_profile(self.profile, force=True)
+
+        # force=True must call the LLM/fallback again.
+        with patch.object(project_enricher, 'get_structured_llm') as mock_llm:
+            mock_llm.return_value.invoke.side_effect = RuntimeError('boom')
+            project_enricher.enrich_profile(self.profile, force=True)
+            # Each source ran its own try → 3 attempts total
+            self.assertGreaterEqual(mock_llm.call_count, 3)
+
+    def test_empty_signals_produce_empty_output(self):
+        from profiles.services import project_enricher
+        self.profile.data_content = {}
+        out = project_enricher.enrich_profile(self.profile, force=True)
+        self.assertEqual(out, [])
+
+
+class ProjectDedupeTests(TestCase):
+    """Dedupe matches enriched projects against typed projects via one
+    batched LLM call. We test the schema, the fallback, and apply_decisions
+    correctness — not the LLM's exact verdict."""
+
+    def setUp(self):
+        self.typed = [
+            {'name': 'pgbench-tuner', 'url': 'https://github.com/me/pgbench-tuner',
+             'description': ['Tunes pg.'], 'technologies': ['Python']},
+            {'name': 'My Resume Site', 'url': 'https://me.dev',
+             'description': [], 'technologies': []},
+        ]
+        self.enriched = [
+            # Same as typed[0] by URL — dedupe should match
+            {'name': 'pgbench-tuner', 'source': 'github',
+             'source_url': 'https://github.com/me/pgbench-tuner',
+             'summary': 'Auto-tuner.', 'tech_stack': ['PostgreSQL'],
+             'bullets': ['Built tuner; 50 stars on GitHub.']},
+            # Brand new
+            {'name': 'climate-modeling', 'source': 'scholar',
+             'source_url': 'https://scholar.google.com/citations?user=X',
+             'summary': 'Paper.', 'tech_stack': [],
+             'bullets': ['Cited 12 times in NeurIPS 2024.']},
+        ]
+
+    def test_url_match_fallback_when_llm_fails(self):
+        from profiles.services import project_dedupe
+        with patch.object(project_dedupe, 'get_structured_llm') as mock_llm:
+            mock_llm.return_value.invoke.side_effect = RuntimeError('boom')
+            decisions = project_dedupe.dedupe_projects(self.typed, self.enriched)
+        # Both enriched projects must have a decision.
+        self.assertEqual(len(decisions), 2)
+        # Enriched[0] matches typed[0] by URL → merge
+        self.assertEqual(decisions[0]['enriched_index'], 0)
+        self.assertEqual(decisions[0]['typed_index'], 0)
+        self.assertEqual(decisions[0]['action'], 'merge')
+        # Enriched[1] has no URL match → add_new
+        self.assertEqual(decisions[1]['enriched_index'], 1)
+        self.assertEqual(decisions[1]['typed_index'], -1)
+        self.assertEqual(decisions[1]['action'], 'add_new')
+
+    def test_no_typed_projects_means_all_add_new(self):
+        from profiles.services import project_dedupe
+        decisions = project_dedupe.dedupe_projects([], self.enriched)
+        self.assertEqual(len(decisions), 2)
+        for d in decisions:
+            self.assertEqual(d['action'], 'add_new')
+            self.assertEqual(d['typed_index'], -1)
+
+    def test_apply_decisions_merge_unions_tech_and_concats_bullets(self):
+        from profiles.services.project_dedupe import apply_decisions
+        decisions = [{
+            'enriched_index': 0, 'typed_index': 0, 'action': 'merge',
+            'confidence': 0.95, 'reason': 'URL match.',
+        }, {
+            'enriched_index': 1, 'typed_index': -1, 'action': 'add_new',
+            'confidence': 1.0, 'reason': 'No match.',
+        }]
+        result = apply_decisions(self.typed, self.enriched, decisions)
+        # Original 2 typed + 1 added new = 3 projects (the merge keeps the
+        # typed slot in place rather than appending).
+        self.assertEqual(len(result), 3)
+        merged = result[0]
+        self.assertEqual(merged['name'], 'pgbench-tuner')          # typed name preserved
+        self.assertIn('Python', merged['technologies'])             # typed tech preserved
+        self.assertIn('PostgreSQL', merged['technologies'])         # enriched tech added
+        self.assertIn('Tunes pg.', merged['description'])           # typed bullet preserved
+        self.assertIn('Built tuner; 50 stars on GitHub.', merged['description'])  # enriched bullet added
+        # add_new tail entry
+        added = result[2]
+        self.assertEqual(added['name'], 'climate-modeling')
+        self.assertEqual(added['source'], 'scholar')
+
+    def test_apply_decisions_keep_existing_drops_enriched(self):
+        from profiles.services.project_dedupe import apply_decisions
+        decisions = [{
+            'enriched_index': 0, 'typed_index': 0, 'action': 'keep_existing',
+            'confidence': 0.9, 'reason': 'Typed is more accurate.',
+        }, {
+            'enriched_index': 1, 'typed_index': -1, 'action': 'add_new',
+            'confidence': 1.0, 'reason': 'No match.',
+        }]
+        result = apply_decisions(self.typed, self.enriched, decisions)
+        # 2 typed + 1 added; the merge slot stays as-is (no tech merged in).
+        self.assertEqual(len(result), 3)
+        self.assertEqual(result[0]['technologies'], ['Python'])
+
+    def test_apply_decisions_user_override_replaces_llm_verdict(self):
+        from profiles.services.project_dedupe import apply_decisions
+        # LLM said merge; user overrides to keep_new (drop typed, take enriched).
+        decisions = [{
+            'enriched_index': 0, 'typed_index': 0, 'action': 'merge',
+            'confidence': 0.95, 'reason': 'URL match.',
+        }]
+        overrides = {0: 'keep_new'}
+        result = apply_decisions(self.typed, self.enriched[:1], decisions, overrides=overrides)
+        # typed[0] dropped, typed[1] preserved, enriched[0] appended.
+        names = [p['name'] for p in result]
+        self.assertEqual(names, ['My Resume Site', 'pgbench-tuner'])
+
+
+class EnrichFromSignalsViewTests(TestCase):
+    """The enrich-from-signals JSON endpoint orchestrates enricher + dedupe
+    and returns the three lists for the (future) review UI."""
+
+    def setUp(self):
+        from profiles.models import UserProfile
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='endpoint@example.com', email='endpoint@example.com', password='x',
+        )
+        UserProfile.objects.create(
+            user=self.user,
+            data_content={
+                'projects': [
+                    {'name': 'alpha-tuner', 'url': 'https://github.com/me/alpha-tuner',
+                     'description': ['Original.']}],
+                'github_signals': {
+                    'profile_url': 'https://github.com/me',
+                    'top_repos': [{'name': 'alpha-tuner', 'full_name': 'me/alpha-tuner',
+                                   'description': 'A tuner.', 'html_url': 'https://github.com/me/alpha-tuner',
+                                   'stargazers_count': 12, 'forks_count': 1, 'language': 'Python'}],
+                    'language_breakdown': [{'language': 'Python', 'count': 1, 'share': 1.0}],
+                    'recent_commit_count': 3,
+                },
+            },
+        )
+        self.client.force_login(self.user)
+
+    def test_endpoint_returns_three_lists(self):
+        from profiles.services import project_enricher, project_dedupe
+        with patch.object(project_enricher, 'get_structured_llm') as mock_llm_a, \
+             patch.object(project_dedupe, 'get_structured_llm') as mock_llm_b:
+            mock_llm_a.return_value.invoke.side_effect = RuntimeError('boom')
+            mock_llm_b.return_value.invoke.side_effect = RuntimeError('boom')
+            resp = self.client.post('/profiles/api/projects/enrich-from-signals/')
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        self.assertIn('enriched', body)
+        self.assertIn('decisions', body)
+        self.assertIn('typed', body)
+        # The single GitHub repo enriches into one project; dedupe sees one
+        # typed counterpart and matches via URL fallback.
+        self.assertEqual(len(body['enriched']), 1)
+        self.assertEqual(len(body['decisions']), 1)
+        self.assertEqual(body['decisions'][0]['action'], 'merge')
+
+    def test_endpoint_rejects_get(self):
+        resp = self.client.get('/profiles/api/projects/enrich-from-signals/')
+        self.assertEqual(resp.status_code, 405)
+
+    def test_endpoint_requires_login(self):
+        self.client.logout()
+        resp = self.client.post('/profiles/api/projects/enrich-from-signals/')
+        # The login_required decorator redirects unauthenticated callers.
+        self.assertIn(resp.status_code, (302, 401, 403))
