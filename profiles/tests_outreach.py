@@ -20,8 +20,11 @@ from django.utils import timezone
 from jobs.models import Job
 from profiles.models import OutreachAction, OutreachCampaign, UserProfile
 from profiles.services.outreach_dispatcher import (
+    MAX_ATTEMPTS,
+    STALE_INFLIGHT_AFTER,
     claim_next_action,
     invites_sent_today,
+    reclaim_stale_inflight,
     record_action_result,
 )
 
@@ -122,6 +125,116 @@ class DispatcherTests(TestCase):
         )
         with self.assertRaises(ValueError):
             record_action_result(action, 'whatever')
+
+
+class StaleInflightRecoveryTests(TestCase):
+    """A crashed extension can leave actions in `in_flight` indefinitely.
+    `claim_next_action` only ever pulls `status='queued'`, so without the
+    stale-recovery sweep the queue stalls. These tests pin the recovery
+    behavior so it can't regress silently.
+    """
+
+    def test_stale_inflight_under_max_attempts_returns_to_queued(self):
+        user = _make_user()
+        job = _make_job(user)
+        campaign = _make_campaign(user, job)
+        action = OutreachAction.objects.create(
+            campaign=campaign, target_handle='jane', kind='connect', payload='hi',
+            status='in_flight', attempts=1,
+        )
+        # Force queued_at well past the staleness cutoff
+        OutreachAction.objects.filter(pk=action.pk).update(
+            queued_at=timezone.now() - STALE_INFLIGHT_AFTER - timedelta(minutes=1),
+        )
+        n = reclaim_stale_inflight(user)
+        self.assertEqual(n, 1)
+        action.refresh_from_db()
+        self.assertEqual(action.status, 'queued')
+        # Attempts is preserved — the cap should apply over the action's
+        # lifetime, not reset on every reclaim.
+        self.assertEqual(action.attempts, 1)
+        self.assertIsNone(action.completed_at)
+
+    def test_stale_inflight_at_max_attempts_marked_failed(self):
+        """An action that has already burned all its attempts shouldn't
+        loop queued -> in_flight -> stale -> queued forever. Move it to
+        terminal `failed` so the campaign can finish."""
+        user = _make_user()
+        job = _make_job(user)
+        campaign = _make_campaign(user, job)
+        action = OutreachAction.objects.create(
+            campaign=campaign, target_handle='jane', kind='connect', payload='hi',
+            status='in_flight', attempts=MAX_ATTEMPTS,
+        )
+        OutreachAction.objects.filter(pk=action.pk).update(
+            queued_at=timezone.now() - STALE_INFLIGHT_AFTER - timedelta(minutes=1),
+        )
+        n = reclaim_stale_inflight(user)
+        self.assertEqual(n, 1)
+        action.refresh_from_db()
+        self.assertEqual(action.status, 'failed')
+        self.assertIsNotNone(action.completed_at)
+        self.assertIn('stale_inflight', action.last_error)
+
+    def test_recent_inflight_is_not_reclaimed(self):
+        """An action in_flight for less than the staleness window is
+        legitimately mid-send (extension polling at 90s ± 20s, individual
+        action takes ~8-15s) and must NOT be reclaimed."""
+        user = _make_user()
+        job = _make_job(user)
+        campaign = _make_campaign(user, job)
+        action = OutreachAction.objects.create(
+            campaign=campaign, target_handle='jane', kind='connect', payload='hi',
+            status='in_flight', attempts=1,
+        )
+        # queued_at just 1 minute ago (well within the 10-min window)
+        OutreachAction.objects.filter(pk=action.pk).update(
+            queued_at=timezone.now() - timedelta(minutes=1),
+        )
+        self.assertEqual(reclaim_stale_inflight(user), 0)
+        action.refresh_from_db()
+        self.assertEqual(action.status, 'in_flight')
+
+    def test_claim_next_action_recovers_stale_then_dispatches(self):
+        """End-to-end: an extension crashed mid-action; the next poll comes
+        in. claim_next_action sweeps the stale `in_flight` back to queued,
+        then dispatches it (returns the same action with status flipped
+        back to in_flight and attempts incremented)."""
+        user = _make_user()
+        job = _make_job(user)
+        campaign = _make_campaign(user, job)
+        action = OutreachAction.objects.create(
+            campaign=campaign, target_handle='jane', kind='connect', payload='hi',
+            status='in_flight', attempts=1,
+        )
+        OutreachAction.objects.filter(pk=action.pk).update(
+            queued_at=timezone.now() - STALE_INFLIGHT_AFTER - timedelta(minutes=1),
+        )
+        claimed = claim_next_action(user)
+        self.assertIsNotNone(claimed)
+        self.assertEqual(claimed.id, action.id)
+        self.assertEqual(claimed.status, 'in_flight')
+        # attempts went 1 (original) -> 1 (preserved during reclaim) -> 2 (claim bump)
+        self.assertEqual(claimed.attempts, 2)
+
+    def test_inflight_in_other_users_campaign_is_not_touched(self):
+        """The recovery sweep is per-user. One user's stuck queue must not
+        affect another user's actions."""
+        user_a = _make_user(email='a@example.com')
+        user_b = _make_user(email='b@example.com')
+        job_b = _make_job(user_b)
+        campaign_b = _make_campaign(user_b, job_b)
+        action_b = OutreachAction.objects.create(
+            campaign=campaign_b, target_handle='jane', kind='connect', payload='hi',
+            status='in_flight', attempts=1,
+        )
+        OutreachAction.objects.filter(pk=action_b.pk).update(
+            queued_at=timezone.now() - STALE_INFLIGHT_AFTER - timedelta(minutes=1),
+        )
+        # User A polls; should not touch user B's stale action.
+        self.assertEqual(reclaim_stale_inflight(user_a), 0)
+        action_b.refresh_from_db()
+        self.assertEqual(action_b.status, 'in_flight')
 
 
 class PeopleFinderTests(TestCase):
