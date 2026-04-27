@@ -374,7 +374,12 @@ This is the difference between a tailored resume and a hallucinated one. Restruc
 - Total resume should fit one page for candidates with <5 years experience, maximum two pages otherwise.
 
 === REWRITE & STRUCTURING ===
-1. PROFESSIONAL SUMMARY: Replace objective statement with a professional summary written in third person (no "I" statements). Reflect ONLY experience already present in the resume. Lead with role/years, one strength, one domain.
+1. PROFESSIONAL SUMMARY:
+   - Use NEUTRAL, DIRECT voice. No "I" / "my" pronouns. NO third-person references to the candidate by name (NEVER write "Zeyad has built..." or "Sara is a...") — referring to oneself by name in one's own resume reads as ghost-written and unprofessional.
+   - Lead with the role and what the candidate does, not how long they've done it.
+   - YoE / TENURE CLAIMS: Never invent or estimate years of experience. Only state YoE when the source CV's experience entries support it via real start_date / end_date dates that span at least 12 months total. If the candidate's only experience is an internship or a recent role under a year, do NOT use phrases like "X+ years experience", "early-career", "less than N years experience", or any framing that implies a duration. Just describe what they do and one concrete proof point. Example for a fresh-out-of-school candidate with one short role: "AI & Tooling Engineer focused on data pipelines in Microsoft Fabric, with hands-on PySpark and Python work across automation and ERP integration." NOT "early-career engineer with less than 2 years of experience".
+   - 2-3 sentences, 40-60 words max. No fluff.
+   - Reflect ONLY experience already present in the resume + corroborated signals.
 2. SKILLS SECTION: Remove ALL soft skills. Keep ONLY hard/technical skills explicitly listed.
 3. EXPERIENCE BULLETS: Start each bullet with a strong action verb. Use STAR structure where possible (Situation/Task → Action → Result).
 4. MOST RECENT EXPERIENCE FIRST: Within each section, order entries newest first.
@@ -468,9 +473,17 @@ def regenerate_section(profile, job, gap_analysis, current_content: dict, sectio
 
     instruction_for = {
         'professional_summary': (
-            "Rewrite ONLY the professional summary. 2-3 sentences, third person, "
-            "lead with role/years and one concrete proof point taken from the CV "
-            "or the evidence blocks. No banned phrases, no inside-out openers."
+            "Rewrite ONLY the professional summary. 2-3 sentences, 40-60 words. "
+            "NEUTRAL voice (no 'I' / 'my'). NEVER refer to the candidate by their "
+            "first or last name (writing 'Zeyad has built...' in your own resume "
+            "reads as ghost-written). NEVER invent or estimate years of experience: "
+            "only state YoE if the CV's experience entries actually span 12+ months "
+            "via real start_date / end_date values. If the candidate has only an "
+            "internship or a sub-1-year role, lead with the role and one concrete "
+            "proof point — do NOT use phrases like 'X+ years experience', "
+            "'early-career', or 'less than N years experience'. Pull the proof "
+            "point from the CV or one of the evidence blocks (GitHub, Scholar, "
+            "Kaggle). No banned phrases, no inside-out openers."
         ),
         'skills': (
             "Rewrite ONLY the skills list. 8-15 items, hard/technical only, "

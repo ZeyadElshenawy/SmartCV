@@ -743,6 +743,63 @@ class RegenerateSectionEndpointTests(TestCase):
             )
         self.assertEqual(resp.status_code, 502)
 
+    def test_regen_refuses_to_save_empty_summary(self):
+        """A silent LLM failure that returns an empty string must NOT
+        overwrite the saved summary. 422 + clear detail message."""
+        from unittest.mock import patch
+        original = self.resume.content.get('professional_summary')
+        with patch('resumes.views.regenerate_section', return_value=''):
+            resp = self.client.post(
+                self._url('professional_summary'),
+                data='{}',
+                content_type='application/json',
+            )
+        self.assertEqual(resp.status_code, 422)
+        body = resp.json()
+        self.assertEqual(body['error'], 'empty_regeneration')
+        self.assertIn('unchanged', body['detail'].lower())
+        # Saved content is preserved
+        self.resume.refresh_from_db()
+        self.assertEqual(self.resume.content.get('professional_summary'), original)
+
+    def test_regen_refuses_to_save_empty_skills_list(self):
+        from unittest.mock import patch
+        with patch('resumes.views.regenerate_section', return_value=[]):
+            resp = self.client.post(
+                self._url('skills'),
+                data='{}',
+                content_type='application/json',
+            )
+        self.assertEqual(resp.status_code, 422)
+        self.assertEqual(resp.json()['error'], 'empty_regeneration')
+
+    def test_regen_refuses_to_save_experience_without_bullets(self):
+        """A list of experience entries with empty descriptions is just as
+        bad as an empty list — the user would see "regenerated" rows with
+        nothing in them. Refuse + return 422."""
+        from unittest.mock import patch
+        useless = [{'title': 'Engineer', 'company': 'Co', 'duration': '2024',
+                    'description': []}]
+        with patch('resumes.views.regenerate_section', return_value=useless):
+            resp = self.client.post(
+                self._url('experience'),
+                data='{}',
+                content_type='application/json',
+            )
+        self.assertEqual(resp.status_code, 422)
+        self.assertEqual(resp.json()['error'], 'empty_regeneration')
+
+    def test_regen_refuses_to_save_projects_without_bullets(self):
+        from unittest.mock import patch
+        useless = [{'name': 'demo', 'url': '', 'description': []}]
+        with patch('resumes.views.regenerate_section', return_value=useless):
+            resp = self.client.post(
+                self._url('projects'),
+                data='{}',
+                content_type='application/json',
+            )
+        self.assertEqual(resp.status_code, 422)
+
 
 class ResumeListThumbnailTests(TestCase):
     """Each card on the résumé list page now renders a thumbnail preview of
