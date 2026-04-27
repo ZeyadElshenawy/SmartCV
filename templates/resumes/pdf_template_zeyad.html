@@ -147,7 +147,12 @@
                 <td class="header-right">
                     {% if profile.email %}<div>{{ profile.email }}</div>{% endif %}
                     {% if profile.phone %}<div>{{ profile.phone }}</div>{% endif %}
-                    {% if profile.linkedin_url %}<div>{{ profile.linkedin_url }}</div>{% endif %}
+                    {% if profile.linkedin_url %}<div><a href="{{ profile.linkedin_url }}">{{ profile.linkedin_url|cut:"https://"|cut:"http://"|cut:"www." }}</a></div>{% endif %}
+                    {% if profile.github_url %}<div><a href="{{ profile.github_url }}">{{ profile.github_url|cut:"https://"|cut:"http://"|cut:"www." }}</a></div>{% endif %}
+                    {% if profile.portfolio_url %}<div><a href="{{ profile.portfolio_url }}">{{ profile.portfolio_url|cut:"https://"|cut:"http://"|cut:"www." }}</a></div>{% endif %}
+                    {% if profile.kaggle_url %}<div><a href="{{ profile.kaggle_url }}">{{ profile.kaggle_url|cut:"https://"|cut:"http://"|cut:"www." }}</a></div>{% endif %}
+                    {% if profile.scholar_url %}<div><a href="{{ profile.scholar_url }}">{{ profile.scholar_url|cut:"https://"|cut:"http://"|cut:"www." }}</a></div>{% endif %}
+                    {% for u in profile.other_urls %}<div><a href="{{ u }}">{{ u|cut:"https://"|cut:"http://"|cut:"www." }}</a></div>{% endfor %}
                     {% if profile.location %}<div>{{ profile.location }}</div>{% endif %}
                 </td>
             </tr>

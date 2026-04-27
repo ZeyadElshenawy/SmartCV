@@ -615,7 +615,24 @@
 
                 <div id="live-preview" class="pdf-preview pdf-preview--{{ resume.content.template_name|default:'standard' }}">
                     <div class="p-header">
+                        {% if profile %}
+                        <div class="p-name">{{ profile.full_name|default:"Your Name" }}</div>
+                        {% endif %}
                         <div id="preview-title" class="p-professional-title">{{ resume.content.professional_title }}</div>
+                        {% if profile %}
+                        {# Mirror of the PDF templates' contact line so the preview matches the export. #}
+                        <div class="p-contact" style="font-size: 8pt; color: #475569; margin-top: 3px;">
+                            {% if profile.email %}{{ profile.email }}{% endif %}
+                            {% if profile.phone %} &middot; {{ profile.phone }}{% endif %}
+                            {% if profile.location %} &middot; {{ profile.location }}{% endif %}
+                            {% if profile.linkedin_url %} &middot; <a href="{{ profile.linkedin_url }}" target="_blank">LinkedIn</a>{% endif %}
+                            {% if profile.github_url %} &middot; <a href="{{ profile.github_url }}" target="_blank">GitHub</a>{% endif %}
+                            {% if profile.portfolio_url %} &middot; <a href="{{ profile.portfolio_url }}" target="_blank">Portfolio</a>{% endif %}
+                            {% if profile.kaggle_url %} &middot; <a href="{{ profile.kaggle_url }}" target="_blank">Kaggle</a>{% endif %}
+                            {% if profile.scholar_url %} &middot; <a href="{{ profile.scholar_url }}" target="_blank">Scholar</a>{% endif %}
+                            {% for u in profile.other_urls %} &middot; <a href="{{ u }}" target="_blank">{{ u|cut:"https://"|cut:"http://"|cut:"www."|truncatechars:24 }}</a>{% endfor %}
+                        </div>
+                        {% endif %}
                     </div>
 
                     <div class="p-section">
