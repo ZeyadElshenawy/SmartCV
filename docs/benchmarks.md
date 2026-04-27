@@ -218,8 +218,8 @@ folder under `benchmarks/results/`.
 
 # SmartCV Benchmark Run
 
-- **Run date:** 2026-04-27T02:25:00Z
-- **Wall time:** 265.54s
+- **Run date:** 2026-04-27T22:00:00Z
+- **Wall time:** 350.53s
 - **Platform:** Windows 11 / Python 3.13.9
 - **Phases:** ats_eval, latency_runner, parser_eval, skill_extractor_eval, gap_eval, tailoring_eval
 
@@ -229,26 +229,26 @@ folder under `benchmarks/results/`.
 | --- | --- | --- | --- |
 | ATS scoring deterministic (sigma=0) | **True** | 10 runs x 3 fixtures | benchmarks/ats_eval.py |
 | ATS matched-vs-mismatched separation | matched **100.0** vs mismatched **11.0** (Cohen's d = **6.267**) | 3 matched, 6 mismatched | benchmarks/ats_eval.py |
-| Endpoint warm p95 (max across routes) | **12.88 ms** | 5 routes x 100 req | benchmarks/latency_runner.py |
+| Endpoint warm p95 (max across routes) | **14.77 ms** | 5 routes x 100 req | benchmarks/latency_runner.py |
 | CV parser personal-info accuracy | **0.942** | 10 CVs | benchmarks/parser_eval.py |
 | CV parser skills F1 (CVs with explicit skills section) | **0.429** (Jaccard 0.303) | 5/10 CVs | benchmarks/parser_eval.py |
 | CV parser skills F1 (all CVs, incl. those without a skills section) | 0.296 (Jaccard 0.197) | 10 CVs | benchmarks/parser_eval.py |
-| Skill extractor F1 | **0.916** (P=0.943, R=0.894, halluc=0.057) | 5 JDs x 3 runs | benchmarks/skill_extractor_eval.py |
+| Skill extractor F1 | **0.915** (P=0.943, R=0.892, halluc=0.057) | 5 JDs x 3 runs | benchmarks/skill_extractor_eval.py |
 | Gap analyzer coverage (Phase 2 reconciliation) | **0.997** (47/50 pairs at 100%) | 50 (CV,JD) pairs | benchmarks/gap_eval.py |
 | Gap analyzer separation (similarity score) | strong **0.465** / partial **0.3833** / weak **0.1412** (Cohen's d strong-vs-weak = **1.685**) | 50 pairs | benchmarks/gap_eval.py |
-| Tailored resume — judge axes (1-10) | factuality **3.7** / relevance **2.8** / ats_fit **3.3** / human_voice **1.9** | 10 pairs (strong) | benchmarks/tailoring_eval.py |
-| Tailored resume — programmatic entity grounding | **1.0** of generated entities appear verbatim in source CV | 10 pairs | benchmarks/tailoring_eval.py |
+| Tailored resume — judge axes (1-10) | factuality **6.3** / relevance **6.9** / ats_fit **6.8** / human_voice **4.7** | 10 pairs (strong) | benchmarks/tailoring_eval.py |
+| Tailored resume — programmatic entity grounding | **0.875** of generated entities appear verbatim in source CV | 10 pairs | benchmarks/tailoring_eval.py |
 
 ## Phase Wall Times
 
 | Phase | Wall (s) | OK |
 | --- | --- | --- |
 | ats_eval | 0 | yes |
-| latency_runner | 19.73 | yes |
-| parser_eval | 1.71 | yes |
-| skill_extractor_eval | 19.46 | yes |
+| latency_runner | 19.41 | yes |
+| parser_eval | 1.76 | yes |
+| skill_extractor_eval | 17.89 | yes |
 | gap_eval | 188.63 | yes |
-| tailoring_eval | 36.01 | yes |
+| tailoring_eval | 122.84 | yes |
 
 ## Disclosure
 
