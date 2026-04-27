@@ -61,6 +61,14 @@
                 </section>
 
                 <div class="mt-5 flex flex-col sm:flex-row gap-2">
+                    {# mailto: opens the user's default email client with the script prefilled.
+                       Body comes through `{{ script|urlencode }}` so newlines + spaces survive.
+                       Subject names the role + company so the user doesn't have to type it. #}
+                    <a href="mailto:?subject={{ 'Compensation discussion — '|add:job.title|add:' at '|add:job.company|urlencode }}&body={{ script|urlencode }}"
+                       class="inline-flex items-center justify-center gap-2 h-11 px-5 text-sm font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                        Open in email client
+                    </a>
                     <a href="{% url 'job_detail' job.id %}" class="inline-flex items-center justify-center h-11 px-5 text-sm font-medium rounded-lg ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-700 dark:text-neutral-200 bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">Back to job</a>
                     <a href="{% url 'dashboard' %}" class="inline-flex items-center justify-center h-11 px-5 text-sm font-medium rounded-lg ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-700 dark:text-neutral-200 bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">Dashboard</a>
                 </div>

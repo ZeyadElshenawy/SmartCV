@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, FileResponse, Http404, JsonResponse
+from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 from jobs.models import Job
 from profiles.models import UserProfile
@@ -557,6 +558,30 @@ def regenerate_section_view(request, resume_id, section):
     return JsonResponse({'section': section, 'value': new_value})
 
 
+def _render_export_error(request, resume_id, *, format: str, alt_format: str, error: Exception):
+    """Render the friendly export-error page with retry / alt-format / back links.
+
+    The previous behavior was a `HttpResponse('… failed. Please try again.', 500)` —
+    a blank tab with plaintext. Real export failures (xhtml2pdf rendering edge
+    cases, DOCX runtime issues) are usually transient, so giving the user a
+    one-click retry plus a fallback-format link recovers them without a
+    support ticket.
+    """
+    return render(
+        request,
+        'resumes/export_error.html',
+        {
+            'format': format,
+            'alt_format': alt_format,
+            'retry_url': reverse(f'export_{format}', args=[resume_id]),
+            'alt_url': reverse(f'export_{alt_format}', args=[resume_id]),
+            'back_url': reverse('resume_preview', args=[resume_id]),
+            'error_detail': f"{error.__class__.__name__}: {error}" if request.user.is_staff else '',
+        },
+        status=500,
+    )
+
+
 @login_required
 def export_docx_view(request, resume_id):
     """Export resume as a DOCX file.
@@ -571,9 +596,9 @@ def export_docx_view(request, resume_id):
     try:
         buf = generate_docx(resume)
         data = buf.getvalue()
-    except Exception:
+    except Exception as exc:
         logger.exception("DOCX export failed for resume %s", resume_id)
-        return HttpResponse("DOCX generation failed. Please try again.", status=500)
+        return _render_export_error(request, resume_id, format='docx', alt_format='pdf', error=exc)
     response = HttpResponse(
         data,
         content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -591,7 +616,7 @@ def export_pdf_view(request, resume_id):
     # Authorization check
     if resume.gap_analysis.job.user != request.user:
         raise Http404
-        
+
     _normalize_legacy_resume_content(resume)
 
     fd, output_path = tempfile.mkstemp(suffix='.pdf')
@@ -603,9 +628,15 @@ def export_pdf_view(request, resume_id):
         # Read into memory so we can delete the temp file safely
         with open(output_path, 'rb') as f:
             pdf_data = f.read()
-    except Exception as e:
+    except Exception as exc:
         logger.exception("PDF export failed for resume %s", resume_id)
-        return HttpResponse("PDF generation failed. Please try again.", status=500)
+        # Clean up the temp file before rendering the error page so we don't
+        # leak disk on the failure path either.
+        try:
+            os.unlink(output_path)
+        except OSError:
+            pass
+        return _render_export_error(request, resume_id, format='pdf', alt_format='docx', error=exc)
     finally:
         # Always clean up the temp file to avoid disk leaks
         try:

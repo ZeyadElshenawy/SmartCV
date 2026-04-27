@@ -56,7 +56,7 @@
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                     </button>
 
-                    <input id="cv_file_input" type="file" name="cv_file" accept=".pdf,.docx" required
+                    <input id="cv_file_input" type="file" name="cv_file" accept=".pdf,.docx,.doc,.txt" required
                            class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                            onchange="updateFileName(this)">
 
@@ -72,7 +72,7 @@
                         Drop your CV here
                     </h2>
                     <p id="upload_subtitle" class="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-                        PDF or DOCX · up to 5&nbsp;MB · or click to browse
+                        PDF, DOCX, or TXT · up to 10&nbsp;MB · or click to browse
                     </p>
                 </div>
 
@@ -101,7 +101,7 @@
 <script>
 const DROPZONE_IDLE_CLASSES = ['border-neutral-300', 'dark:border-neutral-700', 'bg-neutral-50/60', 'dark:bg-neutral-950/40'];
 const DROPZONE_READY_CLASSES = ['border-emerald-400', 'dark:border-emerald-600', 'bg-emerald-50/50', 'dark:bg-emerald-950/20'];
-const UPLOAD_SUBTITLE_IDLE = 'PDF or DOCX \u00b7 up to 5\u00a0MB \u00b7 or click to browse';
+const UPLOAD_SUBTITLE_IDLE = 'PDF, DOCX, or TXT \u00b7 up to 10\u00a0MB \u00b7 or click to browse';
 
 function clearFile(event) {
     event.preventDefault(); event.stopPropagation();
