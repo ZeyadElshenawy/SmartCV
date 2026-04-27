@@ -340,6 +340,11 @@ def resume_edit_view(request, resume_id):
                 if before != after:
                     resume.content = merged
                     resume.save()
+                    # Stash a one-shot flag in the session so the next render
+                    # of this resume's edit page can surface a banner. This
+                    # is the single signal the template uses to differentiate
+                    # "you opened a freshly-synced resume" from "no change."
+                    request.session[f'resume_synced_{resume.id}'] = True
                     logger.info(f"Auto-synced master fields into resume {resume.id}")
     except UserProfile.DoesNotExist:
         pass
@@ -401,12 +406,18 @@ def resume_edit_view(request, resume_id):
     # template to iterate than nesting a dict lookup inside a `{% for %}`.
     section_order_with_labels = [(k, section_labels.get(k, k.title())) for k in section_order]
 
+    # One-shot "we synced master fields into this resume" banner flag. Set
+    # by the auto-sync branch above; pop here so it shows exactly once per
+    # sync event.
+    sync_banner = request.session.pop(f'resume_synced_{resume.id}', False)
+
     return render(request, 'resumes/edit.html', {
         'resume': resume,
         'profile': profile,
         'template_choices': template_choices,
         'section_order': section_order,
         'section_order_with_labels': section_order_with_labels,
+        'sync_banner': sync_banner,
     })
 
 

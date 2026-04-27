@@ -18,8 +18,13 @@
                           style="font-variation-settings: 'opsz' 20;">Your agent</span>
                 </div>
                 <div class="mt-1 flex items-center gap-1.5">
-                    <span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span class="text-[11px] text-neutral-500 dark:text-neutral-400">Ready · knows your profile and pipeline</span>
+                    {% if profile_empty %}
+                        <span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                        <span class="text-[11px] text-neutral-500 dark:text-neutral-400">Ready · profile not set up yet</span>
+                    {% else %}
+                        <span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span class="text-[11px] text-neutral-500 dark:text-neutral-400">Ready · knows your profile and pipeline</span>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -34,6 +39,29 @@
         </button>
     </header>
 
+    {% if profile_empty %}
+    {# Zero-data banner: input stays enabled (disabled inputs feel broken),
+       but the user knows answers will be shallow until they set up the
+       profile. Banner is dismissible per session via Alpine state. #}
+    <div x-data="{show: true}" x-show="show" class="px-4 sm:px-6 pt-4">
+        <div class="rounded-xl bg-amber-50 dark:bg-amber-950/30 ring-1 ring-amber-200 dark:ring-amber-800/50 p-4 flex items-start gap-3">
+            <div class="shrink-0 w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 flex items-center justify-center">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div class="flex-1 text-sm text-neutral-800 dark:text-neutral-200">
+                <strong class="font-medium">This will be more useful once you set up your profile.</strong>
+                <span class="text-neutral-600 dark:text-neutral-300">Right now the agent has no résumé, no signals, and no jobs to ground its answers in. Setup takes about a minute.</span>
+                <a href="{% url 'upload_master_profile' %}" class="inline-flex items-center gap-1 mt-2 text-amber-800 dark:text-amber-300 font-medium hover:underline">
+                    Set up profile →
+                </a>
+            </div>
+            <button @click="show = false" type="button" aria-label="Dismiss" class="shrink-0 text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-200">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-5" x-ref="messages">
         {# First-time empty state: prompt seeds + a brief orient #}
         <template x-if="messages.length === 0 && !loading">
@@ -45,8 +73,12 @@
                         What's on your mind?
                     </h2>
                     <p class="text-sm text-neutral-500 dark:text-neutral-400 max-w-md mx-auto leading-relaxed">
-                        Your agent already knows your profile, signals, and applications.
-                        Keep it short and specific — it'll ask back if it needs more.
+                        {% if profile_empty %}
+                            Once you set up your profile, the agent grounds answers in your real experience, signals, and applications. Until then, it can answer general career questions.
+                        {% else %}
+                            Your agent already knows your profile, signals, and applications.
+                            Keep it short and specific — it'll ask back if it needs more.
+                        {% endif %}
                     </p>
                 </div>
 

@@ -24,6 +24,7 @@ urlpatterns = [
     path('setup/review/', views.review_master_profile, name='review_master_profile'),
     path('setup/connect/', views.connect_accounts_view, name='connect_accounts'),
     path('dashboard/', views.dashboard, name='dashboard'),
+    path('api/onboarding/dismiss/', views.dismiss_onboarding_banner_view, name='dismiss_onboarding_banner'),
 
     path('chatbot/<uuid:job_id>/', views.profile_chatbot, name='profile_chatbot'),
     path('chatbot/api/', views.chatbot_api, name='chatbot_api'),
