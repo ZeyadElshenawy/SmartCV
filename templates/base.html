@@ -186,17 +186,34 @@
         </div>
     </footer>
 <div id="loading-overlay" class="hidden fixed inset-0 bg-neutral-900/70 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
-        <div class="max-w-sm text-center space-y-6 px-6">
-            <div class="flex justify-center">
+        <div class="max-w-md w-full text-center space-y-6 px-6">
+            {# Idle hero — single-line legacy mode + headline for substep mode #}
+            <div class="flex justify-center" id="loading-pulse">
                 <div aria-hidden="true" class="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></div>
             </div>
             <h2 class="font-display text-3xl leading-tight text-white"
-                style="font-variation-settings: 'opsz' 48;">
+                style="font-variation-settings: 'opsz' 48;"
+                id="loading-title">
                 Working on it…
             </h2>
             <p class="text-sm text-neutral-300" id="loading-msg">Please wait.</p>
-            <div class="h-0.5 w-full bg-neutral-700 rounded-full overflow-hidden">
-                <div class="h-0.5 bg-brand-500 animate-pulse" style="width: 60%"></div>
+
+            {# Substep panel — hidden in legacy single-line mode. #}
+            <ol id="loading-steps" class="hidden text-left space-y-2.5 max-w-sm mx-auto"></ol>
+
+            {# Failure panel — hidden until fail() is called. #}
+            <div id="loading-failure" class="hidden space-y-3 max-w-sm mx-auto">
+                <p class="text-sm text-red-300" id="loading-fail-msg">Something went wrong.</p>
+                <div class="flex items-center justify-center gap-2">
+                    <button type="button" id="loading-retry"
+                            class="inline-flex items-center justify-center h-10 px-4 text-sm font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors">
+                        Retry
+                    </button>
+                    <button type="button" id="loading-dismiss"
+                            class="inline-flex items-center justify-center h-10 px-4 text-sm font-medium rounded-lg ring-1 ring-neutral-600 text-neutral-200 hover:bg-neutral-800 transition-colors">
+                        Dismiss
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -208,12 +225,278 @@
     </style>
 
     <script>
-        function showLoading(message) {
+        /* ─── Substep loading controller (Tier 3) ───────────────────────────
+         *
+         * Replaces the old single-string overlay with a real four-state
+         * panel (pending / in-progress / done / failed) driven by a small
+         * per-operation registry. Substeps advance on time budgets — we
+         * don't have real progress signals from the LLM, so each step
+         * stays "in-progress" for its budget then auto-promotes to "done"
+         * and the next becomes "in-progress." The final step holds at
+         * "in-progress" until either succeed() / fail() is called by the
+         * page (typically: succeed on redirect, fail on timeout).
+         *
+         * Backward-compat: showLoading('plain string') still works the
+         * old way (single-line mode). The new shape is showLoading({op}).
+         */
+        const LoadingOps = {
+            'cv-upload': {
+                title: 'Reading your CV…',
+                steps: [
+                    {label: 'Reading file',          ms: 5000},
+                    {label: 'Extracting sections',   ms: 25000},
+                    {label: 'Validating skills',     ms: 15000},
+                ],
+                tail: 'Up to a minute on first run.',
+            },
+            'job-scrape': {
+                title: 'Reading the job…',
+                steps: [
+                    {label: 'Fetching page',           ms: 3000},
+                    {label: 'Extracting fields',       ms: 4000},
+                    {label: 'Identifying skills',      ms: 5000},
+                ],
+                tail: '5 to 15 seconds.',
+            },
+            'job-paste': {
+                title: 'Reading the job…',
+                steps: [
+                    {label: 'Reading description',     ms: 2000},
+                    {label: 'Identifying skills',      ms: 5000},
+                ],
+                tail: '~5 seconds.',
+            },
+            'gap-analysis': {
+                title: 'Comparing your profile…',
+                steps: [
+                    {label: 'Comparing skills',         ms: 4000},
+                    {label: 'Reconciling fuzzy matches', ms: 3000},
+                    {label: 'Computing similarity',     ms: 3000},
+                ],
+                tail: '5 to 10 seconds.',
+            },
+            'resume-gen': {
+                title: 'Tailoring your résumé…',
+                steps: [
+                    {label: 'Loading your evidence',         ms: 4000},
+                    {label: 'Tailoring summary & bullets',   ms: 12000},
+                    {label: 'Embedding ATS keywords',        ms: 6000},
+                    {label: 'Finalizing',                    ms: 3000},
+                ],
+                tail: 'Usually 10–30 seconds.',
+                timeoutMs: 60000,
+            },
+            'cover-letter': {
+                title: 'Drafting your cover letter…',
+                steps: [
+                    {label: 'Drafting opening',     ms: 8000},
+                    {label: 'Anchoring evidence',   ms: 12000},
+                    {label: 'Drafting close',       ms: 6000},
+                ],
+                tail: 'Up to 60 seconds.',
+                timeoutMs: 90000,
+            },
+            'outreach': {
+                title: 'Drafting outreach…',
+                steps: [
+                    {label: 'Drafting LinkedIn note', ms: 12000},
+                    {label: 'Drafting cold email',    ms: 14000},
+                ],
+                tail: 'Up to 60 seconds.',
+                timeoutMs: 90000,
+            },
+            'outreach-campaign': {
+                title: 'Building outreach campaign…',
+                steps: [
+                    {label: 'Discovering people',     ms: 10000},
+                    {label: 'Drafting messages',      ms: 25000},
+                    {label: 'Scheduling sends',       ms: 5000},
+                ],
+                tail: '30–60 seconds.',
+                timeoutMs: 120000,
+            },
+            'learning-path': {
+                title: 'Building your learning path…',
+                steps: [
+                    {label: 'Identifying skill gaps',  ms: 6000},
+                    {label: 'Mapping resources',       ms: 12000},
+                    {label: 'Sequencing curriculum',   ms: 6000},
+                ],
+                tail: 'Up to 60 seconds.',
+                timeoutMs: 90000,
+            },
+            'salary': {
+                title: 'Drafting your script…',
+                steps: [
+                    {label: 'Anchoring your strengths', ms: 8000},
+                    {label: 'Drafting script',          ms: 12000},
+                ],
+                tail: 'Up to 60 seconds.',
+                timeoutMs: 90000,
+            },
+        };
+
+        let _loadingTimers = [];
+        let _loadingTimeout = null;
+        let _loadingOp = null;
+        let _loadingRetryHref = null;
+
+        function _clearLoadingTimers() {
+            _loadingTimers.forEach((t) => clearTimeout(t));
+            _loadingTimers = [];
+            if (_loadingTimeout) { clearTimeout(_loadingTimeout); _loadingTimeout = null; }
+        }
+
+        function _renderStep(li, state, label) {
+            // state: 'pending' | 'active' | 'done' | 'failed'
+            li.className = 'flex items-center gap-3 text-sm transition-opacity duration-200';
+            const dotColor = ({
+                pending: 'bg-neutral-700 ring-1 ring-neutral-600',
+                active:  'bg-brand-500 ring-2 ring-brand-300/40 animate-pulse',
+                done:    'bg-emerald-500',
+                failed:  'bg-red-500',
+            })[state] || 'bg-neutral-700';
+            const textColor = ({
+                pending: 'text-neutral-500',
+                active:  'text-white',
+                done:    'text-neutral-300',
+                failed:  'text-red-300',
+            })[state] || 'text-neutral-500';
+            li.innerHTML = '';
+            const dotWrap = document.createElement('span');
+            dotWrap.setAttribute('aria-hidden', 'true');
+            dotWrap.className = 'shrink-0 w-4 h-4 rounded-full flex items-center justify-center ' + dotColor;
+            if (state === 'done') {
+                dotWrap.innerHTML = '<svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>';
+            } else if (state === 'failed') {
+                dotWrap.innerHTML = '<svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>';
+            }
+            const text = document.createElement('span');
+            text.className = textColor;
+            text.textContent = label;
+            li.appendChild(dotWrap);
+            li.appendChild(text);
+        }
+
+        function showLoading(arg) {
             const overlay = document.getElementById('loading-overlay');
+            const title = document.getElementById('loading-title');
             const msg = document.getElementById('loading-msg');
-            if (msg && message) msg.textContent = message;
+            const stepsList = document.getElementById('loading-steps');
+            const failure = document.getElementById('loading-failure');
+            const pulse = document.getElementById('loading-pulse');
+            if (!overlay) return;
+            _clearLoadingTimers();
+            _loadingOp = null;
+            failure.classList.add('hidden');
+            pulse.classList.remove('hidden');
+
+            // Backward-compat: legacy single-line mode.
+            if (typeof arg === 'string') {
+                title.textContent = 'Working on it…';
+                if (msg) { msg.textContent = arg; msg.classList.remove('hidden'); }
+                stepsList.classList.add('hidden');
+                stepsList.innerHTML = '';
+                overlay.classList.remove('hidden');
+                return;
+            }
+
+            const opKey = arg && arg.op;
+            const op = opKey && LoadingOps[opKey];
+            if (!op) {
+                // Unknown op key — fall back to legacy.
+                title.textContent = 'Working on it…';
+                if (msg) { msg.textContent = (arg && arg.tail) || 'Please wait.'; msg.classList.remove('hidden'); }
+                stepsList.classList.add('hidden');
+                overlay.classList.remove('hidden');
+                return;
+            }
+
+            _loadingOp = opKey;
+            _loadingRetryHref = arg.retryHref || window.location.href;
+            title.textContent = op.title;
+            if (msg) { msg.textContent = op.tail || ''; msg.classList.remove('hidden'); }
+            stepsList.classList.remove('hidden');
+            stepsList.innerHTML = '';
+            const liNodes = op.steps.map((s, i) => {
+                const li = document.createElement('li');
+                _renderStep(li, i === 0 ? 'active' : 'pending', s.label);
+                stepsList.appendChild(li);
+                return li;
+            });
+
+            // Schedule auto-advance: each step's `ms` budget elapses, mark
+            // it done, advance the next one to active. The LAST step never
+            // auto-completes — it holds at "active" until succeed()/fail()
+            // is called. This keeps the UI honest even when the actual
+            // operation is faster or slower than the budget.
+            let cumulative = 0;
+            for (let i = 0; i < op.steps.length - 1; i++) {
+                cumulative += op.steps[i].ms;
+                _loadingTimers.push(setTimeout(() => {
+                    _renderStep(liNodes[i], 'done', op.steps[i].label);
+                    if (i + 1 < op.steps.length) {
+                        _renderStep(liNodes[i + 1], 'active', op.steps[i + 1].label);
+                    }
+                }, cumulative));
+            }
+            // Per-op timeout — only set when the registry declares one.
+            // Resume gen, cover letter, outreach, learning path, salary
+            // all set generous timeouts so a stuck request bubbles up
+            // instead of spinning forever.
+            if (op.timeoutMs) {
+                _loadingTimeout = setTimeout(() => {
+                    failLoading(
+                        "This is taking longer than expected. The model may be rate-limited."
+                    );
+                }, op.timeoutMs);
+            }
+
             overlay.classList.remove('hidden');
         }
+
+        function succeedLoading() {
+            _clearLoadingTimers();
+            const overlay = document.getElementById('loading-overlay');
+            if (overlay) overlay.classList.add('hidden');
+            _loadingOp = null;
+        }
+
+        function failLoading(reason) {
+            _clearLoadingTimers();
+            const stepsList = document.getElementById('loading-steps');
+            const failure = document.getElementById('loading-failure');
+            const failMsg = document.getElementById('loading-fail-msg');
+            const pulse = document.getElementById('loading-pulse');
+            if (!stepsList || !failure) return;
+            // Mark whichever step is currently 'active' as failed.
+            const activeStep = Array.from(stepsList.children).findIndex(
+                (li) => li.querySelector('.animate-pulse')
+            );
+            if (activeStep >= 0 && _loadingOp) {
+                const op = LoadingOps[_loadingOp];
+                if (op) {
+                    _renderStep(stepsList.children[activeStep], 'failed', op.steps[activeStep].label);
+                }
+            }
+            if (failMsg) failMsg.textContent = reason || 'Something went wrong.';
+            failure.classList.remove('hidden');
+            pulse.classList.add('hidden');
+        }
+
+        // Wire the failure-panel buttons once on page load.
+        document.addEventListener('DOMContentLoaded', () => {
+            const retry = document.getElementById('loading-retry');
+            const dismiss = document.getElementById('loading-dismiss');
+            if (retry) retry.addEventListener('click', () => {
+                if (_loadingRetryHref) window.location.href = _loadingRetryHref;
+                else window.location.reload();
+            });
+            if (dismiss) dismiss.addEventListener('click', () => {
+                document.getElementById('loading-overlay').classList.add('hidden');
+                _clearLoadingTimers();
+            });
+        });
 
         // Theme toggle
         const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');

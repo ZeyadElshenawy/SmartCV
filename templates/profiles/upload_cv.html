@@ -45,7 +45,7 @@
             <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
 
             <form method="post" enctype="multipart/form-data" class="p-6 sm:p-8 space-y-6"
-                  onsubmit="showLoading('Your agent is reading your CV — up to a minute on first run.')">
+                  onsubmit="showLoading({op: 'cv-upload'})">
                 {% csrf_token %}
 
                 <div id="dropzone_container"

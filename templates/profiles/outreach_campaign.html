@@ -53,7 +53,7 @@
                     Need to pair the extension? ↗
                 </a>
                 {% endif %}
-                <form method="POST" onsubmit="showLoading('Discovering people and drafting messages — 30–60s.')" class="mt-1">
+                <form method="POST" onsubmit="showLoading({op: 'outreach-campaign'})" class="mt-1">
                     {% csrf_token %}
                     {% include "components/button.html" with variant="ghost" label="Or run server discovery" %}
                 </form>
