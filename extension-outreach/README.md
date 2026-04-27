@@ -24,6 +24,27 @@ executes the click flow with humanized timing.
 * On `weekly_cap`, the worker pauses polling for 24 h via
   `chrome.storage.local`.
 
+## Status surface (v0.3.0+)
+
+The popup now classifies poll outcomes and shows them so the user knows
+when something broke:
+
+* `Token rejected` (red) — server returned 401/403. The "Open Options"
+  link in the banner takes the user straight to the re-pair flow. Polling
+  backs off to 30 min so we don't burn rate budget while waiting for a fix.
+* `Server is rate-limited` (amber) — server (or upstream Groq) returned
+  429. Honors `Retry-After` header up to 60 min, default 30 min. No polling
+  during the cooldown.
+* `Can't reach SmartCV` (red) — fetch threw (network down, host wrong,
+  DNS fail). Backs off to 5 min.
+* `Server error` (amber) — 5xx response. Backs off to 5 min.
+* `LinkedIn weekly cap hit` (amber) — content script detected the cap
+  modal. 24 h pause, no polling.
+
+A "Recent activity" panel shows the last 10 actions (sent / accepted /
+failed / skipped) with target and timestamp so the user can confirm the
+extension is doing something even when the queue is otherwise quiet.
+
 ## Limitations
 
 * Not packaged for the Chrome Web Store — Web Store review will reject any
