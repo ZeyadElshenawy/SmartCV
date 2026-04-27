@@ -97,10 +97,7 @@ def _enrich_github(github: dict) -> list[EnrichedProject]:
     repos = (github.get('top_repos') or [])[:_MAX_REPOS]
     if not repos:
         return []
-    languages = ', '.join(
-        f"{lb.get('language', '?')} ({lb.get('count', 0)})"
-        for lb in (github.get('language_breakdown') or [])[:5]
-    )
+    languages = _format_language_breakdown(github.get('language_breakdown') or [])
     prompt = f"""Turn each GitHub repo below into a project-shaped entry suitable
 for a resume's Projects section. Return one entry per repo, in the same order.
 
@@ -412,3 +409,24 @@ def _slugify(text: str, max_len: int = 60) -> str:
     s = ''.join(c.lower() if c.isalnum() else '-' for c in text)
     s = '-'.join(part for part in s.split('-') if part)
     return s[:max_len]
+
+
+def _format_language_breakdown(breakdown) -> str:
+    """Format the GitHub aggregator's language_breakdown for the prompt.
+
+    The aggregator returns list[tuple[str, int]] (pairs of (language, count))
+    which JSON-serializes into list[list]. Older code paths and test fixtures
+    sometimes use list[dict] with `language` / `count` keys. Accept both
+    shapes so the enricher doesn't 500 on real data.
+    """
+    bits = []
+    for entry in (breakdown or [])[:5]:
+        if isinstance(entry, dict):
+            lang = entry.get('language', '?')
+            count = entry.get('count', 0)
+        elif isinstance(entry, (list, tuple)) and len(entry) >= 2:
+            lang, count = entry[0], entry[1]
+        else:
+            continue
+        bits.append(f"{lang} ({count})")
+    return ', '.join(bits)
