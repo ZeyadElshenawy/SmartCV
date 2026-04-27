@@ -4,10 +4,11 @@
     <meta charset="utf-8">
     <title>SmartCV Outreach</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; width: 320px; padding: 14px; margin: 0; color: #111827; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; width: 340px; padding: 14px; margin: 0; color: #111827; }
         h1 { margin: 0 0 10px; font-size: 15px; font-weight: 600; }
-        .row { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 8px; }
-        .dot { width: 10px; height: 10px; border-radius: 50%; }
+        h2 { margin: 14px 0 6px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #6b7280; }
+        .row { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 6px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
         .dot-green { background: #10b981; }
         .dot-amber { background: #f59e0b; }
         .dot-red { background: #ef4444; }
@@ -16,17 +17,33 @@
         .muted { color: #6b7280; font-size: 12px; }
         button { background: #2563eb; color: #fff; border: 0; padding: 6px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; }
         button:hover { background: #1d4ed8; }
+        .banner { padding: 8px 10px; border-radius: 6px; font-size: 12px; margin: 8px 0; line-height: 1.35; }
+        .banner-error { background: #fee2e2; color: #991b1b; }
+        .banner-warn { background: #fef3c7; color: #92400e; }
+        .history { font-size: 12px; }
+        .history-row { display: flex; align-items: baseline; gap: 6px; padding: 3px 0; border-bottom: 1px solid #f3f4f6; }
+        .history-row:last-child { border-bottom: 0; }
+        .history-status { font-weight: 500; min-width: 56px; }
+        .history-status-sent { color: #047857; }
+        .history-status-accepted { color: #047857; }
+        .history-status-failed { color: #b91c1c; }
+        .history-status-skipped { color: #6b7280; }
+        .history-target { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #374151; }
+        .history-time { color: #9ca3af; font-size: 11px; }
+        .empty { color: #9ca3af; font-size: 12px; font-style: italic; }
     </style>
 </head>
 <body>
     <h1>SmartCV Outreach</h1>
     <div class="row"><span class="dot" id="paired-dot"></span><span id="paired-text">…</span></div>
-    <div class="row"><span class="muted" id="paused-text"></span></div>
-    <p class="muted">The extension polls SmartCV every ~90 s with jitter and runs queued LinkedIn invites in your own tab. Daily cap is enforced server-side.</p>
+    <div id="banner-slot"></div>
+    <p class="muted">Polls SmartCV every ~90 s with jitter. Daily cap is enforced server-side; LinkedIn weekly cap pauses for 24 h.</p>
     <div class="row">
         <a href="#" id="open-options">Options</a>
         <button id="poll-now" style="margin-left: auto;">Poll now</button>
     </div>
+    <h2>Recent activity</h2>
+    <div class="history" id="history-slot"></div>
     <script src="popup.js"></script>
 </body>
 </html>
