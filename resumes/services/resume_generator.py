@@ -135,12 +135,140 @@ def _domain_prompt_section(domain: str) -> str:
     return _DOMAIN_PROMPTS.get(domain, '')
 
 
+def _build_evidence_context(profile, job, gap_analysis) -> str:
+    """Compose the rich, source-labeled context block the LLM uses to write
+    a genuinely tailored resume.
+
+    Mirrors `analysis.services.gap_analyzer._build_full_candidate_context`
+    in spirit, but labels every fact by source so the prompt can ask the
+    LLM to corroborate enrichment claims against a specific source. The
+    gap analyzer needs this for matching; the resume generator needs it
+    so it can write things like "scaled to 12 production repos" only
+    when GitHub actually shows that.
+
+    Returns a multi-section text block. Empty when no signals/gap data
+    is present (the prompt still works — falls back to CV-only mode).
+    """
+    sections: list[str] = []
+    data = getattr(profile, 'data_content', None) or {}
+
+    # --- Gap analysis breakdown (matched / missing / soft) ---
+    matched = list(getattr(gap_analysis, 'matched_skills', None) or [])
+    missing = list(getattr(gap_analysis, 'critical_missing_skills', None) or
+                   getattr(gap_analysis, 'missing_skills', None) or [])
+    soft = list(getattr(gap_analysis, 'soft_skill_gaps', None) or [])
+    if matched or missing or soft:
+        gap_lines = ["=== GAP ANALYSIS (lead with what's matched, never over-claim what's missing) ==="]
+        if matched:
+            gap_lines.append(f"MATCHED skills (emphasize these): {', '.join(matched)}")
+        if missing:
+            gap_lines.append(f"MISSING skills (the candidate does NOT have these — do NOT claim them): {', '.join(missing)}")
+        if soft:
+            gap_lines.append(f"SOFT GAPS (e.g., seniority, career-switch — keep summary calibrated, no overreach): {'; '.join(soft)}")
+        sections.append("\n".join(gap_lines))
+
+    # --- GitHub signals: corroborate technical claims with public evidence ---
+    gh = data.get('github_signals') if isinstance(data, dict) else None
+    if isinstance(gh, dict) and not gh.get('error'):
+        lines = ["=== GITHUB ACTIVITY (use to quantify scale; never claim repos that aren't here) ==="]
+        username = gh.get('username') or 'unknown'
+        public = gh.get('public_repos') or 0
+        stars = gh.get('total_stars') or 0
+        recent = gh.get('recent_commit_count') or 0
+        lines.append(f"@{username} — {public} public repos, {stars} stars, {recent} commits in last 90 days")
+        langs = gh.get('language_breakdown') or []
+        if langs:
+            formatted = []
+            for entry in langs[:8]:
+                if isinstance(entry, (list, tuple)) and len(entry) >= 2:
+                    formatted.append(f"{entry[0]} ({entry[1]} repos)")
+                elif isinstance(entry, dict) and 'name' in entry:
+                    formatted.append(f"{entry.get('name')} ({entry.get('count', '?')} repos)")
+            if formatted:
+                lines.append(f"Languages: {', '.join(formatted)}")
+        for repo in (gh.get('top_repos') or [])[:5]:
+            if not isinstance(repo, dict):
+                continue
+            n = repo.get('name') or repo.get('full_name', '?')
+            lang = repo.get('language') or ''
+            rstars = repo.get('stars') or 0
+            desc = (repo.get('description') or '').strip()[:140]
+            line = f"- {n}"
+            if lang:
+                line += f" [{lang}]"
+            if rstars:
+                line += f" — {rstars}★"
+            if desc:
+                line += f": {desc}"
+            lines.append(line)
+        sections.append("\n".join(lines))
+
+    # --- Scholar signals: publication-backed claims for academic CVs ---
+    sc = data.get('scholar_signals') if isinstance(data, dict) else None
+    if isinstance(sc, dict) and not sc.get('error'):
+        lines = ["=== GOOGLE SCHOLAR (publication evidence; cite specifics only when claiming research depth) ==="]
+        cites = sc.get('total_citations') or 0
+        h = sc.get('h_index') or 0
+        i10 = sc.get('i10_index') or 0
+        if cites or h or i10:
+            lines.append(f"Citations: {cites} total · h-index: {h} · i10: {i10}")
+        for pub in (sc.get('top_publications') or [])[:5]:
+            if not isinstance(pub, dict):
+                continue
+            title = (pub.get('title') or '').strip()
+            if not title:
+                continue
+            year = pub.get('year') or ''
+            venue = pub.get('venue') or ''
+            pcites = pub.get('citations') or 0
+            bits = [title]
+            if venue: bits.append(venue)
+            if year: bits.append(str(year))
+            tail = f" — {pcites} citations" if pcites else ''
+            lines.append(f"- {' · '.join(bits)}{tail}")
+        if len(lines) > 1:
+            sections.append("\n".join(lines))
+
+    # --- Kaggle signals: medal/competition evidence for data/ML candidates ---
+    kg = data.get('kaggle_signals') if isinstance(data, dict) else None
+    if isinstance(kg, dict) and not kg.get('error'):
+        lines = ["=== KAGGLE (competition/notebook evidence; quantify ML claims from this) ==="]
+        u = kg.get('username') or kg.get('display_name') or 'unknown'
+        tier = kg.get('overall_tier') or 'Novice'
+        lines.append(f"@{u} — overall tier: {tier}")
+        for label, key in (('Competitions', 'competitions'), ('Notebooks', 'notebooks'),
+                          ('Datasets', 'datasets'), ('Discussion', 'discussion')):
+            cat = kg.get(key)
+            if not isinstance(cat, dict):
+                continue
+            count = cat.get('count') or 0
+            if not count:
+                continue
+            m = cat.get('medals') or {}
+            g, s, b = m.get('gold', 0), m.get('silver', 0), m.get('bronze', 0)
+            ct = cat.get('tier') or ''
+            medal_str = f" · medals 🥇{g} 🥈{s} 🥉{b}" if (g or s or b) else ''
+            lines.append(f"- {label}: {count}{(' · ' + ct) if ct else ''}{medal_str}")
+        if len(lines) > 1:
+            sections.append("\n".join(lines))
+
+    return "\n\n".join(sections)
+
+
 def generate_resume_content(profile, job, gap_analysis):
     """
-    Generate PROFESSIONAL, ATS-optimized tailored resume using LangChain structured output.
+    Generate a PROFESSIONAL, ATS-optimized tailored resume using LangChain
+    structured output, grounded in every signal source we have for the
+    candidate (CV + GitHub + Scholar + Kaggle + gap-analysis breakdown +
+    full JD body).
+
+    The prompt's enrichment rule lets the LLM quantify claims using
+    corroborating evidence from these signals — turning "Built a model"
+    into "Modelled churn across 12 production repos" when GitHub backs
+    that up. Without a corroborating source, claims stay qualitative.
     """
     raw_cv_data = profile.data_content or {}
-    
+
     if not raw_cv_data:
         logger.warning("raw_cv_data not available, using core fields")
         raw_cv_data = {
@@ -150,29 +278,45 @@ def generate_resume_content(profile, job, gap_analysis):
             'projects': profile.projects or [],
             'certifications': profile.certifications or []
         }
-    
+
     filtered_cv = raw_cv_data
-    
-    # Build a slim version of CV data to save tokens — drop raw_text and empty fields
+
+    # Build a slim version of CV data to save tokens — drop raw_text, empty
+    # fields, the cached signal blobs (we surface those separately, source-
+    # labeled, in the evidence context), and the redundant summary/objective.
+    _SIGNAL_KEYS = {'github_signals', 'scholar_signals', 'kaggle_signals', 'linkedin_snapshot'}
     slim_cv = {k: v for k, v in filtered_cv.items()
-               if k != 'raw_text' and v and k not in ('normalized_summary', 'objective')}
+               if k != 'raw_text'
+               and k not in _SIGNAL_KEYS
+               and v
+               and k not in ('normalized_summary', 'objective')}
+
+    # Cap JD body to 4000 chars — full text is better than 1000 (the previous
+    # cap was wasting context that mattered) but unbounded would let a 50KB
+    # JD blow the prompt budget.
+    jd_body = (job.description or '')[:4000]
 
     domain = _detect_job_domain(job)
     domain_section = _domain_prompt_section(domain)
-    logger.info(f"Resume generation: detected domain='{domain}' for job '{job.title}'")
+    evidence_context = _build_evidence_context(profile, job, gap_analysis)
+    logger.info(
+        "Resume generation: domain='%s' for job '%s'; evidence_block_len=%d",
+        domain, job.title, len(evidence_context),
+    )
 
-    prompt = f"""You are an EXPERT resume optimization strategist. Create a PROFESSIONAL, ATS-optimized resume tailored for this job.
+    prompt = f"""You are an EXPERT resume optimization strategist. Create a PROFESSIONAL, ATS-optimized resume tailored for this specific job using EVERY source provided.
 
 JOB DETAILS:
 - Title: {job.title}
 - Company: {job.company}
 - Required Skills: {', '.join(job.extracted_skills or [])}
-- Job Description: {job.description[:1000]}
+- Job Description:
+{jd_body}
 
-COMPLETE CV DATA:
+COMPLETE CV DATA (the candidate's authoritative resume):
 {json.dumps(slim_cv, indent=2)}
 
-MATCHED SKILLS (high priority): {', '.join(gap_analysis.matched_skills if hasattr(gap_analysis, 'matched_skills') else [])}
+{evidence_context}
 
 === FIELD MAPPING (CRITICAL — the CV data uses different field names than the output schema) ===
 - CV `experiences[].highlights` array → output `experience[].description` array (rewrite each bullet)
@@ -182,11 +326,22 @@ MATCHED SKILLS (high priority): {', '.join(gap_analysis.matched_skills if hasatt
 - CV `education[].degree` + `field` → output `education[].degree` (combine as "Bachelor of Computer Science")
 - CV `certifications[].url` → output `certifications[].url` (PRESERVE all certification URLs exactly)
 - CV `projects[].description` or `highlights` → output `projects[].description` array (rewrite as bullets)
+- CV `projects[].url` → output `projects[].url` (PRESERVE all project URLs exactly)
 - Include ALL certifications from the CV data — do NOT truncate or omit any.
 
-=== STRICT ANTI-HALLUCINATION RULE (CRITICAL) ===
-- Never invent, add, or imply skills, keywords, achievements, metrics, job titles, or any other content not present in the original resume.
-- Only rewrite and restructure what already exists.
+=== EVIDENCE-GROUNDED ENRICHMENT RULE (CRITICAL — read this twice) ===
+Every concrete claim (a number, a tool name, a scale, a duration, a team size, a metric) must be supported by AT LEAST ONE source you've been given:
+  (a) the CV's own bullets / skills / education / projects;
+  (b) the GITHUB ACTIVITY block (use to corroborate language fluency, scale of work, recent activity);
+  (c) the GOOGLE SCHOLAR block (use to corroborate research depth, publications, methods);
+  (d) the KAGGLE block (use to corroborate competition wins, ML/data depth, medal counts);
+  (e) the GAP ANALYSIS block (use to know which JD-required skills the candidate genuinely has — never claim a MISSING skill).
+
+When the JD emphasizes a skill the candidate genuinely has, you MAY enrich the bullet using corroborating evidence — e.g., promote "Built a model" to "Modelled churn across 2M events" if the CV mentioned "2M users" elsewhere, or "across 12 production repos" if GitHub language_breakdown shows that. Mentally tag each enrichment with its source ("from GitHub: Python in 8 repos") before writing.
+
+If NO source supports a specific claim — keep it qualitative. Never fabricate a number, a team size, a company name, an outcome, or a tool you can't see. The candidate's MISSING skills are explicitly listed in the GAP ANALYSIS block; never claim those.
+
+This is the difference between a tailored resume and a hallucinated one. Restructuring is not enough on its own; enrichment from corroborated sources is what makes the resume actually feel job-specific.
 
 === REMOVE FROM RESUMES ===
 - Street/home address (city and country are fine)
