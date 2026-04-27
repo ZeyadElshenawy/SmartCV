@@ -148,8 +148,12 @@ def run(buckets: tuple[str, ...] = ("strong",), max_pairs: int | None = None) ->
                          "stage": "generate", "error": f"{exc.__class__.__name__}: {exc}"})
             continue
 
-        # Programmatic checks
-        prog_fact = factuality_check(generated, profile.raw_text)
+        # Programmatic checks. `confirmed_projects` lets enriched projects
+        # ground via their source_url / source_id even when they're not in
+        # the parsed CV text — same path real users hit after Phase 2's
+        # project-review confirm step.
+        confirmed_projects = (profile.data_content or {}).get("projects") or []
+        prog_fact = factuality_check(generated, profile.raw_text, confirmed_projects=confirmed_projects)
         voice_hits = banned_phrase_hits(generated)
 
         # LLM judge

@@ -149,35 +149,78 @@ def banned_phrase_hits(generated_resume: dict) -> list[str]:
     return hits
 
 
-def _extract_entities(generated_resume: dict) -> list[str]:
-    """Pull company + school + degree names out of the generated resume."""
-    out: list[str] = []
+def _extract_entities(generated_resume: dict) -> list[tuple[str, str]]:
+    """Pull (kind, name) tuples from the generated resume that need grounding.
+
+    Returns tuples instead of plain strings so the grounding check can apply
+    different evidence rules per kind. Project names accept enriched-source
+    evidence (name + URL on the profile's confirmed projects); company /
+    school names only accept source-text evidence.
+    """
+    out: list[tuple[str, str]] = []
     for exp in (generated_resume.get("experience") or []):
         if isinstance(exp, dict):
             v = exp.get("company")
             if v:
-                out.append(str(v))
+                out.append(("company", str(v)))
     for edu in (generated_resume.get("education") or []):
         if isinstance(edu, dict):
             for k in ("school", "institution", "university"):
                 v = edu.get(k)
                 if v:
-                    out.append(str(v))
+                    out.append(("school", str(v)))
+    for proj in (generated_resume.get("projects") or []):
+        if isinstance(proj, dict):
+            v = proj.get("name")
+            if v:
+                out.append(("project", str(v)))
     return out
 
 
-def factuality_check(generated_resume: dict, source_text: str) -> dict:
-    """Each entity from the generated resume must appear (case-insensitive) in source CV text."""
+def factuality_check(
+    generated_resume: dict,
+    source_text: str,
+    confirmed_projects: list[dict] | None = None,
+) -> dict:
+    """Verify each entity in the generated resume is grounded in evidence.
+
+    Companies and schools must appear (case-insensitive) in `source_text` —
+    the parsed CV. Projects may additionally match against `confirmed_projects`
+    (the user-confirmed pool from `data_content['projects']`, including any
+    source-tagged enriched entries). This prevents enriched projects from being
+    falsely flagged as fabrication.
+
+    `confirmed_projects` is optional for backwards compatibility; when None,
+    project names fall back to source-text grounding only.
+    """
     entities = _extract_entities(generated_resume)
     if not entities:
         return {"n_entities": 0, "n_grounded": 0, "ratio": None, "ungrounded": []}
     src = (source_text or "").lower()
+    # Build the project-evidence index: name + source_url + source_id, all
+    # lowercased so a case-insensitive substring check works.
+    proj_evidence = ""
+    if confirmed_projects:
+        bits = []
+        for p in confirmed_projects:
+            if not isinstance(p, dict):
+                continue
+            for k in ("name", "url", "source_url", "source_id"):
+                v = p.get(k)
+                if v:
+                    bits.append(str(v))
+        proj_evidence = " ".join(bits).lower()
     grounded, ungrounded = [], []
-    for e in entities:
-        if str(e).strip().lower() in src:
-            grounded.append(e)
+    for kind, name in entities:
+        needle = str(name).strip().lower()
+        if needle in src:
+            grounded.append(name)
+        elif kind == "project" and proj_evidence and needle in proj_evidence:
+            # Enriched / confirmed project — name appears in the user's
+            # explicitly confirmed project pool. Treat as grounded.
+            grounded.append(name)
         else:
-            ungrounded.append(e)
+            ungrounded.append(name)
     return {
         "n_entities": len(entities),
         "n_grounded": len(grounded),
