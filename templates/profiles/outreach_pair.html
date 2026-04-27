@@ -26,7 +26,15 @@
         {% endif %}
 
         <section class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-4">
-            <label class="block text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400">Your token</label>
+            <div class="flex items-center justify-between gap-3 flex-wrap">
+                <label class="block text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400">Your token</label>
+                {% if rotated_at %}
+                <span class="text-[11px] uppercase tracking-[0.14em] font-medium {% if token_is_stale %}text-amber-600 dark:text-amber-400{% else %}text-neutral-500 dark:text-neutral-400{% endif %}"
+                      title="Issued {{ rotated_at|date:'M d, Y H:i' }}">
+                    Issued {% if token_age_days == 0 %}today{% elif token_age_days == 1 %}1 day ago{% else %}{{ token_age_days }} days ago{% endif %}
+                </span>
+                {% endif %}
+            </div>
             <div class="flex gap-2">
                 <input type="text" readonly value="{{ token }}" id="outreach-token"
                        class="flex-1 h-11 px-3 font-mono text-sm rounded-lg bg-neutral-50 dark:bg-neutral-950 ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-800 dark:text-neutral-100">
@@ -36,6 +44,12 @@
                     Copy
                 </button>
             </div>
+
+            {% if token_is_stale %}
+            <div class="rounded-lg bg-amber-50 dark:bg-amber-950/40 ring-1 ring-amber-200 dark:ring-amber-900 p-3 text-sm text-amber-800 dark:text-amber-200 leading-relaxed">
+                This token is over 60 days old. Routine rotation is good security hygiene — regenerate it and re-paste into the extension's options page.
+            </div>
+            {% endif %}
 
             <form method="POST" class="pt-2">
                 {% csrf_token %}

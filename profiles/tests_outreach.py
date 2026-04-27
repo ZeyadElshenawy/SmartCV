@@ -128,6 +128,58 @@ class DispatcherTests(TestCase):
             record_action_result(action, 'whatever')
 
 
+class TokenRotationTimestampTests(TestCase):
+    """outreach_token_rotated_at gives the pairing UI an "issued N days
+    ago" signal so users can spot a stale or potentially-leaked token
+    without enforcing a hard TTL (which would break long-running paired
+    extensions overnight)."""
+
+    def test_rotate_outreach_token_sets_timestamp(self):
+        user = _make_user()
+        self.assertIsNone(user.outreach_token_rotated_at)
+        before = timezone.now()
+        user.rotate_outreach_token()
+        self.assertIsNotNone(user.outreach_token_rotated_at)
+        self.assertGreaterEqual(user.outreach_token_rotated_at, before)
+
+    def test_rotate_updates_timestamp_on_each_call(self):
+        user = _make_user()
+        user.rotate_outreach_token()
+        first = user.outreach_token_rotated_at
+        # Force a measurable delta
+        OutreachAction.objects  # touch DB
+        from time import sleep
+        sleep(0.01)
+        user.rotate_outreach_token()
+        self.assertGreater(user.outreach_token_rotated_at, first)
+
+    def test_pairing_view_surfaces_age_when_fresh(self):
+        user = _make_user()
+        user.rotate_outreach_token()
+        client = Client()
+        client.force_login(user)
+        res = client.get('/profiles/extension/pair/')
+        self.assertEqual(res.status_code, 200)
+        body = res.content.decode('utf-8')
+        # Token age line — accepts "today" or "0 days" (both valid same-day).
+        self.assertIn('Issued', body)
+        # No stale warning when token is fresh
+        self.assertNotIn('over 60 days old', body)
+
+    def test_pairing_view_warns_when_token_is_stale(self):
+        user = _make_user()
+        user.rotate_outreach_token()
+        # Backdate the token issued-at to 70 days ago.
+        old = timezone.now() - timedelta(days=70)
+        type(user).objects.filter(pk=user.pk).update(outreach_token_rotated_at=old)
+        client = Client()
+        client.force_login(user)
+        res = client.get('/profiles/extension/pair/')
+        self.assertEqual(res.status_code, 200)
+        body = res.content.decode('utf-8')
+        self.assertIn('over 60 days old', body)
+
+
 class CampaignSummaryStatsTests(TestCase):
     """summary_stats is the cached per-status breakdown of OutreachAction
     children. Refreshed on every state transition so the status panel

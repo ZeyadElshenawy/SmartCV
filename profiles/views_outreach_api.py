@@ -414,13 +414,34 @@ def campaign_status(request, campaign_id):
 @login_required
 @require_http_methods(['GET', 'POST'])
 def pairing_view(request):
-    """Show the user their outreach token; POST regenerates it."""
+    """Show the user their outreach token; POST regenerates it.
+
+    Also surfaces the token's age (rotated_at) so the user can decide
+    whether the token is stale enough to be worth rotating. We don't
+    enforce a TTL — a long-running paired extension shouldn't break
+    overnight — but a stale-token warning at 60+ days nudges the user
+    toward periodic rotation as a security hygiene practice.
+    """
+    from datetime import timedelta
+    from django.utils import timezone
+
     user = request.user
     rotated = False
     if request.method == 'POST' or user.outreach_token is None:
         user.rotate_outreach_token()
         rotated = request.method == 'POST'
+    age_days = None
+    is_stale = False
+    if user.outreach_token_rotated_at:
+        age = timezone.now() - user.outreach_token_rotated_at
+        age_days = age.days
+        # 60 days matches the "rotate every two months" hygiene most
+        # security guides recommend for long-lived tokens. Tunable later.
+        is_stale = age >= timedelta(days=60)
     return render(request, 'profiles/outreach_pair.html', {
         'token': str(user.outreach_token),
         'rotated': rotated,
+        'rotated_at': user.outreach_token_rotated_at,
+        'token_age_days': age_days,
+        'token_is_stale': is_stale,
     })
