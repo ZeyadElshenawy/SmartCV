@@ -9,6 +9,7 @@ urlpatterns = [
     path('regen/<uuid:resume_id>/<str:section>/', views.regenerate_section_view, name='regenerate_section'),
     path('section-order/<uuid:resume_id>/', views.update_section_order_view, name='update_section_order'),
     path('export/<uuid:resume_id>/', views.export_pdf_view, name='export_pdf'),
+    path('export-docx/<uuid:resume_id>/', views.export_docx_view, name='export_docx'),
     
     # NEW: Optimized PDF Generation
     path('download/<uuid:job_id>/', views.generate_optimized_pdf_view, name='generate_optimized_pdf'),
