@@ -105,105 +105,105 @@
         </div>
     </div>
 
-    {% if resume.professional_summary %}
-    <div class="section">
-        <div class="section-title">Professional Summary</div>
-        <p style="margin: 0; text-align: justify;">{{ resume.professional_summary }}</p>
-    </div>
-    {% endif %}
-
-    {% if resume.skills %}
-    <div class="section">
-        <div class="section-title">Skills</div>
-        <div style="line-height: 1.5; text-align: justify;">
-            <strong>Core Competencies:</strong> {{ resume.skills|join:", " }}
+    {# Section bodies are rendered in `section_order` so the user's saved
+       drag-and-drop order on the edit page applies to the PDF too. Each
+       section keeps its existing template-specific markup; only the
+       outer ordering is data-driven. #}
+    {% for section in section_order %}
+        {% if section == "summary" and resume.professional_summary %}
+        <div class="section">
+            <div class="section-title">Professional Summary</div>
+            <p style="margin: 0; text-align: justify;">{{ resume.professional_summary }}</p>
         </div>
-    </div>
-    {% endif %}
-
-    {% if resume.experience %}
-    <div class="section">
-        <div class="section-title">Professional Experience</div>
-        {% for exp in resume.experience %}
-        <div class="item">
-            <table class="item-header">
-                <tr>
-                    <td class="item-title">{{ exp.title }}</td>
-                    <td class="item-date">{{ exp.duration }}</td>
-                </tr>
-            </table>
-            <div class="item-subtitle">{{ exp.company }}</div>
-            {% if exp.description %}
-            <ul class="item-description">
-                {% for point in exp.description %}
-                <li>{{ point }}</li>
-                {% endfor %}
-            </ul>
-            {% endif %}
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
-
-    {% if resume.education %}
-    <div class="section">
-        <div class="section-title">Education</div>
-        {% for edu in resume.education %}
-        <div class="item" style="margin-bottom: 8px;">
-            <table class="item-header">
-                <tr>
-                    <td class="item-title">{{ edu.degree }}{% if edu.field %} in {{ edu.field }}{% endif %}</td>
-                    <td class="item-date">{{ edu.graduation_year|default:edu.year }}</td>
-                </tr>
-            </table>
-            <div class="item-subtitle">{{ edu.institution }}</div>
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
-
-    {% if resume.projects %}
-    <div class="section">
-        <div class="section-title">Projects</div>
-        {% for proj in resume.projects %}
-        <div class="item">
-            <div class="item-title" style="margin-bottom: 4px;">
-                {% if proj.url %}<a href="{{ proj.url }}" target="_blank">{{ proj.name }}</a>{% else %}{{ proj.name }}{% endif %}
+        {% endif %}
+        {% if section == "skills" and resume.skills %}
+        <div class="section">
+            <div class="section-title">Skills</div>
+            <div style="line-height: 1.5; text-align: justify;">
+                <strong>Core Competencies:</strong> {{ resume.skills|join:", " }}
             </div>
-            {% if proj.description %}
-            <ul class="item-description">
-                {% for point in proj.description %}
-                <li>{{ point }}</li>
+        </div>
+        {% endif %}
+        {% if section == "experience" and resume.experience %}
+        <div class="section">
+            <div class="section-title">Professional Experience</div>
+            {% for exp in resume.experience %}
+            <div class="item">
+                <table class="item-header">
+                    <tr>
+                        <td class="item-title">{{ exp.title }}</td>
+                        <td class="item-date">{{ exp.duration }}</td>
+                    </tr>
+                </table>
+                <div class="item-subtitle">{{ exp.company }}</div>
+                {% if exp.description %}
+                <ul class="item-description">
+                    {% for point in exp.description %}
+                    <li>{{ point }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% if section == "education" and resume.education %}
+        <div class="section">
+            <div class="section-title">Education</div>
+            {% for edu in resume.education %}
+            <div class="item" style="margin-bottom: 8px;">
+                <table class="item-header">
+                    <tr>
+                        <td class="item-title">{{ edu.degree }}{% if edu.field %} in {{ edu.field }}{% endif %}</td>
+                        <td class="item-date">{{ edu.graduation_year|default:edu.year }}</td>
+                    </tr>
+                </table>
+                <div class="item-subtitle">{{ edu.institution }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% if section == "projects" and resume.projects %}
+        <div class="section">
+            <div class="section-title">Projects</div>
+            {% for proj in resume.projects %}
+            <div class="item">
+                <div class="item-title" style="margin-bottom: 4px;">
+                    {% if proj.url %}<a href="{{ proj.url }}" target="_blank">{{ proj.name }}</a>{% else %}{{ proj.name }}{% endif %}
+                </div>
+                {% if proj.description %}
+                <ul class="item-description">
+                    {% for point in proj.description %}
+                    <li>{{ point }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% if section == "certifications" and resume.certifications %}
+        <div class="section">
+            <div class="section-title">Certifications</div>
+            <ul style="margin: 0; padding-left: 20px; font-size: 10pt;">
+                {% for cert in resume.certifications %}
+                <li style="margin-bottom: 4px;">
+                    <strong>{% if cert.url %}<a href="{{ cert.url }}" target="_blank">{{ cert.name }}</a>{% else %}{{ cert.name }}{% endif %}</strong>
+                    {% if cert.issuer %} - {{ cert.issuer }}{% endif %}
+                    {% if cert.date %} ({{ cert.date }}){% endif %}
+                </li>
                 {% endfor %}
             </ul>
-            {% endif %}
         </div>
-        {% endfor %}
-    </div>
-    {% endif %}
-
-    {% if resume.certifications %}
-    <div class="section">
-        <div class="section-title">Certifications</div>
-        <ul style="margin: 0; padding-left: 20px; font-size: 10pt;">
-            {% for cert in resume.certifications %}
-            <li style="margin-bottom: 4px;">
-                <strong>{% if cert.url %}<a href="{{ cert.url }}" target="_blank">{{ cert.name }}</a>{% else %}{{ cert.name }}{% endif %}</strong>
-                {% if cert.issuer %} - {{ cert.issuer }}{% endif %}
-                {% if cert.date %} ({{ cert.date }}){% endif %}
-            </li>
-            {% endfor %}
-        </ul>
-    </div>
-    {% endif %}
-
-    {% if resume.languages %}
-    <div class="section">
-        <div class="section-title">Languages</div>
-        <div style="line-height: 1.5;">
-            {{ resume.languages|join:", " }}
+        {% endif %}
+        {% if section == "languages" and resume.languages %}
+        <div class="section">
+            <div class="section-title">Languages</div>
+            <div style="line-height: 1.5;">
+                {{ resume.languages|join:", " }}
+            </div>
         </div>
-    </div>
-    {% endif %}
+        {% endif %}
+    {% endfor %}
 </body>
 </html>

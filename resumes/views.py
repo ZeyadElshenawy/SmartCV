@@ -7,6 +7,17 @@ from profiles.models import UserProfile
 from analysis.models import GapAnalysis
 from .models import GeneratedResume, CoverLetter
 from .services.resume_generator import generate_resume_content, calculate_ats_score, regenerate_section
+
+
+# The full set of body-section keys a resume can render. The user can
+# reorder these (saved as resume.content['section_order']) but not add
+# unknown keys — the endpoint validates against this whitelist so a
+# typo or stale UI can't poison the saved order.
+RESUME_SECTION_KEYS = (
+    'summary', 'skills', 'experience', 'education',
+    'projects', 'certifications', 'languages',
+)
+DEFAULT_SECTION_ORDER = list(RESUME_SECTION_KEYS)
 from .services.pdf_exporter import generate_pdf
 from .services.cover_letter_generator import generate_cover_letter_content
 from .services.pdf_generator import generate_optimized_pdf
@@ -329,11 +340,68 @@ def resume_edit_view(request, resume_id):
     except UserProfile.DoesNotExist:
         profile = None
 
+    # Resolve the section order: user's saved choice if present, else default.
+    # Defensive: ignore any saved keys that aren't in the current whitelist
+    # (e.g., an old key from a prior schema), and fill in any missing
+    # whitelisted keys at the end so a partial saved order still works.
+    saved_order = resume.content.get('section_order') or []
+    valid_saved = [s for s in saved_order if s in RESUME_SECTION_KEYS]
+    section_order = valid_saved + [s for s in DEFAULT_SECTION_ORDER if s not in valid_saved]
+
+    section_labels = {
+        'summary': 'Professional Summary',
+        'skills': 'Skills',
+        'experience': 'Experience',
+        'education': 'Education',
+        'projects': 'Projects',
+        'certifications': 'Certifications',
+        'languages': 'Languages',
+    }
+    # List of (key, label) tuples in the user's chosen order — easier for the
+    # template to iterate than nesting a dict lookup inside a `{% for %}`.
+    section_order_with_labels = [(k, section_labels.get(k, k.title())) for k in section_order]
+
     return render(request, 'resumes/edit.html', {
         'resume': resume,
         'profile': profile,
         'template_choices': template_choices,
+        'section_order': section_order,
+        'section_order_with_labels': section_order_with_labels,
     })
+
+
+@login_required
+@require_POST
+def update_section_order_view(request, resume_id):
+    """Persist a user-chosen section order on the resume.
+
+    Body: `{"order": ["summary", "experience", "skills", ...]}`.
+    Validates against RESUME_SECTION_KEYS so a stale UI or typo can't poison
+    the saved order. Missing keys are filled in at the end (so the user can
+    e.g. just promote 'projects' to the top and leave the rest implicit).
+    """
+    resume = get_object_or_404(GeneratedResume, id=resume_id)
+    if resume.gap_analysis.job.user != request.user:
+        raise Http404
+    try:
+        body = json.loads(request.body or b'{}')
+    except (ValueError, TypeError):
+        return JsonResponse({'error': 'invalid_json'}, status=400)
+
+    raw = body.get('order')
+    if not isinstance(raw, list):
+        return JsonResponse({'error': 'order_must_be_list'}, status=400)
+    valid = [s for s in raw if s in RESUME_SECTION_KEYS]
+    # Append any whitelisted sections the client omitted, preserving the
+    # user's chosen order for the ones they did send.
+    seen = set(valid)
+    final = valid + [s for s in DEFAULT_SECTION_ORDER if s not in seen]
+
+    content = resume.content.copy() if resume.content else {}
+    content['section_order'] = final
+    resume.content = content
+    resume.save(update_fields=['content'])
+    return JsonResponse({'order': final})
 
 
 @login_required

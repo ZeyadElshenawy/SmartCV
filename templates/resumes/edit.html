@@ -121,6 +121,26 @@
             <form method="POST" id="resume-edit-form" action="{% url 'resume_edit' resume.id %}" class="space-y-8 pb-32" @input="updateLivePreview()">
                 {% csrf_token %}
 
+                {# ---- Section order (drag to reorder) ---- #}
+                <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+                    <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-accent-500"></div>
+                    <div class="p-6 space-y-4">
+                        {% include "components/section_label.html" with text="Section order" tone="accent" %}
+                        <p class="text-xs text-neutral-500 dark:text-neutral-400">Drag to reorder. Applies to the live preview and the downloaded PDF.</p>
+                        <ul id="section-order-list" class="space-y-2">
+                            {% for key, label in section_order_with_labels %}
+                            <li draggable="true" data-section-key="{{ key }}"
+                                class="section-order-chip flex items-center gap-2 px-3 py-2 rounded-lg ring-1 ring-neutral-200 dark:ring-neutral-800 bg-neutral-50 dark:bg-neutral-950 cursor-move text-sm text-neutral-800 dark:text-neutral-100 select-none transition-shadow"
+                                ondragstart="orderDragStart(event)" ondragover="orderDragOver(event)" ondrop="orderDrop(event)" ondragend="orderDragEnd(event)">
+                                <span aria-hidden="true" class="text-neutral-400">&#8942;&#8942;</span>
+                                <span class="font-medium">{{ label }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        <p id="section-order-status" class="text-[11px] uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400 hidden" aria-live="polite">Saved</p>
+                    </div>
+                </section>
+
                 {# ---- Template picker ---- #}
                 <section class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
                     <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-accent-500"></div>
@@ -655,71 +675,88 @@
                         {% endif %}
                     </div>
 
-                    <div class="p-section">
-                        <div class="p-section-title">Professional Summary</div>
-                        <div id="preview-summary" class="p-summary">{{ resume.content.professional_summary }}</div>
-                    </div>
-
-                    <div class="p-section" id="preview-skills-section" style="{% if not resume.content.skills %}display:none;{% endif %}">
-                        <div class="p-section-title">Core Competencies</div>
-                        <div id="preview-skills" class="p-summary">{{ resume.content.skills|join:", " }}</div>
-                    </div>
-
-                    <div class="p-section">
-                        <div class="p-section-title">Professional Experience</div>
-                        <div id="preview-experience">
-                            {% for exp in resume.content.experience %}
-                            <div class="p-item">
-                                <div class="p-item-header">
-                                    <div class="p-item-title">{{ exp.title }}</div>
-                                    <div class="p-item-date">{{ exp.duration }}</div>
+                    {# Section bodies rendered in `section_order` so the live
+                       preview matches the PDF, and reordering instantly
+                       reflows here without a full page reload. Each
+                       section keeps its existing id/class hooks so the
+                       live updateLivePreview() JS still finds them. #}
+                    <div id="preview-section-host">
+                    {% for section in section_order %}
+                        {% if section == "summary" %}
+                        <div class="p-section" data-preview-section="summary">
+                            <div class="p-section-title">Professional Summary</div>
+                            <div id="preview-summary" class="p-summary">{{ resume.content.professional_summary }}</div>
+                        </div>
+                        {% endif %}
+                        {% if section == "skills" %}
+                        <div class="p-section" data-preview-section="skills" id="preview-skills-section" style="{% if not resume.content.skills %}display:none;{% endif %}">
+                            <div class="p-section-title">Core Competencies</div>
+                            <div id="preview-skills" class="p-summary">{{ resume.content.skills|join:", " }}</div>
+                        </div>
+                        {% endif %}
+                        {% if section == "experience" %}
+                        <div class="p-section" data-preview-section="experience">
+                            <div class="p-section-title">Professional Experience</div>
+                            <div id="preview-experience">
+                                {% for exp in resume.content.experience %}
+                                <div class="p-item">
+                                    <div class="p-item-header">
+                                        <div class="p-item-title">{{ exp.title }}</div>
+                                        <div class="p-item-date">{{ exp.duration }}</div>
+                                    </div>
+                                    <div class="p-item-subtitle">{{ exp.company }}</div>
+                                    <div class="p-item-description">{{ exp.description }}</div>
                                 </div>
-                                <div class="p-item-subtitle">{{ exp.company }}</div>
-                                <div class="p-item-description">{{ exp.description }}</div>
+                                {% endfor %}
                             </div>
-                            {% endfor %}
                         </div>
-                    </div>
-
-                    <div class="p-section">
-                        <div class="p-section-title">Education</div>
-                        <div id="preview-education">
-                            {% for edu in resume.content.education %}
-                            <div class="p-item">
-                                <div class="p-item-header">
-                                    <div class="p-item-title">{{ edu.degree }}</div>
-                                    <div class="p-item-date">{{ edu.year }}</div>
+                        {% endif %}
+                        {% if section == "education" %}
+                        <div class="p-section" data-preview-section="education">
+                            <div class="p-section-title">Education</div>
+                            <div id="preview-education">
+                                {% for edu in resume.content.education %}
+                                <div class="p-item">
+                                    <div class="p-item-header">
+                                        <div class="p-item-title">{{ edu.degree }}</div>
+                                        <div class="p-item-date">{{ edu.year }}</div>
+                                    </div>
+                                    <div class="p-item-subtitle">{{ edu.institution }}</div>
                                 </div>
-                                <div class="p-item-subtitle">{{ edu.institution }}</div>
+                                {% endfor %}
                             </div>
-                            {% endfor %}
                         </div>
-                    </div>
-
-                    <div class="p-section" id="preview-projects-section" style="{% if not resume.content.projects %}display:none;{% endif %}">
-                        <div class="p-section-title">Projects</div>
-                        <div id="preview-projects">
-                            {% for proj in resume.content.projects %}
-                            <div class="p-item">
-                                <div class="p-item-title">{{ proj.name }}</div>
-                                <div class="p-item-description">{{ proj.description }}</div>
+                        {% endif %}
+                        {% if section == "projects" %}
+                        <div class="p-section" data-preview-section="projects" id="preview-projects-section" style="{% if not resume.content.projects %}display:none;{% endif %}">
+                            <div class="p-section-title">Projects</div>
+                            <div id="preview-projects">
+                                {% for proj in resume.content.projects %}
+                                <div class="p-item">
+                                    <div class="p-item-title">{{ proj.name }}</div>
+                                    <div class="p-item-description">{{ proj.description }}</div>
+                                </div>
+                                {% endfor %}
                             </div>
-                            {% endfor %}
                         </div>
-                    </div>
-
-                    <div class="p-section" id="preview-certifications-section" style="{% if not resume.content.certifications %}display:none;{% endif %}">
-                        <div class="p-section-title">Certifications</div>
-                        <ul id="preview-certifications" style="margin: 0; padding-left: 14px; font-size: 7pt; color: #333;">
-                            {% for cert in resume.content.certifications %}
-                            <li style="margin-bottom: 2px;"><strong>{{ cert.name }}</strong>{% if cert.issuer %} - {{ cert.issuer }}{% endif %}</li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-
-                    <div class="p-section" id="preview-languages-section" style="{% if not resume.content.languages %}display:none;{% endif %}">
-                        <div class="p-section-title">Languages</div>
-                        <div id="preview-languages" class="p-summary">{{ resume.content.languages|join:", " }}</div>
+                        {% endif %}
+                        {% if section == "certifications" %}
+                        <div class="p-section" data-preview-section="certifications" id="preview-certifications-section" style="{% if not resume.content.certifications %}display:none;{% endif %}">
+                            <div class="p-section-title">Certifications</div>
+                            <ul id="preview-certifications" style="margin: 0; padding-left: 14px; font-size: 7pt; color: #333;">
+                                {% for cert in resume.content.certifications %}
+                                <li style="margin-bottom: 2px;"><strong>{{ cert.name }}</strong>{% if cert.issuer %} - {{ cert.issuer }}{% endif %}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                        {% if section == "languages" %}
+                        <div class="p-section" data-preview-section="languages" id="preview-languages-section" style="{% if not resume.content.languages %}display:none;{% endif %}">
+                            <div class="p-section-title">Languages</div>
+                            <div id="preview-languages" class="p-summary">{{ resume.content.languages|join:", " }}</div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
                     </div>
                 </div>
             </div>
@@ -829,6 +866,75 @@
 </template>
 
 <script>
+    // ---- Section drag-and-drop reordering ----
+    // The whole-resume section ordering is persisted on resume.content
+    // ['section_order'] via /resumes/section-order/<id>/. The PDF templates
+    // and live preview both iterate over that list. Drag to swap; we save
+    // on every drop, mirror the new order to the live preview without a
+    // reload, and surface a small "Saved" pulse so the user knows it stuck.
+    let _orderDragSrc = null;
+    function orderDragStart(e) {
+        _orderDragSrc = e.currentTarget;
+        e.currentTarget.style.opacity = '0.5';
+        e.dataTransfer.effectAllowed = 'move';
+    }
+    function orderDragOver(e) {
+        e.preventDefault();  // necessary to allow drop
+        e.dataTransfer.dropEffect = 'move';
+        const target = e.currentTarget;
+        if (!_orderDragSrc || target === _orderDragSrc) return;
+        // Insert above or below target based on cursor position
+        const rect = target.getBoundingClientRect();
+        const after = (e.clientY - rect.top) > rect.height / 2;
+        target.parentNode.insertBefore(_orderDragSrc, after ? target.nextSibling : target);
+    }
+    function orderDrop(e) {
+        e.preventDefault();
+        persistSectionOrder();
+    }
+    function orderDragEnd(e) {
+        e.currentTarget.style.opacity = '';
+        _orderDragSrc = null;
+    }
+    async function persistSectionOrder() {
+        const list = document.getElementById('section-order-list');
+        if (!list) return;
+        const order = Array.from(list.querySelectorAll('[data-section-key]'))
+            .map(el => el.dataset.sectionKey);
+        // Mirror the order in the live preview without a reload — find each
+        // section block by data-preview-section and re-append in the new
+        // order to the host. New nodes don't lose their content this way.
+        const host = document.getElementById('preview-section-host');
+        if (host) {
+            const byKey = {};
+            host.querySelectorAll('[data-preview-section]').forEach(el => {
+                byKey[el.dataset.previewSection] = el;
+            });
+            order.forEach(key => {
+                const el = byKey[key];
+                if (el) host.appendChild(el);
+            });
+        }
+        // Persist server-side. URL pattern: /resumes/section-order/<id>/
+        const url = window.location.pathname.replace('/edit/', '/section-order/');
+        const csrf = document.querySelector('input[name=csrfmiddlewaretoken]')?.value || '';
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+                body: JSON.stringify({order}),
+            });
+            const status = document.getElementById('section-order-status');
+            if (status) {
+                status.textContent = res.ok ? 'Saved' : 'Save failed';
+                status.classList.remove('hidden');
+                setTimeout(() => status.classList.add('hidden'), 1500);
+            }
+        } catch (err) {
+            console.error('section order save failed', err);
+        }
+    }
+
     // Per-section regenerate. Sends the current in-flight form values so the
     // LLM sees the user's working draft (not just the saved snapshot), gets
     // back the rewritten section, applies it. For summary/skills the new

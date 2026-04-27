@@ -361,6 +361,111 @@ class ResumeEditPreviewTemplateClassTests(TestCase):
             )
 
 
+class SectionOrderEndpointTests(TestCase):
+    """The user can drag-reorder sections on the edit page; the order is
+    persisted on resume.content['section_order'] and applied uniformly
+    to the live preview, the resume_preview page, and the downloaded PDF."""
+
+    def setUp(self):
+        from jobs.models import Job
+        from analysis.models import GapAnalysis
+        from profiles.models import UserProfile
+        from resumes.models import GeneratedResume
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='order@example.com', email='order@example.com', password='x',
+        )
+        UserProfile.objects.create(user=self.user, full_name='Test User', email='order@example.com')
+        self.client.force_login(self.user)
+        job = Job.objects.create(user=self.user, title='Engineer')
+        gap = GapAnalysis.objects.create(user=self.user, job=job, similarity_score=0.5)
+        self.resume = GeneratedResume.objects.create(
+            gap_analysis=gap, content={'professional_title': 'Engineer'},
+        )
+
+    def _url(self):
+        return f'/resumes/section-order/{self.resume.id}/'
+
+    def test_post_persists_validated_order(self):
+        from django.urls import reverse  # noqa
+        resp = self.client.post(
+            self._url(),
+            data='{"order": ["projects", "skills", "summary", "experience"]}',
+            content_type='application/json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        # User-supplied order respected, missing keys appended at end
+        self.assertEqual(
+            body['order'],
+            ['projects', 'skills', 'summary', 'experience', 'education', 'certifications', 'languages'],
+        )
+        self.resume.refresh_from_db()
+        self.assertEqual(self.resume.content['section_order'], body['order'])
+
+    def test_unknown_keys_are_dropped_silently(self):
+        """Defensive: a stale UI or a malicious client must not poison the
+        saved order with unknown keys (e.g., 'admin_only_section')."""
+        resp = self.client.post(
+            self._url(),
+            data='{"order": ["skills", "definitely_not_a_section", "summary"]}',
+            content_type='application/json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        # Bad key dropped; valid ones preserved in their relative order
+        self.assertNotIn('definitely_not_a_section', resp.json()['order'])
+        self.assertEqual(resp.json()['order'][:2], ['skills', 'summary'])
+
+    def test_non_list_body_returns_400(self):
+        resp = self.client.post(
+            self._url(),
+            data='{"order": "not a list"}',
+            content_type='application/json',
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_invalid_json_returns_400(self):
+        resp = self.client.post(self._url(), data='not json', content_type='application/json')
+        self.assertEqual(resp.status_code, 400)
+
+    def test_per_owner_scope(self):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        other = User.objects.create_user(
+            username='other@example.com', email='other@example.com', password='x',
+        )
+        self.client.force_login(other)
+        resp = self.client.post(self._url(), data='{"order": []}', content_type='application/json')
+        self.assertEqual(resp.status_code, 404)
+
+    def test_edit_page_renders_saved_order_in_drag_list_and_preview(self):
+        """The drag list AND the live preview must both honor the saved
+        section_order — not the default — when the page loads."""
+        self.resume.content = {
+            'professional_title': 'Engineer',
+            'professional_summary': 'sum',
+            'skills': ['Python'],
+            'section_order': ['projects', 'skills', 'summary'],
+        }
+        self.resume.save()
+        from django.urls import reverse
+        resp = self.client.get(reverse('resume_edit', args=[self.resume.id]))
+        body = resp.content.decode('utf-8')
+        # Drag list: 'projects' chip should appear before 'skills' chip
+        proj_idx = body.index('data-section-key="projects"')
+        skills_idx = body.index('data-section-key="skills"')
+        summary_idx = body.index('data-section-key="summary"')
+        self.assertLess(proj_idx, skills_idx)
+        self.assertLess(skills_idx, summary_idx)
+        # Live preview: data-preview-section attributes must appear in same order
+        ppi = body.index('data-preview-section="projects"')
+        psi = body.index('data-preview-section="skills"')
+        psum = body.index('data-preview-section="summary"')
+        self.assertLess(ppi, psi)
+        self.assertLess(psi, psum)
+
+
 class RegenerateSectionEndpointTests(TestCase):
     """The per-section regenerate endpoint lets the user iterate on a single
     weak section (summary, skills, experience, projects) without losing
