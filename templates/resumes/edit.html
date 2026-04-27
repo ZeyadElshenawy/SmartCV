@@ -473,12 +473,6 @@
                         ← Back to preview
                     </a>
                     <div class="flex w-full sm:w-auto gap-2">
-                        <button type="button" onclick="syncFromMaster(this)"
-                                class="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 h-11 px-4 text-sm font-medium rounded-lg ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-700 dark:text-neutral-200 bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-wait"
-                                title="Pull the latest fields from your master profile (location, GPA, technologies, etc.) into this resume. Won't overwrite your existing bullets.">
-                            <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                            Sync from master
-                        </button>
                         <button type="submit" class="group/btn flex-1 sm:flex-none inline-flex items-center justify-center gap-2 h-11 px-5 text-sm font-medium rounded-lg bg-brand-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-brand-700 hover:-translate-y-px transition-[background-color,transform] duration-150">
                             <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                             Save changes
@@ -1267,40 +1261,6 @@
         const langs = val('textarea[name="languages"]');
         setText('preview-languages', langs);
         setSectionVisible('preview-languages-section', langs.trim().length > 0);
-    }
-
-    // Pull latest master-profile fields into this resume's content. Server-side
-    // merge via _ensure_profile_data_preserved; on success, reload so the form
-    // reflects the merged content.
-    async function syncFromMaster(btn) {
-        if (!btn || btn.disabled) return;
-        if (!confirm('Pull the latest fields from your master profile? Your typed bullets will be preserved; only blank/missing fields get filled in.')) return;
-        btn.disabled = true;
-        const originalLabel = btn.innerHTML;
-        btn.innerHTML = 'Syncing…';
-        try {
-            const url = window.location.pathname.replace('/edit/', '/sync-from-master/');
-            const csrf = document.querySelector('input[name=csrfmiddlewaretoken]')?.value || '';
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
-                body: '{}',
-            });
-            const body = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                alert(body.detail || body.error || ('Sync failed (' + res.status + ')'));
-                return;
-            }
-            // Hard reload — easiest way to get the merged content into all the
-            // dynamic experience/education/project rows.
-            window.location.reload();
-        } catch (err) {
-            console.error('sync-from-master failed', err);
-            alert('Sync failed — check the console.');
-        } finally {
-            btn.disabled = false;
-            btn.innerHTML = originalLabel;
-        }
     }
 
     function addExperience() {
