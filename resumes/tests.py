@@ -1449,6 +1449,80 @@ class TourAndHelpAffordanceTests(TestCase):
         self.assertContains(resp, 'Step 4 of 4')
 
 
+class LearningPathFailedGenerationRecoveryTests(SimpleTestCase):
+    """Groq returns 400 tool_use_failed when the model emits a bare top-level
+    list instead of {items: [...]}. The well-formed JSON list is still in
+    `error.failed_generation`. The generator salvages it instead of dropping
+    a successful generation on the floor."""
+
+    def _exc(self, raw_failed_generation: str):
+        """Build an exception shaped like a Groq BadRequestError."""
+        class _FakeBadRequest(Exception):
+            pass
+        e = _FakeBadRequest('tool_use_failed')
+        e.body = {
+            'error': {
+                'message': 'Failed to call a function.',
+                'type': 'invalid_request_error',
+                'code': 'tool_use_failed',
+                'failed_generation': raw_failed_generation,
+            }
+        }
+        return e
+
+    def test_recovers_from_bare_list_failed_generation(self):
+        from unittest.mock import patch
+        from analysis.services import learning_path_generator
+        # Real shape from the production trace: top-level array of items.
+        raw = (
+            '[{"importance": "Python is hot.", "skill": "python",'
+            ' "resources": [{"name": "Real Python", "url": "https://realpython.com/",'
+            ' "provider": "Other"}], "project_idea": "Web scraper.",'
+            ' "time_estimate": "10-15 hours"}]'
+        )
+        with patch.object(learning_path_generator, 'get_structured_llm') as mock_llm:
+            mock_llm.return_value.invoke.side_effect = self._exc(raw)
+            out = learning_path_generator.generate_learning_path(['python'])
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]['skill'], 'python')
+        self.assertEqual(out[0]['time_estimate'], '10-15 hours')
+        self.assertEqual(out[0]['resources'][0]['url'], 'https://realpython.com/')
+
+    def test_recovers_from_wrapped_failed_generation(self):
+        """If the model gets the wrapper right but the tool serializer still
+        flakes, recover from `{items: [...]}` form too."""
+        from unittest.mock import patch
+        from analysis.services import learning_path_generator
+        raw = (
+            '{"items": [{"importance": "ok", "skill": "go",'
+            ' "resources": [], "project_idea": "x", "time_estimate": "20h"}]}'
+        )
+        with patch.object(learning_path_generator, 'get_structured_llm') as mock_llm:
+            mock_llm.return_value.invoke.side_effect = self._exc(raw)
+            out = learning_path_generator.generate_learning_path(['go'])
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]['skill'], 'go')
+
+    def test_returns_empty_when_failed_generation_unparseable(self):
+        from unittest.mock import patch
+        from analysis.services import learning_path_generator
+        # Truncated JSON — recovery should return [] not raise.
+        with patch.object(learning_path_generator, 'get_structured_llm') as mock_llm:
+            mock_llm.return_value.invoke.side_effect = self._exc('[{"skill"')
+            out = learning_path_generator.generate_learning_path(['python'])
+        self.assertEqual(out, [])
+
+    def test_returns_empty_on_non_groq_exception(self):
+        """A generic exception (network error, etc.) without the Groq
+        body shape still drops gracefully."""
+        from unittest.mock import patch
+        from analysis.services import learning_path_generator
+        with patch.object(learning_path_generator, 'get_structured_llm') as mock_llm:
+            mock_llm.return_value.invoke.side_effect = RuntimeError('network down')
+            out = learning_path_generator.generate_learning_path(['python'])
+        self.assertEqual(out, [])
+
+
 class LearningPathPersistenceTests(TestCase):
     """Tier 5 (M4): the learning path persists across page loads, the
     mark-as-done toggle saves to the profile, and the return-path CTA
