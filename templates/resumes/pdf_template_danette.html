@@ -148,9 +148,11 @@
         </div>
     </div>
 
-    {# Body sections rendered in `section_order`. Skills and Languages are
-       independent sections (the prior template fused them) so the user
-       can reorder each separately. #}
+    {% comment %}
+    Body sections rendered in section_order. Skills and Languages are
+    independent sections (the prior template fused them) so the user
+    can reorder each separately.
+    {% endcomment %}
     {% for section in section_order %}
         {% if section == "summary" and resume.professional_summary %}
         <div class="section summary">

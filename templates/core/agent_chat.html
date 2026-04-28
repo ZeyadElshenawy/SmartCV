@@ -40,9 +40,11 @@
     </header>
 
     {% if profile_empty %}
-    {# Zero-data banner: input stays enabled (disabled inputs feel broken),
-       but the user knows answers will be shallow until they set up the
-       profile. Banner is dismissible per session via Alpine state. #}
+    {% comment %}
+    Zero-data banner: input stays enabled (disabled inputs feel broken),
+    but the user knows answers will be shallow until they set up the
+    profile. Banner is dismissible per session via Alpine state.
+    {% endcomment %}
     <div x-data="{show: true}" x-show="show" class="px-4 sm:px-6 pt-4">
         <div class="rounded-xl bg-amber-50 dark:bg-amber-950/30 ring-1 ring-amber-200 dark:ring-amber-800/50 p-4 flex items-start gap-3">
             <div class="shrink-0 w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 flex items-center justify-center">

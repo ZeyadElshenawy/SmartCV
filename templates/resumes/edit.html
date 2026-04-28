@@ -6,11 +6,13 @@
 <div x-data="resumeEditor()" x-init="init()">
 
     {% if sync_banner %}
-    {# Auto-sync banner (M10): when the GET handler patched master-profile
-       fields into resume.content (location/industry/GPA/honors/technologies/
-       cert duration/objective), surface it explicitly so the user knows
-       the page didn't render exactly what they last saved. One-shot —
-       the session flag is consumed on render. #}
+    {% comment %}
+    Auto-sync banner (M10): when the GET handler patched master-profile
+    fields into resume.content (location/industry/GPA/honors/technologies/
+    cert duration/objective), surface it explicitly so the user knows
+    the page didn't render exactly what they last saved. One-shot —
+    the session flag is consumed on render.
+    {% endcomment %}
     <div x-data="{visible: true}" x-show="visible"
          x-transition:leave="transition ease-in duration-200"
          x-transition:leave-end="opacity-0"

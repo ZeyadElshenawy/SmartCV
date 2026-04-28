@@ -136,8 +136,10 @@
         </div>
     </div>
 
-    {# Body sections rendered in `section_order` so the user's saved drag
-       ordering on the edit page applies to the PDF too. #}
+    {% comment %}
+    Body sections rendered in section_order so the user's saved drag
+    ordering on the edit page applies to the PDF too.
+    {% endcomment %}
     {% for section in section_order %}
         {% if section == "summary" and resume.professional_summary %}
         <div class="section summary">

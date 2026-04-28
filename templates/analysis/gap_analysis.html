@@ -6,11 +6,13 @@
 {% block content %}
 <script>window.PAGE_TOUR = 'gap-analysis';</script>
 {% if is_computing %}
-{# Tier 3: kill the fake progress bar. The substep component shows real
-   stage labels (Comparing skills → Reconciling fuzzy matches → Computing
-   similarity) advancing on the same time budget the actual operation
-   typically uses. The last step holds at "active" until the API returns,
-   so a slow run doesn't pretend to be done. #}
+{% comment %}
+Tier 3: kill the fake progress bar. The substep component shows real
+stage labels (Comparing skills → Reconciling fuzzy matches → Computing
+similarity) advancing on the same time budget the actual operation
+typically uses. The last step holds at "active" until the API returns,
+so a slow run doesn't pretend to be done.
+{% endcomment %}
 <div id="computing-state" class="bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center px-4 py-16">
     <div class="max-w-xl text-center space-y-8 w-full">
         <h1 class="font-display text-5xl sm:text-6xl leading-[1.02] tracking-tight text-neutral-900 dark:text-neutral-50"
@@ -196,10 +198,12 @@
 
                 {# Right: tier-dependent primary action + quiet alternates #}
                 <div class="lg:col-span-2 lg:border-l lg:border-neutral-200 lg:dark:border-neutral-800 lg:pl-8 space-y-4">
-                    {# "Why this recommendation?" tooltip — explains the routing
-                       so the user understands the system isn't arbitrary. The
-                       cutoff thresholds (0.8 / 0.5) are documented inline so
-                       the user knows where they sit and why. #}
+                    {% comment %}
+                    "Why this recommendation?" tooltip — explains the routing
+                    so the user understands the system isn't arbitrary. The
+                    cutoff thresholds (0.8 / 0.5) are documented inline so
+                    the user knows where they sit and why.
+                    {% endcomment %}
                     <div class="flex items-center justify-between gap-2">
                         {% if gap.similarity_score >= 0.8 %}
                             {% include "components/section_label.html" with text="Recommended" tone="brand" %}

@@ -159,9 +159,11 @@
         </table>
     </div>
 
-    {# Body sections rendered in `section_order`. Skills + Languages used to
-       share one panel here; now each is independent so the user can
-       reorder them separately. #}
+    {% comment %}
+    Body sections rendered in section_order. Skills + Languages used to
+    share one panel here; now each is independent so the user can
+    reorder them separately.
+    {% endcomment %}
     {% for section in section_order %}
         {% if section == "summary" and resume.professional_summary %}
         <div class="section summary">

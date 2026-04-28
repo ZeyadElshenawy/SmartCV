@@ -6,10 +6,12 @@
     <div class="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8 space-y-10">
 
         {% if generating %}
-{# Tier 3: real substeps + AbortController-based 60s timeout. The previous
-   fake bar advanced regardless of API state, hiding stuck requests. Now
-   the user sees the actual work being attempted, and a hung Groq call
-   surfaces a real error with retry instead of an infinite spinner. #}
+{% comment %}
+Tier 3: real substeps + AbortController-based 60s timeout. The previous
+fake bar advanced regardless of API state, hiding stuck requests. Now
+the user sees the actual work being attempted, and a hung Groq call
+surfaces a real error with retry instead of an infinite spinner.
+{% endcomment %}
 <div id="generating-state" class="text-center space-y-8">
             <div class="space-y-4">
                 {% include "components/section_label.html" with text="Tailoring · in flight" tone="brand" %}

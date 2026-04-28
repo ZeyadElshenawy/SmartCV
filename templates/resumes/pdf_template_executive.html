@@ -139,9 +139,11 @@
         </div>
     </div>
 
-    {# Body sections rendered in `section_order`. Skills and Languages,
-       which used to share a fused 'Skills & Languages' panel here, are
-       now independent sections so the user can reorder them separately. #}
+    {% comment %}
+    Body sections rendered in section_order. Skills and Languages,
+    which used to share a fused 'Skills and Languages' panel here, are
+    now independent sections so the user can reorder them separately.
+    {% endcomment %}
     {% for section in section_order %}
         {% if section == "summary" and resume.professional_summary %}
         <div class="section summary">
