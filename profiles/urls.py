@@ -47,5 +47,4 @@ urlpatterns = [
     # Project enrichment + dedupe
     path('api/projects/enrich-from-signals/', views.enrich_from_signals_view, name='enrich_from_signals'),
     path('projects/review/', views.projects_review_view, name='projects_review'),
-    path('projects/confirm/', views.projects_confirm_view, name='projects_confirm'),
 ]

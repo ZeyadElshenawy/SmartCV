@@ -460,23 +460,45 @@ def connect_accounts_view(request):
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
 
     if request.method == 'POST':
-        # Onboarding order: connect → project review (only if signals
-        # were pulled; otherwise skip straight to master review). Mirrors
-        # the predicate the connect_accounts.html banner uses to decide
-        # whether to surface the project-review link, so the redirect is
-        # consistent with the in-page UI.
+        # When external signals are connected, silently auto-merge the
+        # enriched projects into the master profile and drop the user
+        # straight at the master-review page. We deliberately do NOT
+        # detour through /profiles/projects/review/ — the dedupe step
+        # is hands-off by design (per user direction): the LLM's verdict
+        # is authoritative and overrides aren't worth a manual review
+        # screen. The page itself stays reachable for inspection but
+        # is no longer a step in the flow.
+        data = profile.data_content or {}
+
+        def _has_signal(key):
+            blob = data.get(key) or {}
+            return bool(blob) and not blob.get('error')
+
+        has_signals = (
+            _has_signal('github_signals')
+            or _has_signal('scholar_signals')
+            or _has_signal('kaggle_signals')
+        )
+        if has_signals:
+            try:
+                from profiles.services.project_dedupe import auto_apply_enriched_projects
+                summary = auto_apply_enriched_projects(profile)
+                logger.info(
+                    "connect_accounts: auto-merged enriched projects (added=%d, "
+                    "merged=%d, kept_existing=%d, kept_new=%d, final=%d)",
+                    summary['added_new'], summary['merged'],
+                    summary['kept_existing'], summary['kept_new'],
+                    summary['final_count'],
+                )
+                # One-shot session flag so the master-review page can
+                # surface a small "we added X projects from your signals"
+                # banner without requiring a separate confirm step.
+                if summary['added_new'] or summary['merged']:
+                    request.session['projects_auto_merged'] = summary
+            except Exception:
+                logger.exception("Auto-apply of enriched projects failed; continuing without merge.")
+
         if request.session.get('in_onboarding'):
-            data = profile.data_content or {}
-            def _has_signal(key):
-                blob = data.get(key) or {}
-                return bool(blob) and not blob.get('error')
-            has_signals = (
-                _has_signal('github_signals')
-                or _has_signal('scholar_signals')
-                or _has_signal('kaggle_signals')
-            )
-            if has_signals:
-                return redirect('projects_review')
             return redirect('review_master_profile')
 
         # Out-of-onboarding (settings-style visit): keep going to the
@@ -938,136 +960,75 @@ def dismiss_onboarding_banner_view(request):
 
 @login_required
 def projects_review_view(request):
-    """User-engaged review of project enrichment + dedupe verdicts.
+    """Read-only summary of auto-merged enriched projects.
 
-    GET: runs enrich_profile + dedupe_projects (cached when possible) and
-    renders the three-section review template:
-      1. Suggested merges — typed ↔ enriched pairs the LLM proposed
-         a verdict for. Each row gets an action dropdown so the user can
-         override LLM judgment.
-      2. New additions — enriched projects with no typed match.
-         Checkbox per row; opt-in.
-      3. Untouched typed — typed projects with no enriched counterpart.
-         Read-only, informational.
+    Per user direction: the dedupe step is hands-off — there's no
+    confirm form, no action dropdowns, no opt-in checkboxes. On every
+    visit we silently re-run enrichment + dedupe + apply (idempotent;
+    cached on the profile via enrich_profile's hash) and then render a
+    summary of what got merged. The page is now informational, not
+    transactional.
 
-    POST is handled by `projects_confirm_view`.
+    Use cases retained: a user wants to see what GitHub / Scholar /
+    Kaggle entries got pulled in as projects; a user wants to force a
+    re-merge after refreshing signals (?force=1).
     """
     from profiles.services.project_enricher import enrich_profile
-    from profiles.services.project_dedupe import dedupe_projects
+    from profiles.services.project_dedupe import auto_apply_enriched_projects, dedupe_projects
 
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
     force = request.GET.get('force') == '1'
 
-    enriched = enrich_profile(profile, force=force)
-    typed = (profile.data_content or {}).get('projects') or []
-    decisions = dedupe_projects(typed, enriched)
+    has_signals = bool(
+        (profile.data_content or {}).get('github_signals')
+        or (profile.data_content or {}).get('scholar_signals')
+        or (profile.data_content or {}).get('kaggle_signals')
+    )
+    if has_signals:
+        # Force=1 bypasses the enrichment cache; without it, this is
+        # essentially a free re-render after the first auto-merge.
+        if force:
+            enrich_profile(profile, force=True)
+        try:
+            summary = auto_apply_enriched_projects(profile)
+        except Exception:
+            logger.exception("projects_review: auto-apply failed")
+            summary = None
+    else:
+        summary = None
 
-    # Cache the latest decisions on the profile so a refresh of the page
-    # doesn't have to re-call the dedupe LLM (enrich_profile already caches
-    # on its own hash).
-    data = profile.data_content or {}
-    data['dedupe_decisions'] = decisions
-    profile.data_content = data
-    profile.save(update_fields=['data_content', 'updated_at'])
+    # Refresh local view of the now-merged state for rendering.
+    enriched = (profile.data_content or {}).get('enriched_projects_cache') or []
+    decisions = (profile.data_content or {}).get('dedupe_decisions') or []
+    final_projects = (profile.data_content or {}).get('projects') or []
 
-    # Index typed projects that have a matched decision so we can split
-    # them into "matched" vs "untouched" buckets in the template.
-    matched_typed_indices = {d['typed_index'] for d in decisions if d.get('typed_index', -1) >= 0}
-    untouched_typed = [
-        {'index': i, 'project': p}
-        for i, p in enumerate(typed)
-        if i not in matched_typed_indices
-    ]
-
-    # Build per-decision rendering view objects so the template can iterate
-    # without double-indirecting through indices.
+    # Build per-row view objects for the read-only summary.
     matched_rows = []
     new_rows = []
     for d in decisions:
         e_idx = d.get('enriched_index', -1)
         if e_idx < 0 or e_idx >= len(enriched):
             continue
-        row = {
-            'decision': d,
-            'enriched': enriched[e_idx],
-        }
-        t_idx = d.get('typed_index', -1)
-        if d.get('action') == 'add_new' or t_idx < 0:
+        row = {'decision': d, 'enriched': enriched[e_idx]}
+        if d.get('action') == 'add_new':
             new_rows.append(row)
         else:
-            row['typed'] = typed[t_idx] if t_idx < len(typed) else None
             matched_rows.append(row)
 
     return render(request, 'profiles/projects_review.html', {
         'matched_rows': matched_rows,
         'new_rows': new_rows,
-        'untouched_typed': untouched_typed,
-        'has_signals': bool(
-            (profile.data_content or {}).get('github_signals')
-            or (profile.data_content or {}).get('scholar_signals')
-            or (profile.data_content or {}).get('kaggle_signals')
-        ),
+        'final_projects': final_projects,
+        'summary': summary,
+        'has_signals': has_signals,
         'enriched_count': len(enriched),
     })
 
 
-@login_required
-def projects_confirm_view(request):
-    """Persist the user's review decisions into data_content['projects'].
-
-    Reads the form's per-decision action overrides (`override_<enriched_index>`
-    POSTed as the chosen action) and the per-new-project opt-in checkboxes
-    (`include_new_<enriched_index>`). Computes the final project list via
-    `apply_decisions` and replaces `data_content['projects']`.
-
-    Idempotent: re-running with the same form values produces the same
-    output. Redirects to /profiles/setup/review/ on success so the user
-    immediately sees the new projects in their master profile.
-    """
-    if request.method != 'POST':
-        return JsonResponse({'error': 'POST only'}, status=405)
-
-    from profiles.services.project_dedupe import apply_decisions
-
-    profile, _ = UserProfile.objects.get_or_create(user=request.user)
-    data = profile.data_content or {}
-    decisions = data.get('dedupe_decisions') or []
-    enriched = data.get('enriched_projects_cache') or []
-    typed = data.get('projects') or []
-
-    # Build the override map from the form. For new-project decisions, an
-    # unchecked include_new_<i> means we drop the decision entirely so it
-    # doesn't add anything; we encode that as override "skip".
-    overrides: dict[int, str] = {}
-    for d in decisions:
-        e_idx = d.get('enriched_index', -1)
-        if e_idx < 0:
-            continue
-        if d.get('action') == 'add_new':
-            included = request.POST.get(f'include_new_{e_idx}') == '1'
-            overrides[e_idx] = 'add_new' if included else 'skip'
-        else:
-            chosen = request.POST.get(f'override_{e_idx}')
-            if chosen in ('merge', 'keep_existing', 'keep_new'):
-                overrides[e_idx] = chosen
-            # If no override posted, fall through to LLM verdict.
-
-    # apply_decisions doesn't recognize "skip"; filter those decisions out
-    # before passing in.
-    effective_decisions = [
-        d for d in decisions
-        if overrides.get(d.get('enriched_index', -1)) != 'skip'
-    ]
-    final_projects = apply_decisions(typed, enriched, effective_decisions, overrides=overrides)
-
-    data['projects'] = final_projects
-    # Mark as confirmed so a future visit to the review page doesn't re-prompt
-    # for the same decisions; force=1 still bypasses.
-    data['projects_confirmed_at'] = timezone.now().isoformat()
-    profile.data_content = data
-    profile.save(update_fields=['data_content', 'updated_at'])
-
-    return redirect('review_master_profile')
+# Note: the prior `projects_confirm_view` was removed when the dedupe
+# step became fully automatic. Auto-apply now runs in
+# `connect_accounts_view` POST and on every GET to `projects_review_view`.
+# The URL pattern was dropped from `profiles/urls.py` in the same change.
 
 
 @login_required

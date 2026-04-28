@@ -1433,21 +1433,40 @@ class OnboardingFlowOrderTests(TestCase):
         session['in_onboarding'] = value
         session.save()
 
-    def test_connect_redirects_to_projects_review_when_signals_present(self):
-        """In onboarding + at least one signal block → POST connect →
-        project review (the 'difference thing' from the user's spec)."""
+    def test_connect_auto_merges_and_redirects_to_master_review_when_signals_present(self):
+        """Onboarding + signals: connect_accounts auto-applies enriched
+        projects to the master profile and skips the (now read-only)
+        review page entirely. The user lands on master review with the
+        merge already done."""
         from profiles.models import UserProfile
         UserProfile.objects.filter(user=self.user).update(data_content={
             'github_signals': {
                 'profile_url': 'https://github.com/me',
-                'top_repos': [],
-                'language_breakdown': [],
+                'top_repos': [{'name': 'alpha', 'full_name': 'me/alpha',
+                               'description': 'demo', 'html_url': 'https://github.com/me/alpha',
+                               'stargazers_count': 1, 'forks_count': 0, 'language': 'Python'}],
+                'language_breakdown': [['Python', 1]],
             },
         })
         self._set_onboarding_flag()
-        resp = self.client.post('/profiles/setup/connect/')
+        from unittest.mock import patch
+        # Stub the LLM calls — we only care about the redirect contract +
+        # that data_content['projects'] gets written. Both enrich_profile
+        # and dedupe_projects fall back to deterministic paths on LLM
+        # failure (existing behaviour) so the auto-apply still runs.
+        from profiles.services import project_enricher, project_dedupe
+        with patch.object(project_enricher, 'get_structured_llm') as mock_a, \
+             patch.object(project_dedupe, 'get_structured_llm') as mock_b:
+            mock_a.return_value.invoke.side_effect = RuntimeError('boom')
+            mock_b.return_value.invoke.side_effect = RuntimeError('boom')
+            resp = self.client.post('/profiles/setup/connect/')
         self.assertEqual(resp.status_code, 302)
-        self.assertEqual(resp.url, '/profiles/projects/review/')
+        self.assertEqual(resp.url, '/profiles/setup/review/')
+        # Auto-apply persisted: data_content['projects'] now includes the
+        # GitHub-derived project (rule-based fallback shape from enricher).
+        profile = UserProfile.objects.get(user=self.user)
+        names = [p.get('name') for p in profile.data_content.get('projects', [])]
+        self.assertIn('alpha', names)
 
     def test_connect_redirects_to_master_review_when_no_signals(self):
         """In onboarding + no signals connected → POST connect →

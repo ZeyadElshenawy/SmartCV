@@ -136,6 +136,52 @@ typed project's index, or -1 for add_new.
         return _url_match_fallback(typed_projects, enriched_projects)
 
 
+def auto_apply_enriched_projects(profile) -> dict:
+    """Run enrichment + dedupe + apply with no user overrides; persist.
+
+    Used in the (default) hands-off onboarding path: the user connects
+    external accounts and the system silently merges enriched projects
+    into the master profile without surfacing a confirm form. The LLM's
+    verdict per pair is treated as authoritative — merge / keep_existing
+    / keep_new / add_new all apply automatically.
+
+    Idempotent across visits: enrich_profile uses a hash-based cache, so
+    re-running with unchanged signals is free; dedupe + apply are pure
+    functions over that cached input.
+
+    Returns a small summary dict suitable for surfacing as a status
+    banner: counts per action, plus the final project pool size.
+    """
+    from profiles.services.project_enricher import enrich_profile
+
+    enriched = enrich_profile(profile)
+    typed = (profile.data_content or {}).get('projects') or []
+    decisions = dedupe_projects(typed, enriched)
+    final = apply_decisions(typed, enriched, decisions)
+
+    counts = {'merge': 0, 'keep_existing': 0, 'keep_new': 0, 'add_new': 0}
+    for d in decisions:
+        action = d.get('action', '')
+        if action in counts:
+            counts[action] += 1
+
+    data = profile.data_content or {}
+    data['projects'] = final
+    data['dedupe_decisions'] = decisions
+    data['enriched_projects_cache'] = enriched
+    profile.data_content = data
+    profile.save(update_fields=['data_content', 'updated_at'])
+
+    return {
+        'enriched_count': len(enriched),
+        'final_count': len(final),
+        'merged': counts['merge'],
+        'kept_existing': counts['keep_existing'],
+        'kept_new': counts['keep_new'],
+        'added_new': counts['add_new'],
+    }
+
+
 def apply_decisions(
     typed_projects: list[dict],
     enriched_projects: list[dict],

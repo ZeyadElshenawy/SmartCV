@@ -1762,7 +1762,11 @@ class ProjectsReviewViewTests(TestCase):
         )
         self.client.force_login(self.user)
 
-    def test_review_page_renders_three_sections(self):
+    def test_review_page_auto_applies_and_renders_summary(self):
+        """The page is now a read-only summary. On GET, auto-apply runs
+        synchronously: enriched projects get merged into data_content['projects']
+        without any user confirmation."""
+        from profiles.models import UserProfile
         from profiles.services import project_enricher, project_dedupe
         with patch.object(project_enricher, 'get_structured_llm') as mock_a, \
              patch.object(project_dedupe, 'get_structured_llm') as mock_b:
@@ -1770,15 +1774,17 @@ class ProjectsReviewViewTests(TestCase):
             mock_b.return_value.invoke.side_effect = RuntimeError('boom')
             resp = self.client.get('/profiles/projects/review/?force=1')
         self.assertEqual(resp.status_code, 200)
-        # Both sources of typed projects are visible:
-        self.assertContains(resp, 'pgbench-tuner')
-        self.assertContains(resp, 'orphan-typed')
-        # Enriched additions visible:
-        self.assertContains(resp, 'climate-modeling')
-        # Section headings present:
-        self.assertContains(resp, 'Suggested merges')
-        self.assertContains(resp, 'New additions')
-        self.assertContains(resp, 'Kept as-is')
+        # Read-only summary headings (no longer "Suggested merges" forms):
+        self.assertContains(resp, 'Merged into existing')
+        self.assertContains(resp, 'Added to your profile')
+        # Auto-apply persisted: the enriched climate-modeling project was
+        # written to data_content['projects'] without any user confirmation.
+        profile = UserProfile.objects.get(user=self.user)
+        names = [p.get('name') for p in profile.data_content.get('projects', [])]
+        self.assertIn('climate-modeling', names)
+        # Original typed entries preserved:
+        self.assertIn('pgbench-tuner', names)
+        self.assertIn('orphan-typed', names)
 
     def test_review_page_handles_no_signals_gracefully(self):
         """When no external signals are connected, the page renders an
@@ -1791,61 +1797,11 @@ class ProjectsReviewViewTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'Connect accounts')
 
-    def test_confirm_post_applies_overrides_and_includes(self):
-        """The POST endpoint applies the user's per-row overrides and the
-        new-project opt-in checkboxes, then persists the result on
-        data_content['projects']."""
-        from profiles.models import UserProfile
-        from profiles.services import project_enricher, project_dedupe
-        # Prime the cache via the GET first so dedupe_decisions /
-        # enriched_projects_cache are populated.
-        with patch.object(project_enricher, 'get_structured_llm') as mock_a, \
-             patch.object(project_dedupe, 'get_structured_llm') as mock_b:
-            mock_a.return_value.invoke.side_effect = RuntimeError('boom')
-            mock_b.return_value.invoke.side_effect = RuntimeError('boom')
-            self.client.get('/profiles/projects/review/?force=1')
-        profile = UserProfile.objects.get(user=self.user)
-        decisions = profile.data_content['dedupe_decisions']
-        # Identify enriched indices: one merge (pgbench), one add_new (climate)
-        merge_idx = next(d['enriched_index'] for d in decisions if d['action'] == 'merge')
-        new_idx = next(d['enriched_index'] for d in decisions if d['action'] == 'add_new')
-        # POST: override merge → keep_existing, opt-in new climate-modeling
-        resp = self.client.post('/profiles/projects/confirm/', {
-            f'override_{merge_idx}': 'keep_existing',
-            f'include_new_{new_idx}': '1',
-        })
-        # Redirects to master review page on success
-        self.assertEqual(resp.status_code, 302)
-        # Verify final pool: original 2 typed (untouched by keep_existing) + 1 added
-        profile.refresh_from_db()
-        names = [p['name'] for p in profile.data_content['projects']]
-        self.assertIn('pgbench-tuner', names)
-        self.assertIn('orphan-typed', names)
-        self.assertIn('climate-modeling', names)
-        # pgbench-tuner stayed exactly as typed (keep_existing didn't merge tech)
-        pg = next(p for p in profile.data_content['projects'] if p['name'] == 'pgbench-tuner')
-        self.assertEqual(pg['technologies'], ['Python'])
-
-    def test_confirm_post_skips_unchecked_new_projects(self):
-        """Unchecking a new-addition checkbox keeps it OUT of the final pool."""
-        from profiles.models import UserProfile
-        from profiles.services import project_enricher, project_dedupe
-        with patch.object(project_enricher, 'get_structured_llm') as mock_a, \
-             patch.object(project_dedupe, 'get_structured_llm') as mock_b:
-            mock_a.return_value.invoke.side_effect = RuntimeError('boom')
-            mock_b.return_value.invoke.side_effect = RuntimeError('boom')
-            self.client.get('/profiles/projects/review/?force=1')
-        # Don't post any include_new_X — every add_new is skipped
+    def test_confirm_endpoint_no_longer_exists(self):
+        """The old POST /profiles/projects/confirm/ endpoint was removed
+        when dedupe became fully automatic. URL should 404."""
         resp = self.client.post('/profiles/projects/confirm/', {})
-        self.assertEqual(resp.status_code, 302)
-        profile = UserProfile.objects.get(user=self.user)
-        names = [p['name'] for p in profile.data_content['projects']]
-        # climate-modeling is NOT added because the checkbox wasn't ticked
-        self.assertNotIn('climate-modeling', names)
-
-    def test_confirm_rejects_get(self):
-        resp = self.client.get('/profiles/projects/confirm/')
-        self.assertEqual(resp.status_code, 405)
+        self.assertEqual(resp.status_code, 404)
 
     def test_review_page_requires_login(self):
         self.client.logout()
