@@ -2,6 +2,8 @@
 {% block title %}Learning path — SmartCV{% endblock %}
 
 {% block content %}
+{# Hidden CSRF for the mark-as-done AJAX toggles. #}
+<form style="display:none">{% csrf_token %}</form>
 <div class="bg-neutral-50 dark:bg-neutral-950 py-10 sm:py-14">
     <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 space-y-8">
 
@@ -61,17 +63,48 @@
             <main class="lg:col-span-2 space-y-5">
                 {% if learning_path %}
                     {% for item in learning_path %}
-                    <article class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
-                        <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-accent-500"></div>
+                    {# Each card supports a per-skill "Mark as done" toggle. We
+                       use Alpine state initialized from `completed_skills`
+                       (server-side set, lower-cased) so the toggle reflects
+                       the persisted state on every page load. #}
+                    <article x-data="{done: {% if item.skill|lower in completed_skills %}true{% else %}false{% endif %}}"
+                             :class="done ? 'opacity-70' : ''"
+                             class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 transition-opacity">
+                        <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px]"
+                             :class="done ? 'bg-emerald-500' : 'bg-accent-500'"></div>
                         <div class="p-6 space-y-5">
                             <div class="flex items-start gap-4">
-                                <span aria-hidden="true" class="font-display italic text-4xl leading-none tabular-nums text-accent-600 dark:text-accent-400"
+                                <span aria-hidden="true" class="font-display italic text-4xl leading-none tabular-nums"
+                                      :class="done ? 'text-emerald-600 dark:text-emerald-400' : 'text-accent-600 dark:text-accent-400'"
                                       style="font-variation-settings: 'opsz' 72;">{{ forloop.counter|stringformat:"02d" }}</span>
                                 <div class="flex-1 min-w-0">
-                                    {% include "components/section_label.html" with text="Skill" tone="accent" %}
+                                    <div class="flex items-center justify-between gap-2 flex-wrap">
+                                        {% include "components/section_label.html" with text="Skill" tone="accent" %}
+                                        {% if item.time_estimate %}
+                                        <span class="text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400" title="Estimated time to learn">
+                                            {{ item.time_estimate }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
                                     <h3 class="mt-1 font-display text-2xl leading-tight text-neutral-900 dark:text-neutral-50 capitalize"
+                                        :class="done ? 'line-through decoration-emerald-500' : ''"
                                         style="font-variation-settings: 'opsz' 36;">{{ item.skill|title }}</h3>
                                 </div>
+                                <button type="button"
+                                        @click="
+                                            const csrf = document.querySelector('input[name=csrfmiddlewaretoken]')?.value || '';
+                                            done = !done;
+                                            fetch('{% url 'mark_skill_complete' %}', {
+                                                method: 'POST',
+                                                headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+                                                body: JSON.stringify({skill: '{{ item.skill|escapejs }}'}),
+                                            }).catch(() => { done = !done; });
+                                        "
+                                        class="shrink-0 inline-flex items-center gap-1.5 h-9 px-3 text-xs font-medium rounded-lg ring-1 transition-colors"
+                                        :class="done ? 'ring-emerald-300 dark:ring-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-950/60' : 'ring-neutral-200 dark:ring-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800'">
+                                    <svg x-show="done" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                                    <span x-text="done ? 'Done' : 'Mark as done'"></span>
+                                </button>
                             </div>
 
                             <div class="space-y-2">
@@ -85,11 +118,24 @@
                                     <ul class="space-y-2">
                                         {% for resource in item.resources %}
                                         <li class="flex items-start gap-2 text-sm">
-                                            <span aria-hidden="true" class="mt-1 flex-shrink-0 h-1.5 w-1.5 rounded-full
-                                                {% if 'video' in resource.type|lower or 'youtube' in resource.type|lower %}bg-red-500{% else %}bg-brand-500{% endif %}"></span>
-                                            <div class="min-w-0">
+                                            <span aria-hidden="true" class="mt-1.5 shrink-0 h-1.5 w-1.5 rounded-full
+                                                {% if resource.provider == 'YouTube' %}bg-red-500
+                                                {% elif resource.provider == 'Coursera' %}bg-blue-500
+                                                {% elif resource.provider == 'edX' %}bg-emerald-500
+                                                {% elif resource.provider == 'Udemy' %}bg-purple-500
+                                                {% elif resource.provider == 'Book' %}bg-amber-500
+                                                {% else %}bg-brand-500{% endif %}"></span>
+                                            <div class="min-w-0 flex-1">
+                                                {% if resource.url %}
+                                                <a href="{{ resource.url }}" target="_blank" rel="noopener noreferrer"
+                                                   class="text-neutral-900 dark:text-neutral-100 font-medium hover:text-brand-700 dark:hover:text-brand-400 hover:underline truncate inline-flex items-center gap-1">
+                                                    {{ resource.name|default:resource.url }}
+                                                    <svg aria-hidden="true" class="w-3 h-3 opacity-60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                                                </a>
+                                                {% else %}
                                                 <div class="text-neutral-900 dark:text-neutral-100 font-medium truncate">{{ resource.name }}</div>
-                                                <div class="text-xs text-neutral-500 dark:text-neutral-400 uppercase tracking-[0.1em]">{{ resource.type }}</div>
+                                                {% endif %}
+                                                <div class="text-[11px] text-neutral-500 dark:text-neutral-400 uppercase tracking-[0.1em]">{% firstof resource.provider resource.type "Resource" %}</div>
                                             </div>
                                         </li>
                                         {% endfor %}
@@ -103,6 +149,34 @@
                         </div>
                     </article>
                     {% endfor %}
+
+                    {# Loop-back CTA: once the user has worked through some
+                       items, encourage re-running the gap analysis to see
+                       updated match scores. Scoped to the job when this
+                       view was reached from one. #}
+                    <div class="rounded-2xl ring-1 ring-brand-200 dark:ring-brand-800/50 bg-brand-50/40 dark:bg-brand-950/20 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div class="space-y-1">
+                            <h3 class="font-display text-lg leading-tight text-neutral-900 dark:text-neutral-50" style="font-variation-settings: 'opsz' 28;">
+                                Finished some of these?
+                            </h3>
+                            <p class="text-sm text-neutral-600 dark:text-neutral-300">
+                                Re-run the gap analysis to see how your match score moved.
+                            </p>
+                        </div>
+                        {% if context_job %}
+                        <a href="{% url 'gap_analysis' context_job.id %}"
+                           class="inline-flex items-center justify-center gap-2 h-11 px-5 text-sm font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors">
+                            Re-run gap for {{ context_job.title|truncatechars:24 }}
+                            <span aria-hidden="true">→</span>
+                        </a>
+                        {% else %}
+                        <a href="{% url 'dashboard' %}"
+                           class="inline-flex items-center justify-center gap-2 h-11 px-5 text-sm font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors">
+                            Pick a job to re-analyze
+                            <span aria-hidden="true">→</span>
+                        </a>
+                        {% endif %}
+                    </div>
                 {% else %}
                 <div class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-12 text-center space-y-4">
                     <div aria-hidden="true" class="mx-auto w-2 h-2 rounded-full bg-accent-500"></div>

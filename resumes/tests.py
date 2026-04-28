@@ -1392,6 +1392,119 @@ class TourAndHelpAffordanceTests(TestCase):
         self.assertContains(resp, 'Step 4 of 4')
 
 
+class LearningPathPersistenceTests(TestCase):
+    """Tier 5 (M4): the learning path persists across page loads, the
+    mark-as-done toggle saves to the profile, and the return-path CTA
+    points at the right next-step."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from profiles.models import UserProfile
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='learner@example.com', email='learner@example.com', password='x',
+        )
+        UserProfile.objects.create(user=self.user, full_name='Learner User')
+        self.client.force_login(self.user)
+
+    def test_get_renders_persisted_learning_path(self):
+        """If the user has a persisted path, GET should render it without
+        re-running the LLM."""
+        from profiles.models import UserProfile
+        UserProfile.objects.filter(user=self.user).update(data_content={
+            'learning_path': [{
+                'skill': 'Python',
+                'importance': 'Used everywhere.',
+                'resources': [{'name': 'Real Python', 'url': 'https://realpython.com/',
+                               'provider': 'Other'}],
+                'project_idea': 'Build a CLI tool.',
+                'time_estimate': '15 hours over 2 weeks',
+            }],
+        })
+        resp = self.client.get('/analysis/learning-path/')
+        self.assertEqual(resp.status_code, 200)
+        # Skill, time estimate, and clickable resource URL all present.
+        self.assertContains(resp, 'Python')
+        self.assertContains(resp, '15 hours over 2 weeks')
+        self.assertContains(resp, 'https://realpython.com/')
+        # Mark-as-done button rendered (Alpine state, not server-side
+        # checkbox, so we check for the toggle text).
+        self.assertContains(resp, 'Mark as done')
+
+    def test_mark_skill_complete_toggles_state(self):
+        from profiles.models import UserProfile
+        # First call marks
+        resp = self.client.post(
+            '/analysis/api/learning-path/skill-done/',
+            data='{"skill": "python"}',
+            content_type='application/json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        self.assertTrue(body['ok'])
+        self.assertEqual(body['action'], 'marked')
+        self.assertEqual(body['completed_skills'], ['python'])
+        profile = UserProfile.objects.get(user=self.user)
+        self.assertEqual(profile.data_content['completed_skills'], ['python'])
+        # Second call unmarks (toggle)
+        resp = self.client.post(
+            '/analysis/api/learning-path/skill-done/',
+            data='{"skill": "python"}',
+            content_type='application/json',
+        )
+        self.assertEqual(resp.json()['action'], 'unmarked')
+        profile.refresh_from_db()
+        self.assertEqual(profile.data_content['completed_skills'], [])
+
+    def test_mark_skill_complete_rejects_empty_skill(self):
+        resp = self.client.post(
+            '/analysis/api/learning-path/skill-done/',
+            data='{"skill": ""}',
+            content_type='application/json',
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json()['error'], 'skill_required')
+
+    def test_completed_skill_marker_renders_with_strikethrough(self):
+        from profiles.models import UserProfile
+        UserProfile.objects.filter(user=self.user).update(data_content={
+            'completed_skills': ['python'],
+            'learning_path': [{'skill': 'Python', 'importance': 'x',
+                               'resources': [], 'project_idea': 'y'}],
+        })
+        resp = self.client.get('/analysis/learning-path/')
+        body = resp.content.decode('utf-8')
+        # Alpine x-data initialized to true for the matched skill
+        self.assertIn("x-data=\"{done: true}\"", body)
+
+    def test_return_cta_points_to_global_dashboard_when_no_job(self):
+        from profiles.models import UserProfile
+        UserProfile.objects.filter(user=self.user).update(data_content={
+            'learning_path': [{'skill': 'Python', 'importance': 'x',
+                               'resources': [], 'project_idea': 'y'}],
+        })
+        resp = self.client.get('/analysis/learning-path/')
+        # Global learning-path view → return CTA points at dashboard
+        self.assertContains(resp, 'Pick a job to re-analyze')
+        # NOT the per-job CTA
+        self.assertNotContains(resp, 'Re-run gap for')
+
+    def test_return_cta_points_to_specific_job_when_scoped(self):
+        from jobs.models import Job
+        from profiles.models import UserProfile
+        UserProfile.objects.filter(user=self.user).update(data_content={
+            'learning_path': [{'skill': 'Python', 'importance': 'x',
+                               'resources': [], 'project_idea': 'y'}],
+        })
+        job = Job.objects.create(
+            user=self.user, title='Backend Engineer', company='Acme',
+            description='Need Python.', extracted_skills=[],
+        )
+        resp = self.client.get(f'/analysis/learning-path/{job.id}/')
+        self.assertContains(resp, 'Re-run gap for')
+        self.assertContains(resp, 'Backend Engineer')
+
+
 class FactualityCheckEnrichedProjectsTests(SimpleTestCase):
     """Phase 3: factuality_check accepts enriched-project URLs / source_ids
     as legitimate evidence so Phase-2 confirmed projects don't get falsely
