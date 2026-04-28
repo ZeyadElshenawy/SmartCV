@@ -1307,6 +1307,52 @@ class SubstepLoadingComponentTests(TestCase):
         self.assertIn("showLoading({op: 'job-paste'})", body)
 
 
+class TemplateBlockTagInJSCommentTests(TestCase):
+    """Regression guard: a literal `{% block name %}` string inside a JS
+    comment is parsed by Django's template engine as a real block tag.
+    On extending templates this raises TemplateSyntaxError ("'block' tag
+    with name 'X' appears more than once"). Hit production once via a
+    DOMContentLoaded JSDoc that referenced `{% block content %}` literally.
+
+    This test renders the gap-analysis loading state + the resume
+    generation page and asserts both succeed (no TemplateSyntaxError).
+    """
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from profiles.models import UserProfile
+        from jobs.models import Job
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='blocktag@example.com', email='blocktag@example.com',
+            password='x',
+        )
+        UserProfile.objects.create(
+            user=self.user, full_name='Block Tag User',
+            data_content={'skills': [{'name': 'Python'}]},
+        )
+        self.client.force_login(self.user)
+        self.job = Job.objects.create(
+            user=self.user, title='Engineer', company='Acme',
+            description='Need Python.', extracted_skills=['Python'],
+        )
+
+    def test_gap_analysis_loading_state_renders(self):
+        """No TemplateSyntaxError; the loading-state HTML reaches the user."""
+        resp = self.client.get(f'/analysis/gap/{self.job.id}/')
+        self.assertEqual(resp.status_code, 200)
+        # Loading state contains the substep heading.
+        self.assertContains(resp, 'Reading the')
+
+    def test_resume_generate_page_renders(self):
+        from analysis.models import GapAnalysis
+        GapAnalysis.objects.create(
+            user=self.user, job=self.job, similarity_score=0.85,
+        )
+        resp = self.client.get(f'/resumes/generate/{self.job.id}/')
+        self.assertEqual(resp.status_code, 200)
+
+
 class ScriptTagBalanceTests(TestCase):
     """Regression guard: a literal `</script>` string inside a JS comment
     terminates the script element early in the HTML parser, leaking the
