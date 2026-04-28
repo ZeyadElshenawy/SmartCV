@@ -1307,6 +1307,91 @@ class SubstepLoadingComponentTests(TestCase):
         self.assertIn("showLoading({op: 'job-paste'})", body)
 
 
+class TourAndHelpAffordanceTests(TestCase):
+    """Tier 4: Shepherd tour, Help affordance, step indicators, and the
+    routing tooltip on gap analysis. The tour is registered on every page
+    via base.html; pages that should auto-run it set SHOULD_RUN_TOUR."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from profiles.models import UserProfile
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='tour@example.com', email='tour@example.com', password='x',
+        )
+        UserProfile.objects.create(user=self.user, full_name='Tour User')
+        self.client.force_login(self.user)
+
+    def test_help_button_renders_on_authenticated_pages(self):
+        """The "?" Help button is in base.html and renders for every
+        logged-in page so the user always has a re-trigger affordance."""
+        resp = self.client.get('/profiles/dashboard/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'id="help-button"')
+        self.assertContains(resp, 'aria-label="Help"')
+        # Pages register their tour via window.PAGE_TOUR — Help reads it.
+        self.assertContains(resp, "window.PAGE_TOUR = 'dashboard'")
+
+    def test_shepherd_cdn_loaded_on_authenticated_pages(self):
+        """Shepherd.js + CSS are CDN-loaded; verify the script + stylesheet
+        tags are present so a tour can actually run."""
+        resp = self.client.get('/profiles/dashboard/')
+        body = resp.content.decode('utf-8')
+        self.assertIn('shepherd.js', body)
+        self.assertIn('shepherd.css', body)
+        # Tours registry is declared globally
+        self.assertIn("const Tours =", body)
+        for key in ('dashboard', 'resume-edit', 'gap-analysis'):
+            self.assertIn(f"'{key}':", body)
+
+    def test_first_visit_dashboard_auto_runs_tour(self):
+        """A user without `has_seen_tour` set should get
+        window.SHOULD_RUN_TOUR=true on first dashboard visit."""
+        resp = self.client.get('/profiles/dashboard/')
+        self.assertContains(resp, 'window.SHOULD_RUN_TOUR = true')
+
+    def test_returning_user_does_not_auto_run_tour(self):
+        """After dismiss/complete, has_seen_tour=True; the dashboard
+        should NOT set SHOULD_RUN_TOUR on subsequent visits."""
+        from profiles.models import UserProfile
+        UserProfile.objects.filter(user=self.user).update(
+            data_content={'has_seen_tour': True},
+        )
+        resp = self.client.get('/profiles/dashboard/')
+        self.assertNotContains(resp, 'window.SHOULD_RUN_TOUR = true')
+
+    def test_dismiss_tour_endpoint_persists_flag(self):
+        from profiles.models import UserProfile
+        resp = self.client.post('/profiles/api/tour/dismiss/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json()['ok'])
+        profile = UserProfile.objects.get(user=self.user)
+        self.assertTrue(profile.data_content.get('has_seen_tour'))
+
+    def test_dismiss_tour_endpoint_rejects_get(self):
+        resp = self.client.get('/profiles/api/tour/dismiss/')
+        self.assertEqual(resp.status_code, 405)
+
+    def test_step_indicators_on_onboarding_pages(self):
+        """The 4-step onboarding sequence shows explicit progress markers.
+        Welcome short-circuits for users with profile data already, so we
+        log in as a brand-new user with no profile fields."""
+        from django.contrib.auth import get_user_model
+        from profiles.models import UserProfile
+        User = get_user_model()
+        new_user = User.objects.create_user(
+            username='fresh@example.com', email='fresh@example.com', password='x',
+        )
+        UserProfile.objects.create(user=new_user)  # empty profile
+        self.client.force_login(new_user)
+        resp = self.client.get('/welcome/')
+        self.assertContains(resp, 'Step 1 of 4')
+        resp = self.client.get('/profiles/setup/upload/')
+        self.assertContains(resp, 'Step 2 of 4')
+        resp = self.client.get('/profiles/setup/connect/')
+        self.assertContains(resp, 'Step 4 of 4')
+
+
 class FactualityCheckEnrichedProjectsTests(SimpleTestCase):
     """Phase 3: factuality_check accepts enriched-project URLs / source_ids
     as legitimate evidence so Phase-2 confirmed projects don't get falsely

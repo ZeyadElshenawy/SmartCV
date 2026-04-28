@@ -6,6 +6,13 @@
    (banner dismiss, kanban reorder, etc.). Cleaner than threading the
    token through Alpine state. #}
 <form style="display:none">{% csrf_token %}</form>
+{# Tour wiring (Tier 4) — declares which Shepherd tour to run on this
+   page. Auto-trigger gated by `should_run_tour` (set in the view based
+   on profile.data_content['has_seen_tour']). #}
+<script>
+    window.PAGE_TOUR = 'dashboard';
+    {% if should_run_tour %}window.SHOULD_RUN_TOUR = true;{% endif %}
+</script>
 <div class="bg-neutral-50 dark:bg-neutral-950 py-10 sm:py-14"
      x-data="kanbanBoard()" x-init="initBoard()">
     <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-10">

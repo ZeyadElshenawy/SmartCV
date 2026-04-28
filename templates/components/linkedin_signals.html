@@ -23,10 +23,14 @@ declare their handle. Required context: `profile`.
         </div>
 
         {# Empty-state promo. Hidden once the user is editing or has data. #}
-        <p x-show="!hasData && !editing && !error" x-cloak
-           class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
-            Just stores your link — LinkedIn doesn't allow public profile scraping.
-        </p>
+        <div x-show="!hasData && !editing && !error" x-cloak class="space-y-1.5">
+            <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                Just stores your link — LinkedIn doesn't allow public profile scraping.
+            </p>
+            <p class="text-[11px] text-neutral-400 dark:text-neutral-500 leading-relaxed">
+                <strong class="font-medium text-neutral-600 dark:text-neutral-300">Why:</strong> the URL becomes a clickable contact-line link in every résumé header.
+            </p>
+        </div>
 
         {% comment %}
           Input form. Visible when there's no data yet OR when the user is

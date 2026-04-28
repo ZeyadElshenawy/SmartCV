@@ -25,6 +25,13 @@
 
     <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    {% comment %}
+    Shepherd.js — onboarding tour. Defer-loaded so it doesn't block paint;
+    startTour() waits on window.Shepherd to be defined before instantiating.
+    {% endcomment %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@11.2.0/dist/css/shepherd.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/shepherd.js@11.2.0/dist/js/shepherd.min.js"></script>
 </head>
 <body class="font-sans text-neutral-900 dark:text-neutral-100 bg-neutral-50 dark:bg-neutral-950 flex flex-col min-h-screen">
 {% block header %}
@@ -222,7 +229,81 @@
         [x-cloak] { display: none !important; }
         ::-webkit-scrollbar { display: none; }
         * { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Shepherd tour theme — sized to feel like the rest of SmartCV
+           (rounded-2xl, brand accent, restrained shadow). The default
+           Shepherd theme is more aggressive than our design system. */
+        .shepherd-element {
+            border-radius: 16px;
+            box-shadow: 0 16px 48px -16px rgba(15, 23, 42, 0.18), 0 2px 8px rgba(15, 23, 42, 0.08);
+            border: 1px solid rgba(229, 231, 235, 1);
+            font-family: 'Inter', system-ui, sans-serif;
+            max-width: 380px;
+        }
+        .dark .shepherd-element { background: #18181b; border-color: rgba(63, 63, 70, 1); }
+        .shepherd-content { border-radius: 16px; overflow: hidden; }
+        .shepherd-header {
+            background: transparent;
+            border-bottom: 1px solid rgba(229, 231, 235, 1);
+            padding: 14px 18px 10px;
+        }
+        .dark .shepherd-header { border-bottom-color: rgba(63, 63, 70, 1); }
+        .shepherd-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: rgb(15, 23, 42);
+            font-family: 'Fraunces', Georgia, serif;
+            font-variation-settings: 'opsz' 24;
+        }
+        .dark .shepherd-title { color: rgb(244, 244, 245); }
+        .shepherd-text {
+            font-size: 13px;
+            line-height: 1.55;
+            padding: 14px 18px 4px;
+            color: rgb(82, 82, 91);
+        }
+        .dark .shepherd-text { color: rgb(212, 212, 216); }
+        .shepherd-footer {
+            padding: 12px 18px 16px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        .shepherd-button {
+            font-size: 12px;
+            font-weight: 500;
+            border-radius: 8px;
+            padding: 7px 14px;
+            transition: background-color 0.15s;
+        }
+        .shepherd-button.shepherd-button-primary,
+        .shepherd-button:not(.shepherd-button-secondary) {
+            background: rgb(79, 70, 229);
+            color: white;
+        }
+        .shepherd-button.shepherd-button-primary:hover { background: rgb(67, 56, 202); }
+        .shepherd-button-secondary {
+            background: transparent;
+            color: rgb(113, 113, 122);
+        }
+        .shepherd-button-secondary:hover { color: rgb(63, 63, 70); }
+        .dark .shepherd-button-secondary { color: rgb(161, 161, 170); }
+        .shepherd-cancel-icon { color: rgb(161, 161, 170); }
+        .shepherd-cancel-icon:hover { color: rgb(63, 63, 70); }
     </style>
+
+    {% comment %}
+    Help affordance — fixed "?" button, every page. Clicking re-triggers
+    the page's tour (when one is registered) or shows a generic
+    what-am-I-looking-at panel for pages that don't have a tour.
+    {% endcomment %}
+    {% if user.is_authenticated %}
+    <button type="button" id="help-button" aria-label="Help"
+            onclick="if (window.PAGE_TOUR) { startTour(window.PAGE_TOUR, {force: true}); } else { alert('No tour for this page yet — every screen with a guided walkthrough has one. Try the dashboard or résumé editor.'); }"
+            class="fixed bottom-6 right-6 z-40 w-11 h-11 rounded-full bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-600 dark:text-neutral-300 hover:text-brand-700 dark:hover:text-brand-400 hover:ring-brand-300 dark:hover:ring-brand-700 shadow-[0_4px_12px_-4px_rgba(15,23,42,0.12)] transition-all flex items-center justify-center">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    </button>
+    {% endif %}
 
     <script>
         /* ─── Substep loading controller (Tier 3) ───────────────────────────
@@ -496,6 +577,151 @@
                 document.getElementById('loading-overlay').classList.add('hidden');
                 _clearLoadingTimers();
             });
+        });
+
+        /* ─── Shepherd tour registry (Tier 4) ───────────────────────────
+         *
+         * Multi-tour design: each tour is keyed by page identity. Pages
+         * register their tour via `<script>window.PAGE_TOUR = 'dashboard';</script>`.
+         * The Help "?" button uses that key to re-trigger; the auto-trigger
+         * runs once per user (gated by has_seen_tour on the profile).
+         *
+         * S7 gating: auto-trigger checks the SHOULD_RUN_TOUR flag (set by
+         * the page's view when has_seen_tour is False). Re-triggering via
+         * Help bypasses the gate via `{force: true}`.
+         */
+        const Tours = {
+            'dashboard': {
+                steps: [
+                    {
+                        title: 'This is your dashboard.',
+                        text: 'Every job application lives here. Drag job tiles between Saved / Applied / Interviewing as your pipeline evolves.',
+                        attachTo: {element: '#help-button', on: 'left'},
+                    },
+                    {
+                        title: 'Add a job to start.',
+                        text: 'Paste a JD URL or text and the agent will compare it against your master profile in seconds.',
+                        attachTo: {element: 'a[href*="job_input"]', on: 'bottom'},
+                    },
+                    {
+                        title: 'Tools live here.',
+                        text: 'Cover letters, project enrichment, learning paths, and connected accounts — all one click away.',
+                        attachTo: {element: 'a[href*="resume_list"]', on: 'top'},
+                    },
+                    {
+                        title: 'Need this again?',
+                        text: 'Click the "?" button bottom-right on any page to re-run that page\'s tour.',
+                        attachTo: {element: '#help-button', on: 'left'},
+                    },
+                ],
+            },
+            'resume-edit': {
+                steps: [
+                    {
+                        title: 'Your tailored résumé.',
+                        text: 'Edit any field. The preview on the right updates as you type.',
+                    },
+                    {
+                        title: 'Per-section regenerate.',
+                        text: 'Each section has a "↻ Regenerate" button. Use it when one section needs another LLM pass without losing your other edits.',
+                        attachTo: {element: 'button[onclick*="regenSection"]', on: 'left'},
+                    },
+                    {
+                        title: 'Save before navigating.',
+                        text: 'Unsaved edits trigger a leave-page warning. The Save button is at the bottom.',
+                        attachTo: {element: 'button[type="submit"]', on: 'top'},
+                    },
+                    {
+                        title: 'Download PDF or DOCX.',
+                        text: 'PDF for emailing recruiters, DOCX for ATS upload portals (LinkedIn Easy Apply, Workday, Greenhouse).',
+                        attachTo: {element: 'a[href*="export"]', on: 'top'},
+                    },
+                ],
+            },
+            'gap-analysis': {
+                steps: [
+                    {
+                        title: 'Your match score.',
+                        text: 'A composite of skill overlap, seniority match, and signal strength.',
+                    },
+                    {
+                        title: 'Why this recommendation?',
+                        text: 'Click "Why this?" to see the cutoff thresholds we use to route you to the next step.',
+                        attachTo: {element: 'details summary', on: 'bottom'},
+                    },
+                    {
+                        title: 'Drag to reclassify.',
+                        text: 'Disagree with a skill placement? Drag chips between Matched / Missing / Soft gaps — the analysis updates.',
+                    },
+                ],
+            },
+        };
+
+        async function startTour(key, opts) {
+            opts = opts || {};
+            const config = Tours[key];
+            if (!config) return;
+            // Wait for Shepherd to load (it's defer-loaded from CDN).
+            for (let i = 0; i < 30; i++) {
+                if (window.Shepherd) break;
+                await new Promise((r) => setTimeout(r, 100));
+            }
+            if (!window.Shepherd) {
+                console.warn('Shepherd failed to load; tour skipped.');
+                return;
+            }
+            const tour = new window.Shepherd.Tour({
+                useModalOverlay: true,
+                defaultStepOptions: {
+                    cancelIcon: {enabled: true},
+                    scrollTo: {behavior: 'smooth', block: 'center'},
+                    classes: 'shepherd-step-smartcv',
+                },
+            });
+            const total = config.steps.length;
+            config.steps.forEach((step, i) => {
+                const buttons = [];
+                if (i > 0) {
+                    buttons.push({text: 'Back', secondary: true, action: () => tour.back()});
+                }
+                if (i < total - 1) {
+                    buttons.push({text: 'Next', action: () => tour.next()});
+                } else {
+                    buttons.push({text: 'Done', action: () => tour.complete()});
+                }
+                tour.addStep({
+                    id: `${key}-${i}`,
+                    title: step.title + ' <span style="color:#a1a1aa;font-weight:400;font-family:Inter,sans-serif;font-size:11px;">(' + (i + 1) + '/' + total + ')</span>',
+                    text: step.text,
+                    attachTo: step.attachTo,
+                    buttons,
+                });
+            });
+
+            // Mark dismissed/completed on the server so the auto-trigger
+            // doesn't fire again. Force-runs (Help button) don't reset the
+            // flag — they just replay.
+            const markSeen = () => {
+                if (opts.force) return;  // Help re-trigger; keep flag as-is.
+                const csrf = document.querySelector('input[name=csrfmiddlewaretoken]')?.value || '';
+                fetch('/profiles/api/tour/dismiss/', {
+                    method: 'POST',
+                    headers: {'X-CSRFToken': csrf},
+                }).catch((e) => console.warn('Tour dismiss failed:', e));
+            };
+            tour.on('cancel', markSeen);
+            tour.on('complete', markSeen);
+            tour.start();
+        }
+
+        // Auto-trigger once per user. Page sets the `SHOULD_RUN_TOUR` flag
+        // (via context flag) when this is the user's first visit and they
+        // haven't dismissed the tour yet.
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.SHOULD_RUN_TOUR && window.PAGE_TOUR) {
+                // Slight delay so the rest of the page paints first.
+                setTimeout(() => startTour(window.PAGE_TOUR, {force: false}), 600);
+            }
         });
 
         // Theme toggle

@@ -23,10 +23,14 @@ Required context: `profile`.
             </div>
         </div>
 
-        <p x-show="!hasData && !editing && !error" x-cloak
-           class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
-            Pulls citations, h-index, and top publications from your public Scholar profile.
-        </p>
+        <div x-show="!hasData && !editing && !error" x-cloak class="space-y-1.5">
+            <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                Pulls citations, h-index, and top publications from your public Scholar profile.
+            </p>
+            <p class="text-[11px] text-neutral-400 dark:text-neutral-500 leading-relaxed">
+                <strong class="font-medium text-neutral-600 dark:text-neutral-300">Why:</strong> surfaces academic projects + citation impact in tailored résumés (especially research / ML roles).
+            </p>
+        </div>
 
         <form x-show="!hasData || editing" x-cloak @submit.prevent="refresh" class="flex gap-2">
             <input type="text" x-model="urlInput" x-ref="input" placeholder="scholar.google.com/citations?user=ABC123XY"

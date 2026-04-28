@@ -8,7 +8,13 @@
         {# ---- Header ---- #}
         <header class="space-y-4">
             {% if is_master %}
-                {% include "components/section_label.html" with text="Master profile" tone="brand" %}
+                {# In-onboarding: explicit step indicator. Out-of-flow visits
+                   (returning user editing master): plain label. #}
+                {% if request.session.in_onboarding %}
+                    {% include "components/section_label.html" with text="Step 3 of 4 · Confirm your master profile" tone="brand" %}
+                {% else %}
+                    {% include "components/section_label.html" with text="Master profile" tone="brand" %}
+                {% endif %}
             {% else %}
                 {% include "components/section_label.html" with text="Review profile" tone="brand" %}
             {% endif %}
