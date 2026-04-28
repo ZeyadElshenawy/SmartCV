@@ -40,11 +40,13 @@
 
         {# Message area #}
         <div class="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-5" x-ref="messages">
-            {# Primer panel (B2): shown until the first bot message arrives.
-               Frames what to expect before the user faces a blank input
-               and a black-box LLM call. "Suggested answers" are illustrative,
-               not clickable — they show what a useful answer looks like
-               so the user knows how to phrase their own. #}
+            {% comment %}
+            Primer panel (B2): shown until the first bot message arrives.
+            Frames what to expect before the user faces a blank input
+            and a black-box LLM call. "Suggested answers" are illustrative,
+            not clickable — they show what a useful answer looks like
+            so the user knows how to phrase their own.
+            {% endcomment %}
             <template x-if="messages.length === 0">
                 <div class="max-w-2xl mx-auto space-y-5 py-4">
                     <div class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-4">

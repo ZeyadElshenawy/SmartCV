@@ -83,10 +83,12 @@
             </section>
         </div>
 
-        {# Hand-off to the Chrome extension for automated send-on-LinkedIn.
-           Plain copy-paste is fine for one or two contacts; the extension is
-           the path for batch outreach. Stays linked even after generation
-           so users learn it exists. #}
+        {% comment %}
+        Hand-off to the Chrome extension for automated send-on-LinkedIn.
+        Plain copy-paste is fine for one or two contacts; the extension is
+        the path for batch outreach. Stays linked even after generation
+        so users learn it exists.
+        {% endcomment %}
         <a href="{% url 'outreach_pairing' %}"
            class="block rounded-2xl bg-brand-50 dark:bg-brand-950/30 ring-1 ring-brand-200 dark:ring-brand-800/50 p-5 hover:ring-brand-400 dark:hover:ring-brand-600 transition-all group/card">
             <div class="flex items-start gap-4">

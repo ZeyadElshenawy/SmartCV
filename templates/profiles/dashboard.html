@@ -2,13 +2,17 @@
 {% block title %}Dashboard — SmartCV{% endblock %}
 
 {% block content %}
-{# Hidden CSRF token for AJAX endpoints called from the dashboard
-   (banner dismiss, kanban reorder, etc.). Cleaner than threading the
-   token through Alpine state. #}
+{% comment %}
+Hidden CSRF token for AJAX endpoints called from the dashboard
+(banner dismiss, kanban reorder, etc.). Cleaner than threading the
+token through Alpine state.
+{% endcomment %}
 <form style="display:none">{% csrf_token %}</form>
-{# Tour wiring (Tier 4) — declares which Shepherd tour to run on this
-   page. Auto-trigger gated by `should_run_tour` (set in the view based
-   on profile.data_content['has_seen_tour']). #}
+{% comment %}
+Tour wiring (Tier 4) — declares which Shepherd tour to run on this
+page. Auto-trigger gated by should_run_tour (set in the view based
+on profile.data_content['has_seen_tour']).
+{% endcomment %}
 <script>
     window.PAGE_TOUR = 'dashboard';
     {% if should_run_tour %}window.SHOULD_RUN_TOUR = true;{% endif %}
@@ -305,11 +309,13 @@
             </div>
         </section>
 
-        {# ---- Tools tile (B4 + B6): surfaces previously-buried features. ----
-           Cover letter was only reachable from the resume preview page.
-           Project review only had a discovery hook on the connect-accounts
-           page (so users who skipped that flow never found it). Each tool
-           gets a one-line rationale so users can decide which is relevant. #}
+        {% comment %}
+        Tools tile (B4 + B6): surfaces previously-buried features.
+        Cover letter was only reachable from the resume preview page.
+        Project review only had a discovery hook on the connect-accounts
+        page (so users who skipped that flow never found it). Each tool
+        gets a one-line rationale so users can decide which is relevant.
+        {% endcomment %}
         {% if has_jobs %}
         <section class="space-y-4">
             {% include "components/section_label.html" with text="Tools" tone="brand" %}

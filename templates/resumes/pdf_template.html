@@ -105,10 +105,12 @@
         </div>
     </div>
 
-    {# Section bodies are rendered in `section_order` so the user's saved
-       drag-and-drop order on the edit page applies to the PDF too. Each
-       section keeps its existing template-specific markup; only the
-       outer ordering is data-driven. #}
+    {% comment %}
+    Section bodies are rendered in section_order so the user's saved
+    drag-and-drop order on the edit page applies to the PDF too. Each
+    section keeps its existing template-specific markup; only the
+    outer ordering is data-driven.
+    {% endcomment %}
     {% for section in section_order %}
         {% if section == "summary" and resume.professional_summary %}
         <div class="section">

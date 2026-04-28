@@ -145,8 +145,10 @@
                     {% if profile.email %}{{ profile.email }}<br>{% endif %}
                     {% if profile.phone %}{{ profile.phone }}<br>{% endif %}
                     {% if profile.location %}{{ profile.location }}<br>{% endif %}
-                    {# Render every available link as middot-separated <a> tags so
-                       the right-aligned compact header stays a single block. #}
+                    {% comment %}
+                    Render every available link as middot-separated anchor tags so
+                    the right-aligned compact header stays a single block.
+                    {% endcomment %}
                     {% if profile.linkedin_url %}<a href="{{ profile.linkedin_url }}">LinkedIn</a>{% endif %}
                     {% if profile.github_url %}{% if profile.linkedin_url %} &middot; {% endif %}<a href="{{ profile.github_url }}">GitHub</a>{% endif %}
                     {% if profile.portfolio_url %}{% if profile.linkedin_url or profile.github_url %} &middot; {% endif %}<a href="{{ profile.portfolio_url }}">Portfolio</a>{% endif %}
