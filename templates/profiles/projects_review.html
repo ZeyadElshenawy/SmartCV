@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Review external projects — SmartCV{% endblock %}
+{% block title %}External projects — SmartCV{% endblock %}
 
 {% block content %}
 <div class="bg-neutral-50 dark:bg-neutral-950 py-10 sm:py-14">
@@ -7,18 +7,18 @@
 
         {# ---- Header ---- #}
         <header class="space-y-4">
-            {% if request.session.in_onboarding %}
-                {% include "components/section_label.html" with text="Reviewing external evidence · between Step 3 and 4" tone="brand" %}
-            {% else %}
-                {% include "components/section_label.html" with text="Project enrichment" tone="brand" %}
-            {% endif %}
+            {% include "components/section_label.html" with text="External projects · auto-merged" tone="brand" %}
             <h1 class="font-display text-4xl sm:text-5xl leading-[1.02] tracking-tight text-neutral-900 dark:text-neutral-50"
                 style="font-variation-settings: 'opsz' 80;">
-                Review your <em class="font-medium text-brand-700 dark:text-brand-400">external projects</em>.
+                Your <em class="font-medium text-brand-700 dark:text-brand-400">external projects</em>.
             </h1>
             <p class="text-neutral-600 dark:text-neutral-300 max-w-2xl leading-relaxed">
                 {% if has_signals %}
-                    We pulled {{ enriched_count }} project{{ enriched_count|pluralize }} from your GitHub, Scholar, and Kaggle signals and matched them against your master profile. Confirm what to keep, merge, or skip.
+                    {% if summary %}
+                        We pulled <strong>{{ summary.enriched_count }}</strong> project{{ summary.enriched_count|pluralize }} from your GitHub, Scholar, and Kaggle signals and merged them into your master profile automatically. Your final pool: <strong>{{ summary.final_count }}</strong> project{{ summary.final_count|pluralize }} ({{ summary.added_new }} added, {{ summary.merged }} merged with typed entries).
+                    {% else %}
+                        We pulled {{ enriched_count }} project{{ enriched_count|pluralize }} from your external signals.
+                    {% endif %}
                 {% else %}
                     No external signals connected yet. Visit <a href="{% url 'connect_accounts' %}" class="text-brand-700 dark:text-brand-400 underline">Connect accounts</a> to pull projects from GitHub, Scholar, or Kaggle.
                 {% endif %}
@@ -30,134 +30,39 @@
                     Re-run with fresh signals
                 </a>
                 <span class="text-neutral-400">·</span>
-                <span class="text-neutral-500 dark:text-neutral-400">cache hit unless force=1</span>
+                <a href="{% url 'review_master_profile' %}" class="inline-flex items-center gap-1.5 text-neutral-600 dark:text-neutral-300 hover:text-brand-700 dark:hover:text-brand-400">
+                    Edit projects on master profile →
+                </a>
             </div>
             {% endif %}
         </header>
 
         {% if has_signals and enriched_count > 0 %}
-        <form method="POST" action="{% url 'projects_confirm' %}" class="space-y-10">
-            {% csrf_token %}
+        <div class="space-y-10">
 
-            {# ---- Suggested merges ---- #}
+            {# ---- Merged into existing typed projects (informational) ---- #}
             {% if matched_rows %}
             <section class="space-y-5">
                 <div class="flex items-center justify-between gap-4">
-                    {% include "components/section_label.html" with text="01 · Suggested merges" tone="brand" %}
+                    {% include "components/section_label.html" with text="01 · Merged into existing" tone="brand" %}
                     <span class="text-xs text-neutral-500 dark:text-neutral-400">{{ matched_rows|length }} pair{{ matched_rows|length|pluralize }}</span>
                 </div>
                 <p class="text-sm text-neutral-600 dark:text-neutral-300">
-                    Each row is one of your typed projects matched against an external entry. Pick how to combine them.
-                </p>
-                {% for row in matched_rows %}
-                <div class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-4">
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        {# Typed (existing) side #}
-                        <div class="rounded-xl ring-1 ring-neutral-200 dark:ring-neutral-800 bg-neutral-50/60 dark:bg-neutral-950/40 p-4 space-y-2">
-                            <div class="text-[10px] uppercase tracking-[0.16em] font-medium text-neutral-500 dark:text-neutral-400">Typed (master profile)</div>
-                            <div class="font-medium text-neutral-900 dark:text-neutral-100">{{ row.typed.name|default:"(unnamed)" }}</div>
-                            {% if row.typed.url %}
-                            <div class="text-xs text-neutral-500 dark:text-neutral-400 font-mono break-all">{{ row.typed.url }}</div>
-                            {% endif %}
-                            {% if row.typed.technologies %}
-                            <div class="text-xs text-neutral-600 dark:text-neutral-300"><strong>Tech:</strong> {{ row.typed.technologies|join:", " }}</div>
-                            {% endif %}
-                            {% if row.typed.description %}
-                            <ul class="text-xs text-neutral-700 dark:text-neutral-200 list-disc pl-4 space-y-1">
-                                {% for b in row.typed.description %}<li>{{ b }}</li>{% endfor %}
-                            </ul>
-                            {% endif %}
-                        </div>
-                        {# Enriched (incoming) side #}
-                        <div class="rounded-xl ring-1 ring-brand-200 dark:ring-brand-800/50 bg-brand-50/40 dark:bg-brand-950/20 p-4 space-y-2">
-                            <div class="text-[10px] uppercase tracking-[0.16em] font-medium text-brand-700 dark:text-brand-400">From {{ row.enriched.source }}</div>
-                            <div class="font-medium text-neutral-900 dark:text-neutral-100">{{ row.enriched.name }}</div>
-                            {% if row.enriched.source_url %}
-                            <div class="text-xs text-neutral-500 dark:text-neutral-400 font-mono break-all">{{ row.enriched.source_url }}</div>
-                            {% endif %}
-                            {% if row.enriched.tech_stack %}
-                            <div class="text-xs text-neutral-600 dark:text-neutral-300"><strong>Tech:</strong> {{ row.enriched.tech_stack|join:", " }}</div>
-                            {% endif %}
-                            {% if row.enriched.bullets %}
-                            <ul class="text-xs text-neutral-700 dark:text-neutral-200 list-disc pl-4 space-y-1">
-                                {% for b in row.enriched.bullets %}<li>{{ b }}</li>{% endfor %}
-                            </ul>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="flex flex-col sm:flex-row sm:items-center gap-3 pt-2 border-t border-neutral-100 dark:border-neutral-800">
-                        <div class="text-xs text-neutral-500 dark:text-neutral-400 flex-1">
-                            <strong class="text-neutral-700 dark:text-neutral-200">Suggested:</strong>
-                            {{ row.decision.action }} ({{ row.decision.confidence|floatformat:2 }} confidence)
-                            {% if row.decision.reason %} · {{ row.decision.reason }}{% endif %}
-                        </div>
-                        <select name="override_{{ row.decision.enriched_index }}"
-                                class="text-sm rounded-lg ring-1 ring-neutral-200 dark:ring-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 focus:ring-4 focus:ring-brand-200/70 focus:outline-none">
-                            <option value="merge" {% if row.decision.action == 'merge' %}selected{% endif %}>Merge — union tech + bullets</option>
-                            <option value="keep_existing" {% if row.decision.action == 'keep_existing' %}selected{% endif %}>Keep mine — drop external</option>
-                            <option value="keep_new" {% if row.decision.action == 'keep_new' %}selected{% endif %}>Replace mine with external</option>
-                        </select>
-                    </div>
-                </div>
-                {% endfor %}
-            </section>
-            {% endif %}
-
-            {# ---- New additions ---- #}
-            {% if new_rows %}
-            <section class="space-y-5">
-                <div class="flex items-center justify-between gap-4">
-                    {% include "components/section_label.html" with text="02 · New additions" tone="brand" %}
-                    <span class="text-xs text-neutral-500 dark:text-neutral-400">{{ new_rows|length }} project{{ new_rows|length|pluralize }}</span>
-                </div>
-                <p class="text-sm text-neutral-600 dark:text-neutral-300">
-                    External projects with no match in your master profile. Tick each one you want added.
+                    External entries that matched a project you already had. Tech stacks were unioned and bullets concatenated where applicable.
                 </p>
                 <div class="space-y-3">
-                    {% for row in new_rows %}
-                    <label class="block rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 cursor-pointer hover:ring-brand-300 dark:hover:ring-brand-700 transition-all has-[:checked]:ring-2 has-[:checked]:ring-brand-500 has-[:checked]:bg-brand-50/30 dark:has-[:checked]:bg-brand-950/20">
-                        <div class="flex items-start gap-4">
-                            <input type="checkbox" name="include_new_{{ row.decision.enriched_index }}" value="1" checked
-                                   class="mt-1 w-4 h-4 rounded text-brand-600 focus:ring-brand-500 border-neutral-300">
-                            <div class="flex-1 space-y-2">
-                                <div class="flex items-center gap-2 flex-wrap">
-                                    <span class="font-medium text-neutral-900 dark:text-neutral-100">{{ row.enriched.name }}</span>
-                                    <span class="inline-flex items-center text-[10px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 bg-brand-50 dark:bg-brand-950/40 px-2 py-0.5 rounded">
-                                        {{ row.enriched.source }}
-                                    </span>
-                                </div>
-                                {% if row.enriched.source_url %}
-                                <div class="text-xs text-neutral-500 dark:text-neutral-400 font-mono break-all">{{ row.enriched.source_url }}</div>
-                                {% endif %}
-                                {% if row.enriched.tech_stack %}
-                                <div class="text-xs text-neutral-600 dark:text-neutral-300"><strong>Tech:</strong> {{ row.enriched.tech_stack|join:", " }}</div>
-                                {% endif %}
-                                {% if row.enriched.bullets %}
-                                <ul class="text-xs text-neutral-700 dark:text-neutral-200 list-disc pl-4 space-y-1">
-                                    {% for b in row.enriched.bullets %}<li>{{ b }}</li>{% endfor %}
-                                </ul>
-                                {% endif %}
-                            </div>
+                    {% for row in matched_rows %}
+                    <div class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-2">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="font-medium text-neutral-900 dark:text-neutral-100">{{ row.enriched.name }}</span>
+                            <span class="inline-flex items-center text-[10px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 bg-brand-50 dark:bg-brand-950/40 px-2 py-0.5 rounded">{{ row.enriched.source }}</span>
+                            <span class="text-[11px] text-neutral-500 dark:text-neutral-400">· action: {{ row.decision.action }} ({{ row.decision.confidence|floatformat:2 }})</span>
                         </div>
-                    </label>
-                    {% endfor %}
-                </div>
-            </section>
-            {% endif %}
-
-            {# ---- Untouched typed (informational) ---- #}
-            {% if untouched_typed %}
-            <section class="space-y-5">
-                {% include "components/section_label.html" with text="03 · Kept as-is" tone="neutral" %}
-                <p class="text-sm text-neutral-600 dark:text-neutral-300">
-                    Projects already in your master profile that don't overlap with anything from external signals — these stay untouched.
-                </p>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {% for u in untouched_typed %}
-                    <div class="rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-4 space-y-1">
-                        <div class="font-medium text-sm text-neutral-900 dark:text-neutral-100">{{ u.project.name|default:"(unnamed)" }}</div>
-                        {% if u.project.url %}
-                        <div class="text-xs text-neutral-500 dark:text-neutral-400 font-mono break-all">{{ u.project.url }}</div>
+                        {% if row.enriched.source_url %}
+                        <div class="text-xs text-neutral-500 dark:text-neutral-400 font-mono break-all">{{ row.enriched.source_url }}</div>
+                        {% endif %}
+                        {% if row.decision.reason %}
+                        <p class="text-xs text-neutral-500 dark:text-neutral-400 italic">{{ row.decision.reason }}</p>
                         {% endif %}
                     </div>
                     {% endfor %}
@@ -165,22 +70,56 @@
             </section>
             {% endif %}
 
-            {# ---- Submit bar ---- #}
+            {# ---- New additions (informational) ---- #}
+            {% if new_rows %}
+            <section class="space-y-5">
+                <div class="flex items-center justify-between gap-4">
+                    {% include "components/section_label.html" with text="02 · Added to your profile" tone="brand" %}
+                    <span class="text-xs text-neutral-500 dark:text-neutral-400">{{ new_rows|length }} project{{ new_rows|length|pluralize }}</span>
+                </div>
+                <p class="text-sm text-neutral-600 dark:text-neutral-300">
+                    External projects that didn't match anything you'd typed in. Added directly to your master profile.
+                </p>
+                <div class="space-y-3">
+                    {% for row in new_rows %}
+                    <div class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-2">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="font-medium text-neutral-900 dark:text-neutral-100">{{ row.enriched.name }}</span>
+                            <span class="inline-flex items-center text-[10px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 bg-brand-50 dark:bg-brand-950/40 px-2 py-0.5 rounded">{{ row.enriched.source }}</span>
+                        </div>
+                        {% if row.enriched.source_url %}
+                        <div class="text-xs text-neutral-500 dark:text-neutral-400 font-mono break-all">{{ row.enriched.source_url }}</div>
+                        {% endif %}
+                        {% if row.enriched.tech_stack %}
+                        <div class="text-xs text-neutral-600 dark:text-neutral-300"><strong>Tech:</strong> {{ row.enriched.tech_stack|join:", " }}</div>
+                        {% endif %}
+                        {% if row.enriched.bullets %}
+                        <ul class="text-xs text-neutral-700 dark:text-neutral-200 list-disc pl-4 space-y-1">
+                            {% for b in row.enriched.bullets %}<li>{{ b }}</li>{% endfor %}
+                        </ul>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+
+            {# ---- Continue link to master review (replaces old confirm button) ---- #}
             <div class="flex items-center justify-between gap-3 pt-6 border-t border-neutral-200 dark:border-neutral-800">
-                <a href="{% url 'review_master_profile' %}" class="text-sm font-medium text-neutral-600 dark:text-neutral-300 hover:text-brand-700 dark:hover:text-brand-400">
-                    ← Back to master profile
+                <a href="{% url 'connect_accounts' %}" class="text-sm font-medium text-neutral-600 dark:text-neutral-300 hover:text-brand-700 dark:hover:text-brand-400">
+                    ← Connected accounts
                 </a>
-                <button type="submit" class="inline-flex items-center justify-center gap-2 h-11 px-6 text-sm font-medium rounded-lg bg-brand-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-brand-700 transition-colors">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                    Confirm changes
-                </button>
+                <a href="{% url 'review_master_profile' %}" class="inline-flex items-center justify-center gap-2 h-11 px-6 text-sm font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors">
+                    Edit on master profile
+                    <span aria-hidden="true">→</span>
+                </a>
             </div>
-        </form>
+        </div>
         {% else %}
         <div class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-8 text-center space-y-3">
             <p class="text-sm text-neutral-600 dark:text-neutral-300">
                 {% if has_signals %}
-                    Nothing to review — your external signals didn't yield any project-shaped artifacts.
+                    Nothing pulled in — your external signals didn't yield any project-shaped artifacts yet.
                 {% else %}
                     Connect at least one external account first.
                 {% endif %}
