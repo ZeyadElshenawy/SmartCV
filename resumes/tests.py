@@ -1495,6 +1495,139 @@ class TourAndHelpAffordanceTests(TestCase):
         self.assertContains(resp, 'Step 4 of 4')
 
 
+class ResumeSchemaCoercionTests(SimpleTestCase):
+    """Regression: Groq strict-validates tool-call shapes. The model
+    sometimes returns null for blank string fields and wraps list items
+    as single-key objects. Schema's before-validators coerce both shapes
+    to the canonical form so we don't lose generations to validation."""
+
+    def test_null_string_fields_coerce_to_empty(self):
+        from profiles.services.schemas import ResumeExperience, ResumeEducation
+        # The literal shape Groq rejected with `expected string, but got null`:
+        exp = ResumeExperience(**{
+            'title': 'Engineer', 'company': '', 'duration': '',
+            'location': None, 'industry': None,
+            'start_date': None, 'end_date': None,
+            'description': [],
+        })
+        self.assertEqual(exp.location, '')
+        self.assertEqual(exp.industry, '')
+        self.assertEqual(exp.start_date, '')
+        edu = ResumeEducation(**{
+            'degree': 'BSc', 'institution': 'MIT', 'year': '2024',
+            'gpa': None, 'location': None, 'field': None,
+        })
+        self.assertEqual(edu.gpa, '')
+        self.assertEqual(edu.location, '')
+
+    def test_object_wrapped_strings_flatten(self):
+        """The model emits highlights as `[{description: "..."}]` and
+        skills as `[{name: "Dart", proficiency: null}]` — both should
+        flatten to plain string lists."""
+        from profiles.services.schemas import ResumeProject, ResumeContentResult
+        proj = ResumeProject(**{
+            'name': 'Mega News',
+            'highlights': [
+                {'description': 'Engineered a scalable codebase using Clean Architecture.'},
+                {'description': 'Reduced load times by fetching news from 4 APIs in parallel.'},
+            ],
+            'description': [],
+            'technologies': [],
+        })
+        self.assertEqual(len(proj.highlights), 2)
+        self.assertIn('scalable codebase', proj.highlights[0])
+        self.assertIn('Reduced load times', proj.highlights[1])
+        # ResumeContentResult.skills = list of objects → list of strings
+        result = ResumeContentResult(**{
+            'professional_title': 'Engineer',
+            'skills': [
+                {'name': 'Dart', 'proficiency': None, 'years': None},
+                {'name': 'Flutter', 'proficiency': None, 'years': None},
+            ],
+        })
+        self.assertEqual(result.skills, ['Dart', 'Flutter'])
+
+    def test_top_level_null_strings_coerce(self):
+        from profiles.services.schemas import ResumeContentResult
+        result = ResumeContentResult(**{
+            'professional_title': None,
+            'professional_summary': None,
+            'objective': None,
+        })
+        self.assertEqual(result.professional_title, '')
+        self.assertEqual(result.professional_summary, '')
+        self.assertEqual(result.objective, '')
+
+
+class ResumeFailedGenerationRecoveryTests(SimpleTestCase):
+    """Salvage Groq's tool_use_failed payload for resume generation.
+    Same pattern as outreach_generator + learning_path_generator."""
+
+    def _exc(self, raw_failed_generation: str):
+        class _FakeBadRequest(Exception):
+            pass
+        e = _FakeBadRequest('tool_use_failed')
+        e.body = {
+            'error': {
+                'message': 'tool call validation failed',
+                'type': 'invalid_request_error',
+                'code': 'tool_use_failed',
+                'failed_generation': raw_failed_generation,
+            }
+        }
+        return e
+
+    def test_recovers_from_tool_call_wrapper(self):
+        """Groq wraps the failed call as `[{name, parameters}]`. Salvage
+        the parameters dict and validate against the schema."""
+        from unittest.mock import patch, MagicMock
+        from resumes.services import resume_generator
+        # Shape from the production trace — tool-call wrapper with null
+        # fields and object-wrapped highlights/skills.
+        raw = (
+            '[{"name": "ResumeContentResult", "parameters": {'
+            '"professional_title": "Engineer",'
+            '"professional_summary": "Built things.",'
+            '"skills": [{"name": "Python", "proficiency": null}],'
+            '"experience": [{"title": "Dev", "company": "Acme",'
+            ' "industry": null, "location": null, "start_date": "2024",'
+            ' "end_date": "", "duration": "", "description": []}],'
+            '"projects": [{"name": "Tool",'
+            ' "highlights": [{"description": "Shipped X"}],'
+            ' "description": [], "technologies": [], "url": ""}],'
+            '"education": [{"degree": "BSc", "institution": "MIT",'
+            ' "year": "2024", "gpa": null, "location": null}],'
+            '"certifications": [], "languages": [], "objective": ""}}]'
+        )
+        # Build a minimal profile + job stub for the generator wrapper.
+        import types
+        profile = types.SimpleNamespace(
+            data_content={'skills': [{'name': 'Python'}]},
+            raw_text='', skills=[{'name': 'Python'}], experiences=[],
+            education=[], projects=[], certifications=[],
+        )
+        job = types.SimpleNamespace(
+            title='Engineer', company='Acme', description='Need Python.',
+            extracted_skills=['Python'],
+        )
+        gap = types.SimpleNamespace(matched_skills=['Python'])
+
+        # Mock the structured LLM to raise the tool_use_failed exception;
+        # the generator should salvage the failed_generation.
+        with patch.object(resume_generator, 'get_structured_llm') as mock_llm:
+            mock_llm.return_value.invoke.side_effect = self._exc(raw)
+            out = resume_generator.generate_resume_content(profile, job, gap)
+        # Recovery succeeded: we got the tool-call payload, not the offline
+        # fallback (which would have a different professional_summary).
+        self.assertEqual(out['professional_title'], 'Engineer')
+        self.assertEqual(out['skills'], ['Python'])
+        # Object-wrapped highlights got flattened by the schema validator.
+        self.assertEqual(out['projects'][0]['highlights'], ['Shipped X'])
+        # Null strings coerced to "":
+        self.assertEqual(out['experience'][0]['industry'], '')
+        self.assertEqual(out['experience'][0]['location'], '')
+
+
 class LearningPathFailedGenerationRecoveryTests(SimpleTestCase):
     """Groq returns 400 tool_use_failed when the model emits a bare top-level
     list instead of {items: [...]}. The well-formed JSON list is still in
