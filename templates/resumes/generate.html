@@ -35,7 +35,11 @@ surfaces a real error with retry instead of an infinite spinner.
         </div>
 
         <script>
-        (function() {
+        // Wait for DOMContentLoaded — base.html's main script block (where
+        // LoadingOps is defined) sits AFTER {% block content %}. Running
+        // this IIFE at parse time would hit a ReferenceError, the substep
+        // panel would never render, and the fetch would never fire.
+        document.addEventListener('DOMContentLoaded', function() {
             const op = LoadingOps['resume-gen'];
             const list = document.getElementById('resume-gen-steps');
             const failure = document.getElementById('resume-gen-failure');
@@ -112,7 +116,7 @@ surfaces a real error with retry instead of an infinite spinner.
                     showFailure(err.message);
                 }
             });
-        })();
+        });
         </script>
 
         {% else %}
