@@ -35,7 +35,13 @@ so a slow run doesn't pretend to be done.
 </div>
 
 <script>
-(function() {
+// Wait for DOMContentLoaded so the LoadingOps registry + _renderStep helper
+// from base.html (defined in a script block AFTER {% block content %}) have
+// been parsed before we reference them. Without this wait, the IIFE runs
+// at parse time, hits a ReferenceError on `LoadingOps`, fails silently, and
+// the user is stuck on a static "Reading the job…" page with no substeps,
+// no fetch, and no timeout — exactly what the user reported.
+document.addEventListener('DOMContentLoaded', function() {
     // Inline-mode substep panel using the same component vocabulary as the
     // overlay (LoadingOps / _renderStep). We render directly into #gap-steps
     // instead of the overlay's #loading-steps because this is a full-page
@@ -120,7 +126,7 @@ so a slow run doesn't pretend to be done.
             showRetry(err.message);
         }
     });
-})();
+});
 </script>
 
 {% else %}
