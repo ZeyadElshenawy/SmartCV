@@ -521,6 +521,11 @@ def dashboard(request):
     from profiles.services.profile_strength import compute_profile_strength
     profile_strength = compute_profile_strength(profile, request.user)
 
+    # Shepherd tour gating (Tier 4 / S7). Auto-trigger once per user. The
+    # Help "?" button on every page can re-run the tour any time via
+    # startTour('dashboard', {force: true}), which doesn't reset this flag.
+    should_run_tour = not bool((profile.data_content or {}).get('has_seen_tour'))
+
     context = {
         'profile': profile,
         'kanban_boards': kanban_boards,
@@ -533,6 +538,7 @@ def dashboard(request):
         'next_actions': next_actions,
         'career_stage': career_stage,
         'profile_strength': profile_strength,
+        'should_run_tour': should_run_tour,
     }
     return render(request, 'profiles/dashboard.html', context)
 
@@ -861,6 +867,23 @@ def refresh_kaggle_signals(request):
         input_field='kaggle_input',
         fetcher=fetch_kaggle_snapshot,
     )
+
+
+@login_required
+@require_POST
+def dismiss_tour_view(request):
+    """Persist that the user has seen (or dismissed) the Shepherd tour.
+
+    Set on cancel + complete by the client-side tour wrapper. Force-replays
+    triggered from the "?" Help button do NOT clear this flag — those are
+    replays, not first-time runs. Keeps the auto-trigger from firing twice.
+    """
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    data = profile.data_content or {}
+    data['has_seen_tour'] = True
+    profile.data_content = data
+    profile.save(update_fields=['data_content', 'updated_at'])
+    return JsonResponse({'ok': True})
 
 
 @login_required

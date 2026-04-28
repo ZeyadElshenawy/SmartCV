@@ -4,6 +4,7 @@
 {% block title %}Gap analysis — {{ job.title }} — SmartCV{% endblock %}
 
 {% block content %}
+<script>window.PAGE_TOUR = 'gap-analysis';</script>
 {% if is_computing %}
 {# Tier 3: kill the fake progress bar. The substep component shows real
    stage labels (Comparing skills → Reconciling fuzzy matches → Computing
@@ -195,8 +196,34 @@
 
                 {# Right: tier-dependent primary action + quiet alternates #}
                 <div class="lg:col-span-2 lg:border-l lg:border-neutral-200 lg:dark:border-neutral-800 lg:pl-8 space-y-4">
+                    {# "Why this recommendation?" tooltip — explains the routing
+                       so the user understands the system isn't arbitrary. The
+                       cutoff thresholds (0.8 / 0.5) are documented inline so
+                       the user knows where they sit and why. #}
+                    <div class="flex items-center justify-between gap-2">
+                        {% if gap.similarity_score >= 0.8 %}
+                            {% include "components/section_label.html" with text="Recommended" tone="brand" %}
+                        {% elif gap.similarity_score >= 0.5 %}
+                            {% include "components/section_label.html" with text="Recommended" tone="accent" %}
+                        {% else %}
+                            {% include "components/section_label.html" with text="Recommended" tone="danger" %}
+                        {% endif %}
+                        <details class="group" x-data>
+                            <summary class="cursor-pointer text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400 hover:text-brand-700 dark:hover:text-brand-400 transition-colors list-none">
+                                <span class="inline-flex items-center gap-1">Why this? <svg class="w-3 h-3 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></span>
+                            </summary>
+                            <div class="absolute mt-2 right-0 z-10 w-72 rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-4 text-xs text-neutral-700 dark:text-neutral-200 leading-relaxed shadow-lg">
+                                <p class="font-medium text-neutral-900 dark:text-neutral-50 mb-2">How we picked this</p>
+                                <ul class="space-y-1.5">
+                                    <li><span class="text-emerald-600 dark:text-emerald-400 font-medium">≥80%</span> match → tailoring is high-leverage; generate the résumé.</li>
+                                    <li><span class="text-amber-600 dark:text-amber-400 font-medium">50–80%</span> → there are gaps the bot can probably surface from your real experience; chat first.</li>
+                                    <li><span class="text-red-600 dark:text-red-400 font-medium">&lt;50%</span> → tailoring won't paper over real missing skills; build a learning path instead.</li>
+                                </ul>
+                                <p class="mt-3 text-[11px] text-neutral-500 dark:text-neutral-400">You scored {{ gap.similarity_score|floatformat:2 }}. The other two paths are still one click away below.</p>
+                            </div>
+                        </details>
+                    </div>
                     {% if gap.similarity_score >= 0.8 %}
-                        {% include "components/section_label.html" with text="Recommended" tone="brand" %}
                         <a href="{% url 'generate_resume' job.id %}" class="group/btn relative inline-flex w-full items-center justify-between gap-2 h-12 px-5 rounded-xl bg-brand-600 text-white text-sm font-medium tracking-tight shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-brand-700 hover:-translate-y-px transition-[background-color,transform] duration-150">
                             Generate tailored resume
                             <span aria-hidden="true" class="transition-transform duration-200 group-hover/btn:translate-x-0.5">→</span>
@@ -212,7 +239,6 @@
                             </a>
                         </div>
                     {% elif gap.similarity_score >= 0.5 %}
-                        {% include "components/section_label.html" with text="Recommended" tone="accent" %}
                         <a href="{% url 'profile_chatbot' job.id %}" class="group/btn relative inline-flex w-full items-center justify-between gap-2 h-12 px-5 rounded-xl bg-brand-600 text-white text-sm font-medium tracking-tight shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-brand-700 hover:-translate-y-px transition-[background-color,transform] duration-150">
                             Chat to fill the gaps
                             <span aria-hidden="true" class="transition-transform duration-200 group-hover/btn:translate-x-0.5">→</span>
@@ -228,7 +254,6 @@
                             </a>
                         </div>
                     {% else %}
-                        {% include "components/section_label.html" with text="Recommended" tone="danger" %}
                         <a href="{% url 'learning_path' job.id %}" class="group/btn relative inline-flex w-full items-center justify-between gap-2 h-12 px-5 rounded-xl bg-brand-600 text-white text-sm font-medium tracking-tight shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-brand-700 hover:-translate-y-px transition-[background-color,transform] duration-150">
                             Build a learning path
                             <span aria-hidden="true" class="transition-transform duration-200 group-hover/btn:translate-x-0.5">→</span>

@@ -2,6 +2,7 @@
 {% block title %}Edit résumé — {{ resume.gap_analysis.job.title }} — SmartCV{% endblock %}
 
 {% block content %}
+<script>window.PAGE_TOUR = 'resume-edit';</script>
 <div x-data="resumeEditor()" x-init="init()">
 
     {% if sync_banner %}

@@ -30,10 +30,14 @@ Required context: `profile` (UserProfile instance).
         </div>
 
         {# ---- Empty-state promo (hidden once editing or already connected) ---- #}
-        <p x-show="!hasData && !editing && !error" x-cloak
-           class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
-            Show evidence the CV doesn't capture — top repos, language mix, recent activity. Public data only.
-        </p>
+        <div x-show="!hasData && !editing && !error" x-cloak class="space-y-1.5">
+            <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                Show evidence the CV doesn't capture — top repos, language mix, recent activity. Public data only.
+            </p>
+            <p class="text-[11px] text-neutral-400 dark:text-neutral-500 leading-relaxed">
+                <strong class="font-medium text-neutral-600 dark:text-neutral-300">Why:</strong> turns your repos into résumé-ready project bullets, weighted by stars + language match against each JD.
+            </p>
+        </div>
 
         {# ---- Input form (shown on empty state OR when editing; survives errors) ---- #}
         <form x-show="!hasData || editing" x-cloak @submit.prevent="refresh" class="flex gap-2">
