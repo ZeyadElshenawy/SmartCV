@@ -582,7 +582,11 @@
         /* ─── Shepherd tour registry (Tier 4) ───────────────────────────
          *
          * Multi-tour design: each tour is keyed by page identity. Pages
-         * register their tour via `<script>window.PAGE_TOUR = 'dashboard';</script>`.
+         * register their tour via an inline script that sets
+         * window.PAGE_TOUR = 'dashboard' (literal closing-tag form omitted
+         * here because writing the literal sequence inside a script body
+         * terminates the surrounding script element early in the HTML
+         * parser, leaking the rest of this block as visible text).
          * The Help "?" button uses that key to re-trigger; the auto-trigger
          * runs once per user (gated by has_seen_tour on the profile).
          *
