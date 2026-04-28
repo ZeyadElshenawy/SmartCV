@@ -1138,11 +1138,12 @@ class ReviewMasterProfileFormTests(TestCase):
         # score back to the old "has any data = 100" behavior.
         self.assertLess(body['profile_strength']['score'], 100)
 
-    def test_review_redirects_onboarding_user_to_connect_accounts(self):
-        """Fresh signup flow: after saving the master profile, the next step
-        is the connect-accounts page (so external signals enrich the first
-        gap analysis). Existing users editing their profile skip straight to
-        job input / dashboard."""
+    def test_review_is_final_step_for_onboarding_user(self):
+        """Post-reorder (Upload → Connect → Project review → Master review),
+        master review is the LAST step of onboarding. Saving here routes
+        to the natural next action (job input / dashboard) and clears the
+        onboarding session flag — it does NOT bounce back to
+        connect-accounts."""
         from django.urls import reverse
         session = self.client.session
         session['in_onboarding'] = True
@@ -1154,7 +1155,10 @@ class ReviewMasterProfileFormTests(TestCase):
             'education_json': '[]', 'projects_json': '[]',
             'certifications_json': '[]',
         })
-        self.assertRedirects(resp, reverse('connect_accounts'))
+        # No active jobs → job input is the natural next stop.
+        self.assertRedirects(resp, reverse('job_input_view'))
+        # Onboarding flag cleared — no more "Skip onboarding" affordance.
+        self.assertFalse(self.client.session.get('in_onboarding'))
 
     def test_review_does_not_route_existing_user_through_connect(self):
         from django.urls import reverse

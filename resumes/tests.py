@@ -1410,6 +1410,97 @@ class ScriptTagBalanceTests(TestCase):
                            'LoadingOps appears AFTER a </script> close — script body leaked.')
 
 
+class OnboardingFlowOrderTests(TestCase):
+    """The post-CV-upload onboarding sequence is:
+        Upload → Connect → (Project review if signals) → Master review.
+
+    Master review is the FINAL step, not the first stop after upload.
+    Out-of-onboarding visits keep the legacy semantics.
+    """
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from profiles.models import UserProfile
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='flow@example.com', email='flow@example.com', password='x',
+        )
+        self.profile = UserProfile.objects.create(user=self.user)
+        self.client.force_login(self.user)
+
+    def _set_onboarding_flag(self, value=True):
+        session = self.client.session
+        session['in_onboarding'] = value
+        session.save()
+
+    def test_connect_redirects_to_projects_review_when_signals_present(self):
+        """In onboarding + at least one signal block → POST connect →
+        project review (the 'difference thing' from the user's spec)."""
+        from profiles.models import UserProfile
+        UserProfile.objects.filter(user=self.user).update(data_content={
+            'github_signals': {
+                'profile_url': 'https://github.com/me',
+                'top_repos': [],
+                'language_breakdown': [],
+            },
+        })
+        self._set_onboarding_flag()
+        resp = self.client.post('/profiles/setup/connect/')
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, '/profiles/projects/review/')
+
+    def test_connect_redirects_to_master_review_when_no_signals(self):
+        """In onboarding + no signals connected → POST connect →
+        master review (skip the empty project-review step)."""
+        self._set_onboarding_flag()
+        resp = self.client.post('/profiles/setup/connect/')
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, '/profiles/setup/review/')
+
+    def test_connect_redirects_to_master_review_when_signals_have_error(self):
+        """A snapshot dict with `error` set is treated as 'no signals' —
+        the user's connect attempt failed (e.g. rate-limited), so don't
+        send them to a project review with nothing to merge."""
+        from profiles.models import UserProfile
+        UserProfile.objects.filter(user=self.user).update(data_content={
+            'github_signals': {'error': 'rate_limited'},
+        })
+        self._set_onboarding_flag()
+        resp = self.client.post('/profiles/setup/connect/')
+        self.assertEqual(resp.url, '/profiles/setup/review/')
+
+    def test_connect_out_of_onboarding_preserves_legacy_redirect(self):
+        """Settings-style visit (not in onboarding): posting Continue
+        should go to job_input_view or dashboard, NOT into the project-
+        review detour even if signals exist."""
+        from profiles.models import UserProfile
+        UserProfile.objects.filter(user=self.user).update(data_content={
+            'github_signals': {'top_repos': []},
+        })
+        # No in_onboarding flag set.
+        resp = self.client.post('/profiles/setup/connect/')
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn(resp.url, ('/jobs/input/', '/profiles/dashboard/'))
+
+    def test_master_review_is_final_step_when_onboarding(self):
+        """Master review used to redirect to connect_accounts when in
+        onboarding. Post-reorder, it's the LAST step — should route
+        directly to job_input_view (or dashboard) and clear the
+        in_onboarding session flag."""
+        self._set_onboarding_flag()
+        # Minimal POST to satisfy the form.
+        resp = self.client.post('/profiles/setup/review/', {
+            'full_name': 'Test User',
+            'email': 'flow@example.com',
+        })
+        self.assertEqual(resp.status_code, 302)
+        # No active jobs → job input is the natural next stop.
+        self.assertEqual(resp.url, '/jobs/input/')
+        # Session flag must be cleared so the "Skip onboarding" affordance
+        # disappears on subsequent pages.
+        self.assertFalse(self.client.session.get('in_onboarding'))
+
+
 class TourAndHelpAffordanceTests(TestCase):
     """Tier 4: Shepherd tour, Help affordance, step indicators, and the
     routing tooltip on gap analysis. The tour is registered on every page
@@ -1491,8 +1582,10 @@ class TourAndHelpAffordanceTests(TestCase):
         self.assertContains(resp, 'Step 1 of 4')
         resp = self.client.get('/profiles/setup/upload/')
         self.assertContains(resp, 'Step 2 of 4')
+        # Post-reorder, connect-accounts is step 3 (was step 4 before
+        # signals/project-review moved ahead of master review).
         resp = self.client.get('/profiles/setup/connect/')
-        self.assertContains(resp, 'Step 4 of 4')
+        self.assertContains(resp, 'Step 3 of 4')
 
 
 class ResumeSchemaCoercionTests(SimpleTestCase):

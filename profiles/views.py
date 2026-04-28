@@ -345,11 +345,22 @@ def upload_master_profile(request):
             profile.certifications = validated_data.get('certifications', [])
 
             profile.save()
+            # Onboarding order: parsed CV → Connect accounts → Project review
+            # → Master review (the user reviews ONCE, after external evidence
+            # has been pulled and reconciled). Out-of-onboarding visits jump
+            # straight to review since there's no signals step in their flow.
+            if request.session.get('in_onboarding'):
+                return redirect('connect_accounts')
             return redirect('review_master_profile')
 
         except Exception as e:
             logger.error("Master Profile Parsing Failed: %s", e)
             messages.warning(request, "We saved your CV but couldn't auto-fill everything. Please review and complete the fields below.")
+            # Parse-failure still respects the onboarding order — the user
+            # can connect accounts first and review the (sparse) parsed
+            # output once at the end.
+            if request.session.get('in_onboarding'):
+                return redirect('connect_accounts')
             return redirect('review_master_profile')  # Fallback to manual edit
 
     return render(request, 'profiles/upload_cv.html', {'is_master': True})
@@ -400,12 +411,13 @@ def review_master_profile(request):
 
         profile.save()
         messages.success(request, "Profile saved successfully.")
-        # Fresh signups get walked through the "connect your external accounts"
-        # step so their first gap analysis has GitHub / Kaggle / Scholar signals
-        # to lean on. Returning users editing their master profile skip straight
-        # to the natural next step.
+        # Master review is now the FINAL step of onboarding (post-reorder).
+        # The connect-accounts + project-review steps already ran before
+        # the user landed here, so nothing's left except routing to the
+        # natural next action. Drop the onboarding session flag so
+        # downstream pages stop showing the "Skip onboarding" affordance.
         if request.session.get('in_onboarding'):
-            return redirect('connect_accounts')
+            request.session.pop('in_onboarding', None)
         has_jobs = Job.objects.filter(user=request.user).exists()
         if not has_jobs:
             return redirect('job_input_view')
@@ -448,6 +460,27 @@ def connect_accounts_view(request):
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
 
     if request.method == 'POST':
+        # Onboarding order: connect → project review (only if signals
+        # were pulled; otherwise skip straight to master review). Mirrors
+        # the predicate the connect_accounts.html banner uses to decide
+        # whether to surface the project-review link, so the redirect is
+        # consistent with the in-page UI.
+        if request.session.get('in_onboarding'):
+            data = profile.data_content or {}
+            def _has_signal(key):
+                blob = data.get(key) or {}
+                return bool(blob) and not blob.get('error')
+            has_signals = (
+                _has_signal('github_signals')
+                or _has_signal('scholar_signals')
+                or _has_signal('kaggle_signals')
+            )
+            if has_signals:
+                return redirect('projects_review')
+            return redirect('review_master_profile')
+
+        # Out-of-onboarding (settings-style visit): keep going to the
+        # natural next step (job input, or dashboard if a job already exists).
         has_jobs = Job.objects.filter(user=request.user).exists()
         if not has_jobs:
             return redirect('job_input_view')
