@@ -77,11 +77,23 @@ so a slow run doesn't pretend to be done.
         failure.classList.remove('hidden');
     }
 
+    // Hard client-side timeout via AbortController. Without this the page
+    // can hang indefinitely if Groq is slow (e.g. TPM throttle, congestion).
+    // The server-side LLM call has its own 20s timeout with one retry, so a
+    // 45s ceiling on the client gives the server a full retry cycle and
+    // still surfaces a real error to the user instead of an infinite
+    // spinner.
+    const controller = new AbortController();
+    const timeoutMs = (op.timeoutMs || 45000);
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
     fetch('{% url "compute_gap_api" job.id %}', {
         method: 'POST',
         headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json'},
+        signal: controller.signal,
     })
     .then((response) => {
+        clearTimeout(timeoutId);
         if (!response.ok) throw new Error('API failed (' + response.status + ')');
         return response.json();
     })
@@ -97,8 +109,16 @@ so a slow run doesn't pretend to be done.
         }
     })
     .catch((err) => {
+        clearTimeout(timeoutId);
         console.error('Compute error:', err);
-        showRetry(err.message);
+        if (err.name === 'AbortError') {
+            showRetry(
+                'Analysis timed out after ' + Math.round(timeoutMs / 1000) +
+                ' seconds. The model may be rate-limited — try again in a minute.'
+            );
+        } else {
+            showRetry(err.message);
+        }
     });
 })();
 </script>

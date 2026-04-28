@@ -355,6 +355,10 @@
                     {label: 'Computing similarity',     ms: 3000},
                 ],
                 tail: '5 to 10 seconds.',
+                // 45s upper bound — Groq's per-request timeout is 20s with
+                // 1 retry (~40s worst case). Anything past 45 means the
+                // request is genuinely stuck.
+                timeoutMs: 45000,
             },
             'resume-gen': {
                 title: 'Tailoring your résumé…',
