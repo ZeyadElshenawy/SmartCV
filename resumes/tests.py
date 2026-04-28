@@ -1307,6 +1307,63 @@ class SubstepLoadingComponentTests(TestCase):
         self.assertIn("showLoading({op: 'job-paste'})", body)
 
 
+class ScriptTagBalanceTests(TestCase):
+    """Regression guard: a literal `</script>` string inside a JS comment
+    terminates the script element early in the HTML parser, leaking the
+    rest of the script body (Tours registry, theme toggle, everything) as
+    visible text on the page. Hit production once via a Shepherd JSDoc
+    comment that wrote `<script>...</script>` literally inside backticks.
+
+    This test asserts the rendered dashboard has matching counts of
+    <script> opens and </script> closes. Mismatch == something inside a
+    script body is being parsed as a tag boundary.
+    """
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from profiles.models import UserProfile
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='balance@example.com', email='balance@example.com', password='x',
+        )
+        UserProfile.objects.create(user=self.user, full_name='Balance User')
+        self.client.force_login(self.user)
+
+    def test_dashboard_script_tags_balanced(self):
+        import re
+        resp = self.client.get('/profiles/dashboard/')
+        body = resp.content.decode('utf-8')
+        # Count opening <script (handles `<script>` and `<script src=...>`)
+        # and closing </script> tags.
+        opens = len(re.findall(r'<script\b', body, flags=re.IGNORECASE))
+        closes = len(re.findall(r'</script\s*>', body, flags=re.IGNORECASE))
+        self.assertEqual(
+            opens, closes,
+            f'Unbalanced <script> tags: {opens} opens vs {closes} closes. '
+            f'A literal "</script>" inside a script body breaks the parser.'
+        )
+
+    def test_no_loading_ops_text_leaks_outside_script(self):
+        """The LoadingOps registry should only appear inside a <script>
+        tag. If it shows up as visible text on the page, a script tag
+        boundary broke."""
+        resp = self.client.get('/profiles/dashboard/')
+        body = resp.content.decode('utf-8')
+        # Find the position of `const LoadingOps = {` and verify it sits
+        # inside a script block (last <script> before this position has
+        # not been closed yet).
+        marker = 'const LoadingOps = {'
+        idx = body.find(marker)
+        self.assertGreater(idx, 0, 'LoadingOps registry missing entirely')
+        before = body[:idx]
+        # Last <script appearance before the marker must NOT be followed
+        # by a </script> close before the marker.
+        last_open = before.rfind('<script')
+        last_close = before.rfind('</script>')
+        self.assertGreater(last_open, last_close,
+                           'LoadingOps appears AFTER a </script> close — script body leaked.')
+
+
 class TourAndHelpAffordanceTests(TestCase):
     """Tier 4: Shepherd tour, Help affordance, step indicators, and the
     routing tooltip on gap analysis. The tour is registered on every page
