@@ -425,8 +425,61 @@ Make it PROFESSIONAL and ATS-OPTIMIZED.
         return resume_content
 
     except Exception as e:
+        # Try to salvage from Groq's tool_use_failed before giving up. The
+        # model often produces well-formed content but fails the strict
+        # tool-call validator (null in string field, list-of-objects where
+        # list-of-strings was expected, etc.). Schema's before-validators
+        # coerce both shapes to the canonical form. Same recovery pattern
+        # as profiles.services.outreach_generator and
+        # analysis.services.learning_path_generator.
+        recovered = _recover_resume_from_failed_generation(e)
+        if recovered is not None:
+            resume_content = recovered.model_dump()
+            resume_content = _ensure_profile_data_preserved(resume_content, raw_cv_data)
+            logger.info(
+                "Resume recovered from failed_generation; sections=%s",
+                list(resume_content.keys()),
+            )
+            return resume_content
         logger.exception(f"Resume generation error: {e}")
         return _build_offline_fallback(profile, job, raw_cv_data)
+
+
+def _recover_resume_from_failed_generation(exc):
+    """Recover a ResumeContentResult from Groq's tool_use_failed body.
+
+    Groq emits tool calls in two shapes when the validator rejects:
+      [{"name": "ResumeContentResult", "parameters": {...}}, ...]
+      {...top-level dict already in ResumeContentResult shape...}
+
+    The Pydantic schema's `before` validators handle the field-level coercions
+    (null → "", `[{description: ...}]` → `["..."]`), so feeding the recovered
+    dict through the same validation pipeline gives us the same output the
+    happy path produces.
+    """
+    body = getattr(exc, 'body', None) or {}
+    err = body.get('error', {}) if isinstance(body, dict) else {}
+    raw = err.get('failed_generation')
+    if not raw or not isinstance(raw, str):
+        return None
+    try:
+        parsed = json.loads(raw)
+    except Exception:
+        return None
+    # Tool-call wrapper: list of {name, parameters} entries.
+    if isinstance(parsed, list) and parsed:
+        first = parsed[0]
+        if isinstance(first, dict) and isinstance(first.get('parameters'), dict):
+            parsed = first['parameters']
+        elif isinstance(first, dict):
+            parsed = first
+    if not isinstance(parsed, dict):
+        return None
+    try:
+        return ResumeContentResult(**parsed)
+    except Exception:
+        logger.exception("Recovered resume failed_generation didn't validate")
+        return None
 
 
 def regenerate_section(profile, job, gap_analysis, current_content: dict, section: str) -> dict | list | str:

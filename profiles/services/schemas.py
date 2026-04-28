@@ -154,6 +154,63 @@ class OutreachCampaignResult(BaseModel):
     cold_email_subject: str = ""
     cold_email_body: str = ""
 
+def _coerce_null_strings(values: dict, fields: tuple) -> dict:
+    """Replace None with "" on string-typed fields the LLM may emit as null.
+
+    Groq's tool-call validator strict-checks declared `string` fields against
+    JSON null and rejects the call. The model legitimately emits null for
+    blank values, so we coerce them in a `before` validator instead of
+    making every field Optional[str] (which would loosen the contract for
+    every other consumer).
+    """
+    if not isinstance(values, dict):
+        return values
+    for f in fields:
+        if values.get(f) is None:
+            values[f] = ""
+    return values
+
+
+def _flatten_string_list(items, *, prefer_keys: tuple = ('description', 'text', 'name', 'value')) -> list:
+    """Coerce a list-of-objects shape into a list-of-strings.
+
+    The Groq model sometimes wraps each list item as a single-key object
+    (e.g. `[{"description": "..."}, ...]` instead of `["...", ...]`). The
+    schema declares plain strings, so without this coercion the call fails
+    with `expected string, but got object`. Tries the standard wrapper
+    keys in order; falls back to the first string value or the str() of
+    the entire item.
+    """
+    if items is None:
+        return []
+    if isinstance(items, str):
+        return [line.strip() for line in items.split('\n') if line.strip()]
+    out = []
+    for item in items:
+        if isinstance(item, str):
+            s = item.strip()
+            if s:
+                out.append(s)
+            continue
+        if isinstance(item, dict):
+            for k in prefer_keys:
+                v = item.get(k)
+                if isinstance(v, str) and v.strip():
+                    out.append(v.strip())
+                    break
+            else:
+                # No preferred key matched; pull the first string value.
+                for v in item.values():
+                    if isinstance(v, str) and v.strip():
+                        out.append(v.strip())
+                        break
+        else:
+            s = str(item).strip()
+            if s:
+                out.append(s)
+    return out
+
+
 class ResumeExperience(BaseModel):
     title: str = ""
     company: str = ""
@@ -166,10 +223,19 @@ class ResumeExperience(BaseModel):
 
     @model_validator(mode='before')
     @classmethod
-    def normalize_description(cls, values):
+    def normalize(cls, values):
+        if not isinstance(values, dict):
+            return values
+        # Coerce null → "" for string fields the LLM may emit as null.
+        values = _coerce_null_strings(values, (
+            'title', 'company', 'duration', 'location', 'industry',
+            'start_date', 'end_date',
+        ))
         desc = values.get('description', [])
         if isinstance(desc, str):
             values['description'] = [d.strip() for d in desc.split('\n') if d.strip()]
+        elif isinstance(desc, list):
+            values['description'] = _flatten_string_list(desc)
         return values
 
 class ResumeProject(BaseModel):
@@ -181,14 +247,27 @@ class ResumeProject(BaseModel):
 
     @model_validator(mode='before')
     @classmethod
-    def normalize_description(cls, values):
+    def normalize(cls, values):
+        if not isinstance(values, dict):
+            return values
+        values = _coerce_null_strings(values, ('name', 'url'))
         desc = values.get('description', [])
         if isinstance(desc, str):
             values['description'] = [d.strip() for d in desc.split('\n') if d.strip()]
-        # Accept comma-separated technologies string from the editor form
+        elif isinstance(desc, list):
+            values['description'] = _flatten_string_list(desc)
+        # Accept comma-separated technologies string from the editor form,
+        # AND list-of-objects from a tool-call mode the LLM sometimes uses.
         tech = values.get('technologies', [])
         if isinstance(tech, str):
             values['technologies'] = [t.strip() for t in tech.split(',') if t.strip()]
+        elif isinstance(tech, list):
+            values['technologies'] = _flatten_string_list(tech)
+        # highlights is List[str]; the model sometimes wraps as
+        # [{description: "..."}]. Flatten so the field validates.
+        h = values.get('highlights', [])
+        if isinstance(h, list):
+            values['highlights'] = _flatten_string_list(h)
         return values
 
 class ResumeCertification(BaseModel):
@@ -197,6 +276,13 @@ class ResumeCertification(BaseModel):
     date: str = ""
     duration: str = ""
     url: str = ""
+
+    @model_validator(mode='before')
+    @classmethod
+    def normalize(cls, values):
+        if not isinstance(values, dict):
+            return values
+        return _coerce_null_strings(values, ('name', 'issuer', 'date', 'duration', 'url'))
 
 class ResumeEducation(BaseModel):
     degree: str = ""
@@ -209,10 +295,17 @@ class ResumeEducation(BaseModel):
 
     @model_validator(mode='before')
     @classmethod
-    def normalize_honors(cls, values):
+    def normalize(cls, values):
+        if not isinstance(values, dict):
+            return values
+        values = _coerce_null_strings(values, (
+            'degree', 'institution', 'year', 'field', 'gpa', 'location',
+        ))
         h = values.get('honors', [])
         if isinstance(h, str):
             values['honors'] = [line.strip() for line in h.split('\n') if line.strip()]
+        elif isinstance(h, list):
+            values['honors'] = _flatten_string_list(h)
         return values
 
 class ResumeContentResult(BaseModel):
@@ -234,6 +327,26 @@ class ResumeContentResult(BaseModel):
     certifications: List[ResumeCertification] = Field(default_factory=list)
     languages: List[str] = Field(default_factory=list)
     model_config = {"extra": "allow"}
+
+    @model_validator(mode='before')
+    @classmethod
+    def normalize(cls, values):
+        if not isinstance(values, dict):
+            return values
+        # Top-level string fields may come back as null.
+        values = _coerce_null_strings(values, (
+            'professional_title', 'professional_summary', 'objective',
+        ))
+        # `skills` is List[str] but the LLM sometimes wraps each entry as
+        # {name: "...", proficiency: null, years: null}. Flatten.
+        s = values.get('skills', [])
+        if isinstance(s, list):
+            values['skills'] = _flatten_string_list(s)
+        # `languages` same shape risk.
+        lg = values.get('languages', [])
+        if isinstance(lg, list):
+            values['languages'] = _flatten_string_list(lg)
+        return values
 
 class SectionFilterResult(BaseModel):
     """Output schema for resume_generator.py section filtering"""
