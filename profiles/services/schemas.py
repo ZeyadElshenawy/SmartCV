@@ -242,11 +242,17 @@ class SectionFilterResult(BaseModel):
     reasoning: str = ""
 
 class LearningPathItem(BaseModel):
-    """Single item in a learning path"""
+    """Single item in a learning path.
+
+    `resources` is a list of dicts with the keys `name` / `url` / `provider`
+    (typed loosely as Dict[str, str] for LLM-friendly output). The template
+    renders each resource as a clickable link when `url` is non-empty.
+    """
     skill: str = ""
     importance: str = ""
     resources: List[Dict[str, str]] = Field(default_factory=list)
     project_idea: str = ""
+    time_estimate: str = ""
 
 class LearningPathResult(BaseModel):
     """Output schema for learning_path_generator.py"""

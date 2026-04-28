@@ -7,5 +7,6 @@ urlpatterns = [
     path('api/update-skills/<uuid:job_id>/', views.update_gap_skills, name='update_gap_skills'),
     path('learning-path/', views.generate_learning_path_view, name='learning_path_global'),
     path('learning-path/<uuid:job_id>/', views.generate_learning_path_view, name='learning_path'),
+    path('api/learning-path/skill-done/', views.mark_skill_complete_view, name='mark_skill_complete'),
     path('negotiate/<uuid:job_id>/', views.negotiate_salary_view, name='negotiate_salary'),
 ]

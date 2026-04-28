@@ -237,7 +237,16 @@ def check_gap_status_api(request, job_id):
 
 @login_required
 def generate_learning_path_view(request, job_id=None):
-    """Generate a personalized learning path based on missing skills across jobs or a specific job"""
+    """Generate a personalized learning path based on missing skills across
+    jobs or a specific job.
+
+    Tier 5: persists the generated `learning_path` on
+    `UserProfile.data_content['learning_path']` so the user doesn't lose it
+    when they navigate away. Surfaces `completed_skills` so the per-skill
+    "Mark as done" toggles render correctly. Adds a return-path CTA so the
+    user can re-run gap analysis once they've finished some items.
+    """
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
 
     if job_id:
         gap_analyses = GapAnalysis.objects.filter(
@@ -261,7 +270,9 @@ def generate_learning_path_view(request, job_id=None):
     top_missing = sorted(missing_skills_pool.items(), key=lambda x: x[1], reverse=True)[:5]
     skills_to_learn = [skill for skill, count in top_missing]
 
-    learning_path = []
+    data = profile.data_content or {}
+    completed_skills = set((data.get('completed_skills') or []))
+
     if request.method == 'POST':
         try:
             learning_path = generate_learning_path(skills_to_learn)
@@ -270,12 +281,62 @@ def generate_learning_path_view(request, job_id=None):
             logging.getLogger(__name__).exception("Learning path generation failed: %s", e)
             from django.contrib import messages as _messages
             _messages.error(request, "Could not generate learning path — please try again.")
+            learning_path = []
+        # Persist so the user can navigate away and come back without re-running
+        # the LLM. Re-running on POST overwrites the cached path. Caller can
+        # also use ?force=1 to regenerate explicitly.
+        if learning_path:
+            data['learning_path'] = learning_path
+            data['learning_path_skills'] = skills_to_learn
+            from django.utils import timezone
+            data['learning_path_generated_at'] = timezone.now().isoformat()
+            profile.data_content = data
+            profile.save(update_fields=['data_content', 'updated_at'])
+    else:
+        # GET: prefer the persisted path. If missing-skills set has shifted
+        # since generation (user added a job, ran a new gap analysis), the
+        # template will surface a "Re-generate" affordance via the existing
+        # form action.
+        learning_path = data.get('learning_path') or []
 
     return render(request, 'analysis/learning_path.html', {
         'skills_to_learn': top_missing,
         'learning_path': learning_path,
-        'context_job': context_job
+        'context_job': context_job,
+        'completed_skills': completed_skills,
     })
+
+
+@login_required
+@require_POST
+def mark_skill_complete_view(request):
+    """Toggle a skill's "completed" state on the user's profile.
+
+    Body: `{skill: "Python"}`. Stored on `data_content['completed_skills']`
+    as a sorted list (ordered for deterministic test assertions). Idempotent:
+    second call with the same skill removes it (toggle semantics).
+    """
+    try:
+        body = json.loads(request.body or b'{}')
+    except (ValueError, TypeError):
+        return JsonResponse({'error': 'invalid_json'}, status=400)
+    skill = (body.get('skill') or '').strip().lower()
+    if not skill:
+        return JsonResponse({'error': 'skill_required'}, status=400)
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    data = profile.data_content or {}
+    completed = set((data.get('completed_skills') or []))
+    if skill in completed:
+        completed.remove(skill)
+        action = 'unmarked'
+    else:
+        completed.add(skill)
+        action = 'marked'
+    data['completed_skills'] = sorted(completed)
+    profile.data_content = data
+    profile.save(update_fields=['data_content', 'updated_at'])
+    return JsonResponse({'ok': True, 'action': action, 'skill': skill,
+                         'completed_skills': sorted(completed)})
 
 @login_required
 def negotiate_salary_view(request, job_id):
