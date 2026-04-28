@@ -7,7 +7,11 @@
 
         {# ---- Header ---- #}
         <header class="space-y-4">
-            {% include "components/section_label.html" with text="Project enrichment" tone="brand" %}
+            {% if request.session.in_onboarding %}
+                {% include "components/section_label.html" with text="Reviewing external evidence · between Step 3 and 4" tone="brand" %}
+            {% else %}
+                {% include "components/section_label.html" with text="Project enrichment" tone="brand" %}
+            {% endif %}
             <h1 class="font-display text-4xl sm:text-5xl leading-[1.02] tracking-tight text-neutral-900 dark:text-neutral-50"
                 style="font-variation-settings: 'opsz' 80;">
                 Review your <em class="font-medium text-brand-700 dark:text-brand-400">external projects</em>.
