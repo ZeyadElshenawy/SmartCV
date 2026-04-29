@@ -41,6 +41,47 @@ _MAX_REPOS = 8
 _MAX_PUBLICATIONS = 6
 
 
+def _recover_enriched_from_failed_generation(exc) -> list[EnrichedProject] | None:
+    """Salvage a list of EnrichedProject items from Groq's tool_use_failed body.
+
+    The model commonly emits a bare top-level list of project dicts
+    instead of the {projects: [...]} wrapper our schema declares. Groq's
+    strict tool validator rejects the call, but the list itself is
+    well-formed JSON in `error.failed_generation`. Same recovery pattern
+    as profiles.services.outreach_generator and
+    analysis.services.learning_path_generator.
+
+    Returns a list of EnrichedProject instances on success, None when
+    the failed_generation isn't parseable / doesn't validate.
+    """
+    body = getattr(exc, 'body', None) or {}
+    err = body.get('error', {}) if isinstance(body, dict) else {}
+    raw = err.get('failed_generation')
+    if not raw or not isinstance(raw, str):
+        return None
+    try:
+        parsed = json.loads(raw)
+    except Exception:
+        return None
+    # Unwrap tool-call wrapper if present.
+    if isinstance(parsed, list) and parsed and isinstance(parsed[0], dict) and isinstance(parsed[0].get('parameters'), dict):
+        parsed = parsed[0]['parameters']
+    # Wrapper-shape: {projects: [...]}.
+    if isinstance(parsed, dict) and isinstance(parsed.get('projects'), list):
+        parsed = parsed['projects']
+    if not isinstance(parsed, list):
+        return None
+    out: list[EnrichedProject] = []
+    for item in parsed:
+        if not isinstance(item, dict):
+            continue
+        try:
+            out.append(EnrichedProject(**item))
+        except Exception:
+            continue
+    return out or None
+
+
 def enrich_profile(profile, *, force: bool = False) -> list[dict]:
     """Enrich every available signal source on the profile.
 
@@ -125,28 +166,43 @@ CANDIDATE'S OVERALL GITHUB CONTEXT:
 REPOS:
 {json.dumps(repos, indent=2, default=str)}
 """
+    structured = get_structured_llm(
+        EnrichedProjectBatch,
+        temperature=0.3,
+        max_tokens=4096,
+        task='project_enricher',
+    )
     try:
-        structured = get_structured_llm(
-            EnrichedProjectBatch,
-            temperature=0.3,
-            max_tokens=4096,
-            task='project_enricher',
-        )
         result = structured.invoke(prompt)
-        # Be defensive: if the LLM leaves source_url blank, fill from the
-        # input repo by index. Same for source / source_id.
-        for i, p in enumerate(result.projects):
-            src_repo = repos[i] if i < len(repos) else {}
-            if not p.source:
-                p.source = 'github'
-            if not p.source_url:
-                p.source_url = src_repo.get('html_url') or ''
-            if not p.source_id:
-                p.source_id = src_repo.get('full_name') or src_repo.get('name') or ''
-        return list(result.projects)
-    except Exception:
-        logger.exception("project_enricher: GitHub LLM call failed; falling back")
-        return _github_fallback(repos)
+        items = list(result.projects)
+    except Exception as exc:
+        # Try the salvage path before giving up to the deterministic
+        # fallback. Groq routinely returns the well-formed list under
+        # error.failed_generation when its tool validator rejects the
+        # missing {projects: [...]} wrapper — discarding that output
+        # was costing us LLM-quality enrichment unnecessarily.
+        recovered = _recover_enriched_from_failed_generation(exc)
+        if recovered:
+            logger.info(
+                "project_enricher: GitHub LLM payload recovered from "
+                "failed_generation (%d items)", len(recovered),
+            )
+            items = recovered
+        else:
+            logger.exception("project_enricher: GitHub LLM call failed; falling back")
+            return _github_fallback(repos)
+
+    # Be defensive: if the LLM leaves source_url blank, fill from the
+    # input repo by index. Same for source / source_id.
+    for i, p in enumerate(items):
+        src_repo = repos[i] if i < len(repos) else {}
+        if not p.source:
+            p.source = 'github'
+        if not p.source_url:
+            p.source_url = src_repo.get('html_url') or ''
+        if not p.source_id:
+            p.source_id = src_repo.get('full_name') or src_repo.get('name') or ''
+    return items
 
 
 def _enrich_scholar(scholar: dict) -> list[EnrichedProject]:
@@ -180,25 +236,35 @@ AUTHOR AFFILIATION: {affiliation or 'unknown'}
 PUBLICATIONS:
 {json.dumps(pubs, indent=2, default=str)}
 """
+    structured = get_structured_llm(
+        EnrichedProjectBatch,
+        temperature=0.3,
+        max_tokens=3000,
+        task='project_enricher',
+    )
     try:
-        structured = get_structured_llm(
-            EnrichedProjectBatch,
-            temperature=0.3,
-            max_tokens=3000,
-            task='project_enricher',
-        )
         result = structured.invoke(prompt)
-        for i, p in enumerate(result.projects):
-            if not p.source:
-                p.source = 'scholar'
-            if not p.source_url:
-                p.source_url = profile_url
-            if not p.source_id and i < len(pubs):
-                p.source_id = _slugify(pubs[i].get('title', ''))
-        return list(result.projects)
-    except Exception:
-        logger.exception("project_enricher: Scholar LLM call failed; falling back")
-        return _scholar_fallback(pubs, profile_url)
+        items = list(result.projects)
+    except Exception as exc:
+        recovered = _recover_enriched_from_failed_generation(exc)
+        if recovered:
+            logger.info(
+                "project_enricher: Scholar LLM payload recovered from "
+                "failed_generation (%d items)", len(recovered),
+            )
+            items = recovered
+        else:
+            logger.exception("project_enricher: Scholar LLM call failed; falling back")
+            return _scholar_fallback(pubs, profile_url)
+
+    for i, p in enumerate(items):
+        if not p.source:
+            p.source = 'scholar'
+        if not p.source_url:
+            p.source_url = profile_url
+        if not p.source_id and i < len(pubs):
+            p.source_id = _slugify(pubs[i].get('title', ''))
+    return items
 
 
 def _enrich_kaggle(kaggle: dict) -> list[EnrichedProject]:
@@ -239,25 +305,35 @@ OVERALL TIER: {overall_tier or 'unranked'}
 CATEGORIES:
 {json.dumps(categories, indent=2, default=str)}
 """
+    structured = get_structured_llm(
+        EnrichedProjectBatch,
+        temperature=0.3,
+        max_tokens=2000,
+        task='project_enricher',
+    )
     try:
-        structured = get_structured_llm(
-            EnrichedProjectBatch,
-            temperature=0.3,
-            max_tokens=2000,
-            task='project_enricher',
-        )
         result = structured.invoke(prompt)
-        for i, p in enumerate(result.projects):
-            if not p.source:
-                p.source = 'kaggle'
-            if not p.source_url:
-                p.source_url = profile_url
-            if not p.source_id and i < len(categories):
-                p.source_id = categories[i].get('category', '')
-        return list(result.projects)
-    except Exception:
-        logger.exception("project_enricher: Kaggle LLM call failed; falling back")
-        return _kaggle_fallback(categories, profile_url, overall_tier)
+        items = list(result.projects)
+    except Exception as exc:
+        recovered = _recover_enriched_from_failed_generation(exc)
+        if recovered:
+            logger.info(
+                "project_enricher: Kaggle LLM payload recovered from "
+                "failed_generation (%d items)", len(recovered),
+            )
+            items = recovered
+        else:
+            logger.exception("project_enricher: Kaggle LLM call failed; falling back")
+            return _kaggle_fallback(categories, profile_url, overall_tier)
+
+    for i, p in enumerate(items):
+        if not p.source:
+            p.source = 'kaggle'
+        if not p.source_url:
+            p.source_url = profile_url
+        if not p.source_id and i < len(categories):
+            p.source_id = categories[i].get('category', '')
+    return items
 
 
 # --- Fallbacks (no LLM) ------------------------------------------------------

@@ -1531,6 +1531,52 @@ class ProjectEnricherTests(TestCase):
         out = project_enricher.enrich_profile(self.profile, force=True)
         self.assertEqual(out, [])
 
+    def test_github_recovers_from_tool_use_failed_bare_list(self):
+        """Groq routinely emits a bare top-level list of EnrichedProject
+        items instead of the {projects: [...]} wrapper. The salvage path
+        parses error.failed_generation and uses the LLM-quality output
+        instead of falling all the way through to the deterministic
+        rule-based fallback."""
+        from profiles.services import project_enricher
+        # Real-shape failed_generation from the production trace: bare
+        # list of EnrichedProject dicts.
+        raw = (
+            '[{"name": "spotify-clone",'
+            ' "summary": "Music app.",'
+            ' "tech_stack": ["Dart", "Flutter"],'
+            ' "bullets": ["Built it", "4 stars on GitHub"],'
+            ' "source": "github",'
+            ' "source_id": "me/spotify-clone",'
+            ' "source_url": "https://github.com/me/spotify-clone"}]'
+        )
+
+        class _FakeBadRequest(Exception):
+            pass
+        exc = _FakeBadRequest('tool_use_failed')
+        exc.body = {'error': {
+            'code': 'tool_use_failed', 'failed_generation': raw,
+        }}
+
+        self.profile.data_content = {
+            'github_signals': {
+                'profile_url': 'https://github.com/me',
+                'top_repos': [{'name': 'spotify-clone', 'full_name': 'me/spotify-clone',
+                               'description': 'music', 'html_url': 'https://github.com/me/spotify-clone',
+                               'stargazers_count': 4, 'forks_count': 0, 'language': 'Dart'}],
+                'language_breakdown': [['Dart', 1]],
+                'recent_commit_count': 1,
+            },
+        }
+        with patch.object(project_enricher, 'get_structured_llm') as mock_llm:
+            mock_llm.return_value.invoke.side_effect = exc
+            out = project_enricher.enrich_profile(self.profile, force=True)
+        # Recovered LLM-quality output, not the rule-based fallback.
+        # Identifying marker: the LLM bullet text "Built it"; the
+        # fallback would produce a bullet starting with "Built in Dart".
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]['name'], 'spotify-clone')
+        self.assertIn('Built it', out[0]['bullets'])
+
     def test_github_aggregator_real_language_breakdown_shape(self):
         """Regression: github_aggregator returns list[tuple[str, int]] which
         JSON-serializes into list[list]. The enricher must accept both that
