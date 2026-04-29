@@ -192,7 +192,16 @@ function githubSignals(initialUrl, snapshotElementId) {
                     this.error = data.snapshot.error;
                     return;
                 }
-                this._savedUrl = this.urlInput;
+                // Replace whatever the user pasted with the canonical
+                // profile URL the aggregator extracted. This is the
+                // visible "we saved your link correctly" signal — without
+                // this, pasting a repo URL like
+                // github.com/<owner>/<repo> stays in the input box even
+                // though the server stored github.com/<owner>. Users
+                // reasonably read that as "the link wasn't saved."
+                const canonical = (data.snapshot && data.snapshot.profile_url) || this.urlInput;
+                this.urlInput = canonical;
+                this._savedUrl = canonical;
                 this.editing = false;
             } catch (e) {
                 this.error = e.message || 'Network error';
