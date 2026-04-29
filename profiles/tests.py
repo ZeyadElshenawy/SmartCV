@@ -1868,6 +1868,58 @@ class EnrichFromSignalsViewTests(TestCase):
         self.assertIn(resp.status_code, (302, 401, 403))
 
 
+class MasterReviewFormExtraSectionsTests(TestCase):
+    """The master review form auto-renders any non-standard data_content
+    key as an "extra section." Internal plumbing keys (dedupe_decisions,
+    enriched_projects_cache, learning_path, etc.) MUST be excluded from
+    that surface — they're system state, not user-editable content.
+    """
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from profiles.models import UserProfile
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='extra@example.com', email='extra@example.com', password='x',
+        )
+        UserProfile.objects.create(
+            user=self.user, full_name='Test User',
+            data_content={
+                'full_name': 'Test User',
+                'projects': [{'name': 'Real project'}],
+                # Internal plumbing — must NOT render in the form.
+                'dedupe_decisions': [{'action': 'merge', 'enriched_index': 0}],
+                'enriched_projects_cache': [{'name': 'spotify-clone'}],
+                'enriched_projects_hash': 'abc123',
+                'has_seen_welcome': True,
+                'has_seen_tour': True,
+                'completed_skills': ['python'],
+                'learning_path': [{'skill': 'rust'}],
+                # User-facing extra section that SHOULD render.
+                'volunteer_experience': [{'organization': 'Red Cross'}],
+            },
+        )
+        self.client.force_login(self.user)
+
+    def test_internal_plumbing_keys_do_not_render_as_extra_sections(self):
+        resp = self.client.get('/profiles/setup/review/')
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode('utf-8').upper()
+        self.assertNotIn('DEDUPE DECISIONS', body)
+        self.assertNotIn('ENRICHED PROJECTS CACHE', body)
+        self.assertNotIn('ENRICHED PROJECTS HASH', body)
+        self.assertNotIn('HAS SEEN WELCOME', body)
+        self.assertNotIn('HAS SEEN TOUR', body)
+        self.assertNotIn('COMPLETED SKILLS', body)
+
+    def test_legitimate_extra_section_still_renders(self):
+        """volunteer_experience is a real user-facing dynamic section
+        from the LLM validator's snake_case mapping. Must still render."""
+        resp = self.client.get('/profiles/setup/review/')
+        body = resp.content.decode('utf-8').upper().replace('_', ' ')
+        self.assertIn('VOLUNTEER EXPERIENCE', body)
+
+
 class ProjectsReviewViewTests(TestCase):
     """The review page renders three sections (matched / new / untouched)
     and the confirm POST persists the user's choices into

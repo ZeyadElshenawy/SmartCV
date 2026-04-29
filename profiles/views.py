@@ -31,10 +31,35 @@ logger = logging.getLogger(__name__)
 
 def _build_profile_form_context(profile):
     """Build the common context dict for manual-form and review-profile views."""
+    # Anything in data_content that ISN'T listed here AND happens to be a
+    # list ends up rendering as an "extra section" in the master review
+    # form. The set below covers two categories:
+    #   1. User-facing fields surfaced by other parts of the form (skills,
+    #      experiences, etc. — already rendered explicitly).
+    #   2. Internal plumbing keys written by the auto-merge / enrichment /
+    #      cache layers (dedupe_decisions, enriched_projects_cache, …)
+    #      which should NEVER show up as editable form sections.
     standard_keys = {
-        'full_name', 'email', 'phone', 'location', 'linkedin_url', 'github_url',
+        # User-facing structured fields rendered explicitly in the form.
+        'full_name', 'email', 'phone', 'location',
+        'linkedin_url', 'github_url',
         'skills', 'experiences', 'education', 'projects', 'certifications',
-        'normalized_summary', 'summary'
+        'normalized_summary', 'summary', 'objective',
+        # Internal plumbing — the auto-merge writes these silently and
+        # they have no business appearing as user-editable sections.
+        'dedupe_decisions', 'enriched_projects_cache',
+        'enriched_projects_hash', 'projects_confirmed_at',
+        # Onboarding + tour state.
+        'has_seen_welcome', 'has_seen_tour', 'onboarding_banner_dismissed',
+        # Cached external signal blobs (rendered via dedicated tiles).
+        'github_signals', 'scholar_signals', 'kaggle_signals', 'linkedin_signals',
+        'github_url', 'scholar_url', 'kaggle_url', 'portfolio_url', 'linkedin_url',
+        'other_urls',
+        # Learning-path persistence.
+        'learning_path', 'learning_path_skills',
+        'learning_path_generated_at', 'completed_skills',
+        # Misc per-flow state.
+        'parser_warnings', 'raw_text',
     }
     
     extra_sections = {}
