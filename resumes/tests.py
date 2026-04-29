@@ -1410,6 +1410,72 @@ class ScriptTagBalanceTests(TestCase):
                            'LoadingOps appears AFTER a </script> close — script body leaked.')
 
 
+class ProfileSummaryAndObjectivePropertyTests(TestCase):
+    """Master review form binds to `profile.objective` and
+    `profile.normalized_summary`. Both surface from data_content via
+    @property; saving them via the form persists back into data_content."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from profiles.models import UserProfile
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='summary@example.com', email='summary@example.com', password='x',
+        )
+        UserProfile.objects.create(
+            user=self.user, full_name='Test User',
+            data_content={
+                'objective': 'Build resilient distributed systems.',
+                'normalized_summary': 'Senior engineer, 8 years Python + Go.',
+            },
+        )
+        self.client.force_login(self.user)
+
+    def test_property_surfaces_objective_and_summary(self):
+        from profiles.models import UserProfile
+        p = UserProfile.objects.get(user=self.user)
+        self.assertEqual(p.objective, 'Build resilient distributed systems.')
+        self.assertEqual(p.normalized_summary, 'Senior engineer, 8 years Python + Go.')
+
+    def test_normalized_summary_falls_back_to_summary(self):
+        """Older parses populated `summary` instead of `normalized_summary`.
+        The property reads either, in priority order."""
+        from profiles.models import UserProfile
+        UserProfile.objects.filter(user=self.user).update(data_content={
+            'summary': 'Legacy summary text.',
+        })
+        p = UserProfile.objects.get(user=self.user)
+        self.assertEqual(p.normalized_summary, 'Legacy summary text.')
+
+    def test_review_post_persists_objective_and_summary(self):
+        """The master review POST handler now writes both fields back to
+        data_content. Without this, edits to the textareas vanished."""
+        from profiles.models import UserProfile
+        from django.urls import reverse
+        resp = self.client.post(reverse('review_master_profile'), {
+            'full_name': 'Test User', 'email': 'summary@example.com',
+            'phone': '', 'location': '',
+            'objective': 'New objective text.',
+            'normalized_summary': 'New summary text.',
+            'contact_links_json': '[]', 'skills_json': '[]',
+            'experiences_json': '[]', 'education_json': '[]',
+            'projects_json': '[]', 'certifications_json': '[]',
+        })
+        self.assertEqual(resp.status_code, 302)
+        p = UserProfile.objects.get(user=self.user)
+        self.assertEqual(p.data_content['objective'], 'New objective text.')
+        self.assertEqual(p.data_content['normalized_summary'], 'New summary text.')
+
+    def test_review_form_renders_property_values(self):
+        """The form template binds `{{ profile.objective }}` and
+        `{{ profile.normalized_summary }}`. The rendered HTML must show
+        the actual stored values, not blank placeholders."""
+        resp = self.client.get('/profiles/setup/review/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Build resilient distributed systems.')
+        self.assertContains(resp, 'Senior engineer, 8 years Python + Go.')
+
+
 class OnboardingFlowOrderTests(TestCase):
     """The post-CV-upload onboarding sequence is:
         Upload → Connect → (Project review if signals) → Master review.

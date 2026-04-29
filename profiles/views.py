@@ -378,6 +378,18 @@ def review_master_profile(request):
         profile.phone = request.POST.get('phone')
         profile.location = request.POST.get('location')
 
+        # Persist the free-text objective + summary back onto data_content.
+        # The model surfaces these via @property so the next page render
+        # reads what the user typed. Without this, edits to those textareas
+        # silently disappeared on save (the POST handler historically only
+        # touched the structured JSON fields).
+        data = profile.data_content or {}
+        if 'objective' in request.POST:
+            data['objective'] = request.POST.get('objective', '').strip()
+        if 'normalized_summary' in request.POST:
+            data['normalized_summary'] = request.POST.get('normalized_summary', '').strip()
+        profile.data_content = data
+
         # Update JSON Fields
         try:
             if request.POST.get('contact_links_json'):

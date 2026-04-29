@@ -23,8 +23,29 @@ CRITICAL INSTRUCTIONS:
    - Map Kaggle, Twitter, or other profile URLs to `other_urls`.
    - Links are often attached to text labels (e.g., `[Embedded Link: 'LinkedIn' -> https://...]`) — use the label to identify what the link belongs to.
    - Do NOT discard any embedded links. Every `[Embedded Link: ...]` tag must be mapped somewhere.
+   - **GitHub URL DISAMBIGUATION (very important)**: a *profile* URL like
+     `https://github.com/<username>` (one path segment after the host)
+     belongs in `github_url`. A *repository* URL like
+     `https://github.com/<owner>/<repo>` (two path segments) is a real
+     project and may attach to a `projects[].url`. NEVER paste the
+     candidate's `github_url` as a project URL — even if the project
+     entry is missing a link, leaving `url` empty is correct. The same
+     rule applies to LinkedIn (`linkedin.com/in/<handle>` belongs to
+     `linkedin_url`, not to projects).
 6. Do NOT omit any information found in the CV. Extract ALL certifications, courses, and items — do not truncate lists.
-7. Generate a 'normalized_summary' field: A concise paragraph combining Years of Experience, Top 3 Skills, and Most Recent Role Title.
+7. **Summary extraction (CRITICAL — populate `normalized_summary`)**:
+   - First, look for an existing summary section in the raw CV text:
+     "Summary", "Profile", "About", "About Me", "Professional Summary",
+     "Career Objective" (when written as a paragraph, not a one-line
+     objective). Copy that paragraph verbatim into `normalized_summary`,
+     trimmed to 2–4 sentences.
+   - If no such section exists, GENERATE a 2-sentence summary combining:
+     years of experience (computed from work_experience start/end dates
+     when possible), top 2–3 most-emphasized skills, and the most-recent
+     role title. Keep it factual — do not invent metrics or seniority
+     claims the CV doesn't support.
+   - Never leave `normalized_summary` empty unless the CV is completely
+     devoid of work experience AND skills.
 
 STRICT NORMALIZATION RULES (APPLY THESE FIRST):
 - "Community Service" → "volunteer_experience" (list of objects with: organization, role, description, dates)

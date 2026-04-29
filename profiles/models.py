@@ -93,6 +93,22 @@ class UserProfile(models.Model):
         urls = (self.data_content or {}).get('other_urls') or []
         return [u for u in urls if isinstance(u, str) and u.strip()]
 
+    @property
+    def objective(self):
+        """Objective statement from data_content. Empty string when absent
+        — never None, so templates can use the value directly without a
+        |default filter and the form binding stays honest."""
+        return (self.data_content or {}).get('objective') or ''
+
+    @property
+    def normalized_summary(self):
+        """Profile summary surfaced from data_content. Falls back to the
+        raw `summary` field if the LLM normalizer didn't run, so a
+        partially-populated profile still shows its summary text in the
+        master review form."""
+        data = self.data_content or {}
+        return data.get('normalized_summary') or data.get('summary') or ''
+
     # Properties for backward compatibility
     @property
     def skills(self):
