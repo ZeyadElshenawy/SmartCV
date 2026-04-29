@@ -712,13 +712,14 @@ def chatbot_scope_decision(request, job_id):
             }
         )
         
-        # Revert master profile to pre-chatbot state
+        # Revert master profile to pre-chatbot state. The chatbot-enhanced
+        # state is preserved for this job via JobProfileSnapshot, so the
+        # existing GapAnalysis (computed against the enhanced profile)
+        # stays valid for this job and must NOT be deleted — the next
+        # step in this flow redirects straight to resume generation,
+        # which requires the GapAnalysis row.
         profile.data_content = pre_chatbot_data
         profile.save()
-
-        # Invalidate stale gap analysis (was computed with chatbot-enhanced profile)
-        from analysis.models import GapAnalysis
-        GapAnalysis.objects.filter(job=job, user=request.user).delete()
 
         # Clean session
         del request.session[session_key]
