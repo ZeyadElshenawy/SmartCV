@@ -19,6 +19,105 @@ def _make_extractor():
         return CVExtractor(use_llm=False)
 
 
+class LLMValidatorPostProcessingTests(SimpleTestCase):
+    """Deterministic safety nets that finalize the LLM's CV extraction:
+    canonicalize GitHub / LinkedIn profile URLs, strip profile URLs from
+    project entries, backfill summary heuristically when the LLM leaves
+    it empty.
+    """
+
+    def test_canonical_github_strips_repo_path(self):
+        from profiles.services.llm_validator import _canonical_github_profile_url
+        self.assertEqual(
+            _canonical_github_profile_url('https://github.com/mohaaHeiba/the-magnificent-three'),
+            'https://github.com/mohaaHeiba',
+        )
+        self.assertEqual(
+            _canonical_github_profile_url('https://github.com/mohaaHeiba'),
+            'https://github.com/mohaaHeiba',
+        )
+        self.assertEqual(
+            _canonical_github_profile_url('http://www.github.com/octocat/'),
+            'https://github.com/octocat',
+        )
+        self.assertEqual(_canonical_github_profile_url(''), '')
+        self.assertEqual(_canonical_github_profile_url('not a url'), '')
+
+    def test_canonical_linkedin_strips_deep_paths(self):
+        from profiles.services.llm_validator import _canonical_linkedin_profile_url
+        self.assertEqual(
+            _canonical_linkedin_profile_url(
+                'https://www.linkedin.com/in/jane-doe/recent-activity/'
+            ),
+            'https://www.linkedin.com/in/jane-doe',
+        )
+        self.assertEqual(
+            _canonical_linkedin_profile_url('https://linkedin.com/in/jane-doe'),
+            'https://www.linkedin.com/in/jane-doe',
+        )
+
+    def test_finalize_canonicalizes_github_and_strips_from_projects(self):
+        """The reported failure mode: github_url stored as a repo URL,
+        and a project entry's url is the candidate's own profile URL."""
+        from profiles.services.llm_validator import _finalize_extraction
+        data = {
+            'github_url': 'https://github.com/mohaaHeiba/the-magnificent-three',
+            'linkedin_url': 'https://www.linkedin.com/in/mohamed/',
+            'projects': [
+                # Project URL = the candidate's own profile (the bug).
+                {'name': 'Some project', 'url': 'https://github.com/mohaaHeiba'},
+                # Project URL = a repo (legitimate, must be preserved).
+                {'name': 'Repo project', 'url': 'https://github.com/mohaaHeiba/the-magnificent-three'},
+                # Project URL = a non-github URL (must be preserved).
+                {'name': 'Drive link', 'url': 'https://drive.google.com/file/abc'},
+            ],
+        }
+        out = _finalize_extraction(data, raw_text='')
+        # github_url canonicalized to bare profile.
+        self.assertEqual(out['github_url'], 'https://github.com/mohaaHeiba')
+        # linkedin_url normalized.
+        self.assertEqual(out['linkedin_url'], 'https://www.linkedin.com/in/mohamed')
+        # The project that had the candidate's profile URL is now empty.
+        self.assertEqual(out['projects'][0]['url'], '')
+        # Real repo URLs preserved.
+        self.assertEqual(out['projects'][1]['url'], 'https://github.com/mohaaHeiba/the-magnificent-three')
+        # Non-github URLs untouched.
+        self.assertEqual(out['projects'][2]['url'], 'https://drive.google.com/file/abc')
+
+    def test_finalize_backfills_summary_from_raw_text(self):
+        from profiles.services.llm_validator import _finalize_extraction
+        raw = (
+            "MOHAMED TAHER AMIN\n"
+            "Cairo, Egypt | mohamed@example.com\n\n"
+            "SUMMARY\n"
+            "Software engineer with three years of Flutter and Dart experience. "
+            "Built mobile apps used by thousands of users in Egypt. "
+            "Passionate about clean architecture and state management.\n\n"
+            "EXPERIENCE\n"
+            "Some role at Some company.\n"
+        )
+        data = {'normalized_summary': '', 'experiences': [{'title': 'x'}]}
+        out = _finalize_extraction(data, raw_text=raw)
+        self.assertIn('Software engineer with three years', out['normalized_summary'])
+        self.assertIn('Flutter', out['normalized_summary'])
+        # Stops at the EXPERIENCE heading, doesn't bleed into the next section.
+        self.assertNotIn('Some role', out['normalized_summary'])
+
+    def test_finalize_does_not_overwrite_existing_summary(self):
+        from profiles.services.llm_validator import _finalize_extraction
+        raw = "SUMMARY\nGenerated summary.\n\nEXPERIENCE\nx\n"
+        data = {'normalized_summary': 'LLM-generated text already here.'}
+        out = _finalize_extraction(data, raw_text=raw)
+        self.assertEqual(out['normalized_summary'], 'LLM-generated text already here.')
+
+    def test_finalize_summary_falls_back_to_about_heading(self):
+        from profiles.services.llm_validator import _finalize_extraction
+        raw = "ABOUT ME\nQuick blurb here.\n\nSKILLS\nx\n"
+        data = {'normalized_summary': ''}
+        out = _finalize_extraction(data, raw_text=raw)
+        self.assertEqual(out['normalized_summary'], 'Quick blurb here.')
+
+
 class SanitizeTextLetterSpacingTests(SimpleTestCase):
     """PDF kerning often splits words; the repair must preserve original casing."""
 
