@@ -47,7 +47,7 @@
             not clickable — they show what a useful answer looks like
             so the user knows how to phrase their own.
             {% endcomment %}
-            <template x-if="messages.length === 0">
+            <template x-if="!messages.some(m => m.role === 'user')">
                 <div class="max-w-2xl mx-auto space-y-5 py-4">
                     <div class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-5 space-y-4">
                         <div class="flex items-start gap-3">
