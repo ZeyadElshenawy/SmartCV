@@ -115,7 +115,11 @@
                             </div>
 
                             <div class="grid md:grid-cols-2 gap-5">
-                                <div class="space-y-3">
+                                {# Min-w-0 on both columns is required because grid tracks default
+                                   to min-content sizing — without it, long resource names blow
+                                   the column out and overflow into the project-idea card on
+                                   the right. #}
+                                <div class="min-w-0 space-y-3">
                                     {% include "components/section_label.html" with text="Resources" %}
                                     <ul class="space-y-2">
                                         {% for resource in item.resources %}
@@ -129,10 +133,13 @@
                                                 {% else %}bg-brand-500{% endif %}"></span>
                                             <div class="min-w-0 flex-1">
                                                 {% if resource.url %}
+                                                {# Anchor is `flex` (not inline-flex) + min-w-0 so the
+                                                   inner truncated <span> can actually shrink. The SVG
+                                                   icon stays shrink-0 so it never gets squeezed off. #}
                                                 <a href="{{ resource.url }}" target="_blank" rel="noopener noreferrer"
-                                                   class="text-neutral-900 dark:text-neutral-100 font-medium hover:text-brand-700 dark:hover:text-brand-400 hover:underline truncate inline-flex items-center gap-1">
-                                                    {{ resource.name|default:resource.url }}
-                                                    <svg aria-hidden="true" class="w-3 h-3 opacity-60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                                                   class="flex items-center gap-1 min-w-0 text-neutral-900 dark:text-neutral-100 font-medium hover:text-brand-700 dark:hover:text-brand-400 hover:underline">
+                                                    <span class="truncate">{{ resource.name|default:resource.url }}</span>
+                                                    <svg aria-hidden="true" class="shrink-0 w-3 h-3 opacity-60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
                                                 </a>
                                                 {% else %}
                                                 <div class="text-neutral-900 dark:text-neutral-100 font-medium truncate">{{ resource.name }}</div>
@@ -143,7 +150,7 @@
                                         {% endfor %}
                                     </ul>
                                 </div>
-                                <div class="rounded-xl bg-accent-50 dark:bg-accent-950/30 ring-1 ring-accent-200 dark:ring-accent-900 p-4 space-y-2">
+                                <div class="min-w-0 rounded-xl bg-accent-50 dark:bg-accent-950/30 ring-1 ring-accent-200 dark:ring-accent-900 p-4 space-y-2">
                                     {% include "components/section_label.html" with text="Project idea" tone="accent" %}
                                     <p class="text-sm text-accent-900 dark:text-accent-200 leading-relaxed">{{ item.project_idea }}</p>
                                 </div>
@@ -158,8 +165,12 @@
                     updated match scores. Scoped to the job when this
                     view was reached from one.
                     {% endcomment %}
-                    <div class="rounded-2xl ring-1 ring-brand-200 dark:ring-brand-800/50 bg-brand-50/40 dark:bg-brand-950/20 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-                        <div class="space-y-1">
+                    {# Match the dark/light tonal pattern the other cards on the page use
+                       (Project Idea card above + the empty-state card). The previous
+                       bg-brand-50/40 dark:bg-brand-950/20 opacities rendered as a
+                       washed-out grey in dark mode and didn't read as "accent CTA". #}
+                    <div class="rounded-2xl ring-1 ring-brand-200 dark:ring-brand-800/60 bg-brand-50 dark:bg-brand-950/30 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div class="min-w-0 space-y-1">
                             <h3 class="font-display text-lg leading-tight text-neutral-900 dark:text-neutral-50" style="font-variation-settings: 'opsz' 28;">
                                 Finished some of these?
                             </h3>
@@ -169,13 +180,13 @@
                         </div>
                         {% if context_job %}
                         <a href="{% url 'gap_analysis' context_job.id %}"
-                           class="inline-flex items-center justify-center gap-2 h-11 px-5 text-sm font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors">
-                            Re-run gap for {{ context_job.title|truncatechars:24 }}
+                           class="shrink-0 inline-flex items-center justify-center gap-2 h-11 px-5 text-sm font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors whitespace-nowrap">
+                            Re-run gap for {{ context_job.title|truncatechars:18 }}
                             <span aria-hidden="true">→</span>
                         </a>
                         {% else %}
                         <a href="{% url 'dashboard' %}"
-                           class="inline-flex items-center justify-center gap-2 h-11 px-5 text-sm font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors">
+                           class="shrink-0 inline-flex items-center justify-center gap-2 h-11 px-5 text-sm font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors whitespace-nowrap">
                             Pick a job to re-analyze
                             <span aria-hidden="true">→</span>
                         </a>
