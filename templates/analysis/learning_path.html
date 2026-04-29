@@ -115,10 +115,6 @@
                             </div>
 
                             <div class="grid md:grid-cols-2 gap-5">
-                                {# Min-w-0 on both columns is required because grid tracks default
-                                   to min-content sizing — without it, long resource names blow
-                                   the column out and overflow into the project-idea card on
-                                   the right. #}
                                 <div class="min-w-0 space-y-3">
                                     {% include "components/section_label.html" with text="Resources" %}
                                     <ul class="space-y-2">
@@ -133,9 +129,6 @@
                                                 {% else %}bg-brand-500{% endif %}"></span>
                                             <div class="min-w-0 flex-1">
                                                 {% if resource.url %}
-                                                {# Anchor is `flex` (not inline-flex) + min-w-0 so the
-                                                   inner truncated <span> can actually shrink. The SVG
-                                                   icon stays shrink-0 so it never gets squeezed off. #}
                                                 <a href="{{ resource.url }}" target="_blank" rel="noopener noreferrer"
                                                    class="flex items-center gap-1 min-w-0 text-neutral-900 dark:text-neutral-100 font-medium hover:text-brand-700 dark:hover:text-brand-400 hover:underline">
                                                     <span class="truncate">{{ resource.name|default:resource.url }}</span>
@@ -165,10 +158,6 @@
                     updated match scores. Scoped to the job when this
                     view was reached from one.
                     {% endcomment %}
-                    {# Match the dark/light tonal pattern the other cards on the page use
-                       (Project Idea card above + the empty-state card). The previous
-                       bg-brand-50/40 dark:bg-brand-950/20 opacities rendered as a
-                       washed-out grey in dark mode and didn't read as "accent CTA". #}
                     <div class="rounded-2xl ring-1 ring-brand-200 dark:ring-brand-800/60 bg-brand-50 dark:bg-brand-950/30 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div class="min-w-0 space-y-1">
                             <h3 class="font-display text-lg leading-tight text-neutral-900 dark:text-neutral-50" style="font-variation-settings: 'opsz' 28;">
