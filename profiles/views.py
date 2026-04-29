@@ -299,6 +299,37 @@ def chatbot_api(request):
                     logger.error(f"Failed to update gap analysis: {e}")
                     
             if result.get('is_complete'):
+                # The redirect_url below points at generate_resume_view, which
+                # 404s without a GapAnalysis row. Gap analysis is only computed
+                # when a turn sets profile_updated=True — so a chat that
+                # completes with no profile updates (skipped questions, vague
+                # answers, or zero missing skills to begin with) leaves the
+                # row missing and breaks the very next click. Backstop here.
+                from analysis.models import GapAnalysis
+                if not GapAnalysis.objects.filter(job_id=job_id, user=request.user).exists():
+                    try:
+                        from analysis.tasks import compute_gap_analysis_task
+                        compute_gap_analysis_task(job_id, request.user.id)
+                    except Exception as e:
+                        logger.error(f"Backstop gap analysis at chat completion failed: {e}")
+                        # Fall back to a minimal row so generate_resume_view
+                        # at least loads. The analysis page will recompute on
+                        # demand if the user navigates there.
+                        try:
+                            job_obj = Job.objects.get(id=job_id, user=request.user)
+                            GapAnalysis.objects.get_or_create(
+                                job=job_obj,
+                                user=request.user,
+                                defaults={
+                                    'matched_skills': [],
+                                    'missing_skills': [],
+                                    'partial_skills': [],
+                                    'similarity_score': 0.0,
+                                },
+                            )
+                        except Exception as fallback_err:
+                            logger.error(f"Minimal GapAnalysis fallback failed: {fallback_err}")
+
                 return JsonResponse({
                     'message': result.get('next_question', 'Excellent! You have all the key skills for this role.'),
                     'topic': 'completion',
