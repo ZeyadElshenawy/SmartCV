@@ -515,11 +515,126 @@ class MakeLinkedinSnapshotTests(SimpleTestCase):
         self.assertIsNone(snap["error"])
         self.assertEqual(snap["username"], "jane-doe")
         self.assertEqual(snap["profile_url"], "https://www.linkedin.com/in/jane-doe/")
+        self.assertFalse(snap.get("scraped"))
 
     def test_invalid_input_returns_error(self):
         snap = make_linkedin_snapshot("https://example.com/something")
         self.assertIn("Couldn", snap["error"])
         self.assertEqual(snap["username"], "")
+
+    def test_scraping_enabled_without_creds_keeps_link_with_error(self):
+        from django.test import override_settings
+        with override_settings(
+            LINKEDIN_SCRAPING_ENABLED=True,
+            LINKEDIN_EMAIL='', LINKEDIN_PASSWORD='',
+        ):
+            snap = make_linkedin_snapshot("https://www.linkedin.com/in/jane-doe")
+        # Link still saved (useful for résumé contact line) but error explains why no scrape.
+        self.assertEqual(snap["username"], "jane-doe")
+        self.assertEqual(snap["profile_url"], "https://www.linkedin.com/in/jane-doe/")
+        self.assertIn("LINKEDIN_EMAIL", snap["error"])
+
+    def test_scraping_disabled_skips_selenium(self):
+        # The default settings.LINKEDIN_SCRAPING_ENABLED is False, so this
+        # should never touch Selenium even if it's not installed.
+        from django.test import override_settings
+        with override_settings(
+            LINKEDIN_SCRAPING_ENABLED=False,
+            LINKEDIN_EMAIL='someone@example.com',
+            LINKEDIN_PASSWORD='hunter2',
+        ):
+            snap = make_linkedin_snapshot("in/jane-doe")
+        self.assertIsNone(snap["error"])
+        self.assertFalse(snap.get("scraped"))
+
+
+class LinkedinEnrichmentPredicateTests(SimpleTestCase):
+    """Guard the cross-cutting check used by the connect-accounts redirect
+    and the project enricher: 'does the LinkedIn snapshot contribute any
+    project-shaped artifacts?'. The link-only snapshot must NOT trigger it."""
+
+    def test_link_only_snapshot_has_no_projectable_content(self):
+        from profiles.services.project_enricher import _linkedin_has_projectable_content
+        snap = make_linkedin_snapshot("https://www.linkedin.com/in/jane-doe")
+        self.assertFalse(_linkedin_has_projectable_content(snap))
+
+    def test_snapshot_with_projects_has_projectable_content(self):
+        from profiles.services.project_enricher import _linkedin_has_projectable_content
+        snap = {
+            'username': 'jane-doe', 'profile_url': '…',
+            'projects': [{'project_name': 'X', 'duration': '2024', 'description': 'd'}],
+            'featured': [],
+        }
+        self.assertTrue(_linkedin_has_projectable_content(snap))
+
+    def test_snapshot_with_only_image_featured_has_no_projectable_content(self):
+        # Featured 'image' / 'post' kinds are excluded by the enricher — they're
+        # social posts, not technical artifacts.
+        from profiles.services.project_enricher import _linkedin_has_projectable_content
+        snap = {
+            'username': 'jane-doe', 'profile_url': '…',
+            'projects': [],
+            'featured': [{'kind': 'image', 'title': 'IG repost', 'url': '…'}],
+        }
+        self.assertFalse(_linkedin_has_projectable_content(snap))
+
+    def test_snapshot_with_link_featured_has_projectable_content(self):
+        from profiles.services.project_enricher import _linkedin_has_projectable_content
+        snap = {
+            'username': 'jane-doe', 'profile_url': '…',
+            'projects': [],
+            'featured': [{'kind': 'link', 'title': 'Blog post on X', 'url': 'https://example.com'}],
+        }
+        self.assertTrue(_linkedin_has_projectable_content(snap))
+
+    def test_errored_snapshot_has_no_projectable_content(self):
+        from profiles.services.project_enricher import _linkedin_has_projectable_content
+        snap = {
+            'username': 'jane-doe', 'profile_url': '…',
+            'error': 'Scrape failed',
+            'projects': [{'project_name': 'X'}],
+        }
+        self.assertFalse(_linkedin_has_projectable_content(snap))
+
+
+class LinkedinFallbackTests(SimpleTestCase):
+    """Deterministic, no-LLM fallback. Used when the structured LLM call fails."""
+
+    def test_projects_become_enriched_entries(self):
+        from profiles.services.project_enricher import _linkedin_fallback
+        out = _linkedin_fallback(
+            projects=[
+                {'project_name': 'Recommender System',
+                 'duration': '2024',
+                 'description': 'Built a recommender for music.'},
+            ],
+            featured=[],
+            profile_url='https://www.linkedin.com/in/jane-doe/',
+        )
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0].name, 'Recommender System')
+        self.assertEqual(out[0].source, 'linkedin')
+        self.assertEqual(out[0].source_url, 'https://www.linkedin.com/in/jane-doe/')
+        self.assertIn('recommender', out[0].summary.lower())
+
+    def test_featured_links_become_enriched_entries(self):
+        from profiles.services.project_enricher import _linkedin_fallback
+        out = _linkedin_fallback(
+            projects=[],
+            featured=[
+                {'kind': 'document', 'title': 'My Talk Slides',
+                 'url': 'https://example.com/slides.pdf'},
+            ],
+            profile_url='https://www.linkedin.com/in/jane-doe/',
+        )
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0].source, 'linkedin')
+        self.assertEqual(out[0].source_url, 'https://example.com/slides.pdf')
+        self.assertIn('document', out[0].summary.lower())
+
+    def test_empty_inputs_yield_no_entries(self):
+        from profiles.services.project_enricher import _linkedin_fallback
+        self.assertEqual(_linkedin_fallback([], [], 'https://example.com'), [])
 
 
 # ---- Scholar --------------------------------------------------
