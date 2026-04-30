@@ -542,10 +542,22 @@ def connect_accounts_view(request):
             blob = data.get(key) or {}
             return bool(blob) and not blob.get('error')
 
+        def _has_linkedin_content():
+            blob = data.get('linkedin_signals') or {}
+            if not blob or blob.get('error'):
+                return False
+            if blob.get('projects'):
+                return True
+            for f in blob.get('featured') or []:
+                if f.get('kind') in ('link', 'document', 'article', 'newsletter'):
+                    return True
+            return False
+
         has_signals = (
             _has_signal('github_signals')
             or _has_signal('scholar_signals')
             or _has_signal('kaggle_signals')
+            or _has_linkedin_content()
         )
         if has_signals:
             try:

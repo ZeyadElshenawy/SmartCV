@@ -240,4 +240,24 @@ LOGGING = {
     },
 }
 
+# LinkedIn profile scraper (optional, opt-in).
+#
+# When enabled, the LinkedIn connector on /profiles/setup/connect/ drives a
+# headless Chrome via Selenium to log into LinkedIn with the credentials below
+# and walk the target profile. This is heavy and self-hosted only — Chrome
+# must be installed on the host, the LinkedIn account can face challenges,
+# and LinkedIn's ToS prohibits automated access. Default is OFF; the connector
+# stays in link-only mode until the operator explicitly opts in.
+LINKEDIN_SCRAPING_ENABLED = config('LINKEDIN_SCRAPING_ENABLED', default=False, cast=bool)
+LINKEDIN_EMAIL = config('LINKEDIN_EMAIL', default='')
+LINKEDIN_PASSWORD = config('LINKEDIN_PASSWORD', default='')
+LINKEDIN_HEADLESS = config('LINKEDIN_HEADLESS', default=True, cast=bool)
+LINKEDIN_USE_UNDETECTED = config('LINKEDIN_USE_UNDETECTED', default=True, cast=bool)
+LINKEDIN_LOGIN_WAIT = config('LINKEDIN_LOGIN_WAIT', default=5.0, cast=float)
+LINKEDIN_PAGE_WAIT = config('LINKEDIN_PAGE_WAIT', default=4.0, cast=float)
+LINKEDIN_CHALLENGE_TIMEOUT = config('LINKEDIN_CHALLENGE_TIMEOUT', default=300.0, cast=float)
+LINKEDIN_PROFILES_DIR = BASE_DIR / config(
+    'LINKEDIN_PROFILES_DIR', default='chrome_profiles',
+)
+
 # End of settings.py

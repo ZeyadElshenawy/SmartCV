@@ -1,7 +1,14 @@
 {% comment %}
-LinkedIn signals tile — store + validate only. LinkedIn doesn't allow
-public profile scraping, so this just gives users a single place to
-declare their handle. Required context: `profile`.
+LinkedIn signals tile. Two display modes driven by the snapshot shape:
+
+- **Link only**: when LINKEDIN_SCRAPING_ENABLED is off OR the scraper failed,
+  the snapshot has just username + profile_url. Card shows the link and a
+  small note explaining why scraping is gated.
+- **Scraped**: when the snapshot has rich fields (name, headline, experience,
+  certifications, projects, featured), the card surfaces a summary of what
+  was pulled. Projects + featured items flow through the enrichment pipeline.
+
+Required context: `profile`.
 {% endcomment %}
 {{ profile.data_content.linkedin_signals|default:""|json_script:"linkedin-signals-initial" }}
 <section x-data="linkedinSignals('{{ profile.linkedin_url|default:''|escapejs }}', 'linkedin-signals-initial')"
@@ -14,7 +21,9 @@ declare their handle. Required context: `profile`.
                 {% include "components/section_label.html" with text="LinkedIn" %}
             </div>
             <div class="flex items-center gap-3 text-[11px] uppercase tracking-[0.14em] font-medium">
-                <span x-show="loading" class="text-neutral-500 dark:text-neutral-400">Saving…</span>
+                <span x-show="loading" class="text-neutral-500 dark:text-neutral-400">Pulling…</span>
+                <button x-show="hasData && !editing && !loading" type="button" @click="refresh"
+                        class="text-neutral-500 dark:text-neutral-400 hover:text-brand-700 dark:hover:text-brand-400 hover:underline">Refresh</button>
                 <button x-show="hasData && !editing && !loading" type="button" @click="startEdit"
                         class="text-brand-700 dark:text-brand-400 hover:underline">Edit</button>
                 <button x-show="editing && !loading" type="button" @click="cancelEdit"
@@ -22,42 +31,81 @@ declare their handle. Required context: `profile`.
             </div>
         </div>
 
-        {# Empty-state promo. Hidden once the user is editing or has data. #}
         <div x-show="!hasData && !editing && !error" x-cloak class="space-y-1.5">
             <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
-                Just stores your link — LinkedIn doesn't allow public profile scraping.
+                Paste your LinkedIn URL. If scraping is enabled (LINKEDIN_SCRAPING_ENABLED=1),
+                we'll log in headlessly and pull experience, certifications, projects, and
+                featured items — otherwise we just store the link.
             </p>
             <p class="text-[11px] text-neutral-400 dark:text-neutral-500 leading-relaxed">
-                <strong class="font-medium text-neutral-600 dark:text-neutral-300">Why:</strong> the URL becomes a clickable contact-line link in every résumé header.
+                <strong class="font-medium text-neutral-600 dark:text-neutral-300">Heads up:</strong>
+                LinkedIn's ToS doesn't love automation. Self-hosted only.
             </p>
         </div>
 
-        {% comment %}
-          Input form. Visible when there's no data yet OR when the user is
-          explicitly editing. Stays visible on error so the user can retry.
-        {% endcomment %}
         <form x-show="!hasData || editing" x-cloak @submit.prevent="refresh" class="flex gap-2">
             <input type="text" x-model="urlInput" x-ref="input" placeholder="linkedin.com/in/your-handle"
                    class="flex-1 h-9 px-3 text-xs rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none text-neutral-900 dark:text-neutral-100">
             <button type="submit" :disabled="loading || !urlInput.trim()"
                     class="inline-flex items-center justify-center h-9 px-3 text-xs font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-40 transition-colors">
-                <span x-text="hasData ? 'Save' : 'Connect'"></span>
+                <span x-text="loading ? 'Pulling…' : (hasData ? 'Save' : 'Connect')"></span>
             </button>
         </form>
+
+        <p x-show="loading" x-cloak class="text-[11px] text-neutral-500 dark:text-neutral-400 leading-relaxed">
+            Driving Chrome through LinkedIn login + profile pages — this can take 20-40 seconds.
+            If a verification challenge appears, a visible browser window will open so you can solve it once.
+        </p>
 
         <div x-show="error" x-cloak class="rounded-lg bg-red-50 dark:bg-red-950/40 ring-1 ring-red-200 dark:ring-red-900 px-3 py-2 text-xs text-red-700 dark:text-red-300">
             <span x-text="error"></span>
         </div>
 
         <template x-if="hasData && !editing">
-            <a :href="snapshot.profile_url" target="_blank" rel="noopener"
-               class="block group">
-                <div class="text-sm font-mono text-neutral-700 dark:text-neutral-300 group-hover:text-brand-700 dark:group-hover:text-brand-400 transition-colors truncate"
-                     x-text="'/in/' + snapshot.username"></div>
-                <div class="text-[10px] uppercase tracking-[0.14em] font-medium text-neutral-400 dark:text-neutral-500 mt-1">
-                    Open profile <span aria-hidden="true">↗</span>
-                </div>
-            </a>
+            <div class="space-y-3">
+                <a :href="snapshot.profile_url" target="_blank" rel="noopener" class="block group">
+                    <div class="text-sm font-mono text-neutral-700 dark:text-neutral-300 group-hover:text-brand-700 dark:group-hover:text-brand-400 transition-colors truncate"
+                         x-text="'/in/' + snapshot.username"></div>
+                    <div class="text-[10px] uppercase tracking-[0.14em] font-medium text-neutral-400 dark:text-neutral-500 mt-1">
+                        Open profile <span aria-hidden="true">↗</span>
+                    </div>
+                </a>
+
+                <template x-if="snapshot.scraped">
+                    <div class="space-y-2 pt-2 border-t border-neutral-100 dark:border-neutral-800">
+                        <div x-show="snapshot.name || snapshot.headline" class="space-y-0.5">
+                            <div x-show="snapshot.name" class="text-sm font-medium text-neutral-900 dark:text-neutral-100" x-text="snapshot.name"></div>
+                            <div x-show="snapshot.headline" class="text-xs text-neutral-600 dark:text-neutral-400 leading-snug" x-text="snapshot.headline"></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400">
+                            <div>
+                                <span x-text="(snapshot.experience || []).length"></span>
+                                <span class="text-neutral-400 dark:text-neutral-500">experience</span>
+                            </div>
+                            <div>
+                                <span x-text="(snapshot.education || []).length"></span>
+                                <span class="text-neutral-400 dark:text-neutral-500">education</span>
+                            </div>
+                            <div>
+                                <span x-text="(snapshot.licenses || []).length"></span>
+                                <span class="text-neutral-400 dark:text-neutral-500">certifications</span>
+                            </div>
+                            <div>
+                                <span x-text="(snapshot.projects || []).length"></span>
+                                <span class="text-neutral-400 dark:text-neutral-500">projects</span>
+                            </div>
+                            <div>
+                                <span x-text="(snapshot.featured || []).length"></span>
+                                <span class="text-neutral-400 dark:text-neutral-500">featured</span>
+                            </div>
+                            <div>
+                                <span x-text="(snapshot.honors_and_awards || []).length"></span>
+                                <span class="text-neutral-400 dark:text-neutral-500">honors</span>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
         </template>
     </div>
 </section>

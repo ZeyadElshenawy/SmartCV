@@ -96,8 +96,9 @@ def enrich_profile(profile, *, force: bool = False) -> list[dict]:
     github = raw.get('github_signals') or {}
     scholar = raw.get('scholar_signals') or {}
     kaggle = raw.get('kaggle_signals') or {}
+    linkedin = raw.get('linkedin_signals') or {}
 
-    inputs_hash = _hash_inputs(github, scholar, kaggle)
+    inputs_hash = _hash_inputs(github, scholar, kaggle, linkedin)
     cached_hash = raw.get('enriched_projects_hash')
     cached = raw.get('enriched_projects_cache') or []
 
@@ -115,6 +116,8 @@ def enrich_profile(profile, *, force: bool = False) -> list[dict]:
         out.extend(_to_dicts(_enrich_scholar(scholar)))
     if _kaggle_has_activity(kaggle):
         out.extend(_to_dicts(_enrich_kaggle(kaggle)))
+    if _linkedin_has_projectable_content(linkedin):
+        out.extend(_to_dicts(_enrich_linkedin(linkedin)))
 
     # Persist the cache. Whoever called us decides whether to save the
     # profile — we mutate data_content here but don't call profile.save()
@@ -124,10 +127,14 @@ def enrich_profile(profile, *, force: bool = False) -> list[dict]:
     profile.data_content = raw
 
     logger.info(
-        "project_enricher: enriched %d projects (gh=%d, scholar=%d, kaggle=%d)",
+        "project_enricher: enriched %d projects (gh=%d, scholar=%d, kaggle=%d, li=%d)",
         len(out), len(github.get('top_repos') or []),
         len(scholar.get('top_publications') or []),
         sum(1 for k in ('competitions', 'datasets', 'notebooks') if (kaggle.get(k) or {}).get('count', 0) > 0),
+        len(linkedin.get('projects') or []) + len([
+            f for f in (linkedin.get('featured') or [])
+            if f.get('kind') in ('link', 'document', 'article', 'newsletter')
+        ]),
     )
     return out
 
@@ -336,6 +343,124 @@ CATEGORIES:
     return items
 
 
+# LinkedIn project surface: the dedicated /projects section + Featured items
+# whose kind looks project-shaped (links, documents, articles, newsletters).
+# We deliberately exclude `image`, `post`, `video` from the featured pull —
+# those are usually social posts, not technical artifacts.
+_LINKEDIN_FEATURED_KINDS = ('link', 'document', 'article', 'newsletter')
+_MAX_LINKEDIN_PROJECTS = 6
+_MAX_LINKEDIN_FEATURED = 6
+
+
+def _linkedin_has_projectable_content(linkedin: dict) -> bool:
+    """True iff the snapshot has at least one entry the enricher can work with."""
+    if not linkedin or linkedin.get('error'):
+        return False
+    if linkedin.get('projects'):
+        return True
+    for f in linkedin.get('featured') or []:
+        if f.get('kind') in _LINKEDIN_FEATURED_KINDS and (f.get('url') or f.get('title')):
+            return True
+    return False
+
+
+def _enrich_linkedin(linkedin: dict) -> list[EnrichedProject]:
+    """LinkedIn surfaces two project-shaped streams:
+
+    - The /projects section (one entry per project, with name + duration +
+      description). This is the obvious match.
+    - Featured items (one entry per pinned link / document / article). These
+      are usually case studies, blog posts, or external publications — close
+      enough to "project" for the user to decide via the dedupe review.
+
+    Both share the resume-bullet style of the other sources: lead with the
+    action, never invent metrics, surface what the snapshot evidences.
+    """
+    profile_url = linkedin.get('profile_url') or ''
+    raw_projects = (linkedin.get('projects') or [])[:_MAX_LINKEDIN_PROJECTS]
+    raw_featured = [
+        f for f in (linkedin.get('featured') or [])
+        if f.get('kind') in _LINKEDIN_FEATURED_KINDS and (f.get('url') or f.get('title'))
+    ][:_MAX_LINKEDIN_FEATURED]
+
+    if not raw_projects and not raw_featured:
+        return []
+
+    prompt = f"""Turn each LinkedIn entry below into a project-shaped resume entry.
+Return one entry per input, in the same order: projects first, then featured items.
+
+For PROJECTS section entries:
+  - `name`: the `project_name` verbatim.
+  - `summary`: one sentence drawn from the description; if the description is
+    blank, infer cautiously from the name only.
+  - `tech_stack`: technologies the description mentions explicitly. Empty
+    list if none surface — never guess.
+  - `bullets`: 1-2 resume bullets. Lead with action verbs. Surface duration
+    if present ("Built over 6 months in 2024"). Never invent metrics.
+  - `source`: always "linkedin".
+  - `source_id`: a slug from the project_name.
+  - `source_url`: the candidate's profile_url ({profile_url!r}) — LinkedIn
+    projects don't have stable per-item URLs.
+
+For FEATURED items:
+  - `name`: the `title` verbatim, trimmed if it's longer than 80 chars.
+  - `summary`: one sentence describing what kind of artifact it is (link,
+    document, article, newsletter) and what the title suggests it covers.
+  - `tech_stack`: empty list (featured titles rarely encode tech reliably).
+  - `bullets`: 1 bullet stating the kind + a clean version of the title.
+  - `source`: always "linkedin".
+  - `source_id`: a slug from the title.
+  - `source_url`: the item's `url` (already unwrapped from LinkedIn's safety
+    redirector — pass through verbatim).
+
+LINKEDIN PROJECTS:
+{json.dumps(raw_projects, indent=2, default=str)}
+
+LINKEDIN FEATURED:
+{json.dumps(raw_featured, indent=2, default=str)}
+"""
+    structured = get_structured_llm(
+        EnrichedProjectBatch,
+        temperature=0.3,
+        max_tokens=3500,
+        task='project_enricher',
+    )
+    try:
+        result = structured.invoke(prompt)
+        items = list(result.projects)
+    except Exception as exc:
+        recovered = _recover_enriched_from_failed_generation(exc)
+        if recovered:
+            logger.info(
+                "project_enricher: LinkedIn LLM payload recovered from "
+                "failed_generation (%d items)", len(recovered),
+            )
+            items = recovered
+        else:
+            logger.exception("project_enricher: LinkedIn LLM call failed; falling back")
+            return _linkedin_fallback(raw_projects, raw_featured, profile_url)
+
+    # Defensive: backfill source / source_url / source_id when the LLM omits them.
+    for i, p in enumerate(items):
+        if not p.source:
+            p.source = 'linkedin'
+        if i < len(raw_projects):
+            entry = raw_projects[i]
+            if not p.source_url:
+                p.source_url = profile_url
+            if not p.source_id:
+                p.source_id = _slugify(entry.get('project_name', ''))
+        else:
+            j = i - len(raw_projects)
+            if j < len(raw_featured):
+                entry = raw_featured[j]
+                if not p.source_url:
+                    p.source_url = entry.get('url') or profile_url
+                if not p.source_id:
+                    p.source_id = _slugify(entry.get('title', ''))
+    return items
+
+
 # --- Fallbacks (no LLM) ------------------------------------------------------
 
 def _github_fallback(repos: list[dict]) -> list[EnrichedProject]:
@@ -396,6 +521,48 @@ def _scholar_fallback(pubs: list[dict], profile_url: str) -> list[EnrichedProjec
     return out
 
 
+def _linkedin_fallback(
+    projects: list[dict], featured: list[dict], profile_url: str,
+) -> list[EnrichedProject]:
+    out: list[EnrichedProject] = []
+    for entry in projects:
+        name = (entry.get('project_name') or '').strip()
+        if not name:
+            continue
+        desc = (entry.get('description') or '').strip()
+        duration = (entry.get('duration') or '').strip()
+        bullet_bits: list[str] = []
+        if desc:
+            bullet_bits.append(desc)
+        if duration:
+            bullet_bits.append(f"Duration: {duration}")
+        out.append(EnrichedProject(
+            name=name,
+            summary=desc or f"{name} — LinkedIn project entry.",
+            tech_stack=[],
+            bullets=['; '.join(bullet_bits)] if bullet_bits else [name],
+            source='linkedin',
+            source_id=_slugify(name),
+            source_url=profile_url,
+        ))
+    for entry in featured:
+        title = (entry.get('title') or '').strip()
+        if not title:
+            continue
+        kind = (entry.get('kind') or 'link').strip()
+        url = (entry.get('url') or '').strip() or profile_url
+        out.append(EnrichedProject(
+            name=title[:80],
+            summary=f"Featured {kind} on LinkedIn: {title}",
+            tech_stack=[],
+            bullets=[f"Featured {kind}: {title}"],
+            source='linkedin',
+            source_id=_slugify(title),
+            source_url=url,
+        ))
+    return out
+
+
 def _kaggle_fallback(categories: list[dict], profile_url: str, tier: str) -> list[EnrichedProject]:
     out = []
     for cat in categories:
@@ -436,7 +603,7 @@ def _to_dicts(projects: list[EnrichedProject]) -> list[dict]:
     return [p.model_dump() for p in projects if p.name]
 
 
-def _hash_inputs(github: dict, scholar: dict, kaggle: dict) -> str:
+def _hash_inputs(github: dict, scholar: dict, kaggle: dict, linkedin: dict) -> str:
     """Stable hash over the parts of the signal blobs the prompts actually
     consume. Excludes `fetched_at` so a re-pull that returned identical data
     doesn't invalidate the cache."""
@@ -464,6 +631,16 @@ def _hash_inputs(github: dict, scholar: dict, kaggle: dict) -> str:
             'datasets': kaggle.get('datasets'),
             'notebooks': kaggle.get('notebooks'),
             'discussion': kaggle.get('discussion'),
+        },
+        'linkedin': {
+            'projects': [
+                {k: p.get(k) for k in ('project_name', 'duration', 'description')}
+                for p in (linkedin.get('projects') or [])
+            ],
+            'featured': [
+                {k: f.get(k) for k in ('kind', 'title', 'url')}
+                for f in (linkedin.get('featured') or [])
+            ],
         },
     }
     blob = json.dumps(payload, sort_keys=True, default=str).encode('utf-8')

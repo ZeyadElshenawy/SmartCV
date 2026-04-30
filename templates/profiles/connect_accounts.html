@@ -26,7 +26,7 @@
             {% include "components/kaggle_signals.html"   with profile=profile %}
         </div>
 
-        {% if profile.data_content.github_signals or profile.data_content.scholar_signals or profile.data_content.kaggle_signals %}
+        {% if profile.data_content.github_signals or profile.data_content.scholar_signals or profile.data_content.kaggle_signals or profile.data_content.linkedin_signals.projects or profile.data_content.linkedin_signals.featured %}
         <a href="{% url 'projects_review' %}"
            class="block rounded-2xl bg-brand-50 dark:bg-brand-950/30 ring-1 ring-brand-200 dark:ring-brand-800/50 p-5 hover:ring-brand-400 dark:hover:ring-brand-600 transition-all group/card">
             <div class="flex items-start gap-4">
@@ -36,7 +36,7 @@
                 <div class="flex-1">
                     <div class="font-medium text-neutral-900 dark:text-neutral-100">Review external projects</div>
                     <p class="text-sm text-neutral-600 dark:text-neutral-300 mt-1">
-                        Turn your GitHub repos, Scholar publications, and Kaggle competitions into resume-ready projects. We'll match them against your master profile so duplicates merge instead of stack.
+                        Turn your GitHub repos, Scholar publications, Kaggle competitions, and LinkedIn projects into resume-ready entries. We'll match them against your master profile so duplicates merge instead of stack.
                     </p>
                 </div>
                 <span aria-hidden="true" class="text-brand-700 dark:text-brand-400 transition-transform group-hover/card:translate-x-0.5">→</span>
