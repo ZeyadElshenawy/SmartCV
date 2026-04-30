@@ -256,6 +256,13 @@ LINKEDIN_USE_UNDETECTED = config('LINKEDIN_USE_UNDETECTED', default=True, cast=b
 LINKEDIN_LOGIN_WAIT = config('LINKEDIN_LOGIN_WAIT', default=5.0, cast=float)
 LINKEDIN_PAGE_WAIT = config('LINKEDIN_PAGE_WAIT', default=4.0, cast=float)
 LINKEDIN_CHALLENGE_TIMEOUT = config('LINKEDIN_CHALLENGE_TIMEOUT', default=300.0, cast=float)
+LINKEDIN_IMAP_USER = config('LINKEDIN_IMAP_USER', default='') or LINKEDIN_EMAIL
+LINKEDIN_IMAP_PASSWORD = config('LINKEDIN_IMAP_PASSWORD', default='')
+LINKEDIN_IMAP_HOST = config('LINKEDIN_IMAP_HOST', default='')
+# Tolerant casts: empty string in .env (e.g. LINKEDIN_IMAP_PORT=) falls
+# back to the default instead of raising. decouple's cast= raises on ''.
+LINKEDIN_IMAP_PORT = int(config('LINKEDIN_IMAP_PORT', default='') or 993)
+LINKEDIN_IMAP_TIMEOUT = float(config('LINKEDIN_IMAP_TIMEOUT', default='') or 120.0)
 LINKEDIN_PROFILES_DIR = BASE_DIR / config(
     'LINKEDIN_PROFILES_DIR', default='chrome_profiles',
 )

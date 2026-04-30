@@ -550,6 +550,53 @@ class MakeLinkedinSnapshotTests(SimpleTestCase):
         self.assertFalse(snap.get("scraped"))
 
 
+class EmailVerificationTests(SimpleTestCase):
+    def test_extract_code_plain_text(self):
+        from profiles.services.email_verification import _extract_code
+        body = "Hi Zeyad,\n\nYour verification code is 482917. Use it within 5 minutes."
+        self.assertEqual(_extract_code(body), "482917")
+
+    def test_extract_code_alt_phrasing(self):
+        from profiles.services.email_verification import _extract_code
+        body = "654321 is your verification code for LinkedIn."
+        self.assertEqual(_extract_code(body), "654321")
+
+    def test_extract_code_html_wrapped(self):
+        from profiles.services.email_verification import _extract_code
+        body = '<html><body><span style="font-size:24px">739204</span></body></html>'
+        self.assertEqual(_extract_code(body), "739204")
+
+    def test_extract_code_falls_back_to_first_six_digits(self):
+        from profiles.services.email_verification import _extract_code
+        body = "Hello — please use 100200 to continue."
+        self.assertEqual(_extract_code(body), "100200")
+
+    def test_extract_code_returns_empty_when_absent(self):
+        from profiles.services.email_verification import _extract_code
+        self.assertEqual(_extract_code("no digits at all"), "")
+        self.assertEqual(_extract_code(""), "")
+
+    def test_default_host_gmail(self):
+        from profiles.services.email_verification import default_host_for
+        self.assertEqual(default_host_for("zeyad@gmail.com"), ("imap.gmail.com", 993))
+
+    def test_default_host_unknown_domain(self):
+        from profiles.services.email_verification import default_host_for
+        self.assertIsNone(default_host_for("zeyad@example.local"))
+
+    def test_imap_credentials_present_requires_user_and_password(self):
+        from profiles.services.email_verification import imap_credentials_present
+        self.assertFalse(imap_credentials_present("", "", ""))
+        self.assertFalse(imap_credentials_present("imap.example.com", "user@x.com", ""))
+        self.assertTrue(imap_credentials_present("imap.example.com", "user@x.com", "pw"))
+
+    def test_imap_credentials_present_inferred_host_for_known_domain(self):
+        from profiles.services.email_verification import imap_credentials_present
+        # Gmail can auto-detect host even when LINKEDIN_IMAP_HOST is blank.
+        self.assertTrue(imap_credentials_present("", "user@gmail.com", "pw"))
+        self.assertFalse(imap_credentials_present("", "user@unknownhost.local", "pw"))
+
+
 class LinkedinEnrichmentPredicateTests(SimpleTestCase):
     """Guard the cross-cutting check used by the connect-accounts redirect
     and the project enricher: 'does the LinkedIn snapshot contribute any
