@@ -24,10 +24,12 @@ attributes that change far less often than visual class names.
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import logging
 import random
 import re
+import sys
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -134,6 +136,36 @@ except Exception:  # noqa: BLE001
     _HAS_UC = False
 
 
+@functools.lru_cache(maxsize=1)
+def _detect_chrome_major() -> int | None:
+    """Major version of the locally installed Chrome on Windows.
+
+    Returns None on non-Windows or if Chrome isn't registered, in which
+    case undetected_chromedriver's own auto-detect is used.
+    """
+    if sys.platform != "win32":
+        return None
+    try:
+        import winreg
+    except Exception:  # noqa: BLE001
+        return None
+    candidates = (
+        (winreg.HKEY_CURRENT_USER, r"Software\Google\Chrome\BLBeacon"),
+        (winreg.HKEY_LOCAL_MACHINE, r"Software\Google\Chrome\BLBeacon"),
+        (winreg.HKEY_LOCAL_MACHINE, r"Software\WOW6432Node\Google\Chrome\BLBeacon"),
+    )
+    for hive, path in candidates:
+        try:
+            with winreg.OpenKey(hive, path) as key:
+                version, _ = winreg.QueryValueEx(key, "version")
+                return int(str(version).split(".")[0])
+        except OSError:
+            continue
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
 def _human_sleep(low: float = 1.5, high: float = 4.0) -> None:
     """Sleep a random amount in ``[low, high]`` to look less robotic."""
     sleep(random.uniform(low, high))
@@ -182,8 +214,18 @@ def _build_driver(
             opts.add_argument(arg)
         # ``use_subprocess=True`` keeps the patched chromedriver alive across
         # ``driver.quit()`` and is required on Windows when reopening drivers
-        # back-to-back.
-        return uc.Chrome(options=opts, headless=headless, use_subprocess=True)
+        # back-to-back. ``version_main`` pins the patched driver to the
+        # locally installed Chrome major so UC's auto-detect can't grab a
+        # newer driver than the browser supports.
+        kwargs: dict[str, Any] = {
+            "options": opts,
+            "headless": headless,
+            "use_subprocess": True,
+        }
+        chrome_major = _detect_chrome_major()
+        if chrome_major is not None:
+            kwargs["version_main"] = chrome_major
+        return uc.Chrome(**kwargs)
 
     options = Options()
     for arg in _common_chrome_args(headless, user_data_dir):
