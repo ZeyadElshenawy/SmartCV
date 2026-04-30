@@ -511,7 +511,9 @@ class ParseLinkedinHandleTests(SimpleTestCase):
 
 class MakeLinkedinSnapshotTests(SimpleTestCase):
     def test_valid_url_builds_canonical_snapshot(self):
-        snap = make_linkedin_snapshot("https://www.linkedin.com/in/jane-doe")
+        from django.test import override_settings
+        with override_settings(LINKEDIN_SCRAPING_ENABLED=False):
+            snap = make_linkedin_snapshot("https://www.linkedin.com/in/jane-doe")
         self.assertIsNone(snap["error"])
         self.assertEqual(snap["username"], "jane-doe")
         self.assertEqual(snap["profile_url"], "https://www.linkedin.com/in/jane-doe/")
