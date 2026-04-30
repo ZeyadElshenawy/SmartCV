@@ -50,6 +50,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
+from . import email_verification
+
 logger = logging.getLogger(__name__)
 
 
@@ -300,6 +302,83 @@ def _submit_login_form(
     sleep(login_wait)
 
 
+# Verification-code input IDs LinkedIn has shipped over time. We try
+# them in order; the last-resort selector is a generic 6-char text input
+# on the checkpoint page.
+_VERIFY_INPUT_IDS = (
+    "input__email_verification_pin",
+    "input__phone_verification_pin",
+    "verification-code",
+    "pin",
+)
+
+
+def _find_verification_input(driver: webdriver.Chrome):
+    """First verification-code ``<input>`` we can locate, or ``None``."""
+    for cid in _VERIFY_INPUT_IDS:
+        try:
+            return driver.find_element(By.ID, cid)
+        except NoSuchElementException:
+            continue
+    try:
+        return driver.find_element(
+            By.CSS_SELECTOR, "input[type='text'][maxlength='6']",
+        )
+    except NoSuchElementException:
+        return None
+
+
+def _is_email_verification_page(driver: webdriver.Chrome) -> bool:
+    return _is_challenged(driver) and _find_verification_input(driver) is not None
+
+
+def _try_imap_autofill(
+    driver: webdriver.Chrome,
+    imap_creds: dict[str, Any] | None,
+    login_wait: float,
+) -> bool:
+    """Poll IMAP for the LinkedIn verification code, type it into the
+    challenge form, submit. Returns True iff the page advanced past the
+    verification challenge (logged in OR moved to a different challenge
+    step). Silently returns False when IMAP isn't configured."""
+    if not imap_creds:
+        return False
+    inp = _find_verification_input(driver)
+    if inp is None:
+        return False
+    try:
+        code = email_verification.fetch_linkedin_verification_code(
+            user=imap_creds["user"],
+            password=imap_creds["password"],
+            host=imap_creds.get("host") or None,
+            port=int(imap_creds.get("port") or 993),
+            timeout=float(imap_creds.get("timeout") or 120.0),
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("IMAP autofill failed: %s", exc)
+        return False
+    if not code:
+        logger.warning("IMAP autofill timed out without finding a code.")
+        return False
+    try:
+        inp.clear()
+        inp.send_keys(code)
+        try:
+            inp.submit()
+        except WebDriverException:
+            try:
+                driver.find_element(
+                    By.CSS_SELECTOR, "button[type='submit']",
+                ).click()
+            except NoSuchElementException:
+                return False
+        sleep(login_wait)
+    except WebDriverException as exc:
+        logger.warning("Couldn't submit IMAP-fetched code: %s", exc)
+        return False
+    return _is_logged_in(driver) or not _is_email_verification_page(driver)
+
+
 def _wait_for_user_to_solve(driver: webdriver.Chrome, timeout: float) -> bool:
     """Poll the visible browser until either the user lands on a logged-in
     page or the timeout expires. Returns True iff login completed."""
@@ -326,6 +405,7 @@ def _ensure_logged_in(
     login_wait: float,
     page_wait: float,
     challenge_timeout: float,
+    imap_creds: dict[str, Any] | None = None,
 ) -> webdriver.Chrome:
     """Return a Chrome driver that's authenticated and parked on
     ``profile_url``. Three phases:
@@ -357,6 +437,19 @@ def _ensure_logged_in(
             driver.get(profile_url)
             _human_sleep(page_wait * 0.5, page_wait)
             return driver
+
+        # Phase 2b: if LinkedIn dropped us on an email-verification page,
+        # try fetching the code from IMAP and submitting it before falling
+        # through to the visible-browser challenge flow.
+        if _is_email_verification_page(driver):
+            logger.info(
+                "LinkedIn email verification challenge detected; attempting IMAP autofill."
+            )
+            if _try_imap_autofill(driver, imap_creds, login_wait):
+                if _is_logged_in(driver):
+                    driver.get(profile_url)
+                    _human_sleep(page_wait * 0.5, page_wait)
+                    return driver
 
         if not _is_challenged(driver) and "/login" in (driver.current_url or ""):
             raise LinkedInScraperError(
@@ -1018,6 +1111,7 @@ def dump_raw_pages(
     profiles_root: Path | None = None,
     use_undetected: bool = True,
     challenge_timeout: float = 300.0,
+    imap_creds: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Log in, save the logged-in profile and each sub-page's HTML to disk."""
     dump_dir = Path(dump_dir)
@@ -1046,6 +1140,7 @@ def dump_raw_pages(
             login_wait=login_wait,
             page_wait=page_wait,
             challenge_timeout=challenge_timeout,
+            imap_creds=imap_creds,
         )
     except LinkedInScraperError:
         raise
@@ -1162,6 +1257,7 @@ def scrape_profile(
     profiles_root: Path | None = None,
     use_undetected: bool = True,
     challenge_timeout: float = 300.0,
+    imap_creds: dict[str, Any] | None = None,
 ) -> ScrapeResult:
     """Drive Chrome through the new SDUI profile flow.
 
@@ -1189,6 +1285,7 @@ def scrape_profile(
             login_wait=login_wait,
             page_wait=page_wait,
             challenge_timeout=challenge_timeout,
+            imap_creds=imap_creds,
         )
     except LinkedInScraperError:
         raise

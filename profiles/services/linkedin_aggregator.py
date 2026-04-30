@@ -124,6 +124,11 @@ def _scrape_settings():
         'page_wait': float(getattr(settings, 'LINKEDIN_PAGE_WAIT', 4.0)),
         'challenge_timeout': float(getattr(settings, 'LINKEDIN_CHALLENGE_TIMEOUT', 300.0)),
         'profiles_dir': getattr(settings, 'LINKEDIN_PROFILES_DIR', None),
+        'imap_user': getattr(settings, 'LINKEDIN_IMAP_USER', '') or '',
+        'imap_password': getattr(settings, 'LINKEDIN_IMAP_PASSWORD', '') or '',
+        'imap_host': getattr(settings, 'LINKEDIN_IMAP_HOST', '') or '',
+        'imap_port': int(getattr(settings, 'LINKEDIN_IMAP_PORT', 993) or 993),
+        'imap_timeout': float(getattr(settings, 'LINKEDIN_IMAP_TIMEOUT', 120.0) or 120.0),
     }
 
 
@@ -159,6 +164,16 @@ def _scraped_snapshot(handle: str) -> LinkedinSnapshot:
         return base
 
     try:
+        imap_creds = None
+        if cfg['imap_user'] and cfg['imap_password']:
+            imap_creds = {
+                'user': cfg['imap_user'],
+                'password': cfg['imap_password'],
+                'host': cfg['imap_host'],
+                'port': cfg['imap_port'],
+                'timeout': cfg['imap_timeout'],
+            }
+
         result = scrape_profile(
             profile_url=base['profile_url'],
             email=cfg['email'],
@@ -169,6 +184,7 @@ def _scraped_snapshot(handle: str) -> LinkedinSnapshot:
             profiles_root=cfg['profiles_dir'],
             use_undetected=cfg['use_undetected'],
             challenge_timeout=cfg['challenge_timeout'],
+            imap_creds=imap_creds,
         )
     except LinkedInScraperError as exc:
         logger.info("LinkedIn scrape failed for %s: %s", handle, exc)
