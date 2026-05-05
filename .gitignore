@@ -27,3 +27,6 @@ screenshots/
 image.png
 *.pdf
 !resumes/templates/**/*.pdf
+
+# Runtime caches
+chrome_profiles/
