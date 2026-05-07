@@ -101,7 +101,7 @@ def _load_jds() -> list[dict]:
     return out
 
 
-def run(repeats: int = 3) -> dict:
+def run(repeats: int = 3, sleep: float = 0.0) -> dict:
     jds = _load_jds()
     per_job: list[dict] = []
     all_f1: list[float] = []
@@ -122,6 +122,8 @@ def run(repeats: int = 3) -> dict:
                 extracted = []
                 err = f"{exc.__class__.__name__}: {exc}"
             elapsed_ms = round((time.perf_counter() - t0) * 1000.0, 2)
+            if sleep > 0:
+                time.sleep(sleep)
             scored = _score(extracted, jd["expected_skills"])
             scored["extracted_raw"] = extracted
             scored["latency_ms"] = elapsed_ms
@@ -206,10 +208,17 @@ def _format_report(payload: dict) -> str:
 def _parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="SmartCV skill extraction benchmark")
     parser.add_argument("--repeats", type=int, default=3, help="runs per JD (default: 3)")
+    parser.add_argument(
+        "--sleep",
+        type=float,
+        default=0.0,
+        help="Seconds to sleep after each extract_skills call to stay under "
+             "Groq's 30k TPM cap. Default: 0.",
+    )
     return parser.parse_args(list(argv) if argv is not None else None)
 
 
 if __name__ == "__main__":
     args = _parse_args()
-    result = run(repeats=args.repeats)
+    result = run(repeats=args.repeats, sleep=args.sleep)
     print(_format_report(result))
