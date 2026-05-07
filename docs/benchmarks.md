@@ -218,44 +218,50 @@ folder under `benchmarks/results/`.
 
 # SmartCV Benchmark Run
 
-- **Run date:** 2026-04-27T22:00:00Z
-- **Wall time:** 350.53s
+- **D1/D2/D3 run date:** 2026-05-07 (live production pipeline; per-phase run with `--sleep` throttle, not orchestrated by `run_all`)
+- **B/D4/D5 run date:** 2026-05-06 (last full `run_all` snapshot — no re-run today)
+- **Wall time (D1+D2+D3, sequential):** 2152.86s (parser 554.54s · skill_extractor 158.50s · gap 1439.82s)
 - **Platform:** Windows 11 / Python 3.13.9
-- **Phases:** ats_eval, latency_runner, parser_eval, skill_extractor_eval, gap_eval, tailoring_eval
+- **Phases re-run today:** parser_eval (`--llm-validate`), skill_extractor_eval, gap_eval
 
 ## Headline Metrics
 
 | Metric | Value | N | Source |
 | --- | --- | --- | --- |
-| ATS scoring deterministic (sigma=0) | **True** | 10 runs x 3 fixtures | benchmarks/ats_eval.py |
-| ATS matched-vs-mismatched separation | matched **100.0** vs mismatched **11.0** (Cohen's d = **6.267**) | 3 matched, 6 mismatched | benchmarks/ats_eval.py |
-| Endpoint warm p95 (max across routes) | **14.77 ms** | 5 routes x 100 req | benchmarks/latency_runner.py |
-| CV parser personal-info accuracy | **0.942** | 10 CVs | benchmarks/parser_eval.py |
-| CV parser skills F1 (CVs with explicit skills section) | **0.429** (Jaccard 0.303) | 5/10 CVs | benchmarks/parser_eval.py |
-| CV parser skills F1 (all CVs, incl. those without a skills section) | 0.296 (Jaccard 0.197) | 10 CVs | benchmarks/parser_eval.py |
-| Skill extractor F1 | **0.915** (P=0.943, R=0.892, halluc=0.057) | 5 JDs x 3 runs | benchmarks/skill_extractor_eval.py |
-| Gap analyzer coverage (Phase 2 reconciliation) | **0.997** (47/50 pairs at 100%) | 50 (CV,JD) pairs | benchmarks/gap_eval.py |
-| Gap analyzer separation (similarity score) | strong **0.465** / partial **0.3833** / weak **0.1412** (Cohen's d strong-vs-weak = **1.685**) | 50 pairs | benchmarks/gap_eval.py |
-| Tailored resume — judge axes (1-10) | factuality **6.3** / relevance **6.9** / ats_fit **6.8** / human_voice **4.7** | 10 pairs (strong) | benchmarks/tailoring_eval.py |
-| Tailored resume — programmatic entity grounding | **0.875** of generated entities appear verbatim in source CV | 10 pairs | benchmarks/tailoring_eval.py |
+| ATS scoring deterministic (sigma=0) † | **True** | 10 runs x 3 fixtures | benchmarks/ats_eval.py |
+| ATS matched-vs-mismatched separation † | matched **100.0** vs mismatched **11.0** (Cohen's d = **6.267**) | 3 matched, 6 mismatched | benchmarks/ats_eval.py |
+| Endpoint warm p95 (max across routes) † | **12.85 ms** | 5 routes x 100 req | benchmarks/latency_runner.py |
+| CV parser personal-info accuracy ‡ | **0.96** | 25 CVs | benchmarks/parser_eval.py |
+| CV parser skills F1 (CVs with explicit skills section) ‡ | **0.815** (Jaccard 0.687) | 23/25 CVs | benchmarks/parser_eval.py |
+| CV parser skills F1 (all CVs, incl. those without a skills section) ‡ | **0.808** (Jaccard 0.675) | 25 CVs | benchmarks/parser_eval.py |
+| Skill extractor F1 ‡ | **0.853** (P=0.887, R=0.828, halluc=0.113) | 30 JDs x 1 run | benchmarks/skill_extractor_eval.py |
+| Gap analyzer coverage (Phase 2 reconciliation) ‡ | **0.999** (147/150 pairs at 100%) | 150 (CV,JD) pairs | benchmarks/gap_eval.py |
+| Gap analyzer separation (similarity score) ‡ | strong **0.555** / partial **0.383** / weak **0.136** (Cohen's d strong-vs-weak = **1.989**) | 150 pairs | benchmarks/gap_eval.py |
+| Tailored resume — judge axes (1-10) † | factuality **4.97** / relevance **5.06** / ats_fit **5.24** / human_voice **3.24** | 34 pairs (strong) | benchmarks/tailoring_eval.py |
+| Tailored resume — programmatic entity grounding † | **0.887** of generated entities appear verbatim in source CV | 34 pairs | benchmarks/tailoring_eval.py |
+
+† From the 2026-05-06 `run_all` snapshot (not re-run on 2026-05-07).
+‡ From today's 2026-05-07 individual-phase runs against the live production pipeline. Parser was run with `--llm-validate` (regex parse → `validate_and_map_cv_data` Groq call), matching the upload flow at `profiles/views.py:profile_upload_cv`.
 
 ## Phase Wall Times
 
-| Phase | Wall (s) | OK |
-| --- | --- | --- |
-| ats_eval | 0 | yes |
-| latency_runner | 19.41 | yes |
-| parser_eval | 1.76 | yes |
-| skill_extractor_eval | 17.89 | yes |
-| gap_eval | 188.63 | yes |
-| tailoring_eval | 122.84 | yes |
+| Phase | Wall (s) | Date | OK |
+| --- | --- | --- | --- |
+| ats_eval | 0.01 | 2026-05-06 | yes |
+| latency_runner | 9.11 | 2026-05-06 | yes |
+| parser_eval (`--llm-validate --sleep 12`) | 554.54 | 2026-05-07 | yes |
+| skill_extractor_eval (`--sleep 4`) | 158.50 | 2026-05-07 | yes |
+| gap_eval (`--sleep 8`) | 1439.82 | 2026-05-07 | yes |
+| tailoring_eval | 366.1 | 2026-05-06 | yes |
 
 ## Disclosure
 
-- LLM metrics (parser, skill extractor, gap analyzer) are run against Groq llama-4-scout. Stochasticity is reported per-phase as std dev across configurable repeats; the headline values above are the mean.
-- Latency numbers are measured in-process via Django's test Client on the developer machine — production WAN latency is not included.
+- LLM metrics (parser, skill extractor, gap analyzer) are run against Groq llama-4-scout. Stochasticity is reported per-phase as std dev across configurable repeats; today's D1/D2/D3 run used `--repeats 1`, so std is 0 by construction (use `--repeats 3+` for variance disclosure).
+- The 2026-05-07 runs used the new `--sleep SECS` throttle flag (12s for parser, 4s for skill_extractor, 8s for gap_eval) to stay under Groq's 30k TPM cap. The Groq SDK additionally retries 429s with backoff — the parser run hit a few mid-loop and recovered cleanly; the other two phases were 429-free.
+- Today's parser_eval used `--llm-validate` (regex parse → LLM validator), the same path the live `/profile/upload-cv/` endpoint takes. Earlier `run_all` snapshots ran parser_eval in regex-only mode, so the F1 jump (0.491 → 0.808) reflects pipeline mode, not just CV/label changes.
+- Latency numbers (B) are measured in-process via Django's test Client on the developer machine — production WAN latency is not included.
 - ATS scoring is pure-Python and deterministic; the matched-vs-mismatched separation uses an in-process synthetic suite (3 jobs x 3 matched and 6 cross-paired mismatches) so it is reproducible without external fixtures.
-- Parser, skill-extractor, and gap-analyzer use 10 hand-curated CVs and 5 hand-written JDs (`benchmarks/fixtures/`). The CV PDFs themselves are git-ignored to avoid republishing personal data.
+- Parser, skill-extractor, and gap-analyzer use the v2 fixture suite: 25 hand-curated + synthetic CVs and 30 JDs (5 hand-written + 25 auto-generated, paired diagonal) under `benchmarks/fixtures/`. Real-applicant CV PDFs are git-ignored to avoid republishing personal data.
 
 ## Reproduction
 
