@@ -34,6 +34,7 @@ from typing import Iterable
 
 from benchmarks._io import FIXTURES_DIR, REPO_ROOT, summary, write_section
 from profiles.services.cv_parser import parse_cv
+from profiles.services.llm_validator import validate_and_map_cv_data
 
 FUZZY_CUTOFF = 0.85
 
@@ -183,7 +184,7 @@ def _label_for(cv_id: str) -> dict | None:
     return json.loads(p.read_text(encoding="utf-8"))
 
 
-def run(repeats: int = 1) -> dict:
+def run(repeats: int = 1, llm_validate: bool = False, sleep: float = 0.0) -> dict:
     manifest = _load_manifest()
     rows: list[dict] = []
     all_pi_acc: list[float] = []
@@ -213,11 +214,18 @@ def run(repeats: int = 1) -> dict:
             t0 = time.perf_counter()
             try:
                 parsed = parse_cv(str(cv_path))
+                if llm_validate:
+                    # Match the production upload pipeline: regex parse → LLM validate.
+                    # parse_cv already includes raw_text in its return.
+                    raw_text = parsed.get("raw_text") or ""
+                    parsed = validate_and_map_cv_data(parsed, raw_text)
                 err = None
             except Exception as exc:  # noqa: BLE001
                 parsed = {}
                 err = f"{exc.__class__.__name__}: {exc}"
             elapsed_ms = round((time.perf_counter() - t0) * 1000.0, 2)
+            if llm_validate and sleep > 0:
+                time.sleep(sleep)
             pi = _personal_info(parsed, labeled.get("personal_info") or {})
             sp = _section_presence(parsed, labeled)
             sk = _skill_jaccard(parsed, labeled)
@@ -285,8 +293,22 @@ def run(repeats: int = 1) -> dict:
                 "section_presence": "labeled section true => parsed list/text non-empty",
             },
         },
+        "pipeline": (
+            "regex+llm_validator" if llm_validate else "regex_only"
+        ),
         "disclosure": (
-            f"LLM-driven (Groq llama-4-scout via the parser's structured-output stage). "
+            (
+                "Pipeline: parse_cv (regex) -> validate_and_map_cv_data (Groq llama-4-scout, "
+                "Pydantic ResumeSchema). Matches the production upload flow at "
+                "profiles/views.py:130-145. "
+            )
+            if llm_validate
+            else (
+                "Pipeline: parse_cv (regex) ONLY. Does NOT call the downstream "
+                "validate_and_map_cv_data LLM stage that runs on every live upload. "
+                "Use --llm-validate to measure the production pipeline. "
+            )
+        ) + (
             f"Mean of {repeats} run(s) per CV. PII normalization is intentionally lenient "
             "(case- and whitespace-insensitive) so cosmetic differences don't dominate the score."
         ),
@@ -324,10 +346,23 @@ def _format_report(payload: dict) -> str:
 def _parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="SmartCV parser benchmark")
     parser.add_argument("--repeats", type=int, default=1, help="runs per CV (default: 1)")
+    parser.add_argument(
+        "--llm-validate",
+        action="store_true",
+        help="Run validate_and_map_cv_data after parse_cv to mirror the production "
+             "upload pipeline. Off by default to preserve token budget.",
+    )
+    parser.add_argument(
+        "--sleep",
+        type=float,
+        default=0.0,
+        help="Seconds to sleep after each LLM-validate call to stay under Groq's "
+             "30k TPM cap. Only takes effect with --llm-validate. Default: 0.",
+    )
     return parser.parse_args(list(argv) if argv is not None else None)
 
 
 if __name__ == "__main__":
     args = _parse_args()
-    result = run(repeats=args.repeats)
+    result = run(repeats=args.repeats, llm_validate=args.llm_validate, sleep=args.sleep)
     print(_format_report(result))
