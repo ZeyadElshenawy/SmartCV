@@ -66,30 +66,33 @@ personalised connect-with-note drafts for review — never automated sending.
 
 The repo ships a small, real evaluation suite under `benchmarks/` — every
 metric has a sample size, a re-run command, and a JSON artifact. No
-fabricated numbers. Latest run (2026-04-27, after TPD reset + the
-evidence-grounded prompt + neutral-voice + YoE-guardrail commits):
+fabricated numbers. Latest run mixes two snapshots: **D1/D2/D3 ran on
+2026-05-07** against the live production pipeline (parser with
+`--llm-validate`, regex+LLM-validator path matching the upload endpoint;
+v2 fixture suite — 25 CVs / 30 JDs / 150 gap pairs). **B/D4/D5 numbers
+are from the 2026-05-06 `run_all` snapshot** (not re-run today):
 
 | Metric | Value | N |
 | --- | --- | --- |
-| ATS scoring deterministic (σ=0) | **True** | 10 runs × 3 fixtures |
-| ATS matched vs. mismatched separation | matched **100.0** / mismatched **11.0** (Cohen's d = **6.27**) | 3 vs 6 pairs |
-| Endpoint warm p95 (max across routes) | **14.77 ms** | 5 routes × 100 req |
-| CV parser personal-info accuracy | **0.942** | 10 CVs |
-| CV parser skills F1 (CVs with explicit skills section) | **0.429** (Jaccard 0.303) | 5 of 10 CVs |
-| CV parser skills F1 (all 10 CVs, incl. those without a skills section) | 0.296 (Jaccard 0.197) | 10 CVs |
-| Skill extractor F1 | **0.915** (P=0.943, R=0.892, hallucination 0.057) | 5 JDs × 3 runs |
-| Gap analyzer coverage | **0.997** (47/50 pairs at 100%) | 50 (CV, JD) pairs |
-| Gap analyzer separation (similarity score) | strong **0.465** / partial **0.383** / weak **0.141** (Cohen's d strong-vs-weak = **1.685**) | 50 pairs |
-| Tailored resume — LLM-judged (1-10) | factuality **6.3** / relevance **6.9** / ats_fit **6.8** / human_voice **4.7** | 10 strong pairs |
-| Tailored resume — programmatic entity grounding | **0.875** of generated entities appear verbatim in source CV | 10 pairs |
-| Tailored resume — banned-voice hits per resume | **0.3** (LLM available) | 10 pairs |
+| ATS scoring deterministic (σ=0) † | **True** | 10 runs × 3 fixtures |
+| ATS matched vs. mismatched separation † | matched **100.0** / mismatched **11.0** (Cohen's d = **6.27**) | 3 vs 6 pairs |
+| Endpoint warm p95 (max across routes) † | **12.85 ms** | 5 routes × 100 req |
+| CV parser personal-info accuracy ‡ | **0.96** | 25 CVs |
+| CV parser skills F1 (CVs with explicit skills section) ‡ | **0.815** (Jaccard 0.687) | 23 of 25 CVs |
+| CV parser skills F1 (all 25 CVs, incl. those without a skills section) ‡ | 0.808 (Jaccard 0.675) | 25 CVs |
+| Skill extractor F1 ‡ | **0.853** (P=0.887, R=0.828, hallucination 0.113) | 30 JDs × 1 run |
+| Gap analyzer coverage ‡ | **0.999** (147/150 pairs at 100%) | 150 (CV, JD) pairs |
+| Gap analyzer separation (similarity score) ‡ | strong **0.555** / partial **0.383** / weak **0.136** (Cohen's d strong-vs-weak = **1.989**) | 150 pairs |
+| Tailored resume — LLM-judged (1-10) † | factuality **4.97** / relevance **5.06** / ats_fit **5.24** / human_voice **3.24** | 34 strong pairs |
+| Tailored resume — programmatic entity grounding † | **0.887** of generated entities appear verbatim in source CV | 34 pairs |
 
-D5 numbers reflect a clean LLM-available run after the resume_gen Groq
-account's daily quota reset. ats_fit and relevance both moved up vs
-the prior pre-prompt-changes baseline; factuality and human_voice are
-within ~1 SE of the 2026-04-25 baseline (the stricter neutral-voice
-rule and YoE guardrail trade some headline factuality for less
-fabrication). See `benchmarks/results/2026-04-27/REPORT.md` for the
+‡ from 2026-05-07 individual-phase runs against the live production
+pipeline (parser run with `--llm-validate`, matching the upload endpoint
+at `profiles/views.py:profile_upload_cv`). † from the 2026-05-06
+`run_all` snapshot — not re-run today. The parser F1 jump vs older
+snapshots (0.49 → 0.81) reflects the pipeline mode change (regex-only
+→ regex+LLM-validator), not just CV/label changes. See
+`benchmarks/CHANGELOG.md` and `benchmarks/results/<date>/` for
 phase-by-phase deltas and iteration history.
 
 See [`docs/benchmarks.md`](docs/benchmarks.md) for full methodology, the
@@ -129,6 +132,28 @@ python manage.py runserver
 Tailwind v4 is built from `static/src/input.css` (CSS-first config — no
 `tailwind.config.js`) into `static/css/output.css`. The built file is
 committed so the dev server works without npm.
+
+### Job discovery setup (optional)
+
+The "Recommended" panel on the dashboard scans LinkedIn / Indeed / Glassdoor
+for jobs that match the user's profile. It uses Playwright with persistent
+storage_state cookies — log in once interactively per source, headless
+scrapes reuse the saved session.
+
+```bash
+# One-time browser install (after pip install -r requirements.txt)
+python -m playwright install chromium
+
+# Log in once per source you want to enable. A real Chrome window opens;
+# log in normally and the window closes once your session is saved.
+python manage.py login_linkedin
+python manage.py login_indeed
+python manage.py login_glassdoor
+```
+
+Sessions land under `storage_state/<source>.json`; the directory is
+gitignored. Re-run `login_<source>` when a session is invalidated. If
+Cloudflare fingerprints the persistent profile, pass `--fresh` to wipe it.
 
 ## Architecture
 

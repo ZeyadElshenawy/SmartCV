@@ -11,7 +11,69 @@ for "improvement vs day-zero" is `benchmarks/results/2026-04-25/`.
 
 ---
 
-## 2026-04-27 — D5 refresh after Groq TPD reset (latest)
+## 2026-05-07 — First full-pipeline D1 run (`--llm-validate`) + sleep-throttled D1/D2/D3 (latest)
+
+**Snapshot:** `benchmarks/results/2026-05-07/`
+**Predecessor:** `benchmarks/results/2026-05-06/` (last full `run_all` — also the first run on the v2 25-CV / 30-JD manifest, but with parser_eval still in regex-only mode).
+
+**Run scope:** D1 + D2 + D3 only, run as individual phases (not `run_all`) with the new `--sleep SECS` throttle to stay under Groq's 30k TPM cap. B/D4/D5 carry over from 2026-05-06 — not re-run today. Commands:
+
+```bash
+python -m benchmarks.parser_eval --llm-validate --repeats 1 --sleep 12
+python -m benchmarks.skill_extractor_eval --repeats 1 --sleep 4
+python -m benchmarks.gap_eval --repeats 1 --sleep 8
+```
+
+### vs 2026-05-06 (predecessor) — D1/D2/D3 deltas
+
+| Phase | Metric | 2026-05-06 | 2026-05-07 | Δ | Notes |
+| --- | --- | --- | --- | --- | --- |
+| D1 | Parser PI accuracy | 0.857 | **0.96** | +0.10 | LLM validator pulls clean name/email/phone even when regex misses |
+| D1 | Parser skills F1 (in-scope, with section) | 0.573 | **0.815** | +0.24 | n=23/25 (was 20/25) — bigger denominator AND higher score |
+| D1 | Parser skills F1 (all CVs) | 0.491 | **0.808** | +0.32 | **Pipeline mode change** — see below |
+| D1 | Parser skills Jaccard (all CVs) | 0.381 | **0.675** | +0.29 | tracks F1 |
+| D2 | Skill extractor F1 | 0.789 | **0.853** | +0.064 | Same `extract_skills` code, fresh run, no fixture changes today |
+| D2 | Hallucination rate | 0.167 | **0.113** | −0.054 | Marginal; within noise without `--repeats 3+` |
+| D3 | Gap coverage (perfect-pair count) | 141/150 | **147/150** | +6 | Phase-2 reconciliation closing more gaps |
+| D3 | Gap separation (Cohen's d, strong vs weak) | 1.449 | **1.989** | +0.54 | Big jump in usefulness signal — strong bucket pulled up, weak pulled down |
+
+### What drove each change
+
+**D1 — `--llm-validate` enabled (commit `6460796`).** The headline F1 jump
+0.491 → 0.808 is **mostly pipeline mode, not data**. Older runs of
+`parser_eval.py` in `run_all` only exercised `parse_cv` (regex). Today's
+run added the production stage `validate_and_map_cv_data` (Groq
+llama-4-scout, Pydantic `ResumeSchema`) that every live `/profile/upload-cv/`
+upload has been running for weeks. So this is the first time the
+production parser path was benchmarked at scale on the v2 manifest.
+Treat the delta as "first measurement of the real pipeline," not "model
+got better today."
+
+**D2 — no code change.** Same `jobs.services.skill_extractor.extract_skills`,
+same denylist, same JD-anchoring filter as 2026-05-06. The +0.064 F1 lift
+is run-to-run variance with `--repeats 1`. Re-run with `--repeats 3` if you
+want a confidence band before quoting it.
+
+**D3 — no code change either.** Same `compute_gap_analysis`, same Phase-2
+reconciliation. The Cohen's d jump (1.449 → 1.989) likely reflects the LLM
+being more decisive on the v2 manifest's auto-generated diagonal pairs
+(strong-bucket pairs are tighter targets than the legacy hand-curated 5×N
+cartesian set). Worth confirming with `--repeats 3` before celebrating.
+
+### Throttle flag (commit `6460796`)
+
+Added `--sleep SECS` to `parser_eval`, `skill_extractor_eval`, and `gap_eval`. Sleep happens *after* each LLM call inside the per-fixture loop, *after* `elapsed_ms` is captured, so latency metrics stay clean. Picked sleeps: parser 12s (validator output up to 8k tokens), gap 8s (output capped at 1500), skill_extractor 4s (smallest call). With these, parser_eval still triggered ~10 SDK-level 429 retries (validator is heavy); D2 and D3 were 429-free in one pass.
+
+### Open caveats carried into the next run
+
+- **3 schema-validation 400s in parser_eval.** `validate_and_map_cv_data` got tool-call validation errors for `/experiences/N/company expected string, but got null`. The fallback path (`Backfilled normalized_summary from raw CV text`) catches them, but `ResumeSchema` should accept nullable `company`/`title` so the LLM doesn't have to invent values.
+- **3 gap pairs at coverage<1.0.** Worth eyeballing `gap_eval.json` rows where `coverage.coverage_ratio < 1.0` to see what the reconciliation step missed.
+- **`cv_flutter_intern` is the parser's weakest CV** (skills_F1=0.34 vs the rest averaging ~0.83). Likely a label issue or a one-off PDF parsing bug.
+- **D5 stale.** Tailoring numbers in docs/README still cite 2026-05-06. Re-run `tailoring_eval --with-tailoring` after the next prompt or schema change.
+
+---
+
+## 2026-04-27 — D5 refresh after Groq TPD reset
 
 **Snapshot:** `benchmarks/results/2026-04-27/`
 **Report:** [`benchmarks/results/2026-04-27/REPORT.md`](results/2026-04-27/REPORT.md)
