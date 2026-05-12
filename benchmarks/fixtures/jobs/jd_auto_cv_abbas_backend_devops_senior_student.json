@@ -1,0 +1,47 @@
+{
+  "id": "jd_auto_cv_abbas_backend_devops_senior_student",
+  "title": "Junior DevOps Engineer",
+  "company": "NexaTech Solutions",
+  "description": "We are seeking a highly motivated Junior DevOps Engineer to join our team. As a Junior DevOps Engineer, you will play a critical role in ensuring the smooth operation of our systems and infrastructure.\n\nResponsibilities:\n- Design, implement, and maintain scalable and secure infrastructure\n- Collaborate with development teams to ensure seamless deployment of applications\n- Monitor and troubleshoot system performance issues\n- Develop and maintain automation scripts to streamline processes\n- Ensure compliance with industry standards and best practices\n\nMust-have skills:\n- Linux\n- Kubernetes\n- Node.js\n- Python\n- Terraform\n- Ansible\n- Networking fundamentals\n- CI/CD principles\n\nNice to have:\n- Experience with containerization (Docker)\n- Knowledge of agile development methodologies\n- Familiarity with monitoring and logging tools (Prometheus, ELK Stack)",
+  "expected_skills": [
+    "Linux",
+    "Kubernetes",
+    "Node.js",
+    "Python",
+    "Terraform",
+    "Ansible",
+    "Networking",
+    "CI/CD",
+    "Docker",
+    "Agile",
+    "Prometheus",
+    "C++"
+  ],
+  "expected_skills_must_have": [
+    "Linux",
+    "Kubernetes",
+    "Node.js",
+    "Python",
+    "Terraform",
+    "Ansible",
+    "Networking",
+    "CI/CD"
+  ],
+  "paired_cv_id": "cv_abbas_backend_devops_senior_student",
+  "_meta": {
+    "generated_by": "benchmarks.jd_generator",
+    "source_cv_id": "cv_abbas_backend_devops_senior_student",
+    "detected_role": "DevOps Engineer",
+    "detected_seniority": "junior",
+    "tech_stack_signals": [
+      "Linux",
+      "Kubernetes",
+      "Node.js",
+      "Python",
+      "C++",
+      "Terraform",
+      "Ansible",
+      "Networking"
+    ]
+  }
+}

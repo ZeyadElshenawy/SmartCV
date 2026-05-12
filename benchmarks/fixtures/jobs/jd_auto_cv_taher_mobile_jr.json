@@ -1,0 +1,42 @@
+{
+  "id": "jd_auto_cv_taher_mobile_jr",
+  "title": "Mobile Engineer (Flutter)",
+  "company": "PulsarTech Inc.",
+  "description": "We are seeking a junior Mobile Engineer (Flutter) to join our team. As a Mobile Engineer, you will be responsible for developing high-quality mobile applications using Flutter and Firebase. You will work closely with our cross-functional team to design, develop, test, and deploy mobile applications.\n\nResponsibilities:\n- Develop high-quality mobile applications using Flutter and Firebase\n- Collaborate with designers to implement UI/UX designs\n- Work with backend engineers to integrate APIs and data storage\n- Test and debug mobile applications\n- Participate in code reviews and contribute to the improvement of the codebase\n- Stay up-to-date with the latest trends and technologies in mobile development\n\nMust-have skills:\n- Flutter\n- Firebase\n- Dart\n- SQL\n- Mobile Development\n- Git\n- Agile\n- CI/CD\n\nNice to have:\n- Experience with REST API\n- Knowledge of UX design principles\n- Familiarity with testing frameworks",
+  "expected_skills": [
+    "Flutter",
+    "Firebase",
+    "Dart",
+    "SQL",
+    "Git",
+    "Agile",
+    "CI/CD",
+    "REST API",
+    "UX Design",
+    "Docker",
+    "Kubernetes"
+  ],
+  "expected_skills_must_have": [
+    "Flutter",
+    "Firebase",
+    "Dart",
+    "SQL",
+    "Git",
+    "Agile",
+    "CI/CD"
+  ],
+  "paired_cv_id": "cv_taher_mobile_jr",
+  "_meta": {
+    "generated_by": "benchmarks.jd_generator",
+    "source_cv_id": "cv_taher_mobile_jr",
+    "detected_role": "Mobile Engineer (Flutter)",
+    "detected_seniority": "junior",
+    "tech_stack_signals": [
+      "Flutter",
+      "Firebase",
+      "Mobile Development",
+      "Dart",
+      "SQL"
+    ]
+  }
+}

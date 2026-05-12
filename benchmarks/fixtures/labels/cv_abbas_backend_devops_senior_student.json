@@ -1,0 +1,26 @@
+{
+  "cv_id": "cv_abbas_backend_devops_senior_student",
+  "personal_info": {
+    "name": "Ahmed Mahmoud Abbas",
+    "email": "ahmedabbass871@gmail.com",
+    "phone": "+20 1114993108",
+    "location": "Egypt, Giza"
+  },
+  "education_count": 1,
+  "experience_count": 3,
+  "skills_canonical": [
+    "Rust", "C++", "Python", "Java", "JavaScript",
+    "Spring Boot", "FastAPI", "Flask", "Node.js", "PostgreSQL", "MongoDB",
+    "Docker", "Jenkins", "GitHub Actions", "Terraform", "Ansible",
+    "Kubernetes", "Prometheus", "Grafana",
+    "Linux", "Nginx", "AWS", "GCP",
+    "CCNA", "Networking",
+    "Git", "CI/CD",
+    "scikit-learn", "Pandas", "Streamlit", "RandomForest", "SMOTE", "PCA",
+    "RAG", "TF-IDF", "Ollama",
+    "REST API", "JWT"
+  ],
+  "section_presence": {
+    "summary": true, "experience": true, "education": true, "projects": true, "skills": true
+  }
+}

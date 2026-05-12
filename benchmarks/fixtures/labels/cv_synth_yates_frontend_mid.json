@@ -1,0 +1,18 @@
+{
+  "cv_id": "cv_synth_yates_frontend_mid",
+  "personal_info": {
+    "name": "Caspian Yates",
+    "email": "c.yates@email.com",
+    "phone": "(123) 456-7890",
+    "location": "Seattle, WA"
+  },
+  "education_count": 1,
+  "experience_count": 3,
+  "skills_canonical": [
+    "HTML5", "React.js", "GitHub", "Yarn", "Gulp", "Joomla", "Mocha",
+    "GraphQL", "Bootstrap", "Visual Studio Code", "Git", "Webpack"
+  ],
+  "section_presence": {
+    "summary": false, "experience": true, "education": true, "projects": false, "skills": true
+  }
+}

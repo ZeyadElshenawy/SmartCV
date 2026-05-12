@@ -1,0 +1,42 @@
+{
+  "id": "jd_auto_cv_synth_williams_frontend_jr",
+  "title": "Junior Frontend Engineer",
+  "company": "Techify Solutions",
+  "description": "We are looking for a Junior Frontend Engineer to join our team. As a Junior Frontend Engineer, you will be responsible for building responsive and user-friendly interfaces for our web applications.\n\nResponsibilities:\n- Develop high-quality frontend code using React and JavaScript/TypeScript\n- Collaborate with designers to implement visually appealing UI components\n- Work with backend engineers to integrate APIs and ensure seamless data flow\n- Participate in code reviews and contribute to the improvement of our codebase\n- Troubleshoot and debug issues to ensure a smooth user experience\n\nMust-have skills:\n- JavaScript\n- TypeScript\n- React\n- Node.js\n- Jest\n- Mocha/Chai\n\nNice to have:\n- Experience with CI/CD pipelines\n- Familiarity with Webpack and other bundling tools\n- Knowledge of GraphQL",
+  "expected_skills": [
+    "JavaScript",
+    "TypeScript",
+    "React",
+    "Node.js",
+    "Jest",
+    "Mocha",
+    "Chai",
+    "CI/CD",
+    "Webpack",
+    "GraphQL",
+    "HTML/CSS",
+    "Agile"
+  ],
+  "expected_skills_must_have": [
+    "JavaScript",
+    "TypeScript",
+    "React",
+    "Node.js",
+    "Jest",
+    "Mocha/Chai"
+  ],
+  "paired_cv_id": "cv_synth_williams_frontend_jr",
+  "_meta": {
+    "generated_by": "benchmarks.jd_generator",
+    "source_cv_id": "cv_synth_williams_frontend_jr",
+    "detected_role": "Frontend Engineer",
+    "detected_seniority": "junior",
+    "tech_stack_signals": [
+      "JavaScript/TypeScript",
+      "React",
+      "Node.js",
+      "Jest",
+      "Mocha/Chai"
+    ]
+  }
+}

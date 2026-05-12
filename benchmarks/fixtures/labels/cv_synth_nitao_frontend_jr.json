@@ -1,0 +1,18 @@
+{
+  "cv_id": "cv_synth_nitao_frontend_jr",
+  "personal_info": {
+    "name": "Dee Nitao",
+    "email": "d.nitao@email.com",
+    "phone": "(123) 456-7890",
+    "location": "Hayward, CA"
+  },
+  "education_count": 1,
+  "experience_count": 2,
+  "skills_canonical": [
+    "HTML", "CSS", "JavaScript", "React.js", "Node.js", "Angular.js",
+    "WordPress", "Bootstrap", "NoSQL", "Agile", "Scrum", "AWS"
+  ],
+  "section_presence": {
+    "summary": true, "experience": true, "education": true, "projects": false, "skills": true
+  }
+}

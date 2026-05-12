@@ -1,0 +1,43 @@
+{
+  "id": "jd_auto_cv_generated_review_export",
+  "title": "Senior AI/ML Engineer",
+  "company": "Aurora Tech",
+  "description": "We are seeking a highly experienced Senior AI/ML Engineer to join our team. As a Senior AI/ML Engineer, you will be responsible for designing, developing, and deploying AI/ML models and algorithms. You will work closely with our data science team to identify business problems and develop solutions.\n\nResponsibilities:\n- Design, develop, and deploy AI/ML models and algorithms\n- Collaborate with data scientists to identify business problems and develop solutions\n- Work with cross-functional teams to integrate AI/ML models into products\n- Optimize AI/ML models for performance and scalability\n- Stay up-to-date with industry trends and advancements in AI/ML\n\nMust-have skills:\n- Python\n- PyTorch\n- TensorFlow\n- Cuda\n- SQL\n- Machine Learning\n- Deep Learning\n- Natural Language Processing\n\nNice to have:\n- Experience with cloud platforms (AWS, GCP, Azure)\n- Knowledge of containerization (Docker)\n- Familiarity with agile development methodologies",
+  "expected_skills": [
+    "Python",
+    "PyTorch",
+    "TensorFlow",
+    "Cuda",
+    "SQL",
+    "Machine Learning",
+    "Deep Learning",
+    "Natural Language Processing",
+    "AWS",
+    "Docker",
+    "Agile"
+  ],
+  "expected_skills_must_have": [
+    "Python",
+    "PyTorch",
+    "TensorFlow",
+    "Cuda",
+    "SQL",
+    "Machine Learning",
+    "Deep Learning",
+    "Natural Language Processing"
+  ],
+  "paired_cv_id": "cv_generated_review_export",
+  "_meta": {
+    "generated_by": "benchmarks.jd_generator",
+    "source_cv_id": "cv_generated_review_export",
+    "detected_role": "AI/ML Engineer",
+    "detected_seniority": "senior",
+    "tech_stack_signals": [
+      "Python",
+      "PyTorch",
+      "TensorFlow",
+      "Cuda",
+      "SQL"
+    ]
+  }
+}

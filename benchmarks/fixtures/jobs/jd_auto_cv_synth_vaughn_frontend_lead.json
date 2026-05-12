@@ -1,0 +1,47 @@
+{
+  "id": "jd_auto_cv_synth_vaughn_frontend_lead",
+  "title": "Senior Frontend Engineer",
+  "company": "Aurora Tech",
+  "description": "We are seeking an experienced Senior Frontend Engineer to lead the development of our web applications. As a senior engineer, you will be responsible for designing, implementing, and maintaining large-scale frontend applications.\n\nResponsibilities:\n- Lead the development of frontend applications using Angular and related technologies\n- Collaborate with designers to implement visually appealing and user-friendly interfaces\n- Work with backend engineers to integrate frontend and backend services\n- Optimize application performance and ensure cross-browser compatibility\n- Mentor junior engineers and provide technical guidance\n- Participate in code reviews and ensure high-quality code\n\nMust-have skills:\n- Strong proficiency in Angular and JavaScript\n- Experience with Bootstrap and Sass\n- Knowledge of Flexbox and CSS grid systems\n- Familiarity with Gulp and build tools\n- Understanding of Karma and testing frameworks\n- Experience with Lighthouse and Chrome DevTools\n\nNice to have:\n- Experience with Webpack and module bundlers\n- Knowledge of GraphQL and API design principles\n- Familiarity with Docker and containerization",
+  "expected_skills": [
+    "Angular",
+    "JavaScript",
+    "Bootstrap",
+    "Sass",
+    "Flexbox",
+    "Gulp",
+    "Karma",
+    "Lighthouse",
+    "Chrome DevTools",
+    "Webpack",
+    "GraphQL",
+    "Docker"
+  ],
+  "expected_skills_must_have": [
+    "Angular",
+    "JavaScript",
+    "Bootstrap",
+    "Sass",
+    "Flexbox",
+    "Gulp",
+    "Karma",
+    "Lighthouse"
+  ],
+  "paired_cv_id": "cv_synth_vaughn_frontend_lead",
+  "_meta": {
+    "generated_by": "benchmarks.jd_generator",
+    "source_cv_id": "cv_synth_vaughn_frontend_lead",
+    "detected_role": "Frontend Engineer",
+    "detected_seniority": "senior",
+    "tech_stack_signals": [
+      "Angular",
+      "Bootstrap",
+      "Sass",
+      "Flexbox",
+      "Gulp",
+      "Karma",
+      "Lighthouse",
+      "Chrome DevTools"
+    ]
+  }
+}

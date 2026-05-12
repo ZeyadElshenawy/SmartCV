@@ -30,3 +30,5 @@ image.png
 
 # Runtime caches
 chrome_profiles/
+storage_state/
+debug_dumps/

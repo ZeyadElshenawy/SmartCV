@@ -2,17 +2,18 @@
   "cv_id": "cv_frontend_jquery_legacy",
   "personal_info": {
     "name": "First Last",
-    "email": null,
-    "phone": null,
-    "location": "London, United Kingdom"
+    "email": "first.last@gmail.com",
+    "phone": "+44 1234567890",
+    "location": "Leeds, United Kingdom"
   },
-  "education_count": 0,
-  "experience_count": 2,
+  "education_count": 1,
+  "experience_count": 3,
   "skills_canonical": [
-    "HTML", "CSS", "JavaScript", "jQuery", "SEO",
-    "Responsive Design", "Web Maintenance"
+    "HTML", "CSS", "JavaScript", "jQuery", "TypeScript", "Vue.js",
+    "AJAX", "Java", "Spring", "Debugging", "Testing", "Cross-Browser Development",
+    "Responsive Web Design", "Agile Methodologies", "SEO"
   ],
   "section_presence": {
-    "summary": false, "experience": true, "education": false, "projects": false, "skills": false
+    "summary": false, "experience": true, "education": true, "projects": false, "skills": true
   }
 }

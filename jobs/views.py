@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.contrib.auth import get_user_model
-from .models import Job
+from .models import Job, RecommendedJob, ScrapeJob, JobListing
 from .services.scrapers import scrape_job
 from .services.scrapers.base import ScrapeError
 from .services.skill_extractor import extract_skills
@@ -282,3 +282,146 @@ def update_job_status_api(request):
     job.save(update_fields=['application_status'])
 
     return JsonResponse({'success': True})
+
+
+# ===============================================================
+# Recommended Jobs feature — scan trigger, polling, and per-rec actions
+# ===============================================================
+
+from django.views.decorators.http import require_POST, require_GET
+
+
+@login_required
+@require_POST
+def scan_recommended_jobs(request):
+    """Kick off a background scrape using the user's saved JobPreferences.
+
+    Returns the new ScrapeJob id immediately; the front-end polls
+    `scrape_status` until terminal. We deliberately avoid blocking the
+    request thread on the scrape itself — the runner ports a daemon
+    worker pattern from the reference scraper.
+    """
+    from profiles.models import JobPreferences
+    from .services.job_sources import runner
+
+    prefs = JobPreferences.objects.filter(user=request.user).first()
+    if not prefs or not prefs.keyword or not prefs.locations or not prefs.sources:
+        return JsonResponse(
+            {"error": "Set your job preferences first.",
+             "redirect": "/profiles/preferences/jobs/"},
+            status=400,
+        )
+
+    # If a scan is already in flight, return its id rather than starting a duplicate.
+    in_flight = ScrapeJob.objects.filter(
+        user=request.user,
+        status__in=[ScrapeJob.STATUS_PENDING, ScrapeJob.STATUS_RUNNING],
+    ).order_by('-created_at').first()
+    if in_flight:
+        return JsonResponse({
+            "scrape_job_id": str(in_flight.id),
+            "status": in_flight.status,
+            "already_running": True,
+        }, status=202)
+
+    scrape_job = ScrapeJob.objects.create(
+        user=request.user,
+        params_json=prefs.to_params(),
+        status=ScrapeJob.STATUS_PENDING,
+    )
+    runner.start_in_thread(scrape_job.id)
+    return JsonResponse({
+        "scrape_job_id": str(scrape_job.id),
+        "status": scrape_job.status,
+    }, status=202)
+
+
+@login_required
+@require_GET
+def scrape_status(request, scrape_job_id):
+    """Polling endpoint for the dashboard progress modal."""
+    job = ScrapeJob.objects.filter(id=scrape_job_id, user=request.user).first()
+    if not job:
+        return JsonResponse({"error": "Not found"}, status=404)
+
+    payload = {
+        "id": str(job.id),
+        "status": job.status,
+        "progress_pct": job.progress_pct,
+        "completed_steps": job.completed_steps,
+        "total_steps": job.total_steps,
+        "current_step": job.current_step,
+        "message": job.message,
+        "is_terminal": job.is_terminal,
+    }
+    if job.is_terminal:
+        payload["recommendations_count"] = RecommendedJob.objects.filter(
+            user=request.user, status='new',
+        ).count()
+        if job.status == ScrapeJob.STATUS_ERROR:
+            payload["error"] = (job.error or "").splitlines()[:5]
+    return JsonResponse(payload)
+
+
+@login_required
+@require_POST
+def scrape_cancel(request, scrape_job_id):
+    """Cooperative cancel — sets a flag the runner polls between sources/locations."""
+    updated = ScrapeJob.objects.filter(
+        id=scrape_job_id,
+        user=request.user,
+        status__in=[ScrapeJob.STATUS_PENDING, ScrapeJob.STATUS_RUNNING],
+    ).update(cancel_requested=True)
+    return JsonResponse({"cancelled": bool(updated)})
+
+
+@login_required
+@require_POST
+def recommended_save(request, rec_id):
+    """Promote a RecommendedJob into the user's job board (status=saved)."""
+    rec = RecommendedJob.objects.filter(id=rec_id, user=request.user).first()
+    if not rec:
+        return JsonResponse({"error": "Not found"}, status=404)
+
+    # Avoid duplicate Job rows if the same URL was saved manually before.
+    job = Job.objects.filter(user=request.user, url=rec.url).first()
+    if not job:
+        job = Job.objects.create(
+            user=request.user,
+            url=rec.url,
+            title=rec.title or "Untitled role",
+            company=rec.company or "",
+            description=rec.description or "",
+            extracted_skills=[],
+            application_status='saved',
+        )
+        # Skill extraction is best-effort — failures shouldn't block the save.
+        try:
+            from .services.skill_extractor import extract_skills
+            job.extracted_skills = extract_skills(rec.description or "") or []
+            job.save(update_fields=['extracted_skills'])
+        except Exception:
+            logging.getLogger(__name__).exception("Skill extraction failed for saved rec %s", rec.id)
+
+    rec.status = 'saved'
+    rec.save(update_fields=['status'])
+    return JsonResponse({"saved_job_id": str(job.id)})
+
+
+@login_required
+@require_POST
+def recommended_dismiss(request, rec_id):
+    """Hide a recommendation; future scans won't re-suggest the same URL."""
+    rec = RecommendedJob.objects.filter(id=rec_id, user=request.user).first()
+    if not rec:
+        return JsonResponse({"error": "Not found"}, status=404)
+    rec.status = 'dismissed'
+    rec.save(update_fields=['status'])
+    return JsonResponse({"dismissed": True})
+
+
+@login_required
+def recommended_detail(request, rec_id):
+    """Full description page for a single recommendation."""
+    rec = get_object_or_404(RecommendedJob, id=rec_id, user=request.user)
+    return render(request, 'jobs/recommended_detail.html', {'rec': rec})

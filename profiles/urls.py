@@ -47,4 +47,9 @@ urlpatterns = [
     # Project enrichment + dedupe
     path('api/projects/enrich-from-signals/', views.enrich_from_signals_view, name='enrich_from_signals'),
     path('projects/review/', views.projects_review_view, name='projects_review'),
+
+    # Job discovery preferences + source-login status
+    path('preferences/jobs/', views.job_preferences_view, name='job_preferences'),
+    path('preferences/jobs/suggest/', views.suggest_job_preferences_view, name='suggest_job_preferences'),
+    path('preferences/job-sources/', views.job_sources_setup_view, name='job_sources_setup'),
 ]

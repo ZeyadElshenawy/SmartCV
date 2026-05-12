@@ -1,0 +1,41 @@
+{
+  "id": "jd_auto_cv_bahgat_ai_research_senior",
+  "title": "AI/ML Engineer (Mid-Level)",
+  "company": "NovaTech AI Solutions",
+  "description": "We are seeking an experienced AI/ML Engineer to join our team. As an AI/ML Engineer, you will be responsible for designing, developing, and deploying machine learning models and algorithms. You will work closely with our data science team to identify business problems and develop solutions.\n\nResponsibilities:\n- Design, develop, and deploy machine learning models and algorithms\n- Collaborate with data scientists to identify business problems and develop solutions\n- Work with cross-functional teams to integrate machine learning models into products\n- Optimize and improve the performance of existing machine learning models\n- Stay up-to-date with industry trends and advancements in AI/ML\n\nMust-have skills:\n- Python\n- PyTorch\n- TensorFlow\n- Natural Language Processing\n- Cuda\n- Git\n- Agile\n- CI/CD\n\nNice to have:\n- Experience with cloud platforms (AWS, GCP, Azure)\n- Knowledge of containerization (Docker)\n- Familiarity with monitoring and logging tools (Prometheus, ELK Stack)",
+  "expected_skills": [
+    "Python",
+    "PyTorch",
+    "TensorFlow",
+    "Cuda",
+    "Natural Language Processing",
+    "Git",
+    "Agile",
+    "CI/CD",
+    "AWS",
+    "Docker",
+    "Prometheus"
+  ],
+  "expected_skills_must_have": [
+    "Python",
+    "PyTorch",
+    "TensorFlow",
+    "Cuda",
+    "Natural Language Processing",
+    "Git"
+  ],
+  "paired_cv_id": "cv_bahgat_ai_research_senior",
+  "_meta": {
+    "generated_by": "benchmarks.jd_generator",
+    "source_cv_id": "cv_bahgat_ai_research_senior",
+    "detected_role": "AI/ML Engineer",
+    "detected_seniority": "mid",
+    "tech_stack_signals": [
+      "Python",
+      "PyTorch",
+      "TensorFlow",
+      "Cuda",
+      "Natural Language Processing"
+    ]
+  }
+}

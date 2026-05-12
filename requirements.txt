@@ -22,3 +22,4 @@ coverage==7.13.5  # dev only — used by `coverage run manage.py test` and bench
 selenium>=4.20.0  # optional — LinkedIn profile scraper (gated by LINKEDIN_SCRAPING_ENABLED)
 lxml>=5.0.0  # optional — parser backend for the LinkedIn scraper
 undetected-chromedriver>=3.5.5  # optional — bypass LinkedIn bot challenges; plain selenium is the fallback
+playwright>=1.48  # job-board scraping (LinkedIn/Indeed/Glassdoor); run `python -m playwright install chromium` after install

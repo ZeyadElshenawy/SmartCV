@@ -1,0 +1,42 @@
+{
+  "id": "jd_auto_cv_synth_crane_frontend_intern",
+  "title": "Frontend Engineer (Intern)",
+  "company": "Techify Solutions",
+  "description": "We are seeking a highly motivated and enthusiastic Frontend Engineer (Intern) to join our team. As a Frontend Engineer, you will be responsible for building responsive and user-friendly interfaces for our web applications.\n\nResponsibilities:\n- Assist in the development of frontend code using React and related technologies\n- Collaborate with designers to implement visually appealing and interactive UI components\n- Participate in code reviews and contribute to the improvement of the codebase\n- Troubleshoot and debug issues reported by users or identified through testing\n- Stay up-to-date with industry trends and best practices in frontend development\n\nMust-have skills:\n- React\n- HTML5\n- Bootstrap\n- Jest\n- Git\n- GitHub\n- CSS3\n- JavaScript\n\nNice to have:\n- Redux\n- Webpack\n- CI/CD",
+  "expected_skills": [
+    "React",
+    "HTML5",
+    "Bootstrap",
+    "Jest",
+    "Git",
+    "GitHub",
+    "CSS3",
+    "JavaScript",
+    "Redux",
+    "Webpack",
+    "CI/CD"
+  ],
+  "expected_skills_must_have": [
+    "React",
+    "HTML5",
+    "Bootstrap",
+    "Jest",
+    "Git",
+    "GitHub"
+  ],
+  "paired_cv_id": "cv_synth_crane_frontend_intern",
+  "_meta": {
+    "generated_by": "benchmarks.jd_generator",
+    "source_cv_id": "cv_synth_crane_frontend_intern",
+    "detected_role": "Frontend Engineer",
+    "detected_seniority": "intern",
+    "tech_stack_signals": [
+      "React",
+      "HTML5",
+      "Bootstrap",
+      "Jest",
+      "GitHub",
+      "Git"
+    ]
+  }
+}

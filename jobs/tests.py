@@ -127,3 +127,199 @@ class GenericSoftSkillDenylistTests(SimpleTestCase):
         # Sanity: the denylist must not accidentally cover real technical skills.
         for technical in ("python", "react", "kubernetes", "postgresql", "aws"):
             self.assertNotIn(technical, _GENERIC_SOFT_SKILL_DENYLIST)
+
+
+# ===============================================================
+# Tests for the recommended-jobs feature: scoring, dedup, URL normalization.
+# ===============================================================
+
+from unittest.mock import patch
+from uuid import uuid4
+
+from django.contrib.auth import get_user_model
+from django.test import TestCase
+
+from jobs.models import JobListing, RecommendedJob, ScrapeJob
+from jobs.services.url_normalizer import normalize_url
+
+
+class UrlNormalizerTests(TestCase):
+    def test_indeed_keeps_jk_drops_rest(self):
+        self.assertEqual(
+            normalize_url("https://www.indeed.com/viewjob?jk=abc123&from=junk&tk=foo"),
+            "https://www.indeed.com/viewjob?jk=abc123",
+        )
+
+    def test_glassdoor_keeps_jl_drops_rest(self):
+        self.assertEqual(
+            normalize_url("https://www.glassdoor.com/job-listing/foo-IC123?jl=999&srs=trk&pos=2"),
+            "https://www.glassdoor.com/job-listing/foo-IC123?jl=999",
+        )
+
+    def test_default_strips_query_and_trailing_slash(self):
+        self.assertEqual(
+            normalize_url("https://example.com/job/x/?utm_source=foo#frag"),
+            "https://example.com/job/x",
+        )
+
+    def test_blank_input_returns_blank(self):
+        self.assertEqual(normalize_url(""), "")
+        self.assertEqual(normalize_url("not-a-url"), "not-a-url")
+
+
+class JobScoringTests(TestCase):
+    """Exercises the scoring pipeline with the gap analyzer mocked out so
+    we don't burn LLM tokens in CI. Verifies the dedup-with-status-preservation
+    contract that protects user-set saved/dismissed flags."""
+
+    def setUp(self):
+        from profiles.models import UserProfile
+        User = get_user_model()
+        self.user = User.objects.create_user(username="scoring@test", email="scoring@test", password="x")
+        self.profile = UserProfile.objects.create(
+            user=self.user,
+            data_content={
+                "skills": [{"name": "Python"}, {"name": "Django"}],
+                "experiences": [{"title": "Backend Engineer", "company": "Acme"}],
+                "summary": "Backend engineer with Django experience.",
+            },
+        )
+        self.scrape_job = ScrapeJob.objects.create(
+            user=self.user,
+            params_json={"keyword": "Backend"},
+            status=ScrapeJob.STATUS_RUNNING,
+        )
+
+    def _make_listing(self, *, title, url, description="Build APIs in Python and Django."):
+        return JobListing.objects.create(
+            scrape_job=self.scrape_job,
+            source="LinkedIn",
+            title=title,
+            company="Acme",
+            url=url,
+            description=description,
+            raw_text=description,
+            unique_hash=str(uuid4()),
+        )
+
+    @patch("jobs.services.job_scoring.compute_gap_analysis")
+    @patch("jobs.services.job_scoring.extract_skills", return_value=["Python", "Django"])
+    def test_top_k_persisted_with_scores(self, _extract, gap):
+        gap.side_effect = [
+            {"similarity_score": 0.92},
+            {"similarity_score": 0.71},
+            {"similarity_score": 0.30},
+        ]
+        self._make_listing(title="Senior Python Backend Engineer", url="https://l/i/1")
+        self._make_listing(title="Mid-level Django Engineer",     url="https://l/i/2")
+        self._make_listing(title="Off-topic Sales Manager",        url="https://l/i/3")
+
+        from jobs.services.job_scoring import score_listings_for_user
+        n = score_listings_for_user(self.user.id, self.scrape_job.id, top_k=3)
+
+        recs = list(RecommendedJob.objects.filter(user=self.user).order_by("-match_score"))
+        self.assertEqual(n, 3)
+        self.assertEqual([r.match_score for r in recs], [92, 71, 30])
+        self.assertEqual(set(r.status for r in recs), {"new"})
+
+    @patch("jobs.services.job_scoring.compute_gap_analysis")
+    @patch("jobs.services.job_scoring.extract_skills", return_value=["Python"])
+    def test_dedup_preserves_user_status(self, _extract, gap):
+        gap.return_value = {"similarity_score": 0.9}
+
+        # User dismissed this URL on a previous scan.
+        from jobs.services.url_normalizer import normalize_url
+        normed = normalize_url("https://l/i/dismissed")
+        RecommendedJob.objects.create(
+            user=self.user,
+            url=normed,
+            title="old title",
+            company="old co",
+            description="old",
+            match_score=10,
+            status="dismissed",
+        )
+        # Same URL re-emerges from a new scrape.
+        self._make_listing(title="Senior Backend Engineer", url="https://l/i/dismissed")
+
+        from jobs.services.job_scoring import score_listings_for_user
+        score_listings_for_user(self.user.id, self.scrape_job.id, top_k=5)
+
+        rec = RecommendedJob.objects.get(user=self.user, url=normed)
+        self.assertEqual(rec.status, "dismissed", "user dismissal must not be reset")
+        # Score + metadata DO refresh.
+        self.assertEqual(rec.match_score, 90)
+        self.assertEqual(rec.title, "Senior Backend Engineer")
+
+    @patch("jobs.services.job_scoring.compute_gap_analysis")
+    @patch("jobs.services.job_scoring.extract_skills", return_value=[])
+    def test_no_listings_returns_zero(self, _extract, _gap):
+        from jobs.services.job_scoring import score_listings_for_user
+        n = score_listings_for_user(self.user.id, self.scrape_job.id)
+        self.assertEqual(n, 0)
+        self.assertEqual(RecommendedJob.objects.filter(user=self.user).count(), 0)
+
+
+class JobPreferencesFormSeedTests(TestCase):
+    """Verifies the auto-seed-from-CV behaviour for fresh JobPreferences."""
+
+    def test_seed_pulls_latest_role_and_location(self):
+        from profiles.forms import seed_defaults_from_profile
+        from profiles.models import JobPreferences, UserProfile
+        User = get_user_model()
+        user = User.objects.create_user(username="seed@test", email="seed@test", password="x")
+        profile = UserProfile.objects.create(
+            user=user,
+            location="Berlin",
+            data_content={
+                "experiences": [
+                    {"title": "Backend Engineer", "company": "Acme"},
+                    {"title": "Junior Dev", "company": "Old"},
+                ],
+                "skills": [{"name": "Python"}],
+            },
+        )
+        prefs = JobPreferences(user=user)
+        seed_defaults_from_profile(prefs, profile)
+        self.assertEqual(prefs.keyword, "Backend Engineer")
+        self.assertEqual(prefs.locations, ["Berlin"])
+        self.assertEqual(prefs.sources, ["linkedin"])
+
+    def test_seed_falls_back_to_remote_when_no_location(self):
+        from profiles.forms import seed_defaults_from_profile
+        from profiles.models import JobPreferences, UserProfile
+        User = get_user_model()
+        user = User.objects.create_user(username="seed2@test", email="seed2@test", password="x")
+        profile = UserProfile.objects.create(user=user, data_content={"experiences": []})
+        prefs = JobPreferences(user=user)
+        seed_defaults_from_profile(prefs, profile)
+        self.assertEqual(prefs.locations, ["Remote"])
+        self.assertIn("remote", prefs.workplace_types)
+
+
+class PreferenceSuggesterCleanupTests(TestCase):
+    """Defensive post-processing of LLM-suggested keywords. Catches the
+    'Internet of Things (IoT) Internship' shape that echoed a past role title."""
+
+    def test_strips_parens_and_seniority(self):
+        from profiles.services.preference_suggester import _clean_keyword
+        self.assertEqual(_clean_keyword("Internet of Things (IoT) Internship"), "Internet of Things")
+
+    def test_strips_seniority_prefix(self):
+        from profiles.services.preference_suggester import _clean_keyword
+        self.assertEqual(_clean_keyword("Senior Backend Engineer"), "Backend Engineer")
+
+    def test_already_clean_keyword_unchanged(self):
+        from profiles.services.preference_suggester import _clean_keyword
+        self.assertEqual(_clean_keyword("Data Scientist"), "Data Scientist")
+
+    def test_caps_at_four_words(self):
+        from profiles.services.preference_suggester import _clean_keyword
+        self.assertEqual(
+            _clean_keyword("Backend Python Django REST API Engineer"),
+            "Backend Python Django REST",
+        )
+
+    def test_handles_slash_alternatives(self):
+        from profiles.services.preference_suggester import _clean_keyword
+        self.assertEqual(_clean_keyword("Engineer / Developer"), "Engineer")

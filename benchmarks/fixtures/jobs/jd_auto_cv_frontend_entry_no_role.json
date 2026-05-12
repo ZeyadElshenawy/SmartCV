@@ -1,0 +1,44 @@
+{
+  "id": "jd_auto_cv_frontend_entry_no_role",
+  "title": "Junior Frontend Engineer",
+  "company": "FuturaTech Inc.",
+  "description": "We are seeking a Junior Frontend Engineer to join our dynamic team. As a Junior Frontend Engineer, you will be responsible for developing high-quality web applications that meet our company's standards.\n\nResponsibilities:\n- Develop responsive web applications using HTML5, CSS3, and JavaScript\n- Collaborate with designers to implement visually appealing UI components\n- Participate in code reviews and contribute to the improvement of our codebase\n- Troubleshoot and debug issues reported by users\n- Stay up-to-date with the latest frontend development trends and best practices\n\nMust-have skills:\n- JavaScript\n- HTML5\n- CSS3\n- Bootstrap\n- Webpack\n- GitHub\n\nNice to have:\n- TypeScript\n- WebStorm\n- CI/CD",
+  "expected_skills": [
+    "JavaScript",
+    "TypeScript",
+    "HTML5",
+    "CSS3",
+    "Bootstrap",
+    "Webpack",
+    "GitHub",
+    "WebStorm",
+    "CI/CD",
+    "Agile",
+    "React",
+    "Jest"
+  ],
+  "expected_skills_must_have": [
+    "JavaScript",
+    "HTML5",
+    "CSS3",
+    "Bootstrap",
+    "Webpack",
+    "GitHub"
+  ],
+  "paired_cv_id": "cv_frontend_entry_no_role",
+  "_meta": {
+    "generated_by": "benchmarks.jd_generator",
+    "source_cv_id": "cv_frontend_entry_no_role",
+    "detected_role": "Frontend Engineer",
+    "detected_seniority": "junior",
+    "tech_stack_signals": [
+      "JavaScript/TypeScript",
+      "HTML5",
+      "CSS3",
+      "Bootstrap",
+      "Webpack",
+      "GitHub",
+      "WebStorm"
+    ]
+  }
+}

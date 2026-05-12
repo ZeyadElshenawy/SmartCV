@@ -1,0 +1,44 @@
+{
+  "id": "jd_auto_cv_synth_santos_frontend_senior",
+  "title": "Senior Frontend Engineer",
+  "company": "Techify Solutions",
+  "description": "We are looking for a highly experienced Senior Frontend Engineer to lead our frontend development team. The ideal candidate will have a strong background in building scalable and maintainable frontend applications using modern web technologies.\n\nResponsibilities:\n- Lead the design and development of frontend applications using React, Angular.js, or Vue.js\n- Collaborate with cross-functional teams to deliver high-quality software products\n- Develop and maintain large-scale frontend applications with a focus on performance, security, and accessibility\n- Mentor junior engineers and provide technical guidance\n- Participate in code reviews and ensure adherence to coding standards\n\nMust-have skills:\n- JavaScript\n- React\n- TypeScript\n- HTML/CSS\n- Webpack\n- Jest\n- CI/CD\n- Git\n\nNice to have:\n- Experience with server-side rendering\n- Knowledge of GraphQL\n- Familiarity with Docker",
+  "expected_skills": [
+    "JavaScript",
+    "React",
+    "TypeScript",
+    "HTML/CSS",
+    "Webpack",
+    "Jest",
+    "CI/CD",
+    "Git",
+    "Docker",
+    "GraphQL",
+    "Server-side rendering",
+    "Agile"
+  ],
+  "expected_skills_must_have": [
+    "JavaScript",
+    "React",
+    "TypeScript",
+    "HTML/CSS",
+    "Webpack",
+    "Jest",
+    "CI/CD",
+    "Git"
+  ],
+  "paired_cv_id": "cv_synth_santos_frontend_senior",
+  "_meta": {
+    "generated_by": "benchmarks.jd_generator",
+    "source_cv_id": "cv_synth_santos_frontend_senior",
+    "detected_role": "Frontend Engineer",
+    "detected_seniority": "senior",
+    "tech_stack_signals": [
+      "JavaScript",
+      "React",
+      "Angular.js",
+      "Vue.js",
+      "TypeScript"
+    ]
+  }
+}

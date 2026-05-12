@@ -138,6 +138,50 @@ def _is_jd_anchored(skill: str, jd_lower: str) -> bool:
 # --------------------------------------------------
 # Full extraction pipeline (Using LangChain + Groq)
 # --------------------------------------------------
+# Canonical-name collapse map for short common-prefix mismatches that fail the
+# 0.85 fuzzy matcher (e.g., 'REST' vs 'REST API' = 0.667, below cutoff).
+# SKILL_KB covers most aliases; this catches the residue.
+_CANONICAL_COLLAPSE = {
+    "rest": "REST API", "rest api": "REST API", "rest apis": "REST API",
+    "restful": "REST API", "restful api": "REST API", "restful apis": "REST API",
+    "vue": "Vue.js", "vue.js": "Vue.js", "vuejs": "Vue.js",
+    "react": "React", "react.js": "React", "reactjs": "React",
+    "node": "Node.js", "node.js": "Node.js", "nodejs": "Node.js",
+    "agile": "Agile", "agile development": "Agile",
+    "agile development methodologies": "Agile", "agile methodologies": "Agile",
+    "ci/cd": "CI/CD", "ci/cd pipeline": "CI/CD", "ci/cd pipelines": "CI/CD",
+    "html": "HTML5", "html5": "HTML5",
+    "css": "CSS3", "css3": "CSS3",
+    "typescript": "TypeScript", "ts": "TypeScript",
+    "javascript": "JavaScript", "js": "JavaScript",
+    "k8s": "Kubernetes", "kubernetes": "Kubernetes",
+    "postgres": "PostgreSQL", "postgresql": "PostgreSQL",
+    "ts/cd": "CI/CD",  # common typo
+}
+
+
+def _build_skill_canonical_map():
+    """One-time alias-lower → canonical map: SKILL_KB ∪ _CANONICAL_COLLAPSE."""
+    out: dict[str, str] = {}
+    for canonical, aliases in SKILL_KB.items():
+        out[canonical.lower()] = canonical
+        for a in (aliases or []):
+            out[a.strip().lower()] = canonical
+    # _CANONICAL_COLLAPSE wins on conflict (more idiomatic forms).
+    out.update(_CANONICAL_COLLAPSE)
+    return out
+
+
+_SKILL_CANONICAL_MAP = _build_skill_canonical_map()
+
+
+def _canonicalize_skill(s: str) -> str:
+    """Return the canonical surface form for s if known, else s.strip()."""
+    if not s:
+        return s
+    return _SKILL_CANONICAL_MAP.get(s.strip().lower(), s.strip())
+
+
 def extract_skills(text):
     if not text:
         return []
@@ -185,7 +229,20 @@ Job Description Text to analyze:
                 logger.debug("skill_extractor: dropped unanchored '%s' (no substring or word match in JD)", s)
                 continue
             out.append(s)
-        return out
+
+        # Canonicalize and dedupe: 'REST' / 'RESTful API' / 'REST APIs' all collapse
+        # to 'REST API'. Without this, downstream gap analysis sees them as distinct
+        # skills, and the eval's 0.85 fuzzy matcher misses short prefix variants.
+        canonical: list[str] = []
+        seen: set[str] = set()
+        for s in out:
+            c = _canonicalize_skill(s)
+            key = c.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            canonical.append(c)
+        return canonical
 
     except Exception as e:
         logger.error(f"Failed to extract skills: {e}")

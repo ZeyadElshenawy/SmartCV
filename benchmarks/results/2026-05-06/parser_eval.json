@@ -1,0 +1,2629 @@
+{
+  "benchmark": "parser_eval",
+  "version": 1,
+  "fixture_kind": "real_anonymized_cv",
+  "n_cvs": 25,
+  "repeats_per_cv": 1,
+  "wall_seconds": 334.45,
+  "aggregate": {
+    "personal_info_accuracy": {
+      "n": 25,
+      "min": 0.75,
+      "mean": 0.91,
+      "median": 1.0,
+      "p95": 1.0,
+      "max": 1.0,
+      "std": 0.12
+    },
+    "section_presence_accuracy": {
+      "n": 25,
+      "min": 0.4,
+      "mean": 0.8,
+      "median": 0.8,
+      "p95": 1.0,
+      "max": 1.0,
+      "std": 0.16
+    },
+    "skills_jaccard": {
+      "n": 25,
+      "min": 0.0,
+      "mean": 0.614,
+      "median": 0.6667,
+      "p95": 0.92,
+      "max": 1.0,
+      "std": 0.2771
+    },
+    "skills_f1": {
+      "n": 25,
+      "min": 0.0,
+      "mean": 0.7425,
+      "median": 0.8182,
+      "p95": 0.99,
+      "max": 1.0,
+      "std": 0.2685
+    },
+    "skills_f1_with_section": {
+      "n": 23,
+      "min": 0.0,
+      "mean": 0.7437,
+      "median": 0.8182,
+      "p95": 1.0,
+      "max": 1.0,
+      "std": 0.2774
+    },
+    "skills_jaccard_with_section": {
+      "n": 23,
+      "min": 0.0,
+      "mean": 0.6203,
+      "median": 0.6667,
+      "p95": 0.92,
+      "max": 1.0,
+      "std": 0.2814
+    },
+    "latency_ms": {
+      "n": 25,
+      "min": 795.41,
+      "mean": 13369.4704,
+      "median": 12323.21,
+      "p95": 28906.78,
+      "max": 37511.91,
+      "std": 11922.891
+    }
+  },
+  "rows": [
+    {
+      "cv_id": "cv_flutter_intern",
+      "primary_role": "mobile",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 1.0,
+      "section_presence_accuracy_mean": 0.6,
+      "skill_jaccard_mean": 0.3103,
+      "skill_f1_mean": 0.4865,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "Mohamed Abd Elghany",
+                "labeled": "Mohamed Abd Elghany"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "info.mohamedabdelghany@gmail.com",
+                "labeled": "info.mohamedabdelghany@gmail.com"
+              },
+              "phone": {
+                "status": "match",
+                "parsed": "01287002189",
+                "labeled": "01287002189"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "Mansoura, Egypt",
+                "labeled": "Mansoura, Egypt"
+              }
+            },
+            "considered": 4,
+            "correct": 4,
+            "accuracy": 1.0
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": true,
+                "actual": false,
+                "match": false
+              },
+              "experience": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": false,
+                "actual": true,
+                "match": false
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 0.6
+          },
+          "skills": {
+            "n_parsed": 24,
+            "n_labeled": 13,
+            "precision": 0.375,
+            "recall": 0.6923,
+            "f1": 0.4865,
+            "jaccard": 0.3103,
+            "missed": [
+              "Cubit",
+              "Animations",
+              "Responsive UI",
+              "Agile"
+            ],
+            "extra": [
+              "Firebase",
+              "HTTP",
+              "Dio",
+              "Git",
+              "GitHub",
+              "Postman",
+              "Android Studio",
+              "VS Code",
+              "SOLID Principles",
+              "Dependency Injection",
+              "MVVM",
+              "Problem Solving",
+              "Communication",
+              "Teamwork",
+              "Adaptability"
+            ]
+          },
+          "counts": {
+            "experience": {
+              "labeled": 2,
+              "parsed": 2
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 1
+            }
+          },
+          "latency_ms": 6665.86,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_diploma_react",
+      "primary_role": "frontend",
+      "skills_section_present": false,
+      "personal_info_accuracy_mean": 1.0,
+      "section_presence_accuracy_mean": 0.6,
+      "skill_jaccard_mean": 0.3333,
+      "skill_f1_mean": 0.602,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "Sara Ahmed",
+                "labeled": "Sara Ahmed"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "sarahmedd72@gmail.com",
+                "labeled": "sarahmedd72@gmail.com"
+              },
+              "phone": {
+                "status": "match",
+                "parsed": "01068726072",
+                "labeled": "01068726072"
+              },
+              "location": {
+                "status": "skipped_null_label",
+                "parsed": null
+              }
+            },
+            "considered": 3,
+            "correct": 3,
+            "accuracy": 1.0
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "experience": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "education": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "projects": {
+                "expected": true,
+                "actual": false,
+                "match": false
+              },
+              "skills": {
+                "expected": false,
+                "actual": true,
+                "match": false
+              }
+            },
+            "accuracy": 0.6
+          },
+          "skills": {
+            "n_parsed": 21,
+            "n_labeled": 11,
+            "precision": 0.4762,
+            "recall": 0.8182,
+            "f1": 0.602,
+            "jaccard": 0.3333,
+            "missed": [
+              "React Router",
+              "Local Storage"
+            ],
+            "extra": [
+              "Routing)",
+              "Project Link",
+              "Responsive designs",
+              "Completed",
+              "UI/ UX principles",
+              "C#",
+              "Front",
+              "C++",
+              "Courses & Diplomas",
+              "Python",
+              "GitHub"
+            ]
+          },
+          "counts": {
+            "experience": {
+              "labeled": 0,
+              "parsed": 0
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 0
+            }
+          },
+          "latency_ms": 22297.36,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue",
+      "primary_role": "frontend",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 1.0,
+      "section_presence_accuracy_mean": 1.0,
+      "skill_jaccard_mean": 0.0,
+      "skill_f1_mean": 0.0,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "Charlotte May",
+                "labeled": "Charlotte May"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "john.smith@gmail.com",
+                "labeled": "john.smith@gmail.com"
+              },
+              "phone": {
+                "status": "skipped_null_label",
+                "parsed": null
+              },
+              "location": {
+                "status": "match",
+                "parsed": "London, UK",
+                "labeled": "London, UK"
+              }
+            },
+            "considered": 3,
+            "correct": 3,
+            "accuracy": 1.0
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "experience": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 1.0
+          },
+          "skills": {
+            "n_parsed": 15,
+            "n_labeled": 12,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "jaccard": 0.0,
+            "missed": [
+              "JavaScript",
+              "React",
+              "Vue",
+              "Redux",
+              "Angular",
+              "TypeScript",
+              "HTML5",
+              "CSS3",
+              "HTML",
+              "CSS",
+              "jQuery",
+              "Responsive Design"
+            ],
+            "extra": [
+              "Mentoring Junior Developers",
+              "mentorship to junior developers",
+              "completion of several high",
+              "profile projects and increased",
+              "Achievements",
+              "Provided guidance and",
+              "resulting in their successful",
+              "over 100",
+              "Powered by",
+              "Traffic E",
+              "commerce website that handled",
+              "commerce Website",
+              "Developing a High",
+              "Led the frontend development",
+              "Powered by'"
+            ]
+          },
+          "counts": {
+            "experience": {
+              "labeled": 3,
+              "parsed": 3
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 2
+            }
+          },
+          "latency_ms": 19287.56,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_mid_react",
+      "primary_role": "frontend",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 1.0,
+      "section_presence_accuracy_mean": 1.0,
+      "skill_jaccard_mean": 0.6667,
+      "skill_f1_mean": 0.8889,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "Enrique Veragoza",
+                "labeled": "Enrique Veragoza"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "e.veragoza@email.com",
+                "labeled": "e.veragoza@email.com"
+              },
+              "phone": {
+                "status": "match",
+                "parsed": "(123) 456-7890",
+                "labeled": "(123) 456-7890"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "Stockton, CA",
+                "labeled": "Stockton, CA"
+              }
+            },
+            "considered": 4,
+            "correct": 4,
+            "accuracy": 1.0
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "experience": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 1.0
+          },
+          "skills": {
+            "n_parsed": 4,
+            "n_labeled": 5,
+            "precision": 1.0,
+            "recall": 0.8,
+            "f1": 0.8889,
+            "jaccard": 0.6667,
+            "missed": [
+              "AWS"
+            ],
+            "extra": []
+          },
+          "counts": {
+            "experience": {
+              "labeled": 3,
+              "parsed": 3
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 1
+            }
+          },
+          "latency_ms": 12323.21,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue_v2",
+      "primary_role": "frontend",
+      "skills_section_present": false,
+      "personal_info_accuracy_mean": 1.0,
+      "section_presence_accuracy_mean": 0.6,
+      "skill_jaccard_mean": 0.75,
+      "skill_f1_mean": 0.8571,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "Charlotte May",
+                "labeled": "Charlotte May"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "john.smith@gmail.com",
+                "labeled": "john.smith@gmail.com"
+              },
+              "phone": {
+                "status": "skipped_null_label",
+                "parsed": null
+              },
+              "location": {
+                "status": "match",
+                "parsed": "London, UK",
+                "labeled": "London, UK"
+              }
+            },
+            "considered": 3,
+            "correct": 3,
+            "accuracy": 1.0
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": true,
+                "actual": false,
+                "match": false
+              },
+              "experience": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "skills": {
+                "expected": false,
+                "actual": true,
+                "match": false
+              }
+            },
+            "accuracy": 0.6
+          },
+          "skills": {
+            "n_parsed": 7,
+            "n_labeled": 12,
+            "precision": 1.0,
+            "recall": 0.75,
+            "f1": 0.8571,
+            "jaccard": 0.75,
+            "missed": [
+              "Redux",
+              "jQuery",
+              "Responsive Design"
+            ],
+            "extra": []
+          },
+          "counts": {
+            "experience": {
+              "labeled": 3,
+              "parsed": 3
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 1
+            }
+          },
+          "latency_ms": 37511.91,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_jquery_legacy",
+      "primary_role": "frontend",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 1.0,
+      "section_presence_accuracy_mean": 1.0,
+      "skill_jaccard_mean": 0.4091,
+      "skill_f1_mean": 0.6,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "First Last",
+                "labeled": "First Last"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "first.last@gmail.com",
+                "labeled": "first.last@gmail.com"
+              },
+              "phone": {
+                "status": "match",
+                "parsed": "+44 1234567890",
+                "labeled": "+44 1234567890"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "Leeds, United Kingdom",
+                "labeled": "Leeds, United Kingdom"
+              }
+            },
+            "considered": 4,
+            "correct": 4,
+            "accuracy": 1.0
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "experience": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 1.0
+          },
+          "skills": {
+            "n_parsed": 15,
+            "n_labeled": 15,
+            "precision": 0.6,
+            "recall": 0.6,
+            "f1": 0.6,
+            "jaccard": 0.4091,
+            "missed": [
+              "HTML",
+              "JavaScript",
+              "Java",
+              "Spring",
+              "Cross-Browser Development",
+              "SEO"
+            ],
+            "extra": [
+              "Command Line",
+              "Troubleshooting",
+              "Web Development",
+              "English",
+              "Romanian",
+              "Spanish"
+            ]
+          },
+          "counts": {
+            "experience": {
+              "labeled": 3,
+              "parsed": 6
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 1
+            }
+          },
+          "latency_ms": 6248.07,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_entry_no_role",
+      "primary_role": "frontend",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 1.0,
+      "section_presence_accuracy_mean": 0.8,
+      "skill_jaccard_mean": 1.0,
+      "skill_f1_mean": 1.0,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "skipped_null_label",
+                "parsed": "Grayson Price"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "g.price@email.com",
+                "labeled": "g.price@email.com"
+              },
+              "phone": {
+                "status": "match",
+                "parsed": "(123) 456-7890",
+                "labeled": "(123) 456-7890"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "Austin, TX",
+                "labeled": "Austin, TX"
+              }
+            },
+            "considered": 3,
+            "correct": 3,
+            "accuracy": 1.0
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": true,
+                "actual": false,
+                "match": false
+              },
+              "experience": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 0.8
+          },
+          "skills": {
+            "n_parsed": 10,
+            "n_labeled": 10,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "jaccard": 1.0,
+            "missed": [],
+            "extra": []
+          },
+          "counts": {
+            "experience": {
+              "labeled": 2,
+              "parsed": 2
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 1
+            }
+          },
+          "latency_ms": 23743.07,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_abbas_backend_devops_senior_student",
+      "primary_role": "backend",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 1.0,
+      "section_presence_accuracy_mean": 0.8,
+      "skill_jaccard_mean": 0.4561,
+      "skill_f1_mean": 0.6265,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "Ahmed Mahmoud Abbas",
+                "labeled": "Ahmed Mahmoud Abbas"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "ahmedabbass871@gmail.com",
+                "labeled": "ahmedabbass871@gmail.com"
+              },
+              "phone": {
+                "status": "match",
+                "parsed": "+20 1114993108",
+                "labeled": "+20 1114993108"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "Egypt, Giza",
+                "labeled": "Egypt, Giza"
+              }
+            },
+            "considered": 4,
+            "correct": 4,
+            "accuracy": 1.0
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": true,
+                "actual": false,
+                "match": false
+              },
+              "experience": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 0.8
+          },
+          "skills": {
+            "n_parsed": 45,
+            "n_labeled": 38,
+            "precision": 0.5778,
+            "recall": 0.6842,
+            "f1": 0.6265,
+            "jaccard": 0.4561,
+            "missed": [
+              "PostgreSQL",
+              "MongoDB",
+              "Jenkins",
+              "GitHub Actions",
+              "Networking",
+              "Git",
+              "CI/CD",
+              "RAG",
+              "TF-IDF",
+              "Ollama",
+              "REST API",
+              "JWT"
+            ],
+            "extra": [
+              "Ubuntu",
+              "Fedora",
+              "VirtualBox",
+              "systemd",
+              "SFTP",
+              "SSH",
+              "TCP/IP",
+              "DNS",
+              "DHCP",
+              "VLANs",
+              "VPNs",
+              "NAT",
+              "FortiGate",
+              "Sophos",
+              "pfSense",
+              "RSA",
+              "AES",
+              "Arabic",
+              "English"
+            ]
+          },
+          "counts": {
+            "experience": {
+              "labeled": 3,
+              "parsed": 3
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 1
+            }
+          },
+          "latency_ms": 27154.74,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_eyad_data_engineer_jr",
+      "primary_role": "data_engineering",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 1.0,
+      "section_presence_accuracy_mean": 0.8,
+      "skill_jaccard_mean": 0.8333,
+      "skill_f1_mean": 0.9677,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "Eyad Saleh",
+                "labeled": "Eyad Saleh"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "eyadsaleh.de@gmail.com",
+                "labeled": "eyadsaleh.de@gmail.com"
+              },
+              "phone": {
+                "status": "match",
+                "parsed": "+201025432119",
+                "labeled": "+201025432119"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "6th October, Giza, Egypt",
+                "labeled": "6th October, Giza, Egypt"
+              }
+            },
+            "considered": 4,
+            "correct": 4,
+            "accuracy": 1.0
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": true,
+                "actual": false,
+                "match": false
+              },
+              "experience": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 0.8
+          },
+          "skills": {
+            "n_parsed": 14,
+            "n_labeled": 16,
+            "precision": 1.0,
+            "recall": 0.9375,
+            "f1": 0.9677,
+            "jaccard": 0.8333,
+            "missed": [
+              "Git"
+            ],
+            "extra": []
+          },
+          "counts": {
+            "experience": {
+              "labeled": 1,
+              "parsed": 3
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 1
+            }
+          },
+          "latency_ms": 23793.23,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_eyad_data_engineer_jr_v2",
+      "primary_role": "data_engineering",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 1.0,
+      "section_presence_accuracy_mean": 0.8,
+      "skill_jaccard_mean": 0.8333,
+      "skill_f1_mean": 0.9677,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "Eyad Saleh",
+                "labeled": "Eyad Saleh"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "eyadsaleh.de@gmail.com",
+                "labeled": "eyadsaleh.de@gmail.com"
+              },
+              "phone": {
+                "status": "match",
+                "parsed": "+201025432119",
+                "labeled": "+201025432119"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "6th October, Giza, Egypt",
+                "labeled": "6th October, Giza, Egypt"
+              }
+            },
+            "considered": 4,
+            "correct": 4,
+            "accuracy": 1.0
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": true,
+                "actual": false,
+                "match": false
+              },
+              "experience": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 0.8
+          },
+          "skills": {
+            "n_parsed": 14,
+            "n_labeled": 16,
+            "precision": 1.0,
+            "recall": 0.9375,
+            "f1": 0.9677,
+            "jaccard": 0.8333,
+            "missed": [
+              "Git"
+            ],
+            "extra": []
+          },
+          "counts": {
+            "experience": {
+              "labeled": 1,
+              "parsed": 3
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 1
+            }
+          },
+          "latency_ms": 21525.0,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_bahgat_ai_research_senior",
+      "primary_role": "ai_research",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 0.75,
+      "section_presence_accuracy_mean": 0.6,
+      "skill_jaccard_mean": 0.4082,
+      "skill_f1_mean": 0.5694,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "",
+                "labeled": "Mohamed Bahgat"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "bahgatm226@gmail.com",
+                "labeled": "bahgatm226@gmail.com"
+              },
+              "phone": {
+                "status": "miss",
+                "parsed": "",
+                "labeled": "0106319533"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "Cairo",
+                "labeled": "Cairo"
+              }
+            },
+            "considered": 4,
+            "correct": 3,
+            "accuracy": 0.75
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "experience": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "education": {
+                "expected": true,
+                "actual": false,
+                "match": false
+              },
+              "projects": {
+                "expected": true,
+                "actual": false,
+                "match": false
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 0.6
+          },
+          "skills": {
+            "n_parsed": 33,
+            "n_labeled": 29,
+            "precision": 0.4848,
+            "recall": 0.6897,
+            "f1": 0.5694,
+            "jaccard": 0.4082,
+            "missed": [
+              "Computer Vision",
+              "Generative AI",
+              "CNNs",
+              "Spacy",
+              "Matplotlib",
+              "Plotly",
+              "Linux",
+              "Power BI",
+              "Probability"
+            ],
+            "extra": [
+              "Data Modeling",
+              "Applied Mathematics (Calculus",
+              "Optimization",
+              "Algorithm",
+              "Data Structures",
+              "and Evaluation",
+              "Databases",
+              "Data Visualization",
+              "Problem",
+              "PowerPI",
+              "Model",
+              "Generative Modelling",
+              "driving innovative AI",
+              "managing AI research projects",
+              "academic responsibilities",
+              "Sequence Models",
+              "with"
+            ]
+          },
+          "counts": {
+            "experience": {
+              "labeled": 3,
+              "parsed": 4
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 0
+            }
+          },
+          "latency_ms": 26910.69,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_taher_mobile_jr",
+      "primary_role": "mobile",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 1.0,
+      "section_presence_accuracy_mean": 0.8,
+      "skill_jaccard_mean": 0.5806,
+      "skill_f1_mean": 0.795,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "Mohamed Taher Amin",
+                "labeled": "Mohamed Taher Amin"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "mohamedheiba88998@gmail.com",
+                "labeled": "mohamedheiba88998@gmail.com"
+              },
+              "phone": {
+                "status": "match",
+                "parsed": "+201098614758",
+                "labeled": "+201098614758"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "Giza, Egypt",
+                "labeled": "Giza, Egypt"
+              }
+            },
+            "considered": 4,
+            "correct": 4,
+            "accuracy": 1.0
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": true,
+                "actual": false,
+                "match": false
+              },
+              "experience": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 0.8
+          },
+          "skills": {
+            "n_parsed": 15,
+            "n_labeled": 26,
+            "precision": 0.9333,
+            "recall": 0.6923,
+            "f1": 0.795,
+            "jaccard": 0.5806,
+            "missed": [
+              "OOP",
+              "Python",
+              "Flask",
+              "Machine Learning",
+              "CNN",
+              "Random Forest",
+              "Animation",
+              "CI/CD"
+            ],
+            "extra": [
+              "Testing (Unit, Widget, Integration)"
+            ]
+          },
+          "counts": {
+            "experience": {
+              "labeled": 2,
+              "parsed": 2
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 1
+            }
+          },
+          "latency_ms": 26758.49,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_zeyad_datascience_jr",
+      "primary_role": "data_science",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 1.0,
+      "section_presence_accuracy_mean": 0.8,
+      "skill_jaccard_mean": 0.6452,
+      "skill_f1_mean": 0.8,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "Zeyad Elshenawy",
+                "labeled": "Zeyad Elshenawy"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "zeyadelshenawy1@gmail.com",
+                "labeled": "zeyadelshenawy1@gmail.com"
+              },
+              "phone": {
+                "status": "match",
+                "parsed": "+201028697404",
+                "labeled": "+201028697404"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "Egypt, Cairo",
+                "labeled": "Egypt, Cairo"
+              }
+            },
+            "considered": 4,
+            "correct": 4,
+            "accuracy": 1.0
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "experience": {
+                "expected": false,
+                "actual": true,
+                "match": false
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 0.8
+          },
+          "skills": {
+            "n_parsed": 26,
+            "n_labeled": 24,
+            "precision": 0.7692,
+            "recall": 0.8333,
+            "f1": 0.8,
+            "jaccard": 0.6452,
+            "missed": [
+              "PySpark",
+              "Microsoft Fabric",
+              "Feature Engineering",
+              "Java"
+            ],
+            "extra": [
+              "API",
+              "Power Query",
+              "Supervised & Unsupervised Learning",
+              "Classification",
+              "Clustering",
+              "Neural Networks"
+            ]
+          },
+          "counts": {
+            "experience": {
+              "labeled": 0,
+              "parsed": 2
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 1
+            }
+          },
+          "latency_ms": 29344.79,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_bach_frontend_mid",
+      "primary_role": "frontend",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 1.0,
+      "section_presence_accuracy_mean": 0.8,
+      "skill_jaccard_mean": 0.9091,
+      "skill_f1_mean": 0.9524,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "Johann Bach",
+                "labeled": "Johann Bach"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "j.bach@email.com",
+                "labeled": "j.bach@email.com"
+              },
+              "phone": {
+                "status": "match",
+                "parsed": "(123) 456-7890",
+                "labeled": "(123) 456-7890"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "Portland, OR",
+                "labeled": "Portland, OR"
+              }
+            },
+            "considered": 4,
+            "correct": 4,
+            "accuracy": 1.0
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": true,
+                "actual": false,
+                "match": false
+              },
+              "experience": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 0.8
+          },
+          "skills": {
+            "n_parsed": 11,
+            "n_labeled": 10,
+            "precision": 0.9091,
+            "recall": 1.0,
+            "f1": 0.9524,
+            "jaccard": 0.9091,
+            "missed": [],
+            "extra": [
+              "Testing"
+            ]
+          },
+          "counts": {
+            "experience": {
+              "labeled": 2,
+              "parsed": 2
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 1
+            }
+          },
+          "latency_ms": 20686.47,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_santos_frontend_senior",
+      "primary_role": "frontend",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 1.0,
+      "section_presence_accuracy_mean": 1.0,
+      "skill_jaccard_mean": 0.6923,
+      "skill_f1_mean": 0.8182,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "Karen Santos",
+                "labeled": "Karen Santos"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "k.santos@email.com",
+                "labeled": "k.santos@email.com"
+              },
+              "phone": {
+                "status": "match",
+                "parsed": "(123) 456-7890",
+                "labeled": "(123) 456-7890"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "Brooklyn, NY",
+                "labeled": "Brooklyn, NY"
+              }
+            },
+            "considered": 4,
+            "correct": 4,
+            "accuracy": 1.0
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "experience": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 1.0
+          },
+          "skills": {
+            "n_parsed": 10,
+            "n_labeled": 12,
+            "precision": 0.9,
+            "recall": 0.75,
+            "f1": 0.8182,
+            "jaccard": 0.6923,
+            "missed": [
+              "Enzyme",
+              "AWS",
+              "MaterialUI"
+            ],
+            "extra": [
+              "Enyzme"
+            ]
+          },
+          "counts": {
+            "experience": {
+              "labeled": 2,
+              "parsed": 2
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 1
+            }
+          },
+          "latency_ms": 21047.07,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_nitao_frontend_jr",
+      "primary_role": "frontend",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 0.75,
+      "section_presence_accuracy_mean": 1.0,
+      "skill_jaccard_mean": 0.7857,
+      "skill_f1_mean": 0.9565,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "Dee Nitao",
+                "labeled": "Dee Nitao"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "d.nitao@email.com",
+                "labeled": "d.nitao@email.com"
+              },
+              "phone": {
+                "status": "miss",
+                "parsed": "",
+                "labeled": "(123) 456-7890"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "Hayward, CA",
+                "labeled": "Hayward, CA"
+              }
+            },
+            "considered": 4,
+            "correct": 3,
+            "accuracy": 0.75
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "experience": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 1.0
+          },
+          "skills": {
+            "n_parsed": 10,
+            "n_labeled": 12,
+            "precision": 1.0,
+            "recall": 0.9167,
+            "f1": 0.9565,
+            "jaccard": 0.7857,
+            "missed": [
+              "AWS"
+            ],
+            "extra": []
+          },
+          "counts": {
+            "experience": {
+              "labeled": 2,
+              "parsed": 2
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 1
+            }
+          },
+          "latency_ms": 895.83,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_rw_js_frontend_senior",
+      "primary_role": "frontend",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 1.0,
+      "section_presence_accuracy_mean": 1.0,
+      "skill_jaccard_mean": 0.2308,
+      "skill_f1_mean": 0.3529,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "",
+                "labeled": "First Last"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "professionalemail@resumeworded.com",
+                "labeled": "professionalemail@resumeworded.com"
+              },
+              "phone": {
+                "status": "match",
+                "parsed": "+1-234-456-789",
+                "labeled": "+1-234-456-789"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "",
+                "labeled": "Charleston, West Virginia"
+              }
+            },
+            "considered": 4,
+            "correct": 4,
+            "accuracy": 1.0
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "experience": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 1.0
+          },
+          "skills": {
+            "n_parsed": 6,
+            "n_labeled": 8,
+            "precision": 0.3333,
+            "recall": 0.375,
+            "f1": 0.3529,
+            "jaccard": 0.2308,
+            "missed": [
+              "JavaScript",
+              "HTML",
+              "CSS",
+              "Chart.js",
+              "Asynchronous Programming"
+            ],
+            "extra": [
+              "Languages: English",
+              "Experienced",
+              "German",
+              "French"
+            ]
+          },
+          "counts": {
+            "experience": {
+              "labeled": 1,
+              "parsed": 4
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 1
+            }
+          },
+          "latency_ms": 924.83,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_rw_js_developer_senior",
+      "primary_role": "frontend",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 1.0,
+      "section_presence_accuracy_mean": 0.8,
+      "skill_jaccard_mean": 0.0588,
+      "skill_f1_mean": 0.1176,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "",
+                "labeled": "First Last"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "professionalemail@resumeworded.com",
+                "labeled": "professionalemail@resumeworded.com"
+              },
+              "phone": {
+                "status": "match",
+                "parsed": "+1-234-456-789",
+                "labeled": "+1-234-456-789"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "",
+                "labeled": "Bay Area, California"
+              }
+            },
+            "considered": 4,
+            "correct": 4,
+            "accuracy": 1.0
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": false,
+                "actual": true,
+                "match": false
+              },
+              "experience": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 0.8
+          },
+          "skills": {
+            "n_parsed": 1,
+            "n_labeled": 16,
+            "precision": 1.0,
+            "recall": 0.0625,
+            "f1": 0.1176,
+            "jaccard": 0.0588,
+            "missed": [
+              "JavaScript",
+              "ES6",
+              "HTML",
+              "XML",
+              "CSS",
+              "Python",
+              "SQL",
+              "ASP",
+              "TypeScript",
+              "REST APIs",
+              "MySQL",
+              "Tableau",
+              "Selenium",
+              "GraphQL",
+              "React"
+            ],
+            "extra": []
+          },
+          "counts": {
+            "experience": {
+              "labeled": 2,
+              "parsed": 3
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 1
+            }
+          },
+          "latency_ms": 795.41,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_yates_frontend_mid",
+      "primary_role": "frontend",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 0.75,
+      "section_presence_accuracy_mean": 0.8,
+      "skill_jaccard_mean": 0.9167,
+      "skill_f1_mean": 0.9565,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "Caspian Yates",
+                "labeled": "Caspian Yates"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "c.yates@email.com",
+                "labeled": "c.yates@email.com"
+              },
+              "phone": {
+                "status": "miss",
+                "parsed": "",
+                "labeled": "(123) 456-7890"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "Seattle, WA",
+                "labeled": "Seattle, WA"
+              }
+            },
+            "considered": 4,
+            "correct": 3,
+            "accuracy": 0.75
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": false,
+                "actual": true,
+                "match": false
+              },
+              "experience": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 0.8
+          },
+          "skills": {
+            "n_parsed": 10,
+            "n_labeled": 12,
+            "precision": 1.0,
+            "recall": 0.9167,
+            "f1": 0.9565,
+            "jaccard": 0.9167,
+            "missed": [
+              "Webpack"
+            ],
+            "extra": []
+          },
+          "counts": {
+            "experience": {
+              "labeled": 3,
+              "parsed": 3
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 2
+            }
+          },
+          "latency_ms": 866.0,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_williams_frontend_jr",
+      "primary_role": "frontend",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 0.75,
+      "section_presence_accuracy_mean": 0.4,
+      "skill_jaccard_mean": 0.75,
+      "skill_f1_mean": 0.9474,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "Leonidas Williams",
+                "labeled": "Leonidas Williams"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "l.williams@email.com",
+                "labeled": "l.williams@email.com"
+              },
+              "phone": {
+                "status": "miss",
+                "parsed": "",
+                "labeled": "(123) 456-7890"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "Seattle, WA",
+                "labeled": "Seattle, WA"
+              }
+            },
+            "considered": 4,
+            "correct": 3,
+            "accuracy": 0.75
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "experience": {
+                "expected": true,
+                "actual": false,
+                "match": false
+              },
+              "education": {
+                "expected": true,
+                "actual": false,
+                "match": false
+              },
+              "projects": {
+                "expected": true,
+                "actual": false,
+                "match": false
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 0.4
+          },
+          "skills": {
+            "n_parsed": 8,
+            "n_labeled": 10,
+            "precision": 1.0,
+            "recall": 0.9,
+            "f1": 0.9474,
+            "jaccard": 0.75,
+            "missed": [
+              "Agile"
+            ],
+            "extra": []
+          },
+          "counts": {
+            "experience": {
+              "labeled": 1,
+              "parsed": 0
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 0
+            }
+          },
+          "latency_ms": 900.32,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_crane_frontend_intern",
+      "primary_role": "frontend",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 0.75,
+      "section_presence_accuracy_mean": 1.0,
+      "skill_jaccard_mean": 0.6667,
+      "skill_f1_mean": 0.7792,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "Ophelia Crane",
+                "labeled": "Ophelia Crane"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "o.crane@email.com",
+                "labeled": "o.crane@email.com"
+              },
+              "phone": {
+                "status": "miss",
+                "parsed": "",
+                "labeled": "(123) 456-7890"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "Atlanta, GA",
+                "labeled": "Atlanta, GA"
+              }
+            },
+            "considered": 4,
+            "correct": 3,
+            "accuracy": 0.75
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "experience": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 1.0
+          },
+          "skills": {
+            "n_parsed": 7,
+            "n_labeled": 7,
+            "precision": 0.7143,
+            "recall": 0.8571,
+            "f1": 0.7792,
+            "jaccard": 0.6667,
+            "missed": [
+              "Responsive Design"
+            ],
+            "extra": [
+              "Proactive front",
+              "seeking an"
+            ]
+          },
+          "counts": {
+            "experience": {
+              "labeled": 2,
+              "parsed": 1
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 2
+            }
+          },
+          "latency_ms": 911.03,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_ridge_frontend_mid",
+      "primary_role": "frontend",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 0.75,
+      "section_presence_accuracy_mean": 0.8,
+      "skill_jaccard_mean": 0.9091,
+      "skill_f1_mean": 1.0,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "Elowen Ridge",
+                "labeled": "Elowen Ridge"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "e.ridge@email.com",
+                "labeled": "e.ridge@email.com"
+              },
+              "phone": {
+                "status": "miss",
+                "parsed": "",
+                "labeled": "(123) 456-7890"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "Pasadena, CA",
+                "labeled": "Pasadena, CA"
+              }
+            },
+            "considered": 4,
+            "correct": 3,
+            "accuracy": 0.75
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": false,
+                "actual": true,
+                "match": false
+              },
+              "experience": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 0.8
+          },
+          "skills": {
+            "n_parsed": 10,
+            "n_labeled": 10,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "jaccard": 0.9091,
+            "missed": [],
+            "extra": []
+          },
+          "counts": {
+            "experience": {
+              "labeled": 2,
+              "parsed": 3
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 1
+            }
+          },
+          "latency_ms": 933.89,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_brooks_frontend_mid_angular",
+      "primary_role": "frontend",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 0.75,
+      "section_presence_accuracy_mean": 0.8,
+      "skill_jaccard_mean": 0.9,
+      "skill_f1_mean": 0.9474,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "Levi Brooks",
+                "labeled": "Levi Brooks"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "l.brooks@email.com",
+                "labeled": "l.brooks@email.com"
+              },
+              "phone": {
+                "status": "miss",
+                "parsed": "",
+                "labeled": "(123) 456-7890"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "Alpharetta, GA",
+                "labeled": "Alpharetta, GA"
+              }
+            },
+            "considered": 4,
+            "correct": 3,
+            "accuracy": 0.75
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": false,
+                "actual": true,
+                "match": false
+              },
+              "experience": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 0.8
+          },
+          "skills": {
+            "n_parsed": 9,
+            "n_labeled": 10,
+            "precision": 1.0,
+            "recall": 0.9,
+            "f1": 0.9474,
+            "jaccard": 0.9,
+            "missed": [
+              "Git"
+            ],
+            "extra": []
+          },
+          "counts": {
+            "experience": {
+              "labeled": 3,
+              "parsed": 3
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 1
+            }
+          },
+          "latency_ms": 879.56,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_vaughn_frontend_lead",
+      "primary_role": "frontend",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 0.75,
+      "section_presence_accuracy_mean": 0.8,
+      "skill_jaccard_mean": 0.9091,
+      "skill_f1_mean": 0.9524,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "match",
+                "parsed": "",
+                "labeled": "Alaric Vaughn"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "a.vaughn@email.com",
+                "labeled": "a.vaughn@email.com"
+              },
+              "phone": {
+                "status": "miss",
+                "parsed": "",
+                "labeled": "(123) 456-7890"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "Ithaca, NY",
+                "labeled": "Ithaca, NY"
+              }
+            },
+            "considered": 4,
+            "correct": 3,
+            "accuracy": 0.75
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": false,
+                "actual": true,
+                "match": false
+              },
+              "experience": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": false,
+                "actual": false,
+                "match": true
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 0.8
+          },
+          "skills": {
+            "n_parsed": 10,
+            "n_labeled": 11,
+            "precision": 1.0,
+            "recall": 0.9091,
+            "f1": 0.9524,
+            "jaccard": 0.9091,
+            "missed": [
+              "JWT"
+            ],
+            "extra": []
+          },
+          "counts": {
+            "experience": {
+              "labeled": 3,
+              "parsed": 3
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 2
+            }
+          },
+          "latency_ms": 881.97,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_generated_review_export",
+      "primary_role": "ai_research",
+      "skills_section_present": true,
+      "personal_info_accuracy_mean": 0.75,
+      "section_presence_accuracy_mean": 0.6,
+      "skill_jaccard_mean": 0.3958,
+      "skill_f1_mean": 0.6218,
+      "runs": [
+        {
+          "personal_info": {
+            "per_field": {
+              "name": {
+                "status": "miss",
+                "parsed": "Personal Details",
+                "labeled": "Mohamed Bahgat"
+              },
+              "email": {
+                "status": "match",
+                "parsed": "bahgatm226@gmail.com",
+                "labeled": "bahgatm226@gmail.com"
+              },
+              "phone": {
+                "status": "match",
+                "parsed": "0106319533",
+                "labeled": "0106319533"
+              },
+              "location": {
+                "status": "match",
+                "parsed": "New York, NY",
+                "labeled": "New York, NY"
+              }
+            },
+            "considered": 4,
+            "correct": 3,
+            "accuracy": 0.75
+          },
+          "section_presence": {
+            "per_section": {
+              "summary": {
+                "expected": false,
+                "actual": true,
+                "match": false
+              },
+              "experience": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "education": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              },
+              "projects": {
+                "expected": false,
+                "actual": true,
+                "match": false
+              },
+              "skills": {
+                "expected": true,
+                "actual": true,
+                "match": true
+              }
+            },
+            "accuracy": 0.6
+          },
+          "skills": {
+            "n_parsed": 38,
+            "n_labeled": 21,
+            "precision": 0.4737,
+            "recall": 0.9048,
+            "f1": 0.6218,
+            "jaccard": 0.3958,
+            "missed": [
+              "Spacy",
+              "Probability"
+            ],
+            "extra": [
+              "SQL",
+              "insights",
+              "Data Modeling",
+              "Data Analysis (Pandas",
+              "Model Optimization",
+              "SciPy",
+              "Algorithm",
+              "Data Structures",
+              "managing AI research",
+              "and Evaluation",
+              "Data Visualization",
+              "Problem",
+              "PowerPI",
+              "Analyze Profile",
+              "academic responsibilities",
+              "driving",
+              "Software Development (C++",
+              "Signal and Text analysis)",
+              "Natural Language Processing",
+              "OOP"
+            ]
+          },
+          "counts": {
+            "experience": {
+              "labeled": 4,
+              "parsed": 4
+            },
+            "education": {
+              "labeled": 1,
+              "parsed": 2
+            }
+          },
+          "latency_ms": 950.4,
+          "error": null
+        }
+      ]
+    }
+  ],
+  "method": {
+    "service": "profiles.services.cv_parser.parse_cv",
+    "fuzzy_cutoff": 0.85,
+    "scoring": {
+      "personal_info": "case-insensitive match; phone digit-normalized; null labels skipped",
+      "skills": "lowercased exact + difflib >= 0.85 + substring tolerance",
+      "section_presence": "labeled section true => parsed list/text non-empty"
+    }
+  },
+  "pipeline": "regex+llm_validator",
+  "disclosure": "Pipeline: parse_cv (regex) -> validate_and_map_cv_data (Groq llama-4-scout, Pydantic ResumeSchema). Matches the production upload flow at profiles/views.py:130-145. Mean of 1 run(s) per CV. PII normalization is intentionally lenient (case- and whitespace-insensitive) so cosmetic differences don't dominate the score."
+}

@@ -1,0 +1,24 @@
+{
+  "cv_id": "cv_bahgat_ai_research_senior",
+  "personal_info": {
+    "name": "Mohamed Bahgat",
+    "email": "bahgatm226@gmail.com",
+    "phone": "0106319533",
+    "location": "Cairo"
+  },
+  "education_count": 1,
+  "experience_count": 3,
+  "skills_canonical": [
+    "Python", "C++", "SQL",
+    "Machine Learning", "Deep Learning", "Reinforcement Learning",
+    "Natural Language Processing", "Computer Vision", "Generative AI",
+    "Transformers", "CNNs",
+    "TensorFlow", "PyTorch", "scikit-learn", "Spacy", "CUDA",
+    "Pandas", "Matplotlib", "Plotly", "SciPy",
+    "Flask", "Linux", "Git", "GitHub", "Power BI",
+    "Linear Algebra", "Statistics", "Probability", "OOP"
+  ],
+  "section_presence": {
+    "summary": true, "experience": true, "education": true, "projects": true, "skills": true
+  }
+}

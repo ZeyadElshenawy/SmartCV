@@ -1,0 +1,45 @@
+{
+  "id": "jd_auto_cv_synth_rw_js_frontend_senior",
+  "title": "Senior Frontend Engineer",
+  "company": "Techify Solutions",
+  "description": "We are looking for a highly skilled Senior Frontend Engineer to lead our frontend development team. The ideal candidate will have a strong background in building scalable and maintainable frontend applications.\n\nResponsibilities:\n- Design and develop high-quality frontend applications using JavaScript, HTML, and CSS\n- Collaborate with cross-functional teams to identify and prioritize project requirements\n- Troubleshoot and debug complex issues using Chart.js and other debugging tools\n- Mentor junior engineers and provide code reviews\n- Participate in code refactoring and optimization\n- Stay up-to-date with the latest frontend development trends and best practices\n\nMust-have skills:\n- JavaScript\n- HTML\n- CSS\n- Chart.js\n- Debugging\n- React\n- Redux\n- Webpack\n\nNice to have:\n- TypeScript\n- GraphQL\n- Jest",
+  "expected_skills": [
+    "JavaScript",
+    "HTML",
+    "CSS",
+    "Chart.js",
+    "Debugging",
+    "React",
+    "Redux",
+    "Webpack",
+    "TypeScript",
+    "GraphQL",
+    "Jest",
+    "CI/CD",
+    "Agile"
+  ],
+  "expected_skills_must_have": [
+    "JavaScript",
+    "HTML",
+    "CSS",
+    "Chart.js",
+    "Debugging",
+    "React",
+    "Redux",
+    "Webpack"
+  ],
+  "paired_cv_id": "cv_synth_rw_js_frontend_senior",
+  "_meta": {
+    "generated_by": "benchmarks.jd_generator",
+    "source_cv_id": "cv_synth_rw_js_frontend_senior",
+    "detected_role": "Frontend Engineer",
+    "detected_seniority": "senior",
+    "tech_stack_signals": [
+      "JavaScript",
+      "HTML",
+      "CSS",
+      "Chart.js",
+      "Debugging"
+    ]
+  }
+}

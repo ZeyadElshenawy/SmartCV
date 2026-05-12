@@ -1,0 +1,47 @@
+{
+  "id": "jd_auto_cv_frontend_senior_react_vue_v2",
+  "title": "Senior Frontend Engineer",
+  "company": "Techify Solutions",
+  "description": "We are looking for a highly skilled Senior Frontend Engineer to lead our frontend development team. The ideal candidate will have a strong background in building scalable and maintainable frontend applications.\n\nResponsibilities:\n- Lead the development of complex frontend applications using React and Vue\n- Collaborate with designers to translate designs into functional and visually appealing user interfaces\n- Work closely with backend engineers to ensure seamless API integration\n- Mentor junior engineers and provide code reviews\n- Participate in code refactoring and optimization\n- Ensure cross-browser compatibility and responsiveness\n\nMust-have skills:\n- JavaScript\n- React\n- Redux\n- HTML\n- CSS\n- jQuery\n- Git\n- CI/CD\n\nNice to have:\n- TypeScript\n- GraphQL\n- Webpack",
+  "expected_skills": [
+    "JavaScript",
+    "React",
+    "Vue",
+    "Redux",
+    "HTML",
+    "CSS",
+    "jQuery",
+    "Git",
+    "CI/CD",
+    "TypeScript",
+    "GraphQL",
+    "Webpack",
+    "Agile"
+  ],
+  "expected_skills_must_have": [
+    "JavaScript",
+    "React",
+    "Redux",
+    "HTML",
+    "CSS",
+    "jQuery",
+    "Git",
+    "CI/CD"
+  ],
+  "paired_cv_id": "cv_frontend_senior_react_vue_v2",
+  "_meta": {
+    "generated_by": "benchmarks.jd_generator",
+    "source_cv_id": "cv_frontend_senior_react_vue_v2",
+    "detected_role": "Frontend Engineer",
+    "detected_seniority": "senior",
+    "tech_stack_signals": [
+      "JavaScript",
+      "React",
+      "Vue",
+      "Redux",
+      "HTML",
+      "CSS",
+      "jQuery"
+    ]
+  }
+}

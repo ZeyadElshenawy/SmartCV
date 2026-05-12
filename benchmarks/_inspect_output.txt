@@ -1,0 +1,1603 @@
+
+================================================================================
+Ahmed-Mahmoud-Abbas-MasterCV.pdf  (7056 chars, parser_full_name='Ahmed Mahmoud Abbas')
+  parser_email='ahmedabbass871@gmail.com' phone='+20 1114993108' loc='Egypt, Giza'
+================================================================================
+HEAD:
+Ahmed Mahmoud Abbas
+ahmedabbass871@gmail.com
+
+Military Status: Exempted
+GitHub
++20 1114993108
+Egypt, Giza
+LinkedIn
+LeetCode
+Profile
+A Senior Software Engineering student specializing in backend development and DevOps. Self-taught in CCNA-
+level networking with hands-on experience in system administration, Linux environments, and network
+configuration. Skilled in Rust, C++, and Python with projects involving scalable systems, in-memory data stores,
+and automation pipelines. Currently engineering production-grade backends and automated pipelines using
+Node.js, Docker, and Terraform. Committed to clean architecture, high availability, and performance-driven design.
+Professional Experience
+DevOps Engineering Trainee
+Digital Egypt Pioneers Initiative (MCIT – EYouth).
+06/2025 – present | Zamalek, Giza, Egypt
+•Selected for a national DevOps training program sponsored by MCIT.
+•Automated CI/CD pipelines with Git, Jenkins and Docker, reducing deployment time by 40%.
+•Built reusable IaC modules 
+
+...TAIL:
+MOTE, PCA, RandomForest. Built and 
+deployed ML pipelines with emphasis on data preprocessing and real-time visualization.
+Languages
+Arabic
+Mother Tongue
+English
+Fluent
+
+[Embedded Link: 'OFAC Sanctions Screening (RAG System)
+RAG-based prototype combining TF-IDF/fuzzy retrieval with Ollama LLM for multilingual name translation.' -> https://github.com/ahmed-145/ofac-sdn-rag-search]
+[Embedded Link: 'Credit Risk Prediction
+Developed a machine learning pipeline for predicting loan default probability using anonymized banking data' -> https://github.com/ahmed-145/CreditRiskPrediction]
+[Embedded Link: 'Outlook → SFTP Automation Utility
+Prototype that polls Outlook, extracts attachments, and uploads to Linux via SFTP (JSch), using JACOB for' -> https://github.com/ahmed-145/Outlook-SFTP-Automation]
+
+================================================================================
+EyadSalehResume.docx  (3516 chars, parser_full_name='Eyad Saleh')
+  parser_email='eyadsaleh.de@gmail.com' phone='+201025432119' loc=None
+================================================================================
+HEAD:
+EYAD SALEH
+
+Data Engineer
+
+Contact Information
+Phone: +201025432119 | eyadsaleh.de@gmail.com Location: 6th October, Giza, Egypt
+LinkedIn | GitHub
+
+PROFESSIONAL SUMMARY
+
+Data Engineer with hands-on experience in ETL pipeline development, data validation systems, and distributed data processing. Delivered production solutions that reduced manual reporting overhead by 12 hours weekly and prevented 200+ data quality issues. Technical background includes building data infrastructure from core principles and working with enterprise data systems. Experienced with Python, SQL, Kafka, Airflow, Spark, and cloud platforms.
+
+TECHNICAL SKILLS
+
+Languages: Python, SQL, Shell
+Data Engineering: Kafka, Airflow, Spark, ETL Pipelines, Data warehousing, Data Lakes
+Cloud Platforms: Azure, AWS
+Tools & Technologies: Docker, PostgreSQL, FastAPI, Linux, Git
+
+WORK EXPERIENCE
+
+Data & AI Intern | I-SCORE (The Egyptian Credit Bureau) | 2025
+
+Built an automated reporting dashboard, eliminating 12 hours/week of manua
+
+...TAIL:
+stem aggregating CPU/memory from multiple devices into unified compute unit via SSH orchestration 
+
+Implemented job scheduling, load balancing, and containerized execution across heterogeneous nodes 
+
+Transforms personal devices into distributed computing cluster 
+
+EDUCATION
+
+Bachelor of Science in Artificial Intelligence | King Salman International University
+GPA: 3.65 | Merit-based full scholarship (ISF – GISS)
+
+CERTIFICATIONS
+
+IBM Professional Data Engineering Certificate (Coursera) 
+
+Associate Data Engineer in Python (Datacamp) 
+
+Professional Data Engineer in SQL (Datacamp)
+
+Associate Data Engineer in SQL (Datacamp) 
+
+DeepLearning.AI | AWS Data Engineering Professional Certificate
+
+[Embedded Link: http://linkedin.com/in/eyad-saleh-810a1a293]
+
+[Embedded Link: http://github.com/RustyyES]
+
+================================================================================
+EyadSalehResume2.docx  (3516 chars, parser_full_name='Eyad Saleh')
+  parser_email='eyadsaleh.de@gmail.com' phone='+201025432119' loc=None
+================================================================================
+HEAD:
+EYAD SALEH
+
+Data Engineer
+
+Contact Information
+Phone: +201025432119 | eyadsaleh.de@gmail.com Location: 6th October, Giza, Egypt
+LinkedIn | GitHub
+
+PROFESSIONAL SUMMARY
+
+Data Engineer with hands-on experience in ETL pipeline development, data validation systems, and distributed data processing. Delivered production solutions that reduced manual reporting overhead by 12 hours weekly and prevented 200+ data quality issues. Technical background includes building data infrastructure from core principles and working with enterprise data systems. Experienced with Python, SQL, Kafka, Airflow, Spark, and cloud platforms.
+
+TECHNICAL SKILLS
+
+Languages: Python, SQL, Shell
+Data Engineering: Kafka, Airflow, Spark, ETL Pipelines, Data warehousing, Data Lakes
+Cloud Platforms: Azure, AWS
+Tools & Technologies: Docker, PostgreSQL, FastAPI, Linux, Git
+
+WORK EXPERIENCE
+
+Data & AI Intern | I-SCORE (The Egyptian Credit Bureau) | 2025
+
+Built an automated reporting dashboard, eliminating 12 hours/week of manua
+
+...TAIL:
+stem aggregating CPU/memory from multiple devices into unified compute unit via SSH orchestration 
+
+Implemented job scheduling, load balancing, and containerized execution across heterogeneous nodes 
+
+Transforms personal devices into distributed computing cluster 
+
+EDUCATION
+
+Bachelor of Science in Artificial Intelligence | King Salman International University
+GPA: 3.65 | Merit-based full scholarship (ISF – GISS)
+
+CERTIFICATIONS
+
+IBM Professional Data Engineering Certificate (Coursera) 
+
+Associate Data Engineer in Python (Datacamp) 
+
+Professional Data Engineer in SQL (Datacamp)
+
+Associate Data Engineer in SQL (Datacamp) 
+
+DeepLearning.AI | AWS Data Engineering Professional Certificate
+
+[Embedded Link: http://linkedin.com/in/eyad-saleh-810a1a293]
+
+[Embedded Link: http://github.com/RustyyES]
+
+================================================================================
+Mohamed Abd Elghany_Flutter Developer.pdf  (6067 chars, parser_full_name='Mohamed Abd Elghany')
+  parser_email='info.mohamedabdelghany@gmail.com' phone='01287002189' loc='My Portfolio Mansoura, Egypt'
+================================================================================
+HEAD:
+Mohamed Abd Elghany Flutter Developer 
+ 
+ 
+ info.mohamedabdelghany@gmail.com 
+ 01287002189 
+ 
+ Mohamed Abd Elghany 
+ Mohamed-Abd-Elghany 
+ 
+ My Portfolio Mansoura, Egypt 
+Profile 
+Flutter Developer passionate about building scalable and user-friendly mobile applications using Clean Architecture 
+and state management solutions such as BLoC, GetX and Provider. Experienced in integrating APIs, optimizing 
+performance, and delivering pixel-perfect UIs. Eager to contribute to innovative mobile solutions within dynamic 
+and agile teams. 
+Professional Experience 
+Feb 2025 – Apr 2025 
+Flutter Internship 
+ 
+Cellula Technologies — Remote 
+- Participated in mobile development projects using Flutter and Dart. 
+- Implemented clean UI components and integrated APIs. 
+- Collaborated with team members in an agile workflow. 
+ Jun 2023 – Sep 2023 
+Flutter Developer Intern 
+ 
+CCIC — Mansoura, Egypt 
+- Contributed to developing cross-platform mobile apps using Flutter. 
+- Gained hands-on experience with s
+
+...TAIL:
+tter Advanced - Clean Architecture & MVVM – Udemy, 2024.' -> https://drive.google.com/file/d/1B4kIPenpdNQOrKjlre8WUVtxSPx0o89-/view?usp=sharing]
+[Embedded Link: 'Flutter Advanced Course Bloc and MVVM Pattern – Udemy, 2024.' -> https://drive.google.com/file/d/1-MAYJ-M18ER33sPT8sfEruHiLqZyMc0K/view?usp=sharing]
+[Embedded Link: 'Mastering Flutter: Responsive & Adaptive UI Design – Udemy, 2024.' -> https://drive.google.com/file/d/1FV8l77G97WubM6sHz8yTeN37jsrs59de/view?usp=drivesdk]
+[Embedded Link: 'Flutter Payment Integration: Stripe, PayPal – Udemy, 2024.' -> https://drive.google.com/file/d/1FoLff069Zi4F8_BsoBxnPcnzHW1Dz0Sv/view?usp=drivesdk]
+[Embedded Link: 'The Complete Dart Learning Guide – Udemy, 2023.' -> https://drive.google.com/file/d/1-0FevlKEnmFodKSGleDRAHVz0c_4pHTE/view?usp=sharing]
+
+================================================================================
+Mohamed Bahget CV .pdf  (6177 chars, parser_full_name=None)
+  parser_email='bahgatm226@gmail.com' phone=None loc='Cairo'
+================================================================================
+HEAD:
+Mohamed Bahgat Teaching Assistant / AI Engineer 
+ 
+ 
+ 
+bahgatm226@gmail.com 
+ MBAHGAT2000 
+ 0106319533 
+ Cairo 
+ Mohammed Bahgat | LinkedIn
+ 
+Summary 
+ 
+Teaching Assistant in the Artificial Intelligence Engineering Department at El Alamein 
+International University, with a focus on deep learning, machine learning, reinforcement 
+learning, and NLP. Currently leading AI Research and Development at VRtualize Srl, 
+contributing to impactful projects in healthcare and finance. Passionate about advancing 
+knowledge in AI through both academic and practical applications, and eager to deepen 
+expertise in the field through the Master's program in Artificial Intelligence at Nile University. 
+ 
+Professional Experience 
+ 
+2024/08–present 
+Milan, Italy 
+Remote 
+ AI Research and Development Team Lead 
+ VRtualize Srl (Italy) 
+ 
+• 
+Lead a multidisciplinary team of 12 AI and software researchers to develop cutting-
+edge AI solutions. 
+• 
+Led AI R&D initiatives, driving innovation in healthcare and fin
+
+...TAIL:
+n compared to benchmark translations. 
+ Speech Emotion Detector | Feb 2023 – May 2023 
+• 
+Developed a system using Convolutional Neural Networks (CNNs) to analyze pre-recorded human 
+audio and identify the speaker's emotions based on the sound. 
+ Chatbot Development Using Transformer | Feb 2024 – May 2024 
+• 
+Designed and implemented a chatbot from scratch using the Transformer architecture to answer users. 
+• 
+Trained the model on the IMDB dataset, leveraging movie reviews to build a conversational system 
+capable of responding accurately based on user input. 
+ Languages 
+ 
+ Arabic —Native English — Very Good 
+ 
+ 
+
+[Embedded Link: https://www.linkedin.com/posts/mohamed-emam-599970208_machinelearning-ai-education-activity-7213862949965221890-wjHA?utm_source=share&utm_medium=member_desktop]
+
+================================================================================
+Mohamed Taher Amin -  CV.pdf  (6531 chars, parser_full_name='Mohamed Taher Amin')
+  parser_email='mohamedheiba88998@gmail.com' phone=None loc='Giza, Egypt'
+================================================================================
+HEAD:
+Mohamed Taher Amin
+ Software Engineering Student
+ Giza, Egypt
+mohamedheiba88998@gmail.com
+ +201098614758
+GitHub Profile | LinkedIn Profile
+Profile
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Software Engineering student at King Salman International University with a strong academic 
+foundation and hands-on experience in mobile development. Skilled in Flutter and Backend 
+technologies like Firebase.
+Built mobile apps integrating machine learning models and AI APIs, music streaming systems, and 
+productivity tools with strong attention to UI/UX and performance. Proven ability to deliver practical, 
+user-centered solutions through internships and academic projects. Eager to join innovative teams and 
+contribute to real-world tech products.
+Education
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Bachelor of Computer Science (2022 – 2026) 
+King Salman International University – Egypt
+Faculty of Computer Science, Software Engineering Department
+Grade: exce
+
+...TAIL:
+?usp=sharing]
+[Embedded Link: 'Master Flutter App Architectures: Practical and Modern' -> https://drive.google.com/drive/folders/1yEdMYoHSW6meGo3t_t824BAqdthUWNGo?usp=sharing]
+[Embedded Link: 'Flutter Intermediate Level' -> https://drive.google.com/drive/folders/1yEdMYoHSW6meGo3t_t824BAqdthUWNGo?usp=sharing]
+[Embedded Link: 'Mastering Animation in Flutter' -> https://drive.google.com/drive/folders/1yEdMYoHSW6meGo3t_t824BAqdthUWNGo?usp=sharing]
+[Embedded Link: 'The Grimoire – 2025' -> https://86xf0kqg.r.ap-southeast-1.awstrack.me/L0/https:%2F%2Fapkpure.com%2Fp%2Fcom.example.the_grimoire/1/010e0198ea7ef2d7-b202f22b-22b1-41c5-9c86-e9550dfb9874-000000/MKWOr5bB8_BoGpsd6eBFGQHGoZE=225]
+[Embedded Link: 'Brain Tumor Classification App – 2025' -> https://github.com/mohaaHeiba/the-magnificent-three]
+
+================================================================================
+Sara Ahmed CV.pdf  (4305 chars, parser_full_name='Sara Ahmed')
+  parser_email='sarahmedd72@gmail.com' phone='01068726072' loc=None
+================================================================================
+HEAD:
+Sara Ahmed 
+Front-end Developer 
+ 
+01068726072 | sarahmedd72@gmail.com | GitHub link | LinkedIn link 
+ 
+Description 
+Resourceful with successful track record in developing innovative web designs and features. Possesses 
+solid knowledge of HTML, CSS, JavaScript, Bootstrap, and React (including Props, Hooks, Routing, and 
+Axios) with the ability to quickly learn new technologies. Completed a Front-end Development Diploma 
+with Mentality Academy, where I worked on nearly 20 practical tasks. Demonstrated success in 
+identifying and resolving complex code issues. Familiar with design tools like Figma for creating UI/UX 
+prototypes. 
+ 
+Projects 
+• 
+User Management System – 2025 
+A simple web app built with React and Tailwind CSS that allows users to add, edit, and delete user 
+data. Utilizes Local Storage to save user data persistently without a backend. (project link) 
+• 
+Simple dashboard – 2025 
+Dashboard is built using React and Tailwind CSS, with multiple pages navigated through React 
+R
+
+...TAIL:
+g - Sports E-commerce website - 2020 
+Made by HTML, CSS, JavaScript and bootstrap. There are many categories for Men, Women and 
+kids. 
+ 
+Education (2020 – 2024) 
+Bachelor of Computer Science - Ain Shams University - Graduated with grade of (B-). 
+ 
+Skills 
+• 
+HTML, CSS, JavaScript, Bootstrap, tailwind 
+• 
+React (Props, Hooks, Routing) 
+• 
+Axios 
+• 
+Figma 
+• 
+C++, C#, Java 
+• 
+Python 
+• 
+GitHub 
+• 
+Responsive designs 
+• 
+UI/ UX principles 
+ 
+Courses & Diplomas 
+• 
+Front-end Development Diploma – Mentality Academy (Completed). 
+• 
+UX Design Fundamental in Mahara-Tech and Edraak. 
+
+[Embedded Link: '(Project Link).' -> https://miro.com/welcomeonboard/bm42cDY2eE1XYnA4Y2xTUnZoaGRGcWpPMGE5RlZLRlZHMXZlbjZONEMzNnJ1QThKV0lVWVZIVklncUhxckMwVHwzNDU4NzY0NTQ0OTgzODQwNzI0fDI=?share_link_id=580285487695]
+
+================================================================================
+ZeyadAhmedElsayed_CV.pdf  (7162 chars, parser_full_name='Zeyad Elshenawy')
+  parser_email='zeyadelshenawy1@gmail.com' phone='+201028697404' loc='Egypt, Cairo'
+================================================================================
+HEAD:
+Data Scientist 
+ZEYAD ELSHENAWY 
++201028697404 | zeyadelshenawy1@gmail.com 
+Linked in | Git Hub | Kaggle 
+My portfolio 
+Egypt, Cairo 
+Skills 
+Python 
+Libraries: Pandas, NumPy, scikit-learn, 
+Matplotlib, Seaborn, Plotly 
+ 
+Power Bi 
+Tools: DAX, API, Power Query 
+ 
+Machine Learning 
+Supervised & Unsupervised Learning 
+(Regression, Classification, Clustering) 
+ 
+Databases & SQL 
+Software: MySQL, PostgreSQL 
+ 
+Deep Learning 
+Neural Networks, CNNs, RNNs, 
+Transfer Learning (TensorFlow, 
+Keras, PyTorch) 
+ 
+Projects 
+END-TO-END DATA PIPELINE & MACHINE LEARNING PROJECT 
+August 2025 
+● 
+Built a data pipeline in Microsoft Fabric with PySpark to automate ingestion, cleaning, 
+ and transformation of raw data. 
+● 
+Applied data preprocessing techniques (handling missing values, feature engineering, normalization) 
+ to prepare data for modeling. 
+● 
+Developed and evaluated machine learning algorithms to extract insights and support business decision-making. 
+● 
+Demonstrated integration of data engine
+
+...TAIL:
+nt/track/c60605375c21950ad26a0032f58df1c5146d8bc9?utm_medium=organic_social&utm_campaign=sharewidget&utm_content=soa&utm_source=copylink]
+[Embedded Link: 'Python Programming Fundamentals' -> https://www.datacamp.com/completed/statement-of-accomplishment/track/12f478da2938b14d1af1e1fd3a6d4d40a51847e3?utm_medium=organic_social&utm_campaign=sharewidget&utm_content=soa&utm_source=copylink]
+[Embedded Link: 'Database Management with Java and SQL.' -> https://coursera.org/verify/3P34H669GT2I]
+[Embedded Link: 'Applied Machine Learning in Python.' -> https://coursera.org/verify/BUYFU9ADFMIQ]
+[Embedded Link: 'Neural Networks and Deep Learning.' -> https://coursera.org/verify/HYT51PF7WQGV]
+[Embedded Link: 'IBM Data Scientist Track.' -> https://depi.gov.eg/assets/Files/DEPI-CATALOG-2024-Round2-V7.pdf]
+
+================================================================================
+cv_0.pdf  (3276 chars, parser_full_name='Charlotte May')
+  parser_email='john.smith@gmail.com' phone=None loc='London, UK'
+================================================================================
+HEAD:
+CM
+Charlotte May
+Experienced Frontend Developer
+john.smith@gmail.com
+London, UK
+Summary
+Experienced frontend developer proficient in JavaScript, React, and Vue with a strong focus on creating engaging and 
+user-friendly graphical user interfaces. Looking to join an innovative and dynamic team to further develop my skills and 
+contribute to exciting projects.
+Experience
+ABC Corp
+London, UK
+Senior Frontend Developer
+2019 - 2022
+Developed and maintained engaging, user-friendly graphical user interfaces resulting in a 20% increase in user 
+engagement.
+Designed and developed responsive UIs using React and Vue.
+Collaborated with designers and back-end developers to ensure seamless integration of UI components.
+Optimized UI performance resulting in a 15% increase in page load speed.
+Implemented automated testing and deployment processes, reducing production errors by 25%.
+XYZ Inc
+New York, USA
+Frontend Developer
+2017 - 2019
+Designed and developed intuitive and user-friendly interfaces for mul
+
+...TAIL:
+ience
+2011 - 2014
+Languages
+JavaScript Proficient
+React Proficient
+Vue Advanced
+Angular Intermediate
+TypeScript Advanced
+HTML5 Proficient
+CSS3 Proficient
+Skills
+UI/UX design Frontend development JavaScript frameworks Agile methodologies Responsive design
+Cross-browser compatibility Version control systems
+Achievements
+Developing a High-Traffic E-
+commerce Website
+Led the frontend development 
+team in building a robust e-
+commerce website that handled 
+over 100,000 daily users and 
+increased sales by 40%.
+Mentoring Junior Developers
+Provided guidance and 
+mentorship to junior developers, 
+resulting in their successful 
+completion of several high-
+profile projects and increased 
+team productivity.
+www.enhancv.com
+
+Powered by
+&
+s
+
+[Embedded Link: '
+Powered by' -> https://enhancv.com/resume]
+
+================================================================================
+cv_1.pdf  (1943 chars, parser_full_name='Johann Bach')
+  parser_email='j.bach@email.com' phone=None loc='Portland, OR'
+================================================================================
+HEAD:
+JOHANN BACH
+Front-End Developer
+j.bach@email.com
+(123) 456-7890
+Portland, OR
+LinkedIn
+CAREER OBJECTIVE
+Front-End Developer with proven experience at Zillow and HubSpot
+in helping companies create and maintain a better code base for
+reusability. Passionate about learning and development with a
+desire to apply skills on a larger development team at Redfin. Eager
+to tackle more complex problems and continue to find ways to
+maximize user efficiency.
+WORK EXPERIENCE
+Front-End Developer
+HubSpot
+May 2020 - June 2021
+Remote
+Developed membership, event, and legal platform technology
+solutions, and automated internal processes.
+Generated $50K+ in annual ad revenue as a system
+administrator of a large network of websites.
+Designed and implemented web applications along with 3rd-
+party software integrations as a web team liaison for all inter-
+departmental and customer-facing projects.
+Developed a node.js server to validate membership and track
+digital badges being used, saving the company $22.5K.
+
+...TAIL:
+rtland, OR
+Developed real estate valuation, analytics, and platform
+technology solutions as part of a 5-person team.
+Designed and developed Zestimate, which manages a volume
+of 600k+ valuations per month.
+Reduced average valuation review time by 46%, and saved
+service providers an average of 84% due to click-fee
+reductions.
+Rebuilt 4-year-old SaaS application in React 15 and Redux with
+full user experience redesign to release a beta MVP in 8
+months.
+Integrated an automated property valuation model fed by
+machine learning Python data.
+EDUCATION
+Bachelor of Science
+Computer Science
+University of Oregon
+2014 - 2018
+Eugene, OR
+SKILLS
+Languages
+HTML
+CSS
+JavaScript
+Python
+Libraries
+React
+jQuery
+Redux
+Frameworks
+Angular.js
+Node.js
+Testing
+Jest
+
+[Embedded Link: 'LinkedIn' -> https://linkedin.com/]
+
+================================================================================
+cv_10.pdf  (2275 chars, parser_full_name='Ophelia Crane')
+  parser_email='o.crane@email.com' phone=None loc='Atlanta, GA'
+================================================================================
+HEAD:
+OPHELIA CRANE
+Front End Developer
+Intern
+o.crane@email.com
+(123) 456-7890
+Atlanta, GA
+LinkedIn
+EDUCATION
+Bachelor of Science
+Computer Science
+Georgia Institute of Technology
+2021 - current
+Atlanta, GA
+SKILLS
+HTML5
+React
+Git
+Bootstrap
+Jest
+GitHub
+CAREER OBJECTIVE
+Proactive front-end developer proficient in HTML5 and React.js, seeking an
+internship position at Gretrix. I aim to apply my strong basics in front-end
+technologies and various languages to expedite the delivery of responsive and
+efficient applications for every Gretrix client.
+WORK EXPERIENCE
+Pet Sitter
+Critter Sitters Inc.
+2023 - current
+Atlanta, GA
+Leveraged Git to manage version history of a new pet behavior tracking
+software, reducing average monthly incident reports by 34%.
+Implemented Bootstrap alerts for real-time updates on pet care status,
+improving communication and boosting client satisfaction scores by 32%.
+Created digital pet profiles, increasing information accessibility for clients
+and slashing support queries b
+
+...TAIL:
+s-functional team to create an online study room
+reservation system, shrinking reservation conflicts by 26%.
+Campus Tour Guide
+2022
+Conducted 15+ campus tours weekly, providing informational experiences
+for prospective students, resulting in a 67% uplift in campus visit
+satisfaction scores.
+Built Jest test cases to verify the integration of multimedia elements in
+tour scripts, leading to a 21% surge in visitor engagement.
+Devised and maintained a GitHub repository for tour guide schedules and
+availability, curtailing the scheduling process time by 18 minutes. 
+Revamped the site using responsive web design techniques to ensure the
+tour registration and information pages were accessible on all devices,
+growing mobile registrations by 28%.
+
+[Embedded Link: 'LinkedIn' -> https://linkedin.com/]
+
+================================================================================
+cv_11.pdf  (3148 chars, parser_full_name=None)
+  parser_email='first.last@gmail.com' phone=None loc=None
+================================================================================
+HEAD:
+First Last
+Front End Developer
+WORK EXPERIENCE
+______________________________________________________________________
+Resume Worded, London, United Kingdom
+Education technology startup with 50+ employees and $100m+ annual revenue
+Front End Developer
+08/2021 – Present
+●
+Developed an interactive map for a real estate company’s website that
+enabled 3600+ users to search preferred properties by the municipality.
+●
+Conducted routine updates, security patches, and other website maintenance
+tasks; achieved a 93% optimal website performance.
+●
+Designed front-end code using HTML, CSS, JavaScript, jQuery to create a
+responsive web application that works across desktops, tablets, and 20+
+other devices.
+●
+Hand-coded embedded stylesheets into 10+ Javascript interfaces and
+reduced load times by 75% in the first month of implementation.
+Polyhire, London, United Kingdom
+NYSE-listed recruitment and employer branding company
+Web Content Editor
+10/2019 – 07/2021
+●
+Edited numerous web content pieces suppo
+
+...TAIL:
+/2017
+Web UI Developer (Internship), ABC, New York, USA
+07/2014 – 12/2015
+CONTACT
+__________________________
+• Leeds, United Kingdom
+• +44 1234567890
+• first.last@gmail.com
+SKILLS
+__________________________
+Hard Skills:
+• Debugging
+• Testing
+• CSS Preprocessing
+• Command Line
+• Troubleshooting
+• Cross-Browser Development
+Techniques:
+• Web Development
+• Agile Methodologies
+• Responsive Web Design
+Tools and Software:
+• TypeScript
+• Vue.js
+• AJAX
+• jQuery
+Languages:
+• English (Native)
+• Romanian (Native)
+• Spanish (Conversational)
+EDUCATION
+__________________________
+University of New York
+Associate of Applied Science
+Web Design & Development
+New York City, New York
+10/2011 - 06/2014
+OTHER
+___________________________
+• Certified Web Professional
+• Certified HTML, CSS,
+JavaScript Web Developer
+
+================================================================================
+cv_12.pdf  (2167 chars, parser_full_name='Elowen Ridge')
+  parser_email='e.ridge@email.com' phone=None loc='Pasadena, CA'
+================================================================================
+HEAD:
+Elowen Ridge
+Front End User Interface Developer
+e.ridge@email.com
+(123) 456-7890
+Pasadena, CA
+LinkedIn
+WORK EXPERIENCE
+OpenX - Front End User Interface Developer
+2023 - current
+Pasadena, CA
+Redesigned the user interface of the main product using CSS3, which led to a 23% uplift in user satisfaction
+ratings.
+Managed 216 Bitbucket repositories, ensuring proper repository structure and access control, leading to a
+58% decrease in unauthorized access incidents.
+Leveraged D3.js to build real-time monitoring tools for system performance, shrinking downtime by 19%.
+Automated 140+ end-to-end test cases with Selenium, enhancing overall testing efficiency and reducing 58
+hours of manual testing.
+Spokeo - Lead Front End Developer
+2021 - 2023
+Pasadena, CA
+Conducted performance audits with Chrome DevTools, identifying memory leaks and slashing overall
+application crashes by 24%.
+Revamped HTML5 form elements with validation techniques, leading to 43% downtick in submission errors.
+Debugged and resolv
+
+...TAIL:
+to manage UI events, minimizing memory usage by 43% and
+boosting application performance metrics by 27%.
+Outlined Figma's version history and branching to manage design iterations, maintaining a clear project
+timeline for 8 long-term projects.
+Executed user research and usability testing on 9 projects, leading to a 22% hike in Net Promoter Score
+(NPS) and a 11% decline in user-reported issues.
+Developed and launched 12 client websites using Bootstrap, lowering the average project turnaround time
+from 7 weeks to 3 weeks.
+EDUCATION
+California Institute of Technology - Bachelor of Science, Computer Science
+2014 - 2018
+Pasadena, CA
+SKILLS
+HTML5; CSS3; Vanilla JavaScript; Webpack; Bitbucket; D3.js; Figma; Chrome DevTools; Bootstrap; Selenium
+
+[Embedded Link: 'LinkedIn' -> https://linkedin.com/]
+
+================================================================================
+cv_13.pdf  (1854 chars, parser_full_name='Levi Brooks')
+  parser_email='l.brooks@email.com' phone=None loc='Alpharetta, GA'
+================================================================================
+HEAD:
+Levi Brooks
+Front End Developer
+l.brooks@email.com
+(123) 456-7890
+Alpharetta, GA
+LinkedIn
+Work Experience
+Verizon Telematics - Front End Developer
+2021 - current
+Alpharetta, GA
+Developed responsive web interfaces using Angular and Bootstrap, resulting in an 18% increase in
+mobile users
+Migrated web applications from WebLogic to Apache, reducing server maintenance costs by 14%,
+amounting to an annual savings of $6.8K
+Used Git version control for source code management, resolving 98% of merge conflicts in a
+collaborative coding project
+Expedited front-end development process by 33% via implementing Webpack for JavaScript module
+bundling
+Cox Communications - Web Developer
+2018 - 2021
+Sandy Springs, GA
+Automated project build processes with Apache Maven, decreasing downtime by 32% during system
+updates or additions
+Conducted comprehensive software testing using JUnit, which resulted in a 41% reduction in
+software bug issues post-release
+Merged development branches with Git, avoiding code c
+
+...TAIL:
+ of cases
+Improved the website load time by 26% by optimizing PostCSS utilities to minify and purge unused
+CSS
+Mailchimp - Junior Web Developer
+2016 - 2018
+Atlanta, GA
+Leveraged Eclipse IDE that reduced the bug correction time by 11%, saving about 21 hours per month
+and elevating the efficiency of development cycles
+Maintained end-to-end website functionality, leading to a rare downtime rate of 3.3%
+Optimized Git practices, ensuring 98% resolution in merge conflicts, minimizing project delays and
+saving a projected 12 hours per month
+Education
+Georgia Institute of Technology - Bachelor of Science,
+Computer Science
+2011 - 2015
+Atlanta, GA
+Skills
+Eclipse; Apache Maven; Git; Spring MVC; Angular; PostCSS; WebLogic; Webpack; JUnit; Bootstrap
+
+[Embedded Link: 'LinkedIn' -> https://linkedin.com/]
+
+================================================================================
+cv_14.pdf  (1785 chars, parser_full_name=None)
+  parser_email='g.price@email.com' phone=None loc='Austin, TX'
+================================================================================
+HEAD:
+CONTACT
+g.price@email.com
+(123) 456-7890
+Austin, TX
+LinkedIn
+EDUCATION
+Bachelor of Science
+Computer Science
+University of Texas
+2019 - 2023
+Austin, TX
+SKILLS
+HTML5
+CSS3
+TypeScript
+Bootstrap
+GitHub
+WebStorm
+Yarn
+Webpack
+Chrome DevTools
+InVision
+CAREER OBJECTIVE
+Aspiring junior front-end web developer excited to contribute my skills and
+enthusiasm to the dynamic team at WEBii. Committed to staying current
+with the latest web development practices and offering responsive and
+engaging web solutions for the company's diverse clientele.
+WORK EXPERIENCE
+Restaurant Server
+BJ's Restaurant & Brewhouse
+2022 - current / Austin, TX
+Upsold menu items, facilitating a $1,586 increase in sales in six
+months
+Increased average check size by 9.8% with suggestive selling tactics
+Cut down on member turnover by 16% in one year by promoting BJ's
+Premier Rewards Program
+Expedited banquet event order accuracy by using CaterEase for event
+planning and administration purposes
+Library Assistant
+University of Texas
+
+...TAIL:
+ersity of Texas
+2021 - 2022 / Austin, TX
+Spearheaded the digitization of 4.2K books using ABBYY FineReader
+Bolstered return rates by 24% by implementing automated reminders
+Collaborated on a team to host 12 reputable guest lecturers
+Orchestrated a digital perusal system that shaved 15% off the time
+spent on finding relevant reference materials
+PROJECTS
+CodeCraft
+Research Team Member
+2020
+Determined 51 instances in the codebase eligible for GitHub
+workflow optimization
+Revealed a potential reduction of 33% in load times by leveraging
+Webpack for bundling project assets
+Presented in weekly meetings 54 key insights derived from code
+analysis, fostering a 24% improvement in strategy optimization
+Junior Front End Web Developer 
+GRAYSON PRICE
+
+[Embedded Link: 'LinkedIn' -> https://linkedin.com/]
+
+================================================================================
+cv_15.pdf  (2035 chars, parser_full_name=None)
+  parser_email='a.vaughn@email.com' phone=None loc='Ithaca, NY'
+================================================================================
+HEAD:
+CONTACT
+a.vaughn@email.com
+(123) 456-7890
+Ithaca, NY
+LinkedIn
+EDUCATION
+Bachelor of Science
+Computer Science
+Cornell University
+2013 - 2017
+Ithaca, NY
+SKILLS
+Bootstrap
+Angular
+SVN
+Bower
+Flexbox
+Sass
+Gulp
+Karma
+Lighthouse
+Chrome DevTools
+WORK EXPERIENCE
+Lead Front End Developer
+GrammaTech, Inc.
+2022 - current / Ithaca, NY
+Redesigned Bootstrap-based UI components, enhancing overall
+application performance and cutting down load times by 11
+seconds.
+Developed Bower packages for internal use, speeding up
+development cycles and shrinking external dependency issues
+by 19%.
+Created quality mockups and prototypes by using Karma tests
+to validate functionality, leading to a 14% rise in prototype
+approval rates.
+Restructured SVN workflows by introducing automated scripts,
+lowering manual errors during code commits by 32%.
+UI/UX Developer
+Advion, Inc.
+2019 - 2022 / Ithaca, NY
+Resolved layout inconsistencies across different browsers with
+Flexbox, gaining a 93% success rate in user acceptance testi
+
+...TAIL:
+egular feature updates.
+Optimized image formats and sizes as recommended by
+Lighthouse, shortening image load times by 0.8 seconds. 
+Full Stack Developer
+e2e Materials
+2017 - 2019 / Ithaca, NY
+Implemented JWT authentication to improve data security in
+Angular applications, minimizing unauthorized access incidents
+by 67%.
+Accelerated the styling process by integrating Gulp for
+automated CSS preprocessing, leading to a 23% decrease in
+compilation errors.
+Used responsive design techniques, ensuring a consistent user
+experience across all devices and growing mobile traffic by 31%.
+Employed Chrome DevTools for real-time debugging and
+logging, reducing the average issue resolution time from 4 to
+2 hours.
+Lead Front End Developer
+ALARIC VAUGHN
+
+[Embedded Link: 'LinkedIn' -> https://linkedin.com/]
+
+================================================================================
+cv_2.pdf  (1977 chars, parser_full_name='Karen Santos')
+  parser_email='k.santos@email.com' phone=None loc='Brooklyn, NY'
+================================================================================
+HEAD:
+Karen Santos
+Senior Front-End Developer
+k.santos@email.com
+(123) 456-7890
+Brooklyn, NY
+LinkedIn
+WORK EXPERIENCE
+GitHub - Senior Front-End Developer
+January 2017 - current
+New York, NY
+Led development team of 5 persons to create GitHub pages, which allows all new and
+existing customers to have their repositories hosted.
+Implemented AWS to allow easy iteration in company cloud infrastructure.
+Created new documentation for MaterialUI that prevented the need for a 3-week onboarding
+course.
+Mentored 8 new junior front-end developers on team in expanding JavaScript, React, and
+Angular skillset.
+Worked with PM/IM to keep on track with the project plan, timeline, and billing. On average,
+this saved 4 days of communication per project.
+Led bi-weekly stand-up to ensure team worked effectively, using coaching strategies to
+increase efficiency by 10%.
+Worked with Quality Assurance to get new pages/products tested, and addressed any issues
+within 48 hours.
+DTX - Front-End Developer
+September 2012 -
+
+...TAIL:
+ and Accessibility. This drove
+a 600% increase in users by appearing on the first page of Google search results.
+Tested, debugged, and shipped 10s of 1000s of lines of code to various development teams.
+This lead to 100% bug-free deployment.
+Introduced Kanban Board style ticketing system to promote highly efficient asynchronous and
+synchronous work, increasing efficiency by 12%.
+Utilized HTML, CSS, and JavaScript to create 100+ responsive landing pages for both company
+and client.
+Maintained graphic standards and branding throughout the product’s interfaces.
+EDUCATION
+Rutgers University - Bachelor of Science, Computer Science
+2008 - 2012
+New Brunswick, NJ
+SKILLS
+HTML; CSS; JavaScript; React; jQuery; Angular.js; Vue.js; Enyzme; Jest; GIT
+
+[Embedded Link: 'LinkedIn' -> https://linkedin.com/]
+
+================================================================================
+cv_3.pdf  (1514 chars, parser_full_name=None)
+  parser_email='e.veragoza@email.com' phone=None loc='Stockton, CA'
+================================================================================
+HEAD:
+ENRIQUE
+VERAGOZA
+Front-End Developer
+e.veragoza@email.com
+(123) 456-7890
+Stockton, CA
+LinkedIn
+EDUCATION
+Bachelor of Science
+Computer Science
+University of the Pacific
+September 2011 - June 2015
+Stockton, CA
+WORK EXPERIENCE
+Mid-Level Front-End Developer
+Gametime
+January 2019 - current
+Remote
+Worked with design, product, and back-end teams to create
+12 web products.
+Created 3 efficient and reusable front-end systems to drive
+web applications to the marketplace.
+Participated in product releases and code reviews with 5
+senior developers and team leads.
+Supervised, led, and mentored 11 junior team members to
+achieve high performance and meet goals.
+Front-End Developer
+Kaiser Permanente
+August 2017 - January 2019
+Walnut Creek, CA
+Collaborated with 6 other team members and 4
+stakeholders to develop 16 new user-facing features.
+Assisted in building 100% reusable code and libraries for
+future use.
+Ensured the technical feasibility of 150+ UI/UX designs.
+Optimized 15+ applications for maximum s
+
+...TAIL:
+019
+Walnut Creek, CA
+Collaborated with 6 other team members and 4
+stakeholders to develop 16 new user-facing features.
+Assisted in building 100% reusable code and libraries for
+future use.
+Ensured the technical feasibility of 150+ UI/UX designs.
+Optimized 15+ applications for maximum speed and
+scalability.
+Validated 100% of user input before submitting to the back-
+end.
+Junior Front-End Developer
+PLACE
+June 2015 - August 2017
+Remote
+Delivered 30+ projects of all sizes, creating solutions for
+consumer services.
+Wrote 40+ automated tests for every new feature to identify
+and rectify bugs.
+Evaluated 100+ end-to-end designs for performance
+complexity, scalability, quality, and security.
+SKILLS
+HTML
+CSS
+JavaScript
+React.js
+CERTIFICATIONS
+AWS
+
+[Embedded Link: 'LinkedIn' -> https://linkedin.com/]
+
+================================================================================
+cv_4.pdf  (2216 chars, parser_full_name='Dee Nitao')
+  parser_email='d.nitao@email.com' phone=None loc='Hayward, CA'
+================================================================================
+HEAD:
+DEE NITAO
+JUNIOR FRONT-END DEVELOPER
+CONTACT
+d.nitao@email.com
+(123) 456-7890
+Hayward, CA
+LinkedIn
+Github
+EDUCATION
+Bachelor of Science
+Computer Engineering
+Cal State Hayward
+September 2015 - June 2019
+Hayward, CA
+GPA: 3.7
+SKILLS
+HTML
+CSS
+JavaScript
+React.js
+Node.js
+Angular.js
+WordPress
+Bootstrap
+NoSQL
+Agile/Scrum
+CERTIFICATIONS
+AWS
+OBJECTIVE
+CS graduate and adept front-end developer focusing on
+JavaScript mobile-first development. After success with
+WordPress front-end development, I am eager to continue my
+career by joining SCORR Marketing's hardworking and
+interactive team where I will continue expanding my JavaScript
+knowledge into perfecting accessibility and responsive design.
+WORK EXPERIENCE
+Entry-level Front-End Developer
+Guess, INC
+September 2019 - current / Remote
+Maintained 20+ web pages, graphics, and online marketing
+materials under direction of UX manager and development
+team.
+Created and maintained front-end code for 40+ e-
+Commerce websites (re-designs, seasonal updates
+
+...TAIL:
+ut production lifecycle.
+Front-End Developer Intern
+Punch
+June 2019 - September 2019 / Daly City, CA
+Assisted the development team in maintaining 8 websites.
+Implemented front-end technical solutions to meet project
+requirements for creation of 5 new web pages.
+Ensured 6 unique projects complied with correct
+technology processes, industry best practices, and
+company standards.
+Conducted research and assisted with new business scoping
+efforts, resulting in the acquisition of 4 clients.
+Partnered with 2 designer teams to take client wireframes
+from conception to implementation.
+Worked in an Agile, collaborative environment to receive
+design requirements, peer program, and test applications.
+
+[Embedded Link: 'LinkedIn' -> https://linkedin.com/]
+[Embedded Link: 'Github' -> https://github.com/]
+
+================================================================================
+cv_5.pdf  (2660 chars, parser_full_name=None)
+  parser_email='professionalemail@resumeworded.com' phone='+1-234-456-789' loc=None
+================================================================================
+HEAD:
+First Last
+JavaScript Developer (Front-End)
+Charleston, West Virginia • +1-234-456-789 • professionalemail@resumeworded.com • linkedin.com/in/username
+JavaScript developer with 10 years of experience communicating and translating requirements into intuitive
+interfaces. Key achievement: implemented data visualization techniques using Chart.js, leading to a 76%
+improvement in data presentation and analysis for 230+ stakeholders.
+RELEVANT WORK EXPERIENCE
+_______________________________________________________________________________________________________________
+Resume Worded, New York, NY
+2015 – Present
+JavaScript Developer (Front-End)
+●
+Developed responsive and interactive web applications using JavaScript, HTML, and CSS, increasing user
+engagement by 73%.
+●
+Implemented robust front-end architecture and optimized code performance, which reduced page load time
+by 45 seconds.
+●
+Collaborated with 10+ cross-functional teams to design and implement user-friendly interfaces, boosting
+custom
+
+...TAIL:
+st 23 weeks
+of employment.
+●
+Designed an innovative User Interface (UI) for a software tool to analyze spreadsheets and scan for fraud in
+the payroll of 200+ employees.
+●
+Created cross-browser compatible and standards-compliant CSS-based page layouts for 430+ Small and
+Medium Enterprises (SMEs).
+EDUCATION
+_______________________________________________________________________________________________________________
+Resume Worded University, New York, NY
+2011
+Associate of Science — Computer Programming
+SKILLS
+_______________________________________________________________________________________________________________
+Technical Skills: Asynchronous Programming (Advanced), Lazy Loading (Experienced), Debugging and Testing
+Languages: English (Native), German (Fluent), French (Conversational)
+
+================================================================================
+cv_6.pdf  (2458 chars, parser_full_name=None)
+  parser_email='professionalemail@resumeworded.com' phone='+1-234-456-789' loc=None
+================================================================================
+HEAD:
+FIRST LAST
+Bay Area, California • +1-234-456-789 • professionalemail@resumeworded.com • linkedin.com/in/username
+PROFESSIONAL EXPERIENCE
+Resume Worded, New York, NY
+Jun 2018 – Present
+JavaScript Developer
+●
+Performed on code reviews and bug fixes, reducing technical debt by 30% within the first quarter.
+●
+Mentored 5 junior front end developers on JavaScript and Redux and trained on the documentation practices
+used within the organization.Highly involved in the entire product development process from ideation to
+development and improvement for features, reaching over 250,000 users.
+●
+Relocated a multi-page user experience into a single page application, improving customer engagement by
+12%.
+●
+Designed multiple dynamic and browser compatible pages using HTML5, CSS3, Javascript (React, Redux).
+●
+Collaborated with UX/UI design teams to improve checkout flow; increased conversion rates by 20%.
+●
+Analyzed impact and effectiveness of in-app UI changeson customer retention; identified features
+
+...TAIL:
+he company to serve data based on dynamically chosen user inputs
+for a web application with over 275,000 concurrent users.
+●
+Built unit testing infrastructure for a client application resulting in reduced number of user-reported bugsby
+10% every month.
+Junior Software Engineer (May 2010 – Oct 2011)
+●
+Developed an internal tool to automate QA and monitor customer facing web applications, resulting in an
+improved click through rate by 7%.
+●
+Worked alongside 2 developers to implement APIs which helped the internal analytics team to increase the
+reporting speed by 24%.
+EDUCATION
+Resume Worded University, San Francisco, CA
+May 2010
+Bachelor of Science, Computer Science.
+SKILLS
+●JavaScript (ES6, Redux)
+●HTML/XML
+●CSS
+●Python
+●SQL
+●ASP
+●Typescript
+●Building APIs
+●MySQL
+●Tableau
+●Selenium
+●GraphQL
+
+================================================================================
+cv_7.pdf  (2722 chars, parser_full_name='Charlotte May')
+  parser_email='john.smith@gmail.com' phone=None loc='London, UK'
+================================================================================
+HEAD:
+CHARLOTTE MAY
+Experienced Frontend Developer
+john.smith@gmail.com
+London, UK
+SUMMARY
+Experienced frontend developer proficient in JavaScript, React, and Vue with a strong focus on creating engaging and 
+user-friendly graphical user interfaces. Looking to join an innovative and dynamic team to further develop my skills and 
+contribute to exciting projects.
+EXPERIENCE
+Senior Frontend Developer
+ABC Corp
+2019 - 2022 
+London, UK
+Developed and maintained engaging, user-friendly graphical user interfaces resulting in a 20% increase in user 
+engagement.
+Designed and developed responsive UIs using React and Vue.
+Collaborated with designers and back-end developers to ensure seamless integration of UI components.
+Optimized UI performance resulting in a 15% increase in page load speed.
+Implemented automated testing and deployment processes, reducing production errors by 25%.
+Frontend Developer
+XYZ Inc
+2017 - 2019 
+New York, USA
+Designed and developed intuitive and user-friendly interfaces for mult
+
+...TAIL:
+with speed 
+and accuracy, resulting in a 20% increase in project 
+completion rate.
+Team Collaboration
+Demonstrates strong teamwork and communication 
+skills, resulting in an average team productivity 
+increase of 15%.
+Problem Solving
+Proactively identifies and solves complex technical 
+problems, resulting in a 25% reduction in project 
+bugs.
+www.enhancv.com
+
+Powered by
+
+
+•
+•
+•
+•
+•
+•
+•
+•
+•
+•
+•
+•
+
+k
+G
+
+[Embedded Link: '
+Powered by' -> https://enhancv.com/resume]
+
+EDUCATION
+Bachelor of Science in Computer Science
+University of Sydney
+2011 - 2014 
+Sydney, Australia
+LANGUAGES
+JavaScript
+Proficient
+React
+Proficient
+Vue
+Advanced
+Angular
+Intermediate
+TypeScript
+Advanced
+HTML5
+Proficient
+CSS3
+Proficient
+www.enhancv.com
+
+Powered by
+
+[Embedded Link: '
+Powered by' -> https://enhancv.com/resume]
+
+================================================================================
+cv_8.pdf  (1973 chars, parser_full_name='Caspian Yates')
+  parser_email='c.yates@email.com' phone=None loc='Seattle, WA'
+================================================================================
+HEAD:
+CASPIAN YATES
+Associate Front End Developer
+c.yates@email.com
+(123) 456-7890
+Seattle, WA
+WORK EXPERIENCE
+Associate Front End Developer
+Expedia Group
+2022 - current
+Seattle, WA
+Managed Visual Studio Code to debug and optimize front-
+end code, achieving a 17% rise in overall application speed as
+per tests.
+Leveraged Yarn's caching mechanisms to developing build
+performance, decreasing average build time from 24
+minutes to 18 minutes.
+Enhanced website security using Joomla-specific extensions,
+detecting and addressing 21% of unauthorized access
+attempts before escalation.
+Implemented error handling and logging mechanisms for
+GraphQL operations, boosting application stability and
+cutting down runtime errors by 29%.
+Web Developer
+Zillow
+2019 - 2022
+Seattle, WA
+Reviewed Gulp-based versioning for static assets, reducing
+cache miss rates by 33% and elevating page load efficiency.
+Developed a responsive navigation menu using Bootstrap,
+eleva site navigation and lowering drop-off rates by 14%.
+E
+
+...TAIL:
+.js,
+enhancing user experience and reducing bounce rate by 22%.
+Junior Web Developer
+Redfin
+2017 - 2019
+Seattle, WA
+Automated the workflow process through GitHub webhooks,
+saving approximately 18 hours every month.
+Performed cross-browser testing with Mocha, ensuring
+consistent performance across major browsers and
+minimizing cross-browser issues by 26%.
+Supported senior developers by debugging complex issues in
+the codebase, contributing to a 12% downtick in critical bug
+reports.
+Optimized HTML5 video embedding techniques, providing a
+smoother playback experience and a 43% cut in video
+buffering complaints.
+EDUCATION
+Bachelor of Science
+Computer Science
+University of Washington
+2013 - 2017
+Seattle, WA
+SKILLS
+HTML5
+React.js
+GitHub
+Yarn
+Gulp
+Joomla
+Mocha
+GraphQL
+Bootstrap
+Visual Studio Code
+
+================================================================================
+cv_9.pdf  (2267 chars, parser_full_name='Leonidas Williams')
+  parser_email='l.williams@email.com' phone=None loc='Seattle, WA'
+================================================================================
+HEAD:
+Leonidas Williams
+Front-End Developer
+Front-End Developer with a proven ability to collaborate effectively with
+senior developers while spending extra time to be mentored. Enjoy
+working closely with team members to ensure workloads are effectively
+redirected to bottlenecks and personally picking up the slack when
+necessary. With a passion for both personal growth and for software
+development, I attended a 1000+ hour coding bootcamp to learn new
+languages while sharpening existing skills. Ready to apply my passion for
+coding to a talented engineering team to develop quality solutions.
+l.williams@email.com
+(123) 456-7890
+Seattle, WA
+LinkedIn
+Github
+WORK EXPERIENCE
+HelloFresh
+Junior Front-End Developer
+Remote | June 2021 - current
+Set up testing framework for team project using Mocha and Chai to
+test the Node API. This decreased the amount of bugs pre-
+deployment by over 70%.
+Worked in an agile environment with weekly stand-ups, kept track of
+user stories/bugs in GitHub projects, and cond
+
+...TAIL:
+es for clients without
+compromising functionality for aesthetics.
+Implemented newly-learned front-end object-oriented programming
+to develop client server systems.
+Wrote unit tests in Jest. This made products 100% bug free.
+Learned and applied Agile methodologies and principles.
+PROJECTS
+Sickle To 'Em
+Designer, Developer
+2021 - current
+Built a full-stack web app to allow Sickle Cell Anemia patients to
+keep track of 15+ medications needed for treatment.
+Used React to allow users to instantaneously update the medication
+list interface without reloading.
+SKILLS
+JavaScript
+HTML
+CSS
+React
+Node.js
+Mocha/Chai
+Jest
+GIT
+EDUCATION
+Certification
+Front End Development
+Thinkful
+2020 - 2021
+Seattle, WA
+
+[Embedded Link: 'LinkedIn' -> https://linkedin.com/]
+[Embedded Link: 'Github' -> https://github.com/]
+
+================================================================================
+generated.pdf  (3221 chars, parser_full_name='Personal Details')
+  parser_email='bahgatm226@gmail.com' phone='0106319533' loc='New York, NY'
+================================================================================
+HEAD:
+Review Your Profile
+Ensure your details are correct before we analyze them against the job description.
+Personal Details
+Full Name
+Mohamed Bahgat
+Email Address
+bahgatm226@gmail.com
+Phone Number
+0106319533
+Location
+New York, NY
+LinkedIn URL
+Mohammed Bahgat | LinkedIn
+Professional Experience
++ Add Position
+JOB TITLE
+Senior Developer
+COMPANY
+VRtualize Srl (Italy)
+DURATION
+2024-08-present
+DESCRIPTION
+Describe your responsibilities and achievements...
+JOB TITLE
+COMPANY
+
+Senior Developer
+El Alamein International University
+DURATION
+2024-09-present
+DESCRIPTION
+Describe your responsibilities and achievements...
+JOB TITLE
+Senior Developer
+COMPANY
+Horeca smart company
+DURATION
+2024-07-2024-10
+DESCRIPTION
+Describe your responsibilities and achievements...
+JOB TITLE
+Senior Developer
+COMPANY
+Tech Corp
+DURATION
+2024-05-2024-11
+DESCRIPTION
+Describe your responsibilities and achievements...
+
+Education
++ Add Education
+DEGREE
+Bachelor of Computer Sc
+INSTITUTION
+Faculty of Computer Scie
+YEAR
+2018 - 2022
+
+
+...TAIL:
+Git,
+GitHub, Databases, Linux)
+Applied Mathematics (Calculus, Linear Algebra, Probability, Statistics)
+Machine and deep learning (Sikit-Learn, Pytorch, TensorFlow, Spacy, Cuda, Data Modeling,
+Model Optimization, and Evaluation, Generative Modelling, Transformers, Sequence Models,
+Reinforcement Learning)
+
+Problem-solving & Analytical Thinking: Adept at translating complex data into actionable
+insights, with experience in model optimization and evaluation.
+Project Management: Demonstrated ability to balance multiple roles, managing AI research
+projects, academic responsibilities, and client relationships.
+Team Leadership & Collaboration: Led a cross-functional team of 12 researchers, driving
+innovative AI solutions while fostering a collaborative environment.
+Git
+GitHub
+Flask
+Analyze Profile

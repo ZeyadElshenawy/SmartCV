@@ -267,4 +267,14 @@ LINKEDIN_PROFILES_DIR = BASE_DIR / config(
     'LINKEDIN_PROFILES_DIR', default='chrome_profiles',
 )
 
+# Job-board scraper (Playwright). Persistent storage_state JSON saved by
+# `python manage.py login_<source>` lives here; the headless scrapers
+# reuse it instead of automating an interactive login each run.
+JOB_SCRAPER_STORAGE_DIR = BASE_DIR / config(
+    'JOB_SCRAPER_STORAGE_DIR', default='storage_state',
+)
+JOB_SCRAPER_DEBUG_DUMPS_DIR = BASE_DIR / config(
+    'JOB_SCRAPER_DEBUG_DUMPS_DIR', default='debug_dumps',
+)
+
 # End of settings.py

@@ -1,0 +1,43 @@
+{
+  "id": "jd_auto_cv_zeyad_datascience_jr",
+  "title": "Junior Data Scientist",
+  "company": "NovaTech Insights",
+  "description": "We are seeking a highly motivated Junior Data Scientist to join our team at NovaTech Insights. As a Junior Data Scientist, you will play a crucial role in analyzing complex data sets, developing predictive models, and creating data visualizations to inform business decisions.\n\nResponsibilities:\n- Collect, analyze, and interpret large data sets to identify trends and insights\n- Develop and deploy machine learning models to solve business problems\n- Create data visualizations to communicate findings to stakeholders\n- Collaborate with cross-functional teams to integrate data-driven solutions\n- Stay up-to-date with industry trends and emerging technologies\n\nMust-have skills:\n- Python programming\n- Machine Learning fundamentals\n- SQL and data querying\n- Data Visualization techniques\n- Deep Learning basics\n- Statistical analysis and modeling\n- Data preprocessing and feature engineering\n- Communication and presentation skills\n\nNice to have:\n- Experience with cloud platforms (AWS, GCP, Azure)\n- Familiarity with big data technologies (Hadoop, Spark)\n- Knowledge of data engineering principles",
+  "expected_skills": [
+    "Python",
+    "Machine Learning",
+    "Deep Learning",
+    "SQL",
+    "Data Visualization",
+    "Statistics",
+    "Data Preprocessing",
+    "Communication",
+    "AWS",
+    "Hadoop",
+    "Spark",
+    "Git",
+    "Agile"
+  ],
+  "expected_skills_must_have": [
+    "Python",
+    "Machine Learning",
+    "SQL",
+    "Data Visualization",
+    "Deep Learning",
+    "Statistics"
+  ],
+  "paired_cv_id": "cv_zeyad_datascience_jr",
+  "_meta": {
+    "generated_by": "benchmarks.jd_generator",
+    "source_cv_id": "cv_zeyad_datascience_jr",
+    "detected_role": "Data Scientist",
+    "detected_seniority": "junior",
+    "tech_stack_signals": [
+      "Python",
+      "Machine Learning",
+      "Deep Learning",
+      "SQL",
+      "Data Visualization"
+    ]
+  }
+}

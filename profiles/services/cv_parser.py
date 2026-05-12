@@ -712,7 +712,10 @@ class CVExtractor:
                         end_idx = min(end_idx, pos)
         
         skills_text = '\n'.join(lines[start_idx:end_idx])
-        items = re.split(r'[,•\-\*\|]|\n', skills_text)
+        # Split on the usual delimiters PLUS semicolon — Resume-Worded-style CVs
+        # use `HTML; CSS; JavaScript; React` on a single line, which fully
+        # short-circuited the parser (n_parsed=0) before this fix.
+        items = re.split(r'[,;•\-\*\|]|\n', skills_text)
         
         expanded_items = []
         for item in items:
@@ -927,29 +930,87 @@ _SKILL_NOISE_SUBSTRINGS = (
 _SKILL_PERCENT_RE = re.compile(r'\d+\s*%')
 
 
+# Section/group headers and language-proficiency words that previously leaked
+# through as "skills" in the 2026-05-06 run (Mohamed Abd Elghany CV: "Ghany]",
+# "Abd", "El", "CAREER OBJECTIVE", "Cross", "Native", "Fluent", "Conversational").
+_SKILL_BLOCKLIST_LOWER = frozenset({
+    "career objective", "objective", "summary", "profile", "languages",
+    "language", "skills", "skill", "tools", "frameworks", "experience",
+    "education", "projects", "certifications",
+    "fluent", "native", "conversational", "intermediate", "advanced",
+    "beginner", "proficient", "basic", "elementary", "professional",
+    "mother tongue", "cross",  # "Cross-functional" gets split → "Cross"
+})
+
+# Short-token allowlist: 2-char skills that are real (otherwise filter drops them).
+_SKILL_SHORT_ALLOWLIST = frozenset({"go", "r", "c", "ai", "ml", "qa"})
+
+
 def _is_plausible_skill_name(name: str) -> bool:
     """Conservative filter that keeps real skills and drops PDF/bullet noise.
 
     Tuned against the parser_eval fixtures: each rejected pattern was an
-    actual hit in the 2026-04-25 results, not a hypothetical.
+    actual hit in benchmark results (2026-04-25 + 2026-05-06).
     """
     if not name:
         return False
     s = name.strip()
     if len(s) < 2 or len(s) > 40:
         return False
-    if s.endswith('.'):                      # sentence fragment
+    if s.endswith('.') or s.endswith(':'):   # sentence / group-label fragment
         return False
     if not s[0].isalpha():                   # "(React)" / digit-leading noise
         return False
     if len(s.split()) > 4:                   # bullet body, not a skill
+        return False
+    if any(ch in s for ch in '[]{}'):        # markdown / link fragments ("Ghany]")
         return False
     low = s.lower()
     if any(token in low for token in _SKILL_NOISE_SUBSTRINGS):
         return False
     if _SKILL_PERCENT_RE.search(s):          # "increased sales by 40%"
         return False
+    if low in _SKILL_BLOCKLIST_LOWER:        # section headers, language proficiency words
+        return False
+    # All-caps multi-word strings are almost always section headers, not skills.
+    if len(s.split()) > 1 and s.isupper():
+        return False
+    # Short tokens (2-3 chars) are usually name/word fragments unless allowlisted.
+    if len(s) <= 3 and low not in _SKILL_SHORT_ALLOWLIST:
+        # Allow if it's a known acronym shape (all caps, with dots, etc.)
+        if not (s.isupper() or '.' in s or '+' in s or '#' in s):
+            return False
     return True
+
+
+_SKILL_CANONICALIZER_CACHE = None
+
+
+def _get_skill_canonicalizer():
+    """Build a one-time alias-lower → canonical-name map from SKILL_KB.
+
+    Returns a closure that takes a skill string and returns the canonical
+    spelling if it's a known alias, else returns the input unchanged.
+    Lazy-imported to avoid a circular dependency at module load time.
+    """
+    global _SKILL_CANONICALIZER_CACHE
+    if _SKILL_CANONICALIZER_CACHE is None:
+        try:
+            from jobs.services.skill_extractor import SKILL_KB
+        except Exception:
+            _SKILL_CANONICALIZER_CACHE = lambda s: s  # noqa: E731 — graceful no-op
+            return _SKILL_CANONICALIZER_CACHE
+        alias_map: Dict[str, str] = {}
+        for canonical, aliases in SKILL_KB.items():
+            alias_map[canonical.lower()] = canonical
+            for a in aliases or []:
+                alias_map[a.strip().lower()] = canonical
+
+        def _canon(s: str) -> str:
+            return alias_map.get(s.strip().lower(), s)
+
+        _SKILL_CANONICALIZER_CACHE = _canon
+    return _SKILL_CANONICALIZER_CACHE
 
 
 def parse_cv(file_path):
@@ -961,15 +1022,24 @@ def parse_cv(file_path):
     extractor = CVExtractor(use_llm=True)
     data = extractor.parse(file_path, use_llm_refinement=False)
 
-    # Flatten skills for view compatibility
+    # Flatten skills for view compatibility, with SKILL_KB canonicalization
+    # so case-drift ("javascript" vs "JavaScript") and aliases ("k8s" vs
+    # "Kubernetes") don't masquerade as misses against canonical labels.
+    canonicalize = _get_skill_canonicalizer()
     flat_skills = []
+    seen_canonical: set[str] = set()
     if 'skills' in data and isinstance(data['skills'], dict):
         for category, skills in data['skills'].items():
             if isinstance(skills, list):
                 for skill in skills:
                     if not _is_plausible_skill_name(skill):
                         continue
-                    flat_skills.append({"name": skill.strip(), "proficiency": None, "category": category})
+                    name = canonicalize(skill.strip())
+                    key = name.lower()
+                    if key in seen_canonical:
+                        continue
+                    seen_canonical.add(key)
+                    flat_skills.append({"name": name, "proficiency": None, "category": category})
             
     personal_info = data.get('personal_information', {})
 
