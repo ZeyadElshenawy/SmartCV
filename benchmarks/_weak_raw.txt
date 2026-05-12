@@ -1,0 +1,958 @@
+
+================================================================================
+cv_frontend_mid_react (cv_3.pdf)
+================================================================================
+ENRIQUE
+VERAGOZA
+Front-End Developer
+e.veragoza@email.com
+(123) 456-7890
+Stockton, CA
+LinkedIn
+EDUCATION
+Bachelor of Science
+Computer Science
+University of the Pacific
+September 2011 - June 2015
+Stockton, CA
+WORK EXPERIENCE
+Mid-Level Front-End Developer
+Gametime
+January 2019 - current
+Remote
+Worked with design, product, and back-end teams to create
+12 web products.
+Created 3 efficient and reusable front-end systems to drive
+web applications to the marketplace.
+Participated in product releases and code reviews with 5
+senior developers and team leads.
+Supervised, led, and mentored 11 junior team members to
+achieve high performance and meet goals.
+Front-End Developer
+Kaiser Permanente
+August 2017 - January 2019
+Walnut Creek, CA
+Collaborated with 6 other team members and 4
+stakeholders to develop 16 new user-facing features.
+Assisted in building 100% reusable code and libraries for
+future use.
+Ensured the technical feasibility of 150+ UI/UX designs.
+Optimized 15+ applications for maximum speed and
+scalability.
+Validated 100% of user input before submitting to the back-
+end.
+Junior Front-End Developer
+PLACE
+June 2015 - August 2017
+Remote
+Delivered 30+ projects of all sizes, creating solutions for
+consumer services.
+Wrote 40+ automated tests for every new feature to identify
+and rectify bugs.
+Evaluated 100+ end-to-end designs for performance
+complexity, scalability, quality, and security.
+SKILLS
+HTML
+CSS
+JavaScript
+React.js
+CERTIFICATIONS
+AWS
+
+[Embedded Link: 'LinkedIn' -> https://linkedin.com/]
+
+================================================================================
+cv_frontend_senior_react_vue_v2 (cv_7.pdf)
+================================================================================
+CHARLOTTE MAY
+Experienced Frontend Developer
+john.smith@gmail.com
+London, UK
+SUMMARY
+Experienced frontend developer proficient in JavaScript, React, and Vue with a strong focus on creating engaging and 
+user-friendly graphical user interfaces. Looking to join an innovative and dynamic team to further develop my skills and 
+contribute to exciting projects.
+EXPERIENCE
+Senior Frontend Developer
+ABC Corp
+2019 - 2022 
+London, UK
+Developed and maintained engaging, user-friendly graphical user interfaces resulting in a 20% increase in user 
+engagement.
+Designed and developed responsive UIs using React and Vue.
+Collaborated with designers and back-end developers to ensure seamless integration of UI components.
+Optimized UI performance resulting in a 15% increase in page load speed.
+Implemented automated testing and deployment processes, reducing production errors by 25%.
+Frontend Developer
+XYZ Inc
+2017 - 2019 
+New York, USA
+Designed and developed intuitive and user-friendly interfaces for multiple web applications resulting in a 30% increase in 
+user satisfaction.
+Developed UI components using React and Redux.
+Collaborated with cross-functional teams to ensure consistency in UI design and functionality.
+Implemented accessibility standards resulting in a 20% increase in users with disabilities accessing the applications.
+Conducted user testing and implemented feedback resulting in a 10% increase in user engagement.
+Web Developer
+123 Co
+2015 - 2017 
+Sydney, Australia
+Developed and maintained responsive websites for multiple clients resulting in a 15% increase in website traffic.
+Developed websites using HTML, CSS, JavaScript, and jQuery.
+Implemented responsive design and cross-browser compatibility.
+Conducted performance optimization resulting in a 20% increase in page load speed.
+Provided ongoing maintenance and support to clients.
+STRENGTHS
+Efficient Coding
+Consistently delivers high-quality code with speed 
+and accuracy, resulting in a 20% increase in project 
+completion rate.
+Team Collaboration
+Demonstrates strong teamwork and communication 
+skills, resulting in an average team productivity 
+increase of 15%.
+Problem Solving
+Proactively identifies and solves complex technical 
+problems, resulting in a 25% reduction in project 
+bugs.
+www.enhancv.com
+
+Powered by
+
+
+•
+•
+•
+•
+•
+•
+•
+•
+•
+•
+•
+•
+
+k
+G
+
+[Embedded Link: '
+Powered by' -> https://enhancv.com/resume]
+
+EDUCATION
+Bachelor of Science in Computer Science
+University of Sydney
+2011 - 2014 
+Sydney, Australia
+LANGUAGES
+JavaScript
+Proficient
+React
+Proficient
+Vue
+Advanced
+Angular
+Intermediate
+TypeScript
+Advanced
+HTML5
+Proficient
+CSS3
+Proficient
+www.enhancv.com
+
+Powered by
+
+[Embedded Link: '
+Powered by' -> https://enhancv.com/resume]
+
+================================================================================
+cv_frontend_jquery_legacy (cv_11.pdf)
+================================================================================
+First Last
+Front End Developer
+WORK EXPERIENCE
+______________________________________________________________________
+Resume Worded, London, United Kingdom
+Education technology startup with 50+ employees and $100m+ annual revenue
+Front End Developer
+08/2021 – Present
+●
+Developed an interactive map for a real estate company’s website that
+enabled 3600+ users to search preferred properties by the municipality.
+●
+Conducted routine updates, security patches, and other website maintenance
+tasks; achieved a 93% optimal website performance.
+●
+Designed front-end code using HTML, CSS, JavaScript, jQuery to create a
+responsive web application that works across desktops, tablets, and 20+
+other devices.
+●
+Hand-coded embedded stylesheets into 10+ Javascript interfaces and
+reduced load times by 75% in the first month of implementation.
+Polyhire, London, United Kingdom
+NYSE-listed recruitment and employer branding company
+Web Content Editor
+10/2019 – 07/2021
+●
+Edited numerous web content pieces supporting the marketing initiatives of
+Polyhire, maintaining 95% brand consistency and voice.
+●
+Optimized 30+ key content pages for SEO objectives, which improved online
+search-ranking accuracy by 63%.
+●
+Manipulated textual and graphic imagery to create website content that
+served the needs of 20+ marketing teams.
+●
+Introduced an innovative document management system that saved $3200+
+in monthly labor expenses by creating an editorial workflow that facilitated
+collaboration across 10+ geographies.
+Growthsi, London, United Kingdom & Barcelona, Spain
+Career training and membership SaaS with 150,000 users
+Java Web Developer
+11/2018 – 09/2019
+●
+Developed 40+ user-friendly web applications using the Spring framework
+library in the first month of employment.
+●
+Created a document review application for civil litigation support, allowing
+>20K users to upload and view records.
+●
+Designed a solution that integrated software mapping data of 840+
+merchants into the proprietary GPS tracking logbooks of Polyhire.
+●
+Integrated feedback from 2100+ beta testers during a site redesign based on
+usability tests performed at branch offices of Polyhire.
+PREVIOUS EXPERIENCE
+______________________________________________________________________
+Web Analyst, ABC Company, London, UK
+06/2017 – 10/2018
+Java Consultant, XYZ Company, New York, USA
+01/2016 – 05/2017
+Web UI Developer (Internship), ABC, New York, USA
+07/2014 – 12/2015
+CONTACT
+__________________________
+• Leeds, United Kingdom
+• +44 1234567890
+• first.last@gmail.com
+SKILLS
+__________________________
+Hard Skills:
+• Debugging
+• Testing
+• CSS Preprocessing
+• Command Line
+• Troubleshooting
+• Cross-Browser Development
+Techniques:
+• Web Development
+• Agile Methodologies
+• Responsive Web Design
+Tools and Software:
+• TypeScript
+• Vue.js
+• AJAX
+• jQuery
+Languages:
+• English (Native)
+• Romanian (Native)
+• Spanish (Conversational)
+EDUCATION
+__________________________
+University of New York
+Associate of Applied Science
+Web Design & Development
+New York City, New York
+10/2011 - 06/2014
+OTHER
+___________________________
+• Certified Web Professional
+• Certified HTML, CSS,
+JavaScript Web Developer
+
+================================================================================
+cv_bahgat_ai_research_senior (Mohamed Bahget CV .pdf)
+================================================================================
+Mohamed Bahgat Teaching Assistant / AI Engineer 
+ 
+ 
+ 
+bahgatm226@gmail.com 
+ MBAHGAT2000 
+ 0106319533 
+ Cairo 
+ Mohammed Bahgat | LinkedIn
+ 
+Summary 
+ 
+Teaching Assistant in the Artificial Intelligence Engineering Department at El Alamein 
+International University, with a focus on deep learning, machine learning, reinforcement 
+learning, and NLP. Currently leading AI Research and Development at VRtualize Srl, 
+contributing to impactful projects in healthcare and finance. Passionate about advancing 
+knowledge in AI through both academic and practical applications, and eager to deepen 
+expertise in the field through the Master's program in Artificial Intelligence at Nile University. 
+ 
+Professional Experience 
+ 
+2024/08–present 
+Milan, Italy 
+Remote 
+ AI Research and Development Team Lead 
+ VRtualize Srl (Italy) 
+ 
+• 
+Lead a multidisciplinary team of 12 AI and software researchers to develop cutting-
+edge AI solutions. 
+• 
+Led AI R&D initiatives, driving innovation in healthcare and finance through cutting-
+edge machine learning solutions. 
+• 
+Coordinated cross-functional teams to develop AI-driven applications, improving 
+operational efficiency and decision-making. 
+• 
+Published research findings and contributed to the adoption of AI solutions 
+in diverse fields. 
+• 
+Collaborate with European corporations and Italian research laboratories to design 
+innovative solutions for complex challenges in healthcare and beyond. 
+ 
+2024/09–present 
+Alamein, 
+Matrouh 
+ Teaching Assistant – Artificial Intelligence Engineering Dept. 
+ El Alamein International University 
+ 
+• 
+Taught advanced AI topics, including deep learning, machine learning, reinforcement 
+learning, and NLP, to undergraduate students. 
+• 
+Designed and delivered interactive course materials to enhance student engagement 
+and understanding of complex AI concepts. 
+2024/07 – 2024/10 AI Engineer at Horeca smart company 
+• 
+Working on the analysis and forecasting for the sales team using Microsoft 
+Power BI and Amazon Sage . 
+• 
+Working on developing chatbots using long-chain,botpress 
+Internships 
+ 
+2024/05–2024/11 
+Digital Egypt Pioneers Initiative - DEPI (Generative AI Track) 
+Cairo 
+This training is under the guidance Ministry of Communications and 
+Information Technology (MCIT), The main courses: ML , DL, Mlops Tools, 
+Hugging Face, Variant Types of GANS, NLP With Attention, Gen AI
+
+[Embedded Link: https://www.vrtualize.eu/]
+[Embedded Link: https://aiu.edu.eg/academics/field-of-computer-science-engineering/]
+[Embedded Link: https://www.horecasmart.com/home]
+[Embedded Link: 'MBAHGAT2000' -> https://github.com/MBAHGAT2000]
+[Embedded Link: https://www.linkedin.com/in/mohammed-bahgat-20b96a244/?lipi=urn%3Ali%3Apage%3Ad_flagship3_feed%3BlQCRSBUlRMqUkatmZKaptg%3D%3D]
+[Embedded Link: 'Mohammed Bahgat | LinkedIn' -> https://www.linkedin.com/in/mohammed-bahgat/]
+
+ Education 
+ 
+ Bachelor of Computer Science and Artificial Intelligence 
+ Faculty of Computer Science and Artificial Intelligence, Banha University 
+ Graduation Year: [2024] CGPA: 3.30 / 4.00 (Very Good with Honor) 
+ Graduation Project: Automatic Grading for Essay Questions Using Deep Learning Models 
+• 
+Developed an AI-driven system to automate essay grading, reducing manual correction time, 
+minimizing human error, and optimizing evaluation costs. 
+• 
+Utilized advanced language models (LLAMA, MISTRAL, and FLAN T5) to understand semantic 
+meaning, achieving 97% accuracy on an English dataset and 92% accuracy on an Arabic dataset. 
+ Technical Skills 
+• 
+Data Analysis (Pandas, Matplotlib, SciPy, Plotly, PowerPI, Signal and Text analysis). 
+• 
+Software Development (C++, Python, OOP, SQL, Flask, Data Structures, Algorithm, Git, GitHub, 
+Databases, Linux). 
+• 
+Applied Mathematics (Calculus, Linear Algebra, Probability, Statistics). 
+• 
+Machine and deep learning (Sikit-Learn, Pytorch, TensorFlow, Spacy, Cuda, Data Modeling, Model 
+Optimization, and Evaluation, Generative Modelling, Transformers, Sequence Models, 
+Reinforcement Learning). 
+ Soft Skills 
+• 
+Problem-solving & Analytical Thinking: Adept at translating complex data into actionable insights, with 
+experience in model optimization and evaluation. 
+• 
+Project Management: Demonstrated ability to balance multiple roles, managing AI research projects, 
+academic responsibilities, and client relationships. 
+• 
+Team Leadership & Collaboration: Led a cross-functional team of 12 researchers, driving innovative AI 
+solutions while fostering a collaborative environment. 
+ Project
+ 
+ 
+ Arabic Meeting Summarization | June 2024 – Oct 2024 
+• 
+Developed a summarization system for Arabic meetings by translating datasets from Dialogsum. 
+• 
+Leveraged Bloomz 3b and LoRA technologies to enhance summarization accuracy. Successfully 
+processed Arabic datasets through efficient translation methods 
+ Age Prediction from Facial Images | June 2024 – Aug 2024 
+• 
+Developed a Convolutional Neural Network (CNN) model for age prediction using facial images, 
+achieving an R² score of 0.70 through optimized model architecture and preprocessing techniques. 
+ Machine Translation: English to Arabic | Feb 2024 – May 2024 
+• 
+Designed a Seq2Seq MT model based on the Transformer for translating English to Arabic. 
+• 
+Achieved a BLEU score of 88, demonstrating high translation accuracy. Conducted human evaluation 
+to validate results, achieving precision compared to benchmark translations. 
+ Speech Emotion Detector | Feb 2023 – May 2023 
+• 
+Developed a system using Convolutional Neural Networks (CNNs) to analyze pre-recorded human 
+audio and identify the speaker's emotions based on the sound. 
+ Chatbot Development Using Transformer | Feb 2024 – May 2024 
+• 
+Designed and implemented a chatbot from scratch using the Transformer architecture to answer users. 
+• 
+Trained the model on the IMDB dataset, leveraging movie reviews to build a conversational system 
+capable of responding accurately based on user input. 
+ Languages 
+ 
+ Arabic —Native English — Very Good 
+ 
+ 
+
+[Embedded Link: https://www.linkedin.com/posts/mohamed-emam-599970208_machinelearning-ai-education-activity-7213862949965221890-wjHA?utm_source=share&utm_medium=member_desktop]
+
+================================================================================
+cv_abbas_backend_devops_senior_student (Ahmed-Mahmoud-Abbas-MasterCV.pdf)
+================================================================================
+Ahmed Mahmoud Abbas
+ahmedabbass871@gmail.com
+
+Military Status: Exempted
+GitHub
++20 1114993108
+Egypt, Giza
+LinkedIn
+LeetCode
+Profile
+A Senior Software Engineering student specializing in backend development and DevOps. Self-taught in CCNA-
+level networking with hands-on experience in system administration, Linux environments, and network
+configuration. Skilled in Rust, C++, and Python with projects involving scalable systems, in-memory data stores,
+and automation pipelines. Currently engineering production-grade backends and automated pipelines using
+Node.js, Docker, and Terraform. Committed to clean architecture, high availability, and performance-driven design.
+Professional Experience
+DevOps Engineering Trainee
+Digital Egypt Pioneers Initiative (MCIT – EYouth).
+06/2025 – present | Zamalek, Giza, Egypt
+•Selected for a national DevOps training program sponsored by MCIT.
+•Automated CI/CD pipelines with Git, Jenkins and Docker, reducing deployment time by 40%.
+•Built reusable IaC modules with Terraform and Ansible to provision 5+ environments.
+•Deployed, monitored, and optimized containerized microservices on Kubernetes clusters using Prometheus and 
+Grafana for observability
+•Capstone: simulated production infrastructure (Docker, CI/CD, monitoring).
+R&D Intern — Development & Application
+NBK Egypt
+ 08/2025 – 09/2025
+New Cairo, Cairo, Egypt
+•Built a Credit Risk Prediction POC from Temenos/Oracle (1,000+ tables): feature engineering, SMOTE,
+•Developed OFAC Sanctions Screening (RAG) prototype (FastAPI + Ollama): multilingual name translation, 
+fuzzy matching and confidence scoring.
+•Implemented Secure Customer PDF Portal (Spring Boot WAR): RSA/AES hybrid encryption, Base64 PDF
+streaming, Tomcat deployment. 
+•Automated Outlook → SFTP workflow (Java, JACOB + JSch); delivered RUNBOOK, demo and security risk
+statement for handoff.
+Information Technology Intern
+Emkay Foods
+08/2024 | Sheikh Zayed, Giza, Egypt
+•Supported IT operations across 150+ endpoints: Active Directory, DHCP, VPN/VLAN configuration.
+•Configured and monitored managed switches, FortiGate/Sophos firewalls and wireless APs.
+•Assisted ERP user support and access provisioning, improving onboarding & ticket turnaround.
+Projects
+Redis from Scratch (Rust, TCP, Multithreading, Concurrency, Systems Programming)
+•Built a multithreaded in-memory key-value store with support for Strings, Lists, Sets, Sorted Sets, and TTL.
+•Implemented a lightweight TCP server to handle client requests and command parsing.
+•Ensured concurrency safety and atomic operations using Arc, Mutex, and Rust’s ownership model.
+Secure Customer PDF Portal (Spring Boot, RSA, AES, Tomcat, REST API, Encryption)
+•Enterprise Spring Boot service (WAR) for encrypted customer PDF retrieval from Temenos/Laserfiche.
+•Implemented hybrid encryption: RSA-2048 key exchange + AES-256-GCM session encryption.
+•Packaged as a WAR for Tomcat with session validation, streaming PDF endpoints and health checks.
+
+[Embedded Link: 'GitHub' -> https://github.com/ahmed-145]
+[Embedded Link: 'LinkedIn
+LeetCode' -> https://www.linkedin.com/in/ahmed-mahmoud-abbas/]
+[Embedded Link: 'LeetCode' -> https://leetcode.com/u/Ahmeed145/]
+[Embedded Link: 'Redis from Scratch (Rust, TCP, Multithreading, Concurrency, Systems Programming)
+Built a multithreaded in-memory key-value store with support for Strings, Lists, Sets, Sorted Sets, and TTL.' -> https://github.com/ahmed-145/REDIS_RUST]
+[Embedded Link: 'Secure Customer PDF Portal (Spring Boot, RSA, AES, Tomcat, REST API, Encryption)
+Enterprise Spring Boot service (WAR) for encrypted customer PDF retrieval from Temenos/Laserfiche.' -> https://github.com/ahmed-145/secure-customer-pdf-portal]
+
+OFAC Sanctions Screening (RAG System)
+•RAG-based prototype combining TF-IDF/fuzzy retrieval with Ollama LLM for multilingual name translation.
+•Multi-stage similarity scoring (TF-IDF, Levenshtein) + LLM confidence output for human-in-the-loop review.
+•Exposes REST APIs and a responsive web UI; optimised to <2s response on ~1K records.
+•Designed for compliance workflows (MATCH | POSSIBLE_MATCH | NO_MATCH).
+Credit Risk Prediction
+•Developed a machine learning pipeline for predicting loan default probability using anonymized banking data
+•Engineered 17+ financial ratios (DTI, Interest Coverage, Loan-to-Income, etc.) and applied SMOTE + PCA to 
+handle imbalance and dimensionality.
+•Trained and deployed a Random Forest model with a Streamlit UI for real-time predictions; packaged 
+artifacts for reproducibility.
+•Tech: Python, scikit-learn, pandas, Oracle DB, Streamlit, Docker
+Outlook → SFTP Automation Utility
+•Prototype that polls Outlook, extracts attachments, and uploads to Linux via SFTP (JSch), using JACOB for
+•Delivered executable JAR, RUNBOOK and a security risk statement; recommended vaulting and sender-
+verification for production.
+•Useful operational bridge for legacy workflows; designed for safe handoff to integration teams.
+Education
+BSc in Computer Science – Software Engineering 
+(Expected July 2026)
+King Salman International University
+10/2022 – 07/2026 | South Sinai, Egypt
+•Participated in IEEE, GDSC, and ICPC student communities.
+•Selected as a COP27 Youth Volunteer (via KSIU) and participant in the Huawei ICT Academy.
+Skills
+Programming & Core Development: Rust, C++, Python, Java, JavaScript — solid foundation in OOP, data 
+structures, and concurrent programming. Built scalable systems and in-memory data stores.
+Backend Development: Spring Boot, FastAPI, Flask, Node.js, PostgreSQL, MongoDB. Experienced in API design, 
+JWT-based authentication, and deploying backend services on Linux.
+DevOps & Infrastructure: Docker, Jenkins, GitHub Actions, Terraform, Ansible, Kubernetes, Prometheus. 
+Implemented CI/CD pipelines, automated environment provisioning, and containerized services.
+Cloud & System Administration: Linux (Ubuntu/Fedora), VirtualBox, systemd, Nginx, SFTP, SSH. Familiar with 
+AWS & GCP fundamentals, server configuration, and web deployments.
+Networking & Security: CCNA-level understanding of TCP/IP, DNS, DHCP, VLANs, VPNs, NAT. Exposure to 
+FortiGate, Sophos, and pfSense firewalls. Hands-on with RSA/AES encryption and AD-based access control.
+Machine Learning & Data Pipelines: scikit-learn, pandas, Streamlit, SMOTE, PCA, RandomForest. Built and 
+deployed ML pipelines with emphasis on data preprocessing and real-time visualization.
+Languages
+Arabic
+Mother Tongue
+English
+Fluent
+
+[Embedded Link: 'OFAC Sanctions Screening (RAG System)
+RAG-based prototype combining TF-IDF/fuzzy retrieval with Ollama LLM for multilingual name translation.' -> https://github.com/ahmed-145/ofac-sdn-rag-search]
+[Embedded Link: 'Credit Risk Prediction
+Developed a machine learning pipeline for predicting loan default probability using anonymized banking data' -> https://github.com/ahmed-145/CreditRiskPrediction]
+[Embedded Link: 'Outlook → SFTP Automation Utility
+Prototype that polls Outlook, extracts attachments, and uploads to Linux via SFTP (JSch), using JACOB for' -> https://github.com/ahmed-145/Outlook-SFTP-Automation]
+
+================================================================================
+cv_frontend_senior_react_vue (cv_0.pdf)
+================================================================================
+CM
+Charlotte May
+Experienced Frontend Developer
+john.smith@gmail.com
+London, UK
+Summary
+Experienced frontend developer proficient in JavaScript, React, and Vue with a strong focus on creating engaging and 
+user-friendly graphical user interfaces. Looking to join an innovative and dynamic team to further develop my skills and 
+contribute to exciting projects.
+Experience
+ABC Corp
+London, UK
+Senior Frontend Developer
+2019 - 2022
+Developed and maintained engaging, user-friendly graphical user interfaces resulting in a 20% increase in user 
+engagement.
+Designed and developed responsive UIs using React and Vue.
+Collaborated with designers and back-end developers to ensure seamless integration of UI components.
+Optimized UI performance resulting in a 15% increase in page load speed.
+Implemented automated testing and deployment processes, reducing production errors by 25%.
+XYZ Inc
+New York, USA
+Frontend Developer
+2017 - 2019
+Designed and developed intuitive and user-friendly interfaces for multiple web applications resulting in a 30% increase in 
+user satisfaction.
+Developed UI components using React and Redux.
+Collaborated with cross-functional teams to ensure consistency in UI design and functionality.
+Implemented accessibility standards resulting in a 20% increase in users with disabilities accessing the applications.
+Conducted user testing and implemented feedback resulting in a 10% increase in user engagement.
+123 Co
+Sydney, Australia
+Web Developer
+2015 - 2017
+Developed and maintained responsive websites for multiple clients resulting in a 15% increase in website traffic.
+Developed websites using HTML, CSS, JavaScript, and jQuery.
+Implemented responsive design and cross-browser compatibility.
+Conducted performance optimization resulting in a 20% increase in page load speed.
+Provided ongoing maintenance and support to clients.
+Strengths
+Efficient Coding
+Consistently delivers high-
+quality code with speed and 
+accuracy, resulting in a 20% 
+increase in project completion 
+rate.
+Team Collaboration
+Demonstrates strong teamwork 
+and communication skills, 
+resulting in an average team 
+productivity increase of 15%.
+Problem Solving
+Proactively identifies and solves 
+complex technical problems, 
+resulting in a 25% reduction in 
+project bugs.
+www.enhancv.com
+
+Powered by
+•
+•
+•
+•
+•
+•
+•
+•
+•
+•
+•
+•
+
+k
+G
+
+[Embedded Link: '
+Powered by' -> https://enhancv.com/resume]
+
+Education
+University of Sydney
+Sydney, Australia
+Bachelor of Science in Computer Science
+2011 - 2014
+Languages
+JavaScript Proficient
+React Proficient
+Vue Advanced
+Angular Intermediate
+TypeScript Advanced
+HTML5 Proficient
+CSS3 Proficient
+Skills
+UI/UX design Frontend development JavaScript frameworks Agile methodologies Responsive design
+Cross-browser compatibility Version control systems
+Achievements
+Developing a High-Traffic E-
+commerce Website
+Led the frontend development 
+team in building a robust e-
+commerce website that handled 
+over 100,000 daily users and 
+increased sales by 40%.
+Mentoring Junior Developers
+Provided guidance and 
+mentorship to junior developers, 
+resulting in their successful 
+completion of several high-
+profile projects and increased 
+team productivity.
+www.enhancv.com
+
+Powered by
+&
+s
+
+[Embedded Link: '
+Powered by' -> https://enhancv.com/resume]
+
+================================================================================
+cv_taher_mobile_jr (Mohamed Taher Amin -  CV.pdf)
+================================================================================
+Mohamed Taher Amin
+ Software Engineering Student
+ Giza, Egypt
+mohamedheiba88998@gmail.com
+ +201098614758
+GitHub Profile | LinkedIn Profile
+Profile
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Software Engineering student at King Salman International University with a strong academic 
+foundation and hands-on experience in mobile development. Skilled in Flutter and Backend 
+technologies like Firebase.
+Built mobile apps integrating machine learning models and AI APIs, music streaming systems, and 
+productivity tools with strong attention to UI/UX and performance. Proven ability to deliver practical, 
+user-centered solutions through internships and academic projects. Eager to join innovative teams and 
+contribute to real-world tech products.
+Education
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Bachelor of Computer Science (2022 – 2026) 
+King Salman International University – Egypt
+Faculty of Computer Science, Software Engineering Department
+Grade: excellent
+Experience
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Internet of Things (IoT) Internship – 2024
+Built a real-time IoT prototype using MQTT, connecting 3+ hardware sensors with 95%+ stable data.
+Connected 3+ hardware devices and tested network stability under different conditions.
+Cloud Computing Internship – 2024
+Deployed 2+ scalable apps on cloud platforms using Firebase and Google Cloud.
+Improved Backend response time by 25% through optimized API integration and data structuring.
+Courses & Certifications
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Digital Egypt Pioneers Initiative (DEPI) — Cross-Platform Mobile Apps Developer Jun 2025 – Dec 2025
+
+Dart & Flutter (Basic to Advanced): OOP, UI design, state management (Getx & BLoC), animations, 
+and app architecture.
+
+Firebase Integration: Authentication, Firestore, Cloud Messaging, and data syncing.
+
+Mobile Deployment: Building and releasing apps, code obfuscation, flavor configuration.
+
+Git & GitHub: Version control, branching, merge conflict resolution, CI/CD basics.
+
+Security: Android permissions, data encryption, secure networking.
+
+UX/UI: Design thinking, wireframing, user research, and prototyping.
+
+Testing: Unit, widget, integration testing, and writing technical docs. 
+ Version Control
+ 
+ (Git)
+ 
+ — Meta (via Coursera), Jul 2025 
+ Principles of UX/UI Design — Meta (via Coursera), Jul 2025
+
+[Embedded Link: 'LinkedIn Profile' -> https://www.linkedin.com/in/mohamed-heiba-141963325/]
+[Embedded Link: 'GitHub Profile' -> https://github.com/mohaaHeiba]
+[Embedded Link: 'Version Control' -> https://coursera.org/share/cecd1a83624c4a42638df261d0f8dd37]
+[Embedded Link: 'Principles of UX/UI Design' -> https://www.coursera.org/account/accomplishments/verify/OWPG9EFWI8TG?utm_product=course]
+
+ Flutter Intermediate Level — (Udemy) 2025 
+ Mastering Animation in Flutter — (Udemy) 2024 
+ Master Flutter App Architectures: Practical and Modern — (Udemy) 2024
+ The Complete Flutter & Dart: Basics to Advanced — (Udemy) 2024
+Projects
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Mega News – 2025
+Sophisticated news aggregator built with Clean Architecture, leveraging AI for content summarization and 
+parallel data fetching.
+•
+Engineered a scalable codebase using Clean Architecture (MVVM) & GetX, ensuring testability and 
+separation of concerns.
+•
+Reduced load times by fetching news from 4 APIs in parallel instead of sequentially.
+•
+Integrated Google Gemini AI for smart article summaries, topic briefings, and context-aware 
+insights.
+•
+Implemented Text-to-Speech (TTS), voice search, offline caching, and full Arabic/English 
+localization.
+Brain Tumor Classification App – 2025
+Built with Flutter, Flask, and Python to classify brain MRI scans (Glioma, Meningioma, Pituitary Tumor).
+Integrated 6 ML models including Random Forest, SVC, and KNN with real-time prediction and 
+confidence scores 
+Developed the Flutter desktop app and Flask API, achieving 90%+ accuracy on test data 
+Implemented real-time inference from trained models
+The Grimoire – 2025
+Modern, feature-rich novel reading application built with Flutter and Firebase.
+Designed a distraction-free chapter reader with progress tracking, bookmarking, and volume 
+navigation 
+Implemented Firebase Auth & Firestore for user accounts, personal libraries, and activity tracking 
+Added dynamic color themes that adapt to novel covers 
+Developed offline reading mode with local caching for seamless access without internet 
+Built advanced search & discovery features with genre filters and weekly picks
+VibeStream
+ 
+ - 
+ 2024
+ 
+ 
+Full-featured music streaming application with advanced audio capabilities.
+Features include authentication, real-time Firestore sync, audio playback with just_audio 
+Background support, notification controls, lock screen interactions, and playlist management 
+Tested across multiple Android devices with smooth playbook of 100+ songs
+Technical Skills
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ Programming Languages: Dart
+Frameworks & Tools: Flutter, Git, Postman
+Databases & Backend: Firebase, Supabase, PostgreSQL, SqlLite
+Core Concepts: UI/UX principles, responsive design, mobile development, REST APIs, State Management 
+(GetX, BLoC), Clean Architecture (MVVM), Testing (Unit, Widget, Integration)
+
+[Embedded Link: 'The Complete Flutter & Dart: Basics to Advanced' -> https://drive.google.com/drive/folders/1yEdMYoHSW6meGo3t_t824BAqdthUWNGo?usp=sharing]
+[Embedded Link: 'Mega News – 2025' -> https://drive.google.com/file/d/1QsdgztfShyNUgrJM6naZ3tF2-b55AyFL/view?usp=sharing]
+[Embedded Link: 'm
+ - 
+ 2024' -> https://drive.google.com/file/d/1rpE_l7aoYQXBKqiuDpho0lEPyaq7z9Zs/view?usp=sharing]
+[Embedded Link: 'Master Flutter App Architectures: Practical and Modern' -> https://drive.google.com/drive/folders/1yEdMYoHSW6meGo3t_t824BAqdthUWNGo?usp=sharing]
+[Embedded Link: 'Flutter Intermediate Level' -> https://drive.google.com/drive/folders/1yEdMYoHSW6meGo3t_t824BAqdthUWNGo?usp=sharing]
+[Embedded Link: 'Mastering Animation in Flutter' -> https://drive.google.com/drive/folders/1yEdMYoHSW6meGo3t_t824BAqdthUWNGo?usp=sharing]
+[Embedded Link: 'The Grimoire – 2025' -> https://86xf0kqg.r.ap-southeast-1.awstrack.me/L0/https:%2F%2Fapkpure.com%2Fp%2Fcom.example.the_grimoire/1/010e0198ea7ef2d7-b202f22b-22b1-41c5-9c86-e9550dfb9874-000000/MKWOr5bB8_BoGpsd6eBFGQHGoZE=225]
+[Embedded Link: 'Brain Tumor Classification App – 2025' -> https://github.com/mohaaHeiba/the-magnificent-three]

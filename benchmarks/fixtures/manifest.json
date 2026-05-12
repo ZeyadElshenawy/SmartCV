@@ -1,28 +1,7 @@
 {
-  "version": 1,
-  "description": "Hand-curated fixture suite for SmartCV benchmark Phases D1-D3 + D5. CV files are referenced by their original on-disk paths so we don't duplicate (potentially personal) PDFs into the repo. JDs and labels in jobs/ + labels/ are committed and PII-free.",
+  "version": 2,
+  "description": "Hand-curated fixture suite for SmartCV benchmarks (parser, skill-extractor, gap, tailoring). v2 expansion: 25 CVs from `test cvs/` (23 PDF + 2 DOCX). Each CV is paired with a role-appropriate auto-generated JD via jd_generator.py (paired_cv_id field); the original 5 hand-curated JDs remain for legacy 10 CVs (Cartesian).",
   "cvs": [
-    {
-      "id": "cv_backend_jr_rust",
-      "path": "test cvs/Ahmed-Mahmoud-Backend.pdf",
-      "primary_role": "backend",
-      "seniority": "junior",
-      "notes": "Aspiring backend dev; Rust + C++ heavy, Node.js/MySQL learning. IT intern only."
-    },
-    {
-      "id": "cv_frontend_jr_react",
-      "path": "test cvs/Ahmed-Mahmoud-Frontend.pdf",
-      "primary_role": "frontend",
-      "seniority": "junior",
-      "notes": "Final-year SWE student. HTML/CSS/JS + React. No professional FE role."
-    },
-    {
-      "id": "cv_devops_jr",
-      "path": "test cvs/Ahmed-Mahmoud-DevOps.pdf",
-      "primary_role": "devops",
-      "seniority": "junior",
-      "notes": "Third-year SWE student aspiring to DevOps; CI/CD/IaC theoretical, IT intern only."
-    },
     {
       "id": "cv_flutter_intern",
       "path": "test cvs/Mohamed Abd Elghany_Flutter Developer.pdf",
@@ -39,38 +18,164 @@
     },
     {
       "id": "cv_frontend_senior_react_vue",
-      "path": "test cvs2/cv_0.pdf",
+      "path": "test cvs/cv_0.pdf",
       "primary_role": "frontend",
       "seniority": "senior",
       "notes": "Synthetic-style CV (Charlotte May): Senior FE 5+ yrs React/Vue at ABC + XYZ."
     },
     {
       "id": "cv_frontend_mid_react",
-      "path": "test cvs2/cv_3.pdf",
+      "path": "test cvs/cv_3.pdf",
       "primary_role": "frontend",
       "seniority": "mid",
       "notes": "Synthetic-style (Enrique Veragoza): Mid FE; multi-year React focus."
     },
     {
       "id": "cv_frontend_senior_react_vue_v2",
-      "path": "test cvs2/cv_7.pdf",
+      "path": "test cvs/cv_7.pdf",
       "primary_role": "frontend",
       "seniority": "senior",
       "notes": "Charlotte May variant of cv_0; same career."
     },
     {
       "id": "cv_frontend_jquery_legacy",
-      "path": "test cvs2/cv_11.pdf",
+      "path": "test cvs/cv_11.pdf",
       "primary_role": "frontend",
       "seniority": "mid",
       "notes": "Resume-Worded sample. HTML/CSS/JS/jQuery focus, light on React."
     },
     {
       "id": "cv_frontend_entry_no_role",
-      "path": "test cvs2/cv_14.pdf",
+      "path": "test cvs/cv_14.pdf",
       "primary_role": "frontend",
       "seniority": "entry",
       "notes": "Junior FE with no FE work history (server / library jobs); HTML5/CSS3/TS skills only."
+    },
+    {
+      "id": "cv_abbas_backend_devops_senior_student",
+      "path": "test cvs/Ahmed-Mahmoud-Abbas-MasterCV.pdf",
+      "primary_role": "backend",
+      "seniority": "senior_student",
+      "notes": "SWE student; Backend + DevOps. Rust/C++/Python, Docker/Terraform/Jenkins, CCNA networking. ML side-projects (RAG, RandomForest)."
+    },
+    {
+      "id": "cv_eyad_data_engineer_jr",
+      "path": "test cvs/EyadSalehResume.docx",
+      "primary_role": "data_engineering",
+      "seniority": "junior",
+      "notes": "Data Engineer (DOCX). Python/SQL/Kafka/Airflow/Spark, Azure+AWS, I-SCORE intern. KSIU AI grad."
+    },
+    {
+      "id": "cv_eyad_data_engineer_jr_v2",
+      "path": "test cvs/EyadSalehResume2.docx",
+      "primary_role": "data_engineering",
+      "seniority": "junior",
+      "notes": "Duplicate-content variant of cv_eyad_data_engineer_jr — second DOCX file with same body."
+    },
+    {
+      "id": "cv_bahgat_ai_research_senior",
+      "path": "test cvs/Mohamed Bahget CV .pdf",
+      "primary_role": "ai_research",
+      "seniority": "senior",
+      "notes": "AI R&D Team Lead (VRtualize) + Teaching Assistant (El Alamein Intl Univ). DL/ML/RL/NLP, CNNs, Transformers."
+    },
+    {
+      "id": "cv_taher_mobile_jr",
+      "path": "test cvs/Mohamed Taher Amin -  CV.pdf",
+      "primary_role": "mobile",
+      "seniority": "junior",
+      "notes": "SWE student (KSIU). Flutter + Firebase, ML-integrated mobile apps."
+    },
+    {
+      "id": "cv_zeyad_datascience_jr",
+      "path": "test cvs/ZeyadAhmedElsayed_CV.pdf",
+      "primary_role": "data_science",
+      "seniority": "junior",
+      "notes": "Project-only CV (no work experience). Python/Pandas/sklearn/PyTorch + Power BI. End-to-end ML project portfolio."
+    },
+    {
+      "id": "cv_synth_bach_frontend_mid",
+      "path": "test cvs/cv_1.pdf",
+      "primary_role": "frontend",
+      "seniority": "mid",
+      "notes": "Synthetic FE (Johann Bach): HubSpot + Zillow. React/jQuery/Redux/Angular/Node."
+    },
+    {
+      "id": "cv_synth_santos_frontend_senior",
+      "path": "test cvs/cv_2.pdf",
+      "primary_role": "frontend",
+      "seniority": "senior",
+      "notes": "Synthetic Senior FE (Karen Santos): GitHub + DTX. React/Angular/Vue/Jest."
+    },
+    {
+      "id": "cv_synth_nitao_frontend_jr",
+      "path": "test cvs/cv_4.pdf",
+      "primary_role": "frontend",
+      "seniority": "junior",
+      "notes": "Synthetic Junior FE (Dee Nitao): Guess INC + Punch internship. WordPress + React + Bootstrap."
+    },
+    {
+      "id": "cv_synth_rw_js_frontend_senior",
+      "path": "test cvs/cv_5.pdf",
+      "primary_role": "frontend",
+      "seniority": "senior",
+      "notes": "Synthetic JS Developer (Resume-Worded): 10 years FE/JavaScript, Chart.js, async patterns."
+    },
+    {
+      "id": "cv_synth_rw_js_developer_senior",
+      "path": "test cvs/cv_6.pdf",
+      "primary_role": "frontend",
+      "seniority": "senior",
+      "notes": "Synthetic JS Developer (Resume-Worded variant): React/Redux/TypeScript/GraphQL. SQL + Tableau exposure."
+    },
+    {
+      "id": "cv_synth_yates_frontend_mid",
+      "path": "test cvs/cv_8.pdf",
+      "primary_role": "frontend",
+      "seniority": "mid",
+      "notes": "Synthetic Mid FE (Caspian Yates): Expedia + Zillow + Redfin. GraphQL/Yarn/Joomla/Mocha."
+    },
+    {
+      "id": "cv_synth_williams_frontend_jr",
+      "path": "test cvs/cv_9.pdf",
+      "primary_role": "frontend",
+      "seniority": "junior",
+      "notes": "Synthetic Junior FE (Leonidas Williams): HelloFresh, bootcamp grad (Thinkful). React/Mocha/Jest."
+    },
+    {
+      "id": "cv_synth_crane_frontend_intern",
+      "path": "test cvs/cv_10.pdf",
+      "primary_role": "frontend",
+      "seniority": "entry",
+      "notes": "Synthetic FE Intern (Ophelia Crane): Pet Sitter + Tour Guide work history; HTML5/React/Bootstrap/Jest skills."
+    },
+    {
+      "id": "cv_synth_ridge_frontend_mid",
+      "path": "test cvs/cv_12.pdf",
+      "primary_role": "frontend",
+      "seniority": "mid",
+      "notes": "Synthetic FE UI Developer (Elowen Ridge): OpenX + Spokeo. D3.js, Figma, Webpack, Selenium."
+    },
+    {
+      "id": "cv_synth_brooks_frontend_mid_angular",
+      "path": "test cvs/cv_13.pdf",
+      "primary_role": "frontend",
+      "seniority": "mid",
+      "notes": "Synthetic Angular FE (Levi Brooks): Verizon + Cox + Mailchimp. Java-stack + Angular."
+    },
+    {
+      "id": "cv_synth_vaughn_frontend_lead",
+      "path": "test cvs/cv_15.pdf",
+      "primary_role": "frontend",
+      "seniority": "senior",
+      "notes": "Synthetic Lead FE (Alaric Vaughn): GrammaTech + Advion + e2e Materials. Bootstrap/Angular/SVN/Sass."
+    },
+    {
+      "id": "cv_generated_review_export",
+      "path": "test cvs/generated.pdf",
+      "primary_role": "ai_research",
+      "seniority": "senior",
+      "notes": "SmartCV review-form export populated with Mohamed Bahgat data. Edge case: parsed-back-out form layout (not a typical CV)."
     }
   ],
   "jobs": [
@@ -78,19 +183,61 @@
     {"id": "jd_backend_python_node",        "file": "jobs/jd_backend_python_node.json"},
     {"id": "jd_devops_aws_k8s",             "file": "jobs/jd_devops_aws_k8s.json"},
     {"id": "jd_flutter_mobile",             "file": "jobs/jd_flutter_mobile.json"},
-    {"id": "jd_junior_web_dev",             "file": "jobs/jd_junior_web_dev.json"}
+    {"id": "jd_junior_web_dev",             "file": "jobs/jd_junior_web_dev.json"},
+
+    {"id": "jd_auto_cv_flutter_intern",                       "file": "jobs/jd_auto_cv_flutter_intern.json",                       "paired_cv_id": "cv_flutter_intern"},
+    {"id": "jd_auto_cv_frontend_diploma_react",               "file": "jobs/jd_auto_cv_frontend_diploma_react.json",               "paired_cv_id": "cv_frontend_diploma_react"},
+    {"id": "jd_auto_cv_frontend_senior_react_vue",            "file": "jobs/jd_auto_cv_frontend_senior_react_vue.json",            "paired_cv_id": "cv_frontend_senior_react_vue"},
+    {"id": "jd_auto_cv_frontend_mid_react",                   "file": "jobs/jd_auto_cv_frontend_mid_react.json",                   "paired_cv_id": "cv_frontend_mid_react"},
+    {"id": "jd_auto_cv_frontend_senior_react_vue_v2",         "file": "jobs/jd_auto_cv_frontend_senior_react_vue_v2.json",         "paired_cv_id": "cv_frontend_senior_react_vue_v2"},
+    {"id": "jd_auto_cv_frontend_jquery_legacy",               "file": "jobs/jd_auto_cv_frontend_jquery_legacy.json",               "paired_cv_id": "cv_frontend_jquery_legacy"},
+    {"id": "jd_auto_cv_frontend_entry_no_role",               "file": "jobs/jd_auto_cv_frontend_entry_no_role.json",               "paired_cv_id": "cv_frontend_entry_no_role"},
+    {"id": "jd_auto_cv_abbas_backend_devops_senior_student",  "file": "jobs/jd_auto_cv_abbas_backend_devops_senior_student.json",  "paired_cv_id": "cv_abbas_backend_devops_senior_student"},
+    {"id": "jd_auto_cv_eyad_data_engineer_jr",                "file": "jobs/jd_auto_cv_eyad_data_engineer_jr.json",                "paired_cv_id": "cv_eyad_data_engineer_jr"},
+    {"id": "jd_auto_cv_eyad_data_engineer_jr_v2",             "file": "jobs/jd_auto_cv_eyad_data_engineer_jr_v2.json",             "paired_cv_id": "cv_eyad_data_engineer_jr_v2"},
+    {"id": "jd_auto_cv_bahgat_ai_research_senior",            "file": "jobs/jd_auto_cv_bahgat_ai_research_senior.json",            "paired_cv_id": "cv_bahgat_ai_research_senior"},
+    {"id": "jd_auto_cv_taher_mobile_jr",                      "file": "jobs/jd_auto_cv_taher_mobile_jr.json",                      "paired_cv_id": "cv_taher_mobile_jr"},
+    {"id": "jd_auto_cv_zeyad_datascience_jr",                 "file": "jobs/jd_auto_cv_zeyad_datascience_jr.json",                 "paired_cv_id": "cv_zeyad_datascience_jr"},
+    {"id": "jd_auto_cv_synth_bach_frontend_mid",              "file": "jobs/jd_auto_cv_synth_bach_frontend_mid.json",              "paired_cv_id": "cv_synth_bach_frontend_mid"},
+    {"id": "jd_auto_cv_synth_santos_frontend_senior",         "file": "jobs/jd_auto_cv_synth_santos_frontend_senior.json",         "paired_cv_id": "cv_synth_santos_frontend_senior"},
+    {"id": "jd_auto_cv_synth_nitao_frontend_jr",              "file": "jobs/jd_auto_cv_synth_nitao_frontend_jr.json",              "paired_cv_id": "cv_synth_nitao_frontend_jr"},
+    {"id": "jd_auto_cv_synth_rw_js_frontend_senior",          "file": "jobs/jd_auto_cv_synth_rw_js_frontend_senior.json",          "paired_cv_id": "cv_synth_rw_js_frontend_senior"},
+    {"id": "jd_auto_cv_synth_rw_js_developer_senior",         "file": "jobs/jd_auto_cv_synth_rw_js_developer_senior.json",         "paired_cv_id": "cv_synth_rw_js_developer_senior"},
+    {"id": "jd_auto_cv_synth_yates_frontend_mid",             "file": "jobs/jd_auto_cv_synth_yates_frontend_mid.json",             "paired_cv_id": "cv_synth_yates_frontend_mid"},
+    {"id": "jd_auto_cv_synth_williams_frontend_jr",           "file": "jobs/jd_auto_cv_synth_williams_frontend_jr.json",           "paired_cv_id": "cv_synth_williams_frontend_jr"},
+    {"id": "jd_auto_cv_synth_crane_frontend_intern",          "file": "jobs/jd_auto_cv_synth_crane_frontend_intern.json",          "paired_cv_id": "cv_synth_crane_frontend_intern"},
+    {"id": "jd_auto_cv_synth_ridge_frontend_mid",             "file": "jobs/jd_auto_cv_synth_ridge_frontend_mid.json",             "paired_cv_id": "cv_synth_ridge_frontend_mid"},
+    {"id": "jd_auto_cv_synth_brooks_frontend_mid_angular",    "file": "jobs/jd_auto_cv_synth_brooks_frontend_mid_angular.json",    "paired_cv_id": "cv_synth_brooks_frontend_mid_angular"},
+    {"id": "jd_auto_cv_synth_vaughn_frontend_lead",           "file": "jobs/jd_auto_cv_synth_vaughn_frontend_lead.json",           "paired_cv_id": "cv_synth_vaughn_frontend_lead"},
+    {"id": "jd_auto_cv_generated_review_export",              "file": "jobs/jd_auto_cv_generated_review_export.json",              "paired_cv_id": "cv_generated_review_export"}
   ],
   "expected_match_strength": {
-    "_doc": "Coarse expected fit per (cv_id, jd_id). 'strong' = should be matched-heavy; 'partial' = some overlap; 'weak' = mostly missing. Used as smoke-test sanity for gap analyzer separation.",
-    "cv_backend_jr_rust":              {"jd_senior_frontend_react": "weak",   "jd_backend_python_node": "partial", "jd_devops_aws_k8s": "weak",    "jd_flutter_mobile": "weak",   "jd_junior_web_dev": "weak"},
-    "cv_frontend_jr_react":            {"jd_senior_frontend_react": "partial","jd_backend_python_node": "weak",    "jd_devops_aws_k8s": "weak",    "jd_flutter_mobile": "weak",   "jd_junior_web_dev": "strong"},
-    "cv_devops_jr":                    {"jd_senior_frontend_react": "weak",   "jd_backend_python_node": "weak",    "jd_devops_aws_k8s": "partial", "jd_flutter_mobile": "weak",   "jd_junior_web_dev": "weak"},
-    "cv_flutter_intern":               {"jd_senior_frontend_react": "weak",   "jd_backend_python_node": "weak",    "jd_devops_aws_k8s": "weak",    "jd_flutter_mobile": "strong", "jd_junior_web_dev": "weak"},
-    "cv_frontend_diploma_react":       {"jd_senior_frontend_react": "partial","jd_backend_python_node": "weak",    "jd_devops_aws_k8s": "weak",    "jd_flutter_mobile": "weak",   "jd_junior_web_dev": "strong"},
-    "cv_frontend_senior_react_vue":    {"jd_senior_frontend_react": "strong", "jd_backend_python_node": "weak",    "jd_devops_aws_k8s": "weak",    "jd_flutter_mobile": "weak",   "jd_junior_web_dev": "strong"},
-    "cv_frontend_mid_react":           {"jd_senior_frontend_react": "strong", "jd_backend_python_node": "weak",    "jd_devops_aws_k8s": "weak",    "jd_flutter_mobile": "weak",   "jd_junior_web_dev": "strong"},
-    "cv_frontend_senior_react_vue_v2": {"jd_senior_frontend_react": "strong", "jd_backend_python_node": "weak",    "jd_devops_aws_k8s": "weak",    "jd_flutter_mobile": "weak",   "jd_junior_web_dev": "strong"},
-    "cv_frontend_jquery_legacy":       {"jd_senior_frontend_react": "partial","jd_backend_python_node": "weak",    "jd_devops_aws_k8s": "weak",    "jd_flutter_mobile": "weak",   "jd_junior_web_dev": "strong"},
-    "cv_frontend_entry_no_role":       {"jd_senior_frontend_react": "weak",   "jd_backend_python_node": "weak",    "jd_devops_aws_k8s": "weak",    "jd_flutter_mobile": "weak",   "jd_junior_web_dev": "partial"}
+    "_doc": "Coarse expected fit per (cv_id, jd_id). 'strong' = matched-heavy; 'partial' = some overlap; 'weak' = mostly missing. Used as smoke-test sanity for gap analyzer separation. Auto-generated JDs (jd_auto_*) get diagonal 'strong' labels by design (paired_cv_id pairing); LLM role-misclassification can make a diagonal pair effectively weak — that's a legitimate benchmark signal.",
+    "cv_flutter_intern":               {"jd_senior_frontend_react": "weak",   "jd_backend_python_node": "weak",    "jd_devops_aws_k8s": "weak",    "jd_flutter_mobile": "strong", "jd_junior_web_dev": "weak",    "jd_auto_cv_flutter_intern": "strong"},
+    "cv_frontend_diploma_react":       {"jd_senior_frontend_react": "partial","jd_backend_python_node": "weak",    "jd_devops_aws_k8s": "weak",    "jd_flutter_mobile": "weak",   "jd_junior_web_dev": "strong",  "jd_auto_cv_frontend_diploma_react": "strong"},
+    "cv_frontend_senior_react_vue":    {"jd_senior_frontend_react": "strong", "jd_backend_python_node": "weak",    "jd_devops_aws_k8s": "weak",    "jd_flutter_mobile": "weak",   "jd_junior_web_dev": "strong",  "jd_auto_cv_frontend_senior_react_vue": "strong"},
+    "cv_frontend_mid_react":           {"jd_senior_frontend_react": "strong", "jd_backend_python_node": "weak",    "jd_devops_aws_k8s": "weak",    "jd_flutter_mobile": "weak",   "jd_junior_web_dev": "strong",  "jd_auto_cv_frontend_mid_react": "strong"},
+    "cv_frontend_senior_react_vue_v2": {"jd_senior_frontend_react": "strong", "jd_backend_python_node": "weak",    "jd_devops_aws_k8s": "weak",    "jd_flutter_mobile": "weak",   "jd_junior_web_dev": "strong",  "jd_auto_cv_frontend_senior_react_vue_v2": "strong"},
+    "cv_frontend_jquery_legacy":       {"jd_senior_frontend_react": "partial","jd_backend_python_node": "weak",    "jd_devops_aws_k8s": "weak",    "jd_flutter_mobile": "weak",   "jd_junior_web_dev": "strong",  "jd_auto_cv_frontend_jquery_legacy": "strong"},
+    "cv_frontend_entry_no_role":       {"jd_senior_frontend_react": "weak",   "jd_backend_python_node": "weak",    "jd_devops_aws_k8s": "weak",    "jd_flutter_mobile": "weak",   "jd_junior_web_dev": "partial", "jd_auto_cv_frontend_entry_no_role": "strong"},
+
+    "cv_abbas_backend_devops_senior_student": {"jd_auto_cv_abbas_backend_devops_senior_student": "strong"},
+    "cv_eyad_data_engineer_jr":               {"jd_auto_cv_eyad_data_engineer_jr": "strong"},
+    "cv_eyad_data_engineer_jr_v2":            {"jd_auto_cv_eyad_data_engineer_jr_v2": "strong"},
+    "cv_bahgat_ai_research_senior":           {"jd_auto_cv_bahgat_ai_research_senior": "strong"},
+    "cv_taher_mobile_jr":                     {"jd_auto_cv_taher_mobile_jr": "strong"},
+    "cv_zeyad_datascience_jr":                {"jd_auto_cv_zeyad_datascience_jr": "strong"},
+    "cv_synth_bach_frontend_mid":             {"jd_auto_cv_synth_bach_frontend_mid": "strong"},
+    "cv_synth_santos_frontend_senior":        {"jd_auto_cv_synth_santos_frontend_senior": "strong"},
+    "cv_synth_nitao_frontend_jr":             {"jd_auto_cv_synth_nitao_frontend_jr": "strong"},
+    "cv_synth_rw_js_frontend_senior":         {"jd_auto_cv_synth_rw_js_frontend_senior": "strong"},
+    "cv_synth_rw_js_developer_senior":        {"jd_auto_cv_synth_rw_js_developer_senior": "strong"},
+    "cv_synth_yates_frontend_mid":            {"jd_auto_cv_synth_yates_frontend_mid": "strong"},
+    "cv_synth_williams_frontend_jr":          {"jd_auto_cv_synth_williams_frontend_jr": "strong"},
+    "cv_synth_crane_frontend_intern":         {"jd_auto_cv_synth_crane_frontend_intern": "strong"},
+    "cv_synth_ridge_frontend_mid":            {"jd_auto_cv_synth_ridge_frontend_mid": "strong"},
+    "cv_synth_brooks_frontend_mid_angular":   {"jd_auto_cv_synth_brooks_frontend_mid_angular": "strong"},
+    "cv_synth_vaughn_frontend_lead":          {"jd_auto_cv_synth_vaughn_frontend_lead": "strong"},
+    "cv_generated_review_export":             {"jd_auto_cv_generated_review_export": "strong"}
   }
 }

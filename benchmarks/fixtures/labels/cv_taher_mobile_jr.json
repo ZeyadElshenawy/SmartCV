@@ -1,0 +1,24 @@
+{
+  "cv_id": "cv_taher_mobile_jr",
+  "personal_info": {
+    "name": "Mohamed Taher Amin",
+    "email": "mohamedheiba88998@gmail.com",
+    "phone": "+201098614758",
+    "location": "Giza, Egypt"
+  },
+  "education_count": 1,
+  "experience_count": 2,
+  "skills_canonical": [
+    "Dart", "Flutter", "Firebase", "Supabase", "PostgreSQL", "SQLite",
+    "Git", "GitHub", "Postman",
+    "REST APIs", "GetX", "BLoC", "State Management",
+    "Clean Architecture", "MVVM",
+    "UI/UX", "Mobile Development", "Responsive Design",
+    "OOP", "Python", "Flask",
+    "Machine Learning", "CNN", "Random Forest",
+    "Animation", "CI/CD"
+  ],
+  "section_presence": {
+    "summary": true, "experience": true, "education": true, "projects": true, "skills": true
+  }
+}

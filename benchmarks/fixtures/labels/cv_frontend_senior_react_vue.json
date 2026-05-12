@@ -6,13 +6,13 @@
     "phone": null,
     "location": "London, UK"
   },
-  "education_count": 0,
-  "experience_count": 2,
+  "education_count": 1,
+  "experience_count": 3,
   "skills_canonical": [
-    "JavaScript", "React", "Vue", "Redux", "Responsive Design",
-    "UI Performance", "Accessibility", "Automated Testing", "User Testing"
+    "JavaScript", "React", "Vue", "Redux", "Angular", "TypeScript",
+    "HTML5", "CSS3", "HTML", "CSS", "jQuery", "Responsive Design"
   ],
   "section_presence": {
-    "summary": true, "experience": true, "education": false, "projects": false, "skills": false
+    "summary": true, "experience": true, "education": true, "projects": false, "skills": true
   }
 }

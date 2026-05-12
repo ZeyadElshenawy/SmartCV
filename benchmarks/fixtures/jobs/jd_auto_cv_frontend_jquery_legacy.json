@@ -1,0 +1,43 @@
+{
+  "id": "jd_auto_cv_frontend_jquery_legacy",
+  "title": "Frontend Engineer (Mid-Level)",
+  "company": "Techify Solutions",
+  "description": "We are seeking a mid-level Frontend Engineer to join our team. As a Frontend Engineer, you will be responsible for developing high-quality, responsive, and user-friendly web applications.\n\nResponsibilities:\n- Design and implement responsive web applications using Vue.js and JavaScript/TypeScript\n- Collaborate with cross-functional teams to develop and maintain large-scale web applications\n- Troubleshoot and debug issues using browser development tools and debugging techniques\n- Implement CSS preprocessing and responsive web design principles\n- Work closely with designers to translate designs into functional and visually appealing web applications\n- Participate in agile methodologies and CI/CD pipelines\n\nMust-have skills:\n- JavaScript\n- TypeScript\n- Vue.js\n- Responsive Web Design\n- CSS Preprocessing\n- Debugging\n- Agile Methodologies\n- Web Development\n\nNice to have:\n- jQuery\n- Browser Development\n- CI/CD",
+  "expected_skills": [
+    "JavaScript",
+    "TypeScript",
+    "Vue.js",
+    "CSS Preprocessing",
+    "Debugging",
+    "jQuery",
+    "Browser Development",
+    "CI/CD",
+    "Git",
+    "HTML5"
+  ],
+  "expected_skills_must_have": [
+    "JavaScript",
+    "TypeScript",
+    "Vue.js",
+    "CSS Preprocessing",
+    "Debugging"
+  ],
+  "paired_cv_id": "cv_frontend_jquery_legacy",
+  "_meta": {
+    "generated_by": "benchmarks.jd_generator",
+    "source_cv_id": "cv_frontend_jquery_legacy",
+    "detected_role": "Frontend Engineer",
+    "detected_seniority": "mid",
+    "tech_stack_signals": [
+      "JavaScript/TypeScript",
+      "Vue.js",
+      "jQuery",
+      "Responsive Web Design",
+      "CSS Preprocessing",
+      "Web Development",
+      "Browser Development",
+      "Debugging",
+      "Agile Methodologies"
+    ]
+  }
+}

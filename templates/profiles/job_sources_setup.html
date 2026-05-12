@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}Job source setup — SmartCV{% endblock %}
+
+{% block content %}
+<div class="bg-neutral-50 dark:bg-neutral-950 py-12 sm:py-16">
+    <div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 space-y-10">
+
+        <header class="space-y-4">
+            {% include "components/section_label.html" with text="Job discovery · source setup" tone="brand" %}
+            <h1 class="font-display text-4xl sm:text-5xl leading-[1.02] tracking-tight text-neutral-900 dark:text-neutral-50"
+                style="font-variation-settings: 'opsz' 80;">
+                Connect a <em class="font-medium text-brand-700 dark:text-brand-400">job board</em>.
+            </h1>
+            <p class="text-base text-neutral-600 dark:text-neutral-300 leading-relaxed max-w-2xl">
+                Each source needs a one-time login. We open a real Chrome window so you can sign in
+                normally — your session is then saved and reused for headless scans. No passwords
+                are stored.
+            </p>
+        </header>
+
+        <section class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 divide-y divide-neutral-100 dark:divide-neutral-800">
+            {% for source in sources %}
+                <div class="p-6 flex items-start justify-between gap-6">
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-3">
+                            <h3 class="font-display text-xl text-neutral-900 dark:text-neutral-50">{{ source.label }}</h3>
+                            {% if source.connected %}
+                                <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 ring-1 ring-emerald-200 dark:ring-emerald-900 px-2.5 py-0.5 text-xs font-medium text-emerald-800 dark:text-emerald-300">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                    Connected
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 dark:bg-neutral-800 px-2.5 py-0.5 text-xs font-medium text-neutral-600 dark:text-neutral-300">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-neutral-400"></span>
+                                    Not connected
+                                </span>
+                            {% endif %}
+                        </div>
+                        {% if source.last_login %}
+                            <p class="text-xs text-neutral-500 dark:text-neutral-400">Last login: {{ source.last_login|date:"Y-m-d H:i" }} UTC</p>
+                        {% endif %}
+                        <p class="text-sm text-neutral-600 dark:text-neutral-300">Run this in your terminal:</p>
+                        <code class="block rounded-rn bg-neutral-100 dark:bg-neutral-800 px-3 py-2 text-sm text-neutral-800 dark:text-neutral-200 font-mono select-all">{{ source.command }}</code>
+                    </div>
+                </div>
+            {% endfor %}
+        </section>
+
+        <div class="text-sm text-neutral-500 dark:text-neutral-400 space-y-1">
+            <p>Tip: pass <code class="font-mono">--fresh</code> to wipe the persistent profile if a site has fingerprinted it.</p>
+            <p>Tip: pass <code class="font-mono">--allow-bundled</code> only if you don't have Chrome or Edge installed (less reliable against Cloudflare).</p>
+        </div>
+
+        <div class="flex items-center justify-between">
+            <a href="{% url 'job_preferences' %}" class="text-sm text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200">← Job preferences</a>
+            <a href="{% url 'dashboard' %}" class="text-sm text-brand-700 dark:text-brand-400 hover:underline">Dashboard →</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

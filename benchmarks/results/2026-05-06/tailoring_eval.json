@@ -1,0 +1,1178 @@
+{
+  "benchmark": "tailoring_eval",
+  "version": 1,
+  "fixture_kind": "real_anonymized_cv_x_jd",
+  "buckets_evaluated": [
+    "strong"
+  ],
+  "n_pairs": 34,
+  "parse_wall_seconds": 2.38,
+  "eval_wall_seconds": 363.7,
+  "wall_seconds": 366.08,
+  "axes": {
+    "factuality": {
+      "n": 33,
+      "min": 1,
+      "mean": 4.9697,
+      "median": 5,
+      "p95": 9.0,
+      "max": 9,
+      "std": 3.1284
+    },
+    "relevance": {
+      "n": 33,
+      "min": 1,
+      "mean": 5.0606,
+      "median": 6,
+      "p95": 8.0,
+      "max": 8,
+      "std": 2.4239
+    },
+    "ats_fit": {
+      "n": 33,
+      "min": 1,
+      "mean": 5.2424,
+      "median": 6,
+      "p95": 8.0,
+      "max": 9,
+      "std": 2.4622
+    },
+    "human_voice": {
+      "n": 33,
+      "min": 1,
+      "mean": 3.2424,
+      "median": 2,
+      "p95": 7.0,
+      "max": 7,
+      "std": 2.1182
+    }
+  },
+  "programmatic": {
+    "entity_grounding_ratio": {
+      "n": 31,
+      "min": 0.0,
+      "mean": 0.8871,
+      "median": 1.0,
+      "p95": 1.0,
+      "max": 1.0,
+      "std": 0.3035
+    },
+    "banned_voice_hits_per_resume": {
+      "n": 33,
+      "min": 0,
+      "mean": 0.1515,
+      "median": 0,
+      "p95": 1.0,
+      "max": 1,
+      "std": 0.3586
+    }
+  },
+  "rows": [
+    {
+      "cv_id": "cv_flutter_intern",
+      "jd_id": "jd_flutter_mobile",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 9,
+          "rationale": "Most concrete claims in the GENERATED RESUME appear in the SOURCE CV, with only minor omissions in certification details."
+        },
+        "relevance": {
+          "score": 8,
+          "rationale": "The GENERATED RESUME addresses most requirements stated in the TARGET JOB, with relevant skills and experience listed."
+        },
+        "ats_fit": {
+          "score": 8,
+          "rationale": "The GENERATED RESUME uses many job keywords and varies action verbs across bullets, with only minor room for improvement."
+        },
+        "human_voice": {
+          "score": 7,
+          "rationale": "The GENERATED RESUME mostly avoids AI-tell phrasing but could improve sentence structure variation and specificity."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 2,
+        "n_grounded": 2,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_flutter_intern",
+      "jd_id": "jd_auto_cv_flutter_intern",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 9,
+          "rationale": "Most concrete claims in the GENERATED RESUME appear in the SOURCE CV, with only minor omissions in certification details."
+        },
+        "relevance": {
+          "score": 8,
+          "rationale": "The GENERATED RESUME addresses most requirements stated in the TARGET JOB, with relevant skills and experiences listed."
+        },
+        "ats_fit": {
+          "score": 8,
+          "rationale": "The GENERATED RESUME uses many job keywords and varies action verbs across bullets, with only minor room for improvement."
+        },
+        "human_voice": {
+          "score": 7,
+          "rationale": "The GENERATED RESUME shows some AI-tell phrasing and could improve on specificity and sentence structure variation."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 2,
+        "n_grounded": 2,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_frontend_diploma_react",
+      "jd_id": "jd_junior_web_dev",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 1,
+          "rationale": "The GENERATED RESUME contains no specific company, school, years, certifications, or named projects that can be verified against the SOURCE CV, as the SOURCE CV itself is largely empty."
+        },
+        "relevance": {
+          "score": 7,
+          "rationale": "The GENERATED RESUME addresses some requirements stated in the TARGET JOB, such as building responsive web pages, implementing React components, and using Tailwind or Bootstrap."
+        },
+        "ats_fit": {
+          "score": 6,
+          "rationale": "The GENERATED RESUME uses some job keywords like HTML5, CSS3, JavaScript, React, and Tailwind, but lacks variation in action verbs across bullets and does not mention all required skills."
+        },
+        "human_voice": {
+          "score": 4,
+          "rationale": "The GENERATED RESUME uses some AI-tell phrasing, such as 'Skilled in implementing React components' and lacks specificity and variation in sentence structure."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 1,
+        "n_grounded": 0,
+        "ratio": 0.0,
+        "ungrounded": [
+          "Unknown"
+        ]
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_frontend_diploma_react",
+      "jd_id": "jd_auto_cv_frontend_diploma_react",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 3,
+          "rationale": "The GENERATED RESUME contains claims about experience as a Frontend Engineer at Aurora Tech Solutions, but these claims are not present in the SOURCE CV."
+        },
+        "relevance": {
+          "score": 7,
+          "rationale": "The GENERATED RESUME addresses some requirements stated in the TARGET JOB, such as designing and implementing responsive web applications using React and JavaScript, and collaborating with cross-functional teams."
+        },
+        "ats_fit": {
+          "score": 6,
+          "rationale": "The GENERATED RESUME uses some of the job's keywords, such as React, JavaScript, and Bootstrap, but misses others like Redux, MobX, Jest, and Cypress."
+        },
+        "human_voice": {
+          "score": 4,
+          "rationale": "The GENERATED RESUME uses some AI-tell phrasing, such as 'Skilled in designing and implementing responsive web applications,' and lacks specificity in its bullet points."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 1,
+        "n_grounded": 0,
+        "ratio": 0.0,
+        "ungrounded": [
+          "Aurora Tech Solutions"
+        ]
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue",
+      "jd_id": "jd_senior_frontend_react",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 9,
+          "rationale": "Most concrete claims in the GENERATED RESUME appear in the SOURCE CV, with only minor formatting changes."
+        },
+        "relevance": {
+          "score": 8,
+          "rationale": "The GENERATED RESUME addresses many requirements stated in the TARGET JOB, but some bullets are still somewhat generic."
+        },
+        "ats_fit": {
+          "score": 8,
+          "rationale": "The GENERATED RESUME uses many job keywords and varies action verbs across bullets, but could improve keyword density."
+        },
+        "human_voice": {
+          "score": 6,
+          "rationale": "The GENERATED RESUME shows some AI-tell phrasing and lacks specificity in bullets, but overall structure is clear."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 4,
+        "n_grounded": 4,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [
+        "seamless"
+      ],
+      "voice_hit_count": 1
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue",
+      "jd_id": "jd_junior_web_dev",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 5,
+          "rationale": "The GENERATED RESUME contains some factual errors, such as incorrect duration of employment and missing specific details about education."
+        },
+        "relevance": {
+          "score": 8,
+          "rationale": "The GENERATED RESUME addresses most of the required skills and responsibilities stated in the TARGET JOB, with a focus on relevant technologies and experiences."
+        },
+        "ats_fit": {
+          "score": 7,
+          "rationale": "The GENERATED RESUME uses some of the job's keywords and varies action verbs across bullets, but could improve on incorporating more specific tools and outcomes."
+        },
+        "human_voice": {
+          "score": 4,
+          "rationale": "The GENERATED RESUME exhibits some AI-tell phrasing, such as generic sentences and repetitive structures, which detract from its overall human voice."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 4,
+        "n_grounded": 4,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [
+        "seamless"
+      ],
+      "voice_hit_count": 1
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue",
+      "jd_id": "jd_auto_cv_frontend_senior_react_vue",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 9,
+          "rationale": "Most concrete claims in the GENERATED RESUME appear in the SOURCE CV, with only minor formatting changes."
+        },
+        "relevance": {
+          "score": 8,
+          "rationale": "The bullets address requirements stated in the TARGET JOB, with specific mentions of React, Redux, and web performance optimization."
+        },
+        "ats_fit": {
+          "score": 8,
+          "rationale": "The resume uses many job keywords and varies action verbs across bullets, but could improve on keyword density."
+        },
+        "human_voice": {
+          "score": 6,
+          "rationale": "The resume shows some AI-tell phrasing and lacks specificity in certain bullets, but overall structure is clear."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 4,
+        "n_grounded": 4,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [
+        "seamless"
+      ],
+      "voice_hit_count": 1
+    },
+    {
+      "cv_id": "cv_frontend_mid_react",
+      "jd_id": "jd_senior_frontend_react",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 2,
+          "rationale": "Most concrete claims like company names, positions, and education details are missing or incomplete in the GENERATED RESUME compared to the SOURCE CV."
+        },
+        "relevance": {
+          "score": 3,
+          "rationale": "The GENERATED RESUME lacks specific bullets addressing the TARGET JOB requirements, such as experience with React, TypeScript, and accessibility features."
+        },
+        "ats_fit": {
+          "score": 2,
+          "rationale": "The GENERATED RESUME fails to use keywords from the TARGET JOB and does not vary action verbs across bullets, appearing very generic."
+        },
+        "human_voice": {
+          "score": 1,
+          "rationale": "The GENERATED RESUME uses very generic phrasing and lacks specificity, concrete results, and varied sentence structures, sounding more like an AI-generated resume."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 4,
+        "n_grounded": 4,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_frontend_mid_react",
+      "jd_id": "jd_junior_web_dev",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 8,
+          "rationale": "Most concrete claims in the GENERATED RESUME appear in the SOURCE CV, but some details like specific dates and company names are missing or altered."
+        },
+        "relevance": {
+          "score": 7,
+          "rationale": "The GENERATED RESUME addresses some requirements stated in the TARGET JOB, but some bullets are generic and could apply to any role."
+        },
+        "ats_fit": {
+          "score": 8,
+          "rationale": "The GENERATED RESUME uses some job keywords and varies action verbs across bullets, but could improve on incorporating more specific tools and outcomes."
+        },
+        "human_voice": {
+          "score": 6,
+          "rationale": "The GENERATED RESUME shows some AI-tell phrasing, lacks specificity in bullets, and has repetitive sentence structure."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 4,
+        "n_grounded": 4,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_frontend_mid_react",
+      "jd_id": "jd_auto_cv_frontend_mid_react",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 9,
+          "rationale": "Most concrete claims in the GENERATED RESUME appear in the SOURCE CV, with only minor formatting changes."
+        },
+        "relevance": {
+          "score": 8,
+          "rationale": "The GENERATED RESUME addresses many requirements stated in the TARGET JOB, but some bullets are still somewhat generic."
+        },
+        "ats_fit": {
+          "score": 8,
+          "rationale": "The GENERATED RESUME uses many job keywords and varies action verbs across bullets, but could improve keyword density."
+        },
+        "human_voice": {
+          "score": 7,
+          "rationale": "The GENERATED RESUME avoids banned words but exhibits some AI-tell phrasing and lacks specificity in a few bullets."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 4,
+        "n_grounded": 2,
+        "ratio": 0.5,
+        "ungrounded": [
+          "Previous Company",
+          "Previous Company"
+        ]
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue_v2",
+      "jd_id": "jd_senior_frontend_react",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 9,
+          "rationale": "Most concrete claims in the GENERATED RESUME appear in the SOURCE CV, with only minor formatting changes."
+        },
+        "relevance": {
+          "score": 8,
+          "rationale": "The GENERATED RESUME addresses many requirements stated in the TARGET JOB, but some bullets are still somewhat generic."
+        },
+        "ats_fit": {
+          "score": 9,
+          "rationale": "The GENERATED RESUME uses many job keywords and varies action verbs across bullets effectively."
+        },
+        "human_voice": {
+          "score": 7,
+          "rationale": "The GENERATED RESUME mostly avoids AI-tell phrasing but could improve sentence structure variation and specificity."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 4,
+        "n_grounded": 4,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [
+        "seamless"
+      ],
+      "voice_hit_count": 1
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue_v2",
+      "jd_id": "jd_junior_web_dev",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 5,
+          "rationale": "The GENERATED RESUME contains some factual information from the SOURCE CV, but it is incomplete and lacks specific details such as job titles, company names, and education dates."
+        },
+        "relevance": {
+          "score": 2,
+          "rationale": "The GENERATED RESUME does not address the specific requirements of the TARGET JOB, such as HTML5, CSS3, JavaScript, React, and Responsive Design, and lacks relevant bullets."
+        },
+        "ats_fit": {
+          "score": 2,
+          "rationale": "The GENERATED RESUME does not use the job's keywords and lacks variation in action verbs across bullets, with most fields being empty."
+        },
+        "human_voice": {
+          "score": 1,
+          "rationale": "The GENERATED RESUME lacks a human voice, with a very generic and incomplete summary, and does not provide specific evidence or details."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 5,
+        "n_grounded": 5,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue_v2",
+      "jd_id": "jd_auto_cv_frontend_senior_react_vue_v2",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 1,
+          "rationale": "The GENERATED RESUME contains no concrete claims or details from the SOURCE CV, with empty strings for company positions, locations, and descriptions."
+        },
+        "relevance": {
+          "score": 1,
+          "rationale": "The GENERATED RESUME does not address any requirements stated in the TARGET JOB, with no mention of Cloud Computing, Containerization, Java, Python, Go, Agile Development, Git, Bash, Terraform, Security Best Practices, Prometheus, ELK, Docker, or Kubernetes."
+        },
+        "ats_fit": {
+          "score": 1,
+          "rationale": "The GENERATED RESUME lacks any keywords from the TARGET JOB and does not vary action verbs across bullets, as it contains no bullets or action verbs."
+        },
+        "human_voice": {
+          "score": 1,
+          "rationale": "The GENERATED RESUME exhibits AI-tell phrasing, with a generic professional summary and empty strings for experience and education, lacking specificity and concrete evidence."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 5,
+        "n_grounded": 5,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_frontend_jquery_legacy",
+      "jd_id": "jd_junior_web_dev",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 1,
+          "rationale": "The GENERATED RESUME contains skills that are not present in the SOURCE CV, such as no mention of 'Languages:' or specific programming languages like 'Spanish', 'Romanian', 'English', indicating potential fabrication."
+        },
+        "relevance": {
+          "score": 5,
+          "rationale": "The GENERATED RESUME lists relevant skills for the Junior Web Developer position, including HTML5, CSS3, JavaScript, React, and others, but lacks specific experience or projects to demonstrate application."
+        },
+        "ats_fit": {
+          "score": 6,
+          "rationale": "The GENERATED RESUME includes several job-required keywords like HTML5, CSS3, JavaScript, React, Git, GitHub, Tailwind, and TypeScript, but lacks variation in action verbs and concrete evidence of experience."
+        },
+        "human_voice": {
+          "score": 2,
+          "rationale": "The GENERATED RESUME lacks a professional summary, objective, and specific details in experience, education, projects, and certifications, sounding more like a keyword dump than a human-crafted resume."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 0,
+        "n_grounded": 0,
+        "ratio": null,
+        "ungrounded": []
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_frontend_jquery_legacy",
+      "jd_id": "jd_auto_cv_frontend_jquery_legacy",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 1,
+          "rationale": "The GENERATED RESUME contains fabricated employer and lacks specific details from the SOURCE CV."
+        },
+        "relevance": {
+          "score": 7,
+          "rationale": "The GENERATED RESUME addresses some requirements stated in the TARGET JOB, such as Vue.js, TypeScript, and Agile methodologies."
+        },
+        "ats_fit": {
+          "score": 6,
+          "rationale": "The GENERATED RESUME uses some job keywords but lacks variation in action verbs across bullets."
+        },
+        "human_voice": {
+          "score": 4,
+          "rationale": "The GENERATED RESUME uses AI-tell phrasing, such as 'Proven ability' and lacks specificity in bullets."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 1,
+        "n_grounded": 0,
+        "ratio": 0.0,
+        "ungrounded": [
+          "Techify Solutions"
+        ]
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_frontend_entry_no_role",
+      "jd_id": "jd_auto_cv_frontend_entry_no_role",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 8,
+          "rationale": "Most concrete claims in the GENERATED RESUME appear in the SOURCE CV, but some details like specific dates and company names are omitted or altered."
+        },
+        "relevance": {
+          "score": 7,
+          "rationale": "The bullets in the GENERATED RESUME address some requirements stated in the TARGET JOB, but could be more specific and detailed."
+        },
+        "ats_fit": {
+          "score": 6,
+          "rationale": "The GENERATED RESUME uses some job keywords, but misses a significant number of must-have skills and uses generic phrases."
+        },
+        "human_voice": {
+          "score": 5,
+          "rationale": "The GENERATED RESUME exhibits AI-tell phrasing, including banned words and similar sentence structures."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 4,
+        "n_grounded": 4,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_abbas_backend_devops_senior_student",
+      "jd_id": "jd_auto_cv_abbas_backend_devops_senior_student",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 4,
+          "rationale": "The GENERATED RESUME contains some factual claims not present in the SOURCE CV, such as the professional summary and skills section which seems to be partially fabricated."
+        },
+        "relevance": {
+          "score": 6,
+          "rationale": "The GENERATED RESUME mentions relevant skills and technologies required for the Junior DevOps Engineer position, but lacks specific examples and bullets addressing the job requirements."
+        },
+        "ats_fit": {
+          "score": 5,
+          "rationale": "The GENERATED RESUME uses some of the job's keywords but misses many required skills and tools, and does not vary action verbs across bullets effectively."
+        },
+        "human_voice": {
+          "score": 2,
+          "rationale": "The GENERATED RESUME exhibits AI-tell phrasing, including banned words and generic sentences that could apply to any role, lacking specificity and concrete evidence."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 2,
+        "n_grounded": 2,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [
+        "seamless"
+      ],
+      "voice_hit_count": 1
+    },
+    {
+      "cv_id": "cv_eyad_data_engineer_jr",
+      "jd_id": "jd_auto_cv_eyad_data_engineer_jr",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 8,
+          "rationale": "Most concrete claims in the GENERATED RESUME appear in the SOURCE CV, but some details like education year and specific certification dates are missing."
+        },
+        "relevance": {
+          "score": 6,
+          "rationale": "The GENERATED RESUME lists relevant skills and technologies, but lacks specific examples or bullets addressing the TARGET JOB requirements directly."
+        },
+        "ats_fit": {
+          "score": 7,
+          "rationale": "The GENERATED RESUME uses some job keywords and varies action verbs, but could improve by including more specific tools and outcomes from the TARGET JOB description."
+        },
+        "human_voice": {
+          "score": 4,
+          "rationale": "The GENERATED RESUME uses some banned words and phrases, and the writing style sounds more like AI-generated content than a human-written resume."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 1,
+        "n_grounded": 1,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_eyad_data_engineer_jr_v2",
+      "jd_id": "jd_auto_cv_eyad_data_engineer_jr_v2",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 9,
+          "rationale": "Most concrete claims in the GENERATED RESUME appear in the SOURCE CV, with only minor omissions in specific details like years and URLs for certifications."
+        },
+        "relevance": {
+          "score": 6,
+          "rationale": "The GENERATED RESUME lists relevant skills and technologies required for the TARGET JOB, but lacks specific examples or bullets addressing the job's responsibilities."
+        },
+        "ats_fit": {
+          "score": 7,
+          "rationale": "The GENERATED RESUME uses some of the job's keywords and varies action verbs, but could improve by including more specific tools and outcomes from the TARGET JOB."
+        },
+        "human_voice": {
+          "score": 4,
+          "rationale": "The GENERATED RESUME exhibits AI-tell phrasing, including banned words and generic sentences that could apply to any role, lacking specificity and human-like variation in sentence structure."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 1,
+        "n_grounded": 1,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_bahgat_ai_research_senior",
+      "jd_id": "jd_auto_cv_bahgat_ai_research_senior",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 2,
+          "rationale": "The GENERATED RESUME contains empty fields and does not accurately reflect the SOURCE CV, with many details such as company names, positions, and responsibilities missing or fabricated."
+        },
+        "relevance": {
+          "score": 3,
+          "rationale": "The GENERATED RESUME lists relevant skills such as Python, TensorFlow, PyTorch, and Cuda, but fails to provide specific examples or experiences related to the TARGET JOB requirements."
+        },
+        "ats_fit": {
+          "score": 4,
+          "rationale": "The GENERATED RESUME mentions several keywords from the TARGET JOB such as Python, TensorFlow, PyTorch, and Cuda, but lacks specific action verbs and varies in formatting."
+        },
+        "human_voice": {
+          "score": 1,
+          "rationale": "The GENERATED RESUME uses a generic and impersonal tone, lacking specificity and concrete evidence, and appears to be AI-generated with phrases that sound unnatural."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 1,
+        "n_grounded": 1,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_taher_mobile_jr",
+      "jd_id": "jd_auto_cv_taher_mobile_jr",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 8,
+          "rationale": "Most concrete claims in the GENERATED RESUME appear in the SOURCE CV, but some details like education years are missing."
+        },
+        "relevance": {
+          "score": 6,
+          "rationale": "The GENERATED RESUME lists relevant skills like Flutter, Dart, and Firebase, but lacks specific experience bullets addressing the TARGET JOB requirements."
+        },
+        "ats_fit": {
+          "score": 7,
+          "rationale": "The GENERATED RESUME uses some job keywords like Flutter, Dart, and PostgreSQL, but could improve on varying action verbs and including more must-have skills."
+        },
+        "human_voice": {
+          "score": 4,
+          "rationale": "The GENERATED RESUME shows signs of AI-tell phrasing, with generic statements and a lack of specific, concrete evidence."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 1,
+        "n_grounded": 1,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_zeyad_datascience_jr",
+      "jd_id": "jd_auto_cv_zeyad_datascience_jr",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 8,
+          "rationale": "Most concrete claims in the GENERATED RESUME appear in the SOURCE CV, but some details like company names and dates are missing."
+        },
+        "relevance": {
+          "score": 6,
+          "rationale": "The GENERATED RESUME lists relevant skills like Keras, TensorFlow, and Machine Learning, but lacks specific examples addressing the TARGET JOB requirements."
+        },
+        "ats_fit": {
+          "score": 7,
+          "rationale": "The GENERATED RESUME uses some job keywords like Keras, Machine Learning, and Deep Learning, but could improve on varying action verbs and including more must-have skills."
+        },
+        "human_voice": {
+          "score": 4,
+          "rationale": "The GENERATED RESUME shows signs of AI-tell phrasing, lacks specificity in bullets, and has repetitive sentence structures."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 3,
+        "n_grounded": 3,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_synth_bach_frontend_mid",
+      "jd_id": "jd_auto_cv_synth_bach_frontend_mid",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 6,
+          "rationale": "The GENERATED RESUME contains some factual errors, such as incorrect dates and missing details, but does not fabricate any employers or degrees."
+        },
+        "relevance": {
+          "score": 4,
+          "rationale": "The GENERATED RESUME's bullets are too generic and do not directly address the specific requirements stated in the TARGET JOB."
+        },
+        "ats_fit": {
+          "score": 5,
+          "rationale": "The GENERATED RESUME uses some of the job's keywords but misses several important ones and does not vary action verbs across bullets effectively."
+        },
+        "human_voice": {
+          "score": 2,
+          "rationale": "The GENERATED RESUME uses AI-tell phrasing, lacks specificity, and has poor sentence structure variation."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 4,
+        "n_grounded": 4,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_synth_santos_frontend_senior",
+      "jd_id": "jd_auto_cv_synth_santos_frontend_senior",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 1,
+          "rationale": "The GENERATED RESUME does not include any concrete claims from the SOURCE CV, such as company names, positions, or responsibilities."
+        },
+        "relevance": {
+          "score": 1,
+          "rationale": "The GENERATED RESUME does not address any requirements stated in the TARGET JOB, and the bullets are generic and could apply to any role."
+        },
+        "ats_fit": {
+          "score": 1,
+          "rationale": "The GENERATED RESUME does not use the job's keywords and does not vary action verbs across bullets."
+        },
+        "human_voice": {
+          "score": 1,
+          "rationale": "The GENERATED RESUME uses AI-tell phrasing, lacks specificity, and has poor sentence structure variation."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 3,
+        "n_grounded": 3,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_synth_nitao_frontend_jr",
+      "jd_id": "jd_auto_cv_synth_nitao_frontend_jr",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 4,
+          "rationale": "The GENERATED RESUME omits specific details such as job titles, company locations, and education details present in the SOURCE CV."
+        },
+        "relevance": {
+          "score": 5,
+          "rationale": "The GENERATED RESUME lists relevant skills like Angular.js, JavaScript, and React.js, but lacks specific examples addressing the TARGET JOB requirements."
+        },
+        "ats_fit": {
+          "score": 6,
+          "rationale": "The GENERATED RESUME includes some of the job's required keywords like Angular.js, React.js, and Node.js, but could improve in using more specific examples."
+        },
+        "human_voice": {
+          "score": 2,
+          "rationale": "The GENERATED RESUME uses a generic, AI-like tone and lacks specific, concrete examples and varied sentence structures."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 3,
+        "n_grounded": 3,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_synth_rw_js_frontend_senior",
+      "jd_id": "jd_auto_cv_synth_rw_js_frontend_senior",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 2,
+          "rationale": "The GENERATED RESUME contains empty fields and does not accurately represent the SOURCE CV, with missing information and incorrect formatting."
+        },
+        "relevance": {
+          "score": 3,
+          "rationale": "The GENERATED RESUME lacks specific examples and skills relevant to the Mid-Level Data Scientist position, with most fields left empty."
+        },
+        "ats_fit": {
+          "score": 2,
+          "rationale": "The GENERATED RESUME fails to incorporate keywords from the TARGET JOB, such as Python, R, Tableau, Power BI, AWS, GCP, and Docker."
+        },
+        "human_voice": {
+          "score": 1,
+          "rationale": "The GENERATED RESUME exhibits AI-tell characteristics, including a lack of specificity, poor sentence structure variation, and an unnatural tone."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 4,
+        "n_grounded": 4,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_synth_rw_js_developer_senior",
+      "jd_id": "jd_auto_cv_synth_rw_js_developer_senior",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 2,
+          "rationale": "The GENERATED RESUME contains inaccurate dates and missing information compared to the SOURCE CV."
+        },
+        "relevance": {
+          "score": 4,
+          "rationale": "The GENERATED RESUME lacks specific examples and skills relevant to the TARGET JOB, such as JavaScript, React, and Redux."
+        },
+        "ats_fit": {
+          "score": 3,
+          "rationale": "The GENERATED RESUME does not use keywords from the TARGET JOB and lacks variation in action verbs across bullets."
+        },
+        "human_voice": {
+          "score": 1,
+          "rationale": "The GENERATED RESUME uses AI-like phrasing and lacks specificity and variation in sentence structure."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 4,
+        "n_grounded": 4,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_synth_yates_frontend_mid",
+      "jd_id": "jd_auto_cv_synth_yates_frontend_mid",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 5,
+          "rationale": "The GENERATED RESUME omits specific details such as job titles, company locations, and exact dates, but does not fabricate any information."
+        },
+        "relevance": {
+          "score": 4,
+          "rationale": "The GENERATED RESUME lacks specific examples and bullet points that directly address the requirements of the TARGET JOB, such as experience with Jest, Enzyme, CI/CD Pipelines, and WebAssembly."
+        },
+        "ats_fit": {
+          "score": 6,
+          "rationale": "The GENERATED RESUME includes some relevant keywords like React.js, GraphQL, Bootstrap, HTML5, and Visual Studio Code, but misses several key terms from the TARGET JOB and does not vary action verbs across bullets."
+        },
+        "human_voice": {
+          "score": 2,
+          "rationale": "The GENERATED RESUME uses a very generic and incomplete format, lacks specific metrics or outcomes, and does not demonstrate a natural, human-like tone."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 5,
+        "n_grounded": 5,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_synth_williams_frontend_jr",
+      "jd_id": "jd_auto_cv_synth_williams_frontend_jr",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 2,
+          "rationale": "Most concrete claims are missing or incomplete."
+        },
+        "relevance": {
+          "score": 1,
+          "rationale": "The resume does not address the target job's requirements."
+        },
+        "ats_fit": {
+          "score": 2,
+          "rationale": "The resume lacks required keywords and has obvious gaps."
+        },
+        "human_voice": {
+          "score": 1,
+          "rationale": "The resume uses AI-like phrasing and lacks specificity."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 0,
+        "n_grounded": 0,
+        "ratio": null,
+        "ungrounded": []
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_synth_crane_frontend_intern",
+      "jd_id": "jd_auto_cv_synth_crane_frontend_intern",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 6,
+          "rationale": "Most concrete claims appear in the SOURCE CV, but some details like graduation date and specific job title are missing or altered."
+        },
+        "relevance": {
+          "score": 4,
+          "rationale": "The GENERATED RESUME lists relevant skills, but lacks specific bullets addressing TARGET JOB requirements."
+        },
+        "ats_fit": {
+          "score": 5,
+          "rationale": "The resume uses some job keywords, but misses many and lacks varied action verbs across bullets."
+        },
+        "human_voice": {
+          "score": 2,
+          "rationale": "The GENERATED RESUME uses AI-tell phrasing, lacks specificity, and has poor sentence structure variation."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 3,
+        "n_grounded": 3,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_synth_ridge_frontend_mid",
+      "jd_id": "jd_auto_cv_synth_ridge_frontend_mid",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 1,
+          "rationale": "The GENERATED RESUME contains no concrete claims or details from the SOURCE CV, making it entirely fabricated."
+        },
+        "relevance": {
+          "score": 1,
+          "rationale": "The GENERATED RESUME lacks any specific details or bullets addressing the TARGET JOB requirements."
+        },
+        "ats_fit": {
+          "score": 1,
+          "rationale": "The GENERATED RESUME does not use the job's keywords and lacks specific action verbs across bullets."
+        },
+        "human_voice": {
+          "score": 1,
+          "rationale": "The GENERATED RESUME exhibits AI-tell phrasing, lacks specificity, and has poor sentence structure variation."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 4,
+        "n_grounded": 4,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_synth_brooks_frontend_mid_angular",
+      "jd_id": "jd_auto_cv_synth_brooks_frontend_mid_angular",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 1,
+          "rationale": "The GENERATED RESUME lacks specific details to verify claims against the SOURCE CV."
+        },
+        "relevance": {
+          "score": 1,
+          "rationale": "The GENERATED RESUME does not provide information on how the candidate's experience aligns with the TARGET JOB requirements."
+        },
+        "ats_fit": {
+          "score": 1,
+          "rationale": "The GENERATED RESUME does not explicitly mention keywords from the job description."
+        },
+        "human_voice": {
+          "score": 1,
+          "rationale": "The GENERATED RESUME is incomplete and does not display specific phrasing to evaluate for a human voice."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 4,
+        "n_grounded": 4,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_synth_vaughn_frontend_lead",
+      "jd_id": "jd_auto_cv_synth_vaughn_frontend_lead",
+      "bucket": "strong",
+      "judge": {
+        "factuality": {
+          "score": 6,
+          "rationale": "The GENERATED RESUME omits specific details such as job titles, company locations, and project descriptions that are present in the SOURCE CV."
+        },
+        "relevance": {
+          "score": 4,
+          "rationale": "The GENERATED RESUME lacks specific examples and bullet points that directly address the requirements of the TARGET JOB, such as experience with GraphQL, Webpack, and Cypress."
+        },
+        "ats_fit": {
+          "score": 5,
+          "rationale": "The GENERATED RESUME includes some of the required keywords like Angular, Sass, and Bootstrap but misses others such as Webpack, GraphQL, and Cypress, and does not vary action verbs effectively across bullets."
+        },
+        "human_voice": {
+          "score": 2,
+          "rationale": "The GENERATED RESUME suffers from AI-tell phrasing, including lack of specificity, repetitive sentence structure, and an unnatural tone."
+        },
+        "overall_summary": ""
+      },
+      "programmatic_factuality": {
+        "n_entities": 5,
+        "n_grounded": 5,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [],
+      "voice_hit_count": 0
+    },
+    {
+      "cv_id": "cv_generated_review_export",
+      "jd_id": "jd_auto_cv_generated_review_export",
+      "bucket": "strong",
+      "stage": "judge",
+      "error": "RateLimitError: Error code: 429 - {'error': {'message': 'Rate limit reached for model `meta-llama/llama-4-scout-17b-16e-instruct` in organization `org_01kq5x91vyeb4vm4zefqsbf9qq` service tier `on_demand` on tokens per minute (TPM): Limit 30000, Used 24545, Requested 5474. Please try again in 38ms. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}",
+      "programmatic_factuality": {
+        "n_entities": 6,
+        "n_grounded": 6,
+        "ratio": 1.0,
+        "ungrounded": []
+      },
+      "voice_hits": [
+        "leverage",
+        "leveraging",
+        "leveraged",
+        "demonstrating"
+      ]
+    }
+  ],
+  "method": {
+    "generator": "resumes.services.resume_generator.generate_resume_content",
+    "judge_module": "benchmarks.llm_judge",
+    "judge_axes": [
+      "factuality",
+      "relevance",
+      "ats_fit",
+      "human_voice"
+    ],
+    "judge_scale": "1-10 per axis"
+  },
+  "disclosure": "LLM-judged metric \u2014 both the resume generator and the judge are Groq llama-4-scout. Judge temperature=0.0 so its scores are near-deterministic; the generator runs at the production temp (0.7 default) so per-pair scores will vary across runs. Single judge model: not human-validated; treat absolute numbers as a smoke test, relative trends across pairs as more reliable. Programmatic entity-grounding and voice-hit checks are independent of the LLM judge and provide a non-LLM cross-check."
+}

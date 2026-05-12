@@ -1,0 +1,218 @@
+{% extends 'base.html' %}
+{% block title %}Job preferences — SmartCV{% endblock %}
+
+{% block content %}
+<div class="bg-neutral-50 dark:bg-neutral-950 py-12 sm:py-16">
+    <div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 space-y-10">
+
+        <header class="space-y-4">
+            {% include "components/section_label.html" with text="Job discovery · matching intent" tone="brand" %}
+            <h1 class="font-display text-4xl sm:text-5xl leading-[1.02] tracking-tight text-neutral-900 dark:text-neutral-50"
+                style="font-variation-settings: 'opsz' 80;">
+                What jobs should we <em class="font-medium text-brand-700 dark:text-brand-400">scan for</em>?
+            </h1>
+            <p class="text-base text-neutral-600 dark:text-neutral-300 leading-relaxed max-w-2xl">
+                We seed these from your CV. Tweak anything that doesn't match what you actually want
+                — we'll use them every time you run a scan.
+            </p>
+            <div class="flex items-center gap-3 pt-2" x-data="prefsAutofill()">
+                <button type="button" @click="run()" :disabled="loading"
+                        class="inline-flex items-center gap-2 h-10 px-4 text-sm font-medium rounded-rn bg-brand-700 hover:bg-brand-800 disabled:opacity-60 disabled:cursor-not-allowed text-white transition-colors">
+                    <svg x-show="!loading" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
+                    <svg x-show="loading" x-cloak class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-opacity=".25"/><path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+                    <span x-text="loading ? 'Reasoning…' : 'Auto-fill from my profile'"></span>
+                </button>
+                <p class="text-xs text-neutral-500 dark:text-neutral-400" x-text="rationale" x-show="rationale" x-cloak></p>
+                <p class="text-xs text-red-600" x-text="error" x-show="error" x-cloak></p>
+            </div>
+        </header>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="rounded-2xl bg-brand-50 dark:bg-brand-950/30 ring-1 ring-brand-200 dark:ring-brand-900 p-4 text-sm text-brand-900 dark:text-brand-100">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="post" class="space-y-8">
+            {% csrf_token %}
+
+            <section class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-6 space-y-5">
+                <div x-data="keywordCandidates()" x-init="$watch('candidates', () => {})">
+                    <label for="{{ form.keyword.id_for_label }}" class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">Role / keyword</label>
+                    {{ form.keyword }}
+                    {% if form.keyword.errors %}<p class="mt-1 text-xs text-red-600">{{ form.keyword.errors.0 }}</p>{% endif %}
+
+                    <div x-show="candidates.length > 0" x-cloak class="mt-3 space-y-2">
+                        <p class="text-xs text-neutral-500 dark:text-neutral-400">Or pick one of these — based on what your profile shows:</p>
+                        <div class="flex flex-wrap gap-2">
+                            <template x-for="c in candidates" :key="c.keyword">
+                                <button type="button" @click="pick(c.keyword)"
+                                        :class="selected === c.keyword
+                                            ? 'bg-brand-700 text-white ring-brand-800'
+                                            : 'bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-200 ring-neutral-200 dark:ring-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-800'"
+                                        class="inline-flex flex-col items-start text-left rounded-rn px-3 py-2 ring-1 transition-colors max-w-xs">
+                                    <span class="text-sm font-medium" x-text="c.keyword"></span>
+                                    <span x-show="c.why" x-cloak class="text-xs opacity-80 mt-0.5" x-text="c.why"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="{{ form.locations_text.id_for_label }}" class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">{{ form.locations_text.label }}</label>
+                    {{ form.locations_text }}
+                    <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{{ form.locations_text.help_text }}</p>
+                    {% if form.locations_text.errors %}<p class="mt-1 text-xs text-red-600">{{ form.locations_text.errors.0 }}</p>{% endif %}
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">Sources</label>
+                    <div class="flex flex-wrap gap-3">
+                        {% for c in form.sources %}
+                            <label class="inline-flex items-center gap-2 rounded-rn px-3 py-2 ring-1 ring-neutral-200 dark:ring-neutral-800 bg-white dark:bg-neutral-900">
+                                {{ c.tag }} <span class="text-sm">{{ c.choice_label }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                    <p class="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
+                        Each source needs a one-time login —
+                        <a href="{% url 'job_sources_setup' %}" class="text-brand-700 dark:text-brand-400 underline">check setup</a>.
+                    </p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">Posted within</label>
+                    <div class="flex flex-wrap gap-3">
+                        {% for c in form.date_posted %}
+                            <label class="inline-flex items-center gap-2 rounded-rn px-3 py-2 ring-1 ring-neutral-200 dark:ring-neutral-800 bg-white dark:bg-neutral-900">
+                                {{ c.tag }} <span class="text-sm">{{ c.choice_label }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">Experience level <span class="text-xs text-neutral-500">(LinkedIn only)</span></label>
+                    <div class="flex flex-wrap gap-3">
+                        {% for c in form.experience_levels %}
+                            <label class="inline-flex items-center gap-2 rounded-rn px-3 py-2 ring-1 ring-neutral-200 dark:ring-neutral-800 bg-white dark:bg-neutral-900">
+                                {{ c.tag }} <span class="text-sm">{{ c.choice_label }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">Workplace type <span class="text-xs text-neutral-500">(LinkedIn only)</span></label>
+                    <div class="flex flex-wrap gap-3">
+                        {% for c in form.workplace_types %}
+                            <label class="inline-flex items-center gap-2 rounded-rn px-3 py-2 ring-1 ring-neutral-200 dark:ring-neutral-800 bg-white dark:bg-neutral-900">
+                                {{ c.tag }} <span class="text-sm">{{ c.choice_label }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div>
+                    <label for="{{ form.max_jobs.id_for_label }}" class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">Max jobs per source · per location</label>
+                    {{ form.max_jobs }}
+                    <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">More = slower scans. 30 is a good default.</p>
+                </div>
+            </section>
+
+            <div class="flex items-center justify-between">
+                <a href="{% url 'dashboard' %}" class="text-sm text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200">← Back to dashboard</a>
+                <button type="submit"
+                        class="rounded-rn px-6 py-3 bg-brand-700 hover:bg-brand-800 text-white font-medium ring-1 ring-brand-800">
+                    Save preferences
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function keywordCandidates() {
+    return {
+        candidates: [],
+        selected: '',
+        init() {
+            window.addEventListener('prefs-suggested', (e) => {
+                this.candidates = e.detail.candidates || [];
+                this.selected = e.detail.selected || '';
+            });
+        },
+        pick(kw) {
+            this.selected = kw;
+            const el = document.querySelector('input[name="keyword"]');
+            if (el) {
+                el.value = kw;
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        },
+    };
+}
+
+function prefsAutofill() {
+    const csrfToken = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value
+        || (document.cookie.split('; ').find(r => r.startsWith('csrftoken=')) || '').split('=')[1] || '';
+    return {
+        loading: false,
+        rationale: '',
+        error: '',
+
+        async run() {
+            this.loading = true;
+            this.error = '';
+            try {
+                const resp = await fetch("{% url 'suggest_job_preferences' %}", {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    this.error = data.error || 'Suggestion failed';
+                    return;
+                }
+                this._applyKeyword(data.keyword);
+                this._applyLocations(data.locations);
+                this._applyCheckboxGroup('experience_levels', data.experience_levels || []);
+                this._applyCheckboxGroup('workplace_types', data.workplace_types || []);
+                this.rationale = data.rationale || '';
+                // Broadcast keyword candidates to the chip component.
+                window.dispatchEvent(new CustomEvent('prefs-suggested', {
+                    detail: {
+                        candidates: data.keyword_candidates || [],
+                        selected: data.keyword || '',
+                    },
+                }));
+            } catch (e) {
+                this.error = 'Network error — try again.';
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        _applyKeyword(value) {
+            const el = document.querySelector('input[name="keyword"]');
+            if (el && value) el.value = value;
+        },
+
+        _applyLocations(values) {
+            if (!values || !values.length) return;
+            const el = document.querySelector('input[name="locations_text"]');
+            if (el) el.value = values.join(', ');
+        },
+
+        _applyCheckboxGroup(name, values) {
+            const wanted = new Set((values || []).map(v => String(v)));
+            const inputs = document.querySelectorAll(`input[name="${name}"]`);
+            inputs.forEach(input => { input.checked = wanted.has(input.value); });
+        },
+    };
+}
+</script>
+{% endblock %}

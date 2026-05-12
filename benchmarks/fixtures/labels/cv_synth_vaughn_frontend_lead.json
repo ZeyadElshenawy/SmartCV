@@ -1,0 +1,18 @@
+{
+  "cv_id": "cv_synth_vaughn_frontend_lead",
+  "personal_info": {
+    "name": "Alaric Vaughn",
+    "email": "a.vaughn@email.com",
+    "phone": "(123) 456-7890",
+    "location": "Ithaca, NY"
+  },
+  "education_count": 1,
+  "experience_count": 3,
+  "skills_canonical": [
+    "Bootstrap", "Angular", "SVN", "Bower", "Flexbox", "Sass", "Gulp",
+    "Karma", "Lighthouse", "Chrome DevTools", "JWT"
+  ],
+  "section_presence": {
+    "summary": false, "experience": true, "education": true, "projects": false, "skills": true
+  }
+}

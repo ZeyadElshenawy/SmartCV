@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>SmartCV — Gap Analysis Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:wght@600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --navy: #0B1B3F;
+    --gold: #C9A94A;
+    --bg: #F5F6FA;
+    --card: #FFFFFF;
+    --ink: #0F172A;
+    --muted: #64748B;
+    --line: #E5E7EB;
+    --green: #16A34A;
+    --green-bg: #DCFCE7;
+    --amber: #D97706;
+    --amber-bg: #FEF3C7;
+    --red: #DC2626;
+    --red-bg: #FEE2E2;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    width: 1440px;
+    margin: 0 auto;
+  }
+  /* Top nav */
+  .nav {
+    background: var(--navy);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 40px;
+    border-bottom: 3px solid var(--gold);
+  }
+  .brand { display: flex; align-items: center; gap: 12px; font-family: 'Fraunces', serif; font-weight: 700; font-size: 22px; }
+  .brand-mark {
+    width: 36px; height: 36px; background: var(--gold); color: var(--navy);
+    border-radius: 8px; display: grid; place-items: center;
+    font-weight: 800; font-family: 'Inter', sans-serif;
+  }
+  .nav-links { display: flex; gap: 28px; font-size: 15px; font-weight: 500; }
+  .nav-links a { color: rgba(255,255,255,0.85); text-decoration: none; }
+  .nav-links a.active { color: var(--gold); position: relative; }
+  .nav-links a.active::after {
+    content: ''; position: absolute; left: 0; right: 0; bottom: -22px;
+    height: 3px; background: var(--gold);
+  }
+  .user { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+  .avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--gold), #E6C870);
+    color: var(--navy); display: grid; place-items: center; font-weight: 700;
+  }
+
+  .page { padding: 32px 40px 56px; }
+
+  .crumb { font-size: 13px; color: var(--muted); margin: 0 0 14px; }
+  .crumb b { color: var(--ink); font-weight: 500; }
+
+  /* Job header card */
+  .job-header {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 26px 28px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 24px;
+    margin-bottom: 24px;
+  }
+  .job-title { font-family: 'Fraunces', serif; font-size: 28px; font-weight: 700; margin: 0 0 4px; }
+  .job-meta { color: var(--muted); font-size: 14px; margin: 0 0 12px; }
+  .tags { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tag {
+    background: #EEF2F7; color: var(--ink);
+    padding: 4px 10px; border-radius: 6px;
+    font-size: 12px; font-weight: 500;
+  }
+  .tag.gold { background: #FAE8B8; color: #7C5A12; }
+
+  .ring-big {
+    --pct: 78;
+    width: 140px; height: 140px; border-radius: 50%;
+    background: conic-gradient(var(--gold) calc(var(--pct) * 1%), #EEF2F7 0);
+    display: grid; place-items: center;
+    position: relative;
+  }
+  .ring-big::after {
+    content: ''; position: absolute; inset: 12px; border-radius: 50%; background: white;
+  }
+  .ring-big .pct {
+    position: relative; z-index: 1;
+    font-family: 'Fraunces', serif;
+    font-weight: 700; font-size: 38px;
+    color: var(--navy);
+  }
+  .ring-big .lbl {
+    position: relative; z-index: 1;
+    font-size: 11px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin-top: -4px;
+  }
+
+  /* Skill columns */
+  .columns {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 24px;
+  }
+  .col {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 22px 22px 24px;
+  }
+  .col-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 18px;
+  }
+  .col-head h3 {
+    font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em;
+    margin: 0; font-weight: 700;
+  }
+  .count {
+    font-family: 'Fraunces', serif;
+    font-size: 22px; font-weight: 700;
+  }
+  .skill {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+  .skill .dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+  .skill .name { flex: 1; font-weight: 500; }
+  .skill .src { font-size: 11px; color: var(--muted); }
+
+  .col.matched .col-head h3, .col.matched .count { color: var(--green); }
+  .col.partial .col-head h3, .col.partial .count { color: var(--amber); }
+  .col.missing .col-head h3, .col.missing .count { color: var(--red); }
+
+  .matched .skill { background: var(--green-bg); }
+  .matched .skill .dot { background: var(--green); }
+  .partial .skill { background: var(--amber-bg); }
+  .partial .skill .dot { background: var(--amber); }
+  .missing .skill { background: var(--red-bg); }
+  .missing .skill .dot { background: var(--red); }
+
+  /* Learning path */
+  .learn {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 24px 26px;
+    margin-bottom: 24px;
+  }
+  .learn h3 {
+    font-family: 'Fraunces', serif;
+    font-size: 20px; font-weight: 700;
+    margin: 0 0 4px;
+  }
+  .learn .h-sub { color: var(--muted); font-size: 13px; margin: 0 0 18px; }
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+  .step {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 18px;
+    position: relative;
+  }
+  .step-n {
+    position: absolute; top: -10px; left: 16px;
+    background: var(--navy); color: var(--gold);
+    width: 28px; height: 28px; border-radius: 50%;
+    display: grid; place-items: center;
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .step b { display: block; margin: 6px 0 4px; font-size: 15px; }
+  .step span { color: var(--muted); font-size: 12px; }
+  .step .src {
+    margin-top: 12px;
+    display: inline-block;
+    font-size: 11px;
+    background: #EEF2F7;
+    color: var(--ink);
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-weight: 500;
+  }
+
+  /* CTA bar */
+  .cta {
+    background: var(--navy);
+    color: white;
+    border-radius: 16px;
+    padding: 22px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-image:
+      radial-gradient(circle at 100% 0%, rgba(201,169,74,0.22), transparent 40%),
+      radial-gradient(circle at 0% 100%, rgba(201,169,74,0.12), transparent 40%);
+  }
+  .cta b { font-family: 'Fraunces', serif; font-size: 22px; display: block; margin: 0 0 4px; }
+  .cta span { color: rgba(255,255,255,0.75); font-size: 14px; }
+  .btn {
+    background: var(--gold);
+    color: var(--navy);
+    border: 0;
+    padding: 14px 24px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+  }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="brand">
+    <div class="brand-mark">S</div>
+    SmartCV
+  </div>
+  <nav class="nav-links">
+    <a href="#">Dashboard</a>
+    <a href="#">Jobs</a>
+    <a href="#">Resumes</a>
+    <a href="#" class="active">Gap Analysis</a>
+    <a href="#">Profile</a>
+  </nav>
+  <div class="user">
+    <span>Zeyad Elshenawy</span>
+    <div class="avatar">ZE</div>
+  </div>
+</header>
+
+<main class="page">
+  <p class="crumb">Jobs &nbsp;›&nbsp; Vodafone &nbsp;›&nbsp; <b>Gap Analysis</b></p>
+
+  <!-- Job header -->
+  <section class="job-header">
+    <div>
+      <h1 class="job-title">Junior Backend Engineer</h1>
+      <p class="job-meta">Vodafone · Cairo, Egypt · Full-time · Posted 3 days ago</p>
+      <div class="tags">
+        <span class="tag">Backend</span>
+        <span class="tag">Python</span>
+        <span class="tag">Django</span>
+        <span class="tag">PostgreSQL</span>
+        <span class="tag gold">★ Recommended</span>
+      </div>
+    </div>
+    <div class="ring-big" style="--pct:78">
+      <div class="pct">78<span style="font-size:18px">%</span></div>
+      <div class="lbl">Job Fit</div>
+    </div>
+  </section>
+
+  <!-- Skill columns -->
+  <section class="columns">
+
+    <div class="col matched">
+      <div class="col-head"><h3>✓ Matched</h3><span class="count">9</span></div>
+      <div class="skill"><span class="dot"></span><span class="name">Python</span><span class="src">Project: SmartCV</span></div>
+      <div class="skill"><span class="dot"></span><span class="name">Django</span><span class="src">Project: SmartCV</span></div>
+      <div class="skill"><span class="dot"></span><span class="name">PostgreSQL</span><span class="src">Internship</span></div>
+      <div class="skill"><span class="dot"></span><span class="name">REST APIs</span><span class="src">Project: SmartCV</span></div>
+      <div class="skill"><span class="dot"></span><span class="name">Git</span><span class="src">All projects</span></div>
+      <div class="skill"><span class="dot"></span><span class="name">Linux</span><span class="src">Coursework</span></div>
+      <div class="skill"><span class="dot"></span><span class="name">Unit Testing</span><span class="src">Project: SmartCV</span></div>
+    </div>
+
+    <div class="col partial">
+      <div class="col-head"><h3>~ Partial Match</h3><span class="count">2</span></div>
+      <div class="skill"><span class="dot"></span><span class="name">Docker</span><span class="src">Used in coursework</span></div>
+      <div class="skill"><span class="dot"></span><span class="name">CI/CD</span><span class="src">GitHub Actions only</span></div>
+      <div style="font-size:12px;color:var(--muted);margin-top:14px;line-height:1.5;">
+        Evidence found but limited depth — strengthen with hands-on projects.
+      </div>
+    </div>
+
+    <div class="col missing">
+      <div class="col-head"><h3>✗ Missing</h3><span class="count">1</span></div>
+      <div class="skill"><span class="dot"></span><span class="name">Kubernetes</span><span class="src">No evidence in CV</span></div>
+      <div style="font-size:12px;color:var(--muted);margin-top:14px;line-height:1.5;">
+        Required by the job description but not yet demonstrated. See learning path below.
+      </div>
+    </div>
+
+  </section>
+
+  <!-- Learning path -->
+  <section class="learn">
+    <h3>Recommended Learning Path</h3>
+    <p class="h-sub">A 3-step plan generated from your gaps. Estimated 4–6 weeks total.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-n">1</div>
+        <b>Docker Deep Dive</b>
+        <span>Build & deploy a Django app in containers</span>
+        <div class="src">Coursera · 12 hours</div>
+      </div>
+      <div class="step">
+        <div class="step-n">2</div>
+        <b>CI/CD with GitHub Actions</b>
+        <span>Automated test + deploy pipelines</span>
+        <div class="src">YouTube + Docs · 6 hours</div>
+      </div>
+      <div class="step">
+        <div class="step-n">3</div>
+        <b>Kubernetes Fundamentals</b>
+        <span>Pods, deployments, services, ingress</span>
+        <div class="src">KodeKloud · 18 hours</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta">
+    <div>
+      <b>Ready to apply?</b>
+      <span>Generate an ATS-optimized resume tailored to this job in seconds.</span>
+    </div>
+    <button class="btn">✨  Generate Tailored Resume</button>
+  </section>
+</main>
+
+</body>
+</html>

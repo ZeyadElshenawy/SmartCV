@@ -1,0 +1,43 @@
+{
+  "id": "jd_auto_cv_synth_nitao_frontend_jr",
+  "title": "Junior Frontend Engineer",
+  "company": "Techify Solutions",
+  "description": "We are looking for a Junior Frontend Engineer to join our team. As a Junior Frontend Engineer, you will be responsible for developing high-quality, scalable, and maintainable frontend applications. Our tech stack includes JavaScript, React.js, and Node.js.\n\nResponsibilities:\n- Develop responsive and user-friendly frontend applications using React.js and JavaScript\n- Collaborate with backend engineers to integrate APIs and data into frontend applications\n- Participate in code reviews and contribute to the improvement of the overall quality of the codebase\n- Work closely with designers to implement visually appealing and interactive UI components\n- Troubleshoot and debug issues in frontend applications\n\nMust-have skills:\n- JavaScript\n- React.js\n- HTML/CSS\n- Responsive web design\n- Version control systems (e.g., Git)\n- Basic understanding of Node.js\n- Familiarity with package managers (e.g., npm, yarn)\n- Understanding of browser compatibility and cross-browser testing\n\nNice to have:\n- Experience with Angular.js or other frontend frameworks\n- Knowledge of testing frameworks (e.g., Jest, Mocha)\n- Familiarity with WordPress or other CMS platforms",
+  "expected_skills": [
+    "JavaScript",
+    "React.js",
+    "Node.js",
+    "HTML/CSS",
+    "Git",
+    "npm",
+    "Browser compatibility",
+    "Angular.js",
+    "Jest",
+    "WordPress",
+    "CSS preprocessors (e.g., Sass, Less)",
+    "Web accessibility"
+  ],
+  "expected_skills_must_have": [
+    "JavaScript",
+    "React.js",
+    "HTML/CSS",
+    "Git",
+    "Node.js",
+    "npm",
+    "Browser compatibility"
+  ],
+  "paired_cv_id": "cv_synth_nitao_frontend_jr",
+  "_meta": {
+    "generated_by": "benchmarks.jd_generator",
+    "source_cv_id": "cv_synth_nitao_frontend_jr",
+    "detected_role": "Frontend Engineer",
+    "detected_seniority": "junior",
+    "tech_stack_signals": [
+      "JavaScript",
+      "React.js",
+      "Node.js",
+      "Angular.js",
+      "WordPress"
+    ]
+  }
+}

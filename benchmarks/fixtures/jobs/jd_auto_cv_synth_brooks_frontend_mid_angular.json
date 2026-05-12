@@ -1,0 +1,44 @@
+{
+  "id": "jd_auto_cv_synth_brooks_frontend_mid_angular",
+  "title": "Front End Developer (Mid-Level)",
+  "company": "Excelsior Tech Solutions",
+  "description": "We are seeking an experienced Front End Developer to join our team. As a mid-level developer, you will be responsible for creating high-quality user interfaces and web applications.\n\nResponsibilities:\n- Design and develop responsive web applications using Angular and Bootstrap\n- Collaborate with backend developers to integrate APIs and services\n- Optimize application performance and ensure cross-browser compatibility\n- Participate in code reviews and contribute to the improvement of the codebase\n- Work closely with designers to implement visually appealing UI components\n\nMust-have skills:\n- Angular\n- Bootstrap\n- Webpack\n- PostCSS\n- JavaScript\n- HTML/CSS\n- Responsive web design\n- Web accessibility\n\nNice to have:\n- Experience with Apache Maven and Spring MVC\n- Familiarity with JUnit and testing frameworks\n- Knowledge of Eclipse IDE",
+  "expected_skills": [
+    "Angular",
+    "Bootstrap",
+    "Webpack",
+    "PostCSS",
+    "JavaScript",
+    "HTML/CSS",
+    "Web accessibility",
+    "Apache Maven",
+    "Spring MVC",
+    "JUnit",
+    "Eclipse"
+  ],
+  "expected_skills_must_have": [
+    "Angular",
+    "Bootstrap",
+    "Webpack",
+    "PostCSS",
+    "JavaScript",
+    "HTML/CSS"
+  ],
+  "paired_cv_id": "cv_synth_brooks_frontend_mid_angular",
+  "_meta": {
+    "generated_by": "benchmarks.jd_generator",
+    "source_cv_id": "cv_synth_brooks_frontend_mid_angular",
+    "detected_role": "Front End Developer",
+    "detected_seniority": "mid",
+    "tech_stack_signals": [
+      "Angular",
+      "Bootstrap",
+      "Webpack",
+      "Apache Maven",
+      "Spring MVC",
+      "JUnit",
+      "PostCSS",
+      "Eclipse"
+    ]
+  }
+}

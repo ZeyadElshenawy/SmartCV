@@ -5,7 +5,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.db import close_old_connections, transaction
 from django.views.decorators.http import require_POST
-from .models import UserProfile, JobProfileSnapshot
+from .models import UserProfile, JobProfileSnapshot, JobPreferences
 from .services.cv_parser import parse_cv
 from .services.llm_validator import validate_and_map_cv_data, get_missing_fields
 from .services.interviewer import process_chat_turn
@@ -635,6 +635,79 @@ def dashboard(request):
     
     # Recommended Jobs Feed
     recommended_jobs = RecommendedJob.objects.filter(user=request.user, status='new').order_by('-match_score')[:5]
+
+    # Job-discovery state: whether the user has set preferences, whether a
+    # scan is mid-flight (so the dashboard can resume polling on reload),
+    # and whether to surface the "last scan failed" banner. The banner +
+    # automatic retry implement the failure-mode the user picked at planning
+    # time: queue for retry on next dashboard load, with widening backoff.
+    job_prefs = getattr(request.user, 'job_preferences', None)
+    if not job_prefs:
+        try:
+            from .models import JobPreferences as _JP
+            job_prefs = _JP.objects.filter(user=request.user).first()
+        except Exception:
+            job_prefs = None
+    has_job_preferences = bool(
+        job_prefs and job_prefs.keyword and job_prefs.locations and job_prefs.sources
+    )
+
+    active_scrape_job_id = None
+    scan_failure_banner = None
+    try:
+        from jobs.models import ScrapeJob as _SJ
+        active = (_SJ.objects.filter(
+            user=request.user,
+            status__in=[_SJ.STATUS_PENDING, _SJ.STATUS_RUNNING],
+        ).order_by('-created_at').first())
+        if active:
+            active_scrape_job_id = str(active.id)
+
+        if (
+            has_job_preferences
+            and not active
+            and job_prefs
+            and job_prefs.last_scan_failed_at
+        ):
+            from datetime import timedelta
+            failures = int(job_prefs.scan_failure_count or 0)
+            # Widening backoff: 30m -> 2h -> 12h -> manual.
+            backoff = (
+                timedelta(minutes=30) if failures <= 1 else
+                timedelta(hours=2)    if failures == 2 else
+                timedelta(hours=12)
+            )
+            now = timezone.now()
+            elapsed = now - job_prefs.last_scan_failed_at
+            if failures < 4 and elapsed >= backoff:
+                # Auto-retry on dashboard load. Fire-and-forget — the user's
+                # next reload will pick up the polling state.
+                try:
+                    from jobs.services.job_sources import runner as _runner
+                    sj = _SJ.objects.create(
+                        user=request.user,
+                        params_json=job_prefs.to_params(),
+                        status=_SJ.STATUS_PENDING,
+                    )
+                    _runner.start_in_thread(sj.id)
+                    active_scrape_job_id = str(sj.id)
+                except Exception:
+                    logger.exception("Auto-retry scan failed to launch")
+            else:
+                # Either still in backoff or retry-budget exhausted — show banner.
+                if failures >= 4:
+                    scan_failure_banner = (
+                        "We've stopped retrying automatically — try again manually, "
+                        "or run python manage.py login_<source> to refresh credentials."
+                    )
+                else:
+                    next_try = job_prefs.last_scan_failed_at + backoff
+                    scan_failure_banner = (
+                        f"We'll retry automatically when you reload after "
+                        f"{next_try.strftime('%H:%M UTC')}."
+                    )
+    except Exception:
+        logger.exception("Failed to compute scan retry/banner state")
     
     # Onboarding logic. The "two steps" banner gates on profile-complete +
     # has-jobs (objective need) AND on the user not having explicitly
@@ -667,6 +740,9 @@ def dashboard(request):
         'total_applications': total_applications,
         'top_skills': top_skills,
         'recommended_jobs': recommended_jobs,
+        'has_job_preferences': has_job_preferences,
+        'active_scrape_job_id': active_scrape_job_id,
+        'scan_failure_banner': scan_failure_banner,
         'profile_complete': profile_complete,
         'has_jobs': has_jobs,
         'show_onboarding': show_onboarding,
@@ -1157,3 +1233,83 @@ def enrich_from_signals_view(request):
         'decisions': decisions,
         'typed': typed_projects,
     })
+
+
+@login_required
+def job_preferences_view(request):
+    """Capture matching intent for the dashboard recommended-jobs feed.
+    First GET auto-seeds from the user's parsed CV (latest experience
+    title, profile.location). POST saves and redirects to the dashboard."""
+    from .forms import JobPreferencesForm, seed_defaults_from_profile
+
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    prefs, created = JobPreferences.objects.get_or_create(user=request.user)
+    if created or not prefs.keyword:
+        seed_defaults_from_profile(prefs, profile)
+
+    if request.method == "POST":
+        form = JobPreferencesForm(request.POST, instance=prefs)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Job preferences saved. Click Scan now to find matches.")
+            return redirect("dashboard")
+    else:
+        form = JobPreferencesForm(instance=prefs)
+
+    return render(request, "profiles/job_preferences.html", {
+        "form": form,
+        "prefs": prefs,
+    })
+
+
+@login_required
+def job_sources_setup_view(request):
+    """Read-only page showing which job-board sources have a saved Playwright
+    storage_state on disk (i.e., the user has run python manage.py login_<source>)."""
+    from jobs.services.job_sources.auth import has_saved_state, state_path
+
+    sources = []
+    for slug, label in [
+        ("linkedin", "LinkedIn"),
+        ("indeed", "Indeed"),
+        ("glassdoor", "Glassdoor"),
+    ]:
+        path = state_path(slug)
+        connected = has_saved_state(slug)
+        last_login = None
+        if connected:
+            try:
+                from datetime import datetime, timezone as _tz
+                last_login = datetime.fromtimestamp(path.stat().st_mtime, tz=_tz.utc)
+            except Exception:
+                last_login = None
+        sources.append({
+            "slug": slug,
+            "label": label,
+            "connected": connected,
+            "last_login": last_login,
+            "command": f"python manage.py login_{slug}",
+        })
+
+    return render(request, "profiles/job_sources_setup.html", {"sources": sources})
+
+
+
+@login_required
+@require_POST
+def suggest_job_preferences_view(request):
+    """Return LLM-suggested keyword/locations/experience_levels/workplace_types
+    for the current user. The form's JS pre-fills the inputs and the user
+    can tweak before saving.
+    """
+    from .services.preference_suggester import suggest_job_preferences
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    try:
+        suggestion = suggest_job_preferences(profile)
+    except Exception:
+        logger.exception("suggest_job_preferences failed for user %s", request.user.id)
+        return JsonResponse(
+            {"error": "Couldn't generate suggestions right now. Try again or fill the form manually."},
+            status=502,
+        )
+    return JsonResponse(suggestion)

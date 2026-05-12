@@ -1,0 +1,1291 @@
+{
+  "benchmark": "skill_extractor_eval",
+  "version": 1,
+  "fixture_kind": "real_anonymized_jd",
+  "n_jds": 30,
+  "repeats_per_jd": 1,
+  "wall_seconds": 21.97,
+  "aggregate": {
+    "f1": {
+      "n": 30,
+      "min": 0.0,
+      "mean": 0.0,
+      "median": 0.0,
+      "p95": 0.0,
+      "max": 0.0,
+      "std": 0.0
+    },
+    "precision": {
+      "n": 30,
+      "min": 0.0,
+      "mean": 0.0,
+      "median": 0.0,
+      "p95": 0.0,
+      "max": 0.0,
+      "std": 0.0
+    },
+    "recall": {
+      "n": 30,
+      "min": 0.0,
+      "mean": 0.0,
+      "median": 0.0,
+      "p95": 0.0,
+      "max": 0.0,
+      "std": 0.0
+    },
+    "hallucination_rate": {
+      "n": 30,
+      "min": 0.0,
+      "mean": 0.0,
+      "median": 0.0,
+      "p95": 0.0,
+      "max": 0.0,
+      "std": 0.0
+    },
+    "latency_ms": {
+      "n": 30,
+      "min": 643.32,
+      "mean": 732.1783,
+      "median": 716.12,
+      "p95": 831.98,
+      "max": 1099.34,
+      "std": 82.3892
+    }
+  },
+  "per_job": [
+    {
+      "jd_id": "jd_senior_frontend_react",
+      "title": "Senior Frontend Engineer (React)",
+      "expected_skills_count": 30,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 30,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "React",
+            "TypeScript",
+            "JavaScript",
+            "HTML5",
+            "CSS3",
+            "Tailwind",
+            "Webpack",
+            "Vite",
+            "Babel",
+            "npm",
+            "yarn",
+            "Redux",
+            "Zustand",
+            "Context",
+            "Jest",
+            "React Testing Library",
+            "Cypress",
+            "Playwright",
+            "REST API",
+            "GraphQL",
+            "Git",
+            "GitHub",
+            "GitHub Actions",
+            "Accessibility",
+            "WCAG 2.1",
+            "Responsive Design",
+            "Core Web Vitals",
+            "Storybook",
+            "Vue",
+            "Figma"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 1099.34,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_backend_python_node",
+      "title": "Backend Engineer (Python / Node.js)",
+      "expected_skills_count": 18,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 18,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "Python",
+            "Django",
+            "FastAPI",
+            "Node.js",
+            "PostgreSQL",
+            "SQL",
+            "REST API",
+            "gRPC",
+            "Redis",
+            "Docker",
+            "Kubernetes",
+            "Linux",
+            "Git",
+            "OAuth2",
+            "JWT",
+            "pytest",
+            "AWS",
+            "Kafka"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 671.96,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_devops_aws_k8s",
+      "title": "DevOps Engineer (AWS / Kubernetes)",
+      "expected_skills_count": 28,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 28,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "AWS",
+            "Kubernetes",
+            "Docker",
+            "Terraform",
+            "Bash",
+            "Python",
+            "Go",
+            "Linux",
+            "GitHub Actions",
+            "Jenkins",
+            "GitLab CI",
+            "CI/CD",
+            "Helm",
+            "Argo CD",
+            "Flux",
+            "Istio",
+            "Linkerd",
+            "Prometheus",
+            "Grafana",
+            "Loki",
+            "Vault",
+            "AWS Secrets Manager",
+            "EKS",
+            "EC2",
+            "RDS",
+            "S3",
+            "IAM",
+            "CloudWatch"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 720.24,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_flutter_mobile",
+      "title": "Flutter Mobile Engineer",
+      "expected_skills_count": 27,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 27,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "Flutter",
+            "Dart",
+            "BLoC",
+            "Cubit",
+            "Provider",
+            "GetX",
+            "Clean Architecture",
+            "REST API",
+            "Dio",
+            "Retrofit",
+            "http",
+            "Hive",
+            "SQLite",
+            "shared preferences",
+            "Firebase",
+            "Firestore",
+            "Cloud Messaging",
+            "Kotlin",
+            "Swift",
+            "Git",
+            "Responsive UI",
+            "OOP",
+            "Animations",
+            "Widget Testing",
+            "Codemagic",
+            "GitHub Actions",
+            "Figma"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 716.67,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_junior_web_dev",
+      "title": "Junior Web Developer",
+      "expected_skills_count": 14,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 14,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "HTML5",
+            "CSS3",
+            "JavaScript",
+            "React",
+            "Responsive Design",
+            "Git",
+            "GitHub",
+            "Tailwind",
+            "Bootstrap",
+            "TypeScript",
+            "Figma",
+            "REST API",
+            "React Router",
+            "Axios"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 752.79,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_auto_cv_flutter_intern",
+      "title": "Junior Flutter Developer",
+      "expected_skills_count": 12,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 12,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "Flutter",
+            "Dart",
+            "GetX",
+            "Provider",
+            "BLoC",
+            "Firebase",
+            "Git",
+            "Agile",
+            "CI/CD",
+            "Jest",
+            "REST API",
+            "Mockito"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 729.77,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_auto_cv_frontend_diploma_react",
+      "title": "Junior Frontend Engineer",
+      "expected_skills_count": 14,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 14,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "React",
+            "JavaScript",
+            "TypeScript",
+            "CSS",
+            "HTML",
+            "Bootstrap",
+            "Git",
+            "REST API",
+            "Jest",
+            "Docker",
+            "CI/CD",
+            "Agile",
+            "Webpack",
+            "Redux"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 699.11,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_auto_cv_frontend_senior_react_vue",
+      "title": "Senior Frontend Engineer",
+      "expected_skills_count": 11,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 11,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "JavaScript",
+            "React",
+            "Vue",
+            "Graphical User Interfaces",
+            "HTML/CSS",
+            "Webpack",
+            "Jest",
+            "TypeScript",
+            "GraphQL",
+            "CI/CD",
+            "Agile"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 744.58,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_auto_cv_frontend_mid_react",
+      "title": "Frontend Engineer (Mid-Level)",
+      "expected_skills_count": 13,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 13,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "JavaScript",
+            "TypeScript",
+            "React.js",
+            "HTML",
+            "CSS",
+            "Jest",
+            "Webpack",
+            "Git",
+            "Redux",
+            "GraphQL",
+            "Docker",
+            "Agile",
+            "CI/CD"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 699.98,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_auto_cv_frontend_senior_react_vue_v2",
+      "title": "Senior Frontend Engineer",
+      "expected_skills_count": 13,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 13,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "JavaScript",
+            "React",
+            "Vue",
+            "Redux",
+            "HTML",
+            "CSS",
+            "jQuery",
+            "Git",
+            "CI/CD",
+            "TypeScript",
+            "GraphQL",
+            "Webpack",
+            "Agile"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 856.68,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_auto_cv_frontend_jquery_legacy",
+      "title": "Frontend Engineer (Mid-Level)",
+      "expected_skills_count": 10,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 10,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "JavaScript",
+            "TypeScript",
+            "Vue.js",
+            "CSS Preprocessing",
+            "Debugging",
+            "jQuery",
+            "Browser Development",
+            "CI/CD",
+            "Git",
+            "HTML5"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 740.65,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_auto_cv_frontend_entry_no_role",
+      "title": "Junior Frontend Engineer",
+      "expected_skills_count": 12,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 12,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "JavaScript",
+            "TypeScript",
+            "HTML5",
+            "CSS3",
+            "Bootstrap",
+            "Webpack",
+            "GitHub",
+            "WebStorm",
+            "CI/CD",
+            "Agile",
+            "React",
+            "Jest"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 676.4,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_auto_cv_abbas_backend_devops_senior_student",
+      "title": "Junior DevOps Engineer",
+      "expected_skills_count": 12,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 12,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "Linux",
+            "Kubernetes",
+            "Node.js",
+            "Python",
+            "Terraform",
+            "Ansible",
+            "Networking",
+            "CI/CD",
+            "Docker",
+            "Agile",
+            "Prometheus",
+            "C++"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 755.0,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_auto_cv_eyad_data_engineer_jr",
+      "title": "Junior Data Engineer",
+      "expected_skills_count": 14,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 14,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "Python",
+            "Apache Spark",
+            "Kafka",
+            "Airflow",
+            "AWS",
+            "ETL Pipelines",
+            "Data Lakes",
+            "SQL",
+            "Data modeling",
+            "Azure",
+            "Docker",
+            "Kubernetes",
+            "CI/CD",
+            "Git"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 674.75,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_auto_cv_eyad_data_engineer_jr_v2",
+      "title": "Junior Data Engineer",
+      "expected_skills_count": 12,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 12,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "Python",
+            "Apache Spark",
+            "Kafka",
+            "Airflow",
+            "ETL Pipelines",
+            "Docker",
+            "AWS",
+            "Azure",
+            "Kubernetes",
+            "Data Warehousing",
+            "Data Governance",
+            "CI/CD"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 710.21,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_auto_cv_bahgat_ai_research_senior",
+      "title": "AI/ML Engineer (Mid-Level)",
+      "expected_skills_count": 11,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 11,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "Python",
+            "PyTorch",
+            "TensorFlow",
+            "Cuda",
+            "Natural Language Processing",
+            "Git",
+            "Agile",
+            "CI/CD",
+            "AWS",
+            "Docker",
+            "Prometheus"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 669.06,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_auto_cv_taher_mobile_jr",
+      "title": "Mobile Engineer (Flutter)",
+      "expected_skills_count": 11,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 11,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "Flutter",
+            "Firebase",
+            "Dart",
+            "SQL",
+            "Git",
+            "Agile",
+            "CI/CD",
+            "REST API",
+            "UX Design",
+            "Docker",
+            "Kubernetes"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 731.06,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_auto_cv_zeyad_datascience_jr",
+      "title": "Junior Data Scientist",
+      "expected_skills_count": 13,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 13,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "Python",
+            "Machine Learning",
+            "Deep Learning",
+            "SQL",
+            "Data Visualization",
+            "Statistics",
+            "Data Preprocessing",
+            "Communication",
+            "AWS",
+            "Hadoop",
+            "Spark",
+            "Git",
+            "Agile"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 729.95,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_auto_cv_synth_bach_frontend_mid",
+      "title": "Frontend Engineer (Mid-Level)",
+      "expected_skills_count": 11,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 11,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "React",
+            "Redux",
+            "Node.js",
+            "JavaScript",
+            "TypeScript",
+            "HTML/CSS",
+            "Webpack",
+            "Jest",
+            "Angular.js",
+            "GraphQL",
+            "CI/CD"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 643.32,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_auto_cv_synth_santos_frontend_senior",
+      "title": "Senior Frontend Engineer",
+      "expected_skills_count": 12,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 12,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "JavaScript",
+            "React",
+            "TypeScript",
+            "HTML/CSS",
+            "Webpack",
+            "Jest",
+            "CI/CD",
+            "Git",
+            "Docker",
+            "GraphQL",
+            "Server-side rendering",
+            "Agile"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 708.16,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_auto_cv_synth_nitao_frontend_jr",
+      "title": "Junior Frontend Engineer",
+      "expected_skills_count": 12,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 12,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "JavaScript",
+            "React.js",
+            "Node.js",
+            "HTML/CSS",
+            "Git",
+            "npm",
+            "Browser compatibility",
+            "Angular.js",
+            "Jest",
+            "WordPress",
+            "CSS preprocessors (e.g., Sass, Less)",
+            "Web accessibility"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 790.7,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_auto_cv_synth_rw_js_frontend_senior",
+      "title": "Senior Frontend Engineer",
+      "expected_skills_count": 13,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 13,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "JavaScript",
+            "HTML",
+            "CSS",
+            "Chart.js",
+            "Debugging",
+            "React",
+            "Redux",
+            "Webpack",
+            "TypeScript",
+            "GraphQL",
+            "Jest",
+            "CI/CD",
+            "Agile"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 677.18,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_auto_cv_synth_rw_js_developer_senior",
+      "title": "Senior Frontend Engineer",
+      "expected_skills_count": 13,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 13,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "JavaScript",
+            "React",
+            "Redux",
+            "HTML5",
+            "CSS3",
+            "MySQL",
+            "Chart JS",
+            "Git",
+            "CI/CD",
+            "Jest",
+            "Docker",
+            "Agile",
+            "TypeScript"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 702.5,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_auto_cv_synth_yates_frontend_mid",
+      "title": "Frontend Engineer (React.js)",
+      "expected_skills_count": 12,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 12,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "JavaScript",
+            "React.js",
+            "GraphQL",
+            "HTML5",
+            "Bootstrap",
+            "CSS3",
+            "Browser compatibility",
+            "Redux",
+            "Jest",
+            "Webpack",
+            "Agile",
+            "CI/CD"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 667.51,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_auto_cv_synth_williams_frontend_jr",
+      "title": "Junior Frontend Engineer",
+      "expected_skills_count": 12,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 12,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "JavaScript",
+            "TypeScript",
+            "React",
+            "Node.js",
+            "Jest",
+            "Mocha",
+            "Chai",
+            "CI/CD",
+            "Webpack",
+            "GraphQL",
+            "HTML/CSS",
+            "Agile"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 679.12,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_auto_cv_synth_crane_frontend_intern",
+      "title": "Frontend Engineer (Intern)",
+      "expected_skills_count": 11,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 11,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "React",
+            "HTML5",
+            "Bootstrap",
+            "Jest",
+            "Git",
+            "GitHub",
+            "CSS3",
+            "JavaScript",
+            "Redux",
+            "Webpack",
+            "CI/CD"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 715.57,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_auto_cv_synth_ridge_frontend_mid",
+      "title": "Senior Frontend Engineer",
+      "expected_skills_count": 13,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 13,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "JavaScript",
+            "HTML5",
+            "CSS3",
+            "Webpack",
+            "D3.js",
+            "Selenium",
+            "Chrome DevTools",
+            "Figma",
+            "Jest",
+            "CI/CD",
+            "Agile",
+            "React",
+            "TypeScript"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 731.84,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_auto_cv_synth_brooks_frontend_mid_angular",
+      "title": "Front End Developer (Mid-Level)",
+      "expected_skills_count": 11,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 11,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "Angular",
+            "Bootstrap",
+            "Webpack",
+            "PostCSS",
+            "JavaScript",
+            "HTML/CSS",
+            "Web accessibility",
+            "Apache Maven",
+            "Spring MVC",
+            "JUnit",
+            "Eclipse"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 674.74,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_auto_cv_synth_vaughn_frontend_lead",
+      "title": "Senior Frontend Engineer",
+      "expected_skills_count": 12,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 12,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "Angular",
+            "JavaScript",
+            "Bootstrap",
+            "Sass",
+            "Flexbox",
+            "Gulp",
+            "Karma",
+            "Lighthouse",
+            "Chrome DevTools",
+            "Webpack",
+            "GraphQL",
+            "Docker"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 794.72,
+          "error": null
+        }
+      ]
+    },
+    {
+      "jd_id": "jd_auto_cv_generated_review_export",
+      "title": "Senior AI/ML Engineer",
+      "expected_skills_count": 11,
+      "repeats": 1,
+      "f1_mean": 0.0,
+      "f1_std": 0.0,
+      "precision_mean": 0.0,
+      "recall_mean": 0.0,
+      "hallucination_mean": 0.0,
+      "runs": [
+        {
+          "n_extracted": 0,
+          "n_labeled": 11,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "hallucination_rate": 0.0,
+          "missed": [
+            "Python",
+            "PyTorch",
+            "TensorFlow",
+            "Cuda",
+            "SQL",
+            "Machine Learning",
+            "Deep Learning",
+            "Natural Language Processing",
+            "AWS",
+            "Docker",
+            "Agile"
+          ],
+          "extra": [],
+          "extracted_raw": [],
+          "latency_ms": 801.79,
+          "error": null
+        }
+      ]
+    }
+  ],
+  "method": {
+    "fuzzy_cutoff": 0.85,
+    "service": "jobs.services.skill_extractor.extract_skills",
+    "scoring": "lowercased exact + difflib SequenceMatcher >= 0.85"
+  },
+  "disclosure": "LLM-driven metric \u2014 Groq llama-4-scout, temperature=0.0 in the service call. Mean of 1 run(s) per JD. Variance shown as std. Skills compared via lowercased exact + difflib >= 0.85 fuzzy fallback (matches gap-analyzer cutoff)."
+}

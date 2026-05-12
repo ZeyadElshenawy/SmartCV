@@ -440,3 +440,27 @@ class DedupeDecision(BaseModel):
 class DedupeBatch(BaseModel):
     """LLM output schema for batched dedupe across all (typed, enriched) pairs."""
     decisions: List[DedupeDecision] = Field(default_factory=list)
+
+
+class KeywordCandidate(BaseModel):
+    """One suggested keyword with a brief plain-language reason."""
+    keyword: str = Field(default="", description="Job-board search keyword. 1-3 words, no parens, no seniority words.")
+    why: str = Field(default="", description="One short phrase (under 12 words) explaining why this fits.")
+
+
+class SuggestedJobPreferences(BaseModel):
+    """LLM output for the 'auto-fill preferences from my profile' button.
+
+    Restricted to fields the LLM can genuinely reason about from a CV +
+    signals — sources/date_posted/max_jobs are user policy, not profile-derived,
+    so they're left to the form's defaults.
+    """
+    keyword: str = Field(default="", description="The single TOP keyword (also the first item in keyword_candidates).")
+    keyword_candidates: List[KeywordCandidate] = Field(
+        default_factory=list,
+        description="3-5 distinct candidate roles ranked by fit — different angles on the user's profile, not synonyms. Each anchored on a skill cluster the user actually demonstrates.",
+    )
+    locations: List[str] = Field(default_factory=list, description="2-3 locations the user could realistically target, ordered by likely fit. Include 'Remote' if appropriate.")
+    experience_levels: List[str] = Field(default_factory=list, description="One or more of: internship, entry, associate, mid_senior, director, executive. Pick the user's current band plus the next one up.")
+    workplace_types: List[str] = Field(default_factory=list, description="Subset of: onsite, remote, hybrid. Reflect what's plausible given location + recent roles.")
+    rationale: str = Field(default="", description="One short sentence explaining the choices, surfaced to the user.")

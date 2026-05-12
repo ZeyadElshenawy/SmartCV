@@ -62,6 +62,8 @@ Central hub: `profiles/services/llm_engine.py`
 
 All LLM calls are synchronous (django-q was removed). Typical latency is 2-3 seconds.
 
+The one exception is the job-discovery scraper at `jobs/services/job_sources/runner.py`, which spawns a daemon thread per scrape (Playwright requires its own asyncio loop on Windows). It owns its own DB connection via `close_old_connections` and is the only place `DJANGO_ALLOW_ASYNC_UNSAFE` is set. Don't generalise this pattern — for any other long-running work, keep it synchronous in the request thread or fan out via a management command.
+
 ### Profile Data Storage
 
 `UserProfile.data_content` is a single JSONB field storing the entire parsed CV. Property accessors (`profile.skills`, `profile.experiences`, etc.) provide backward compatibility. This avoids rigid per-section DB tables and preserves arbitrary CV sections.

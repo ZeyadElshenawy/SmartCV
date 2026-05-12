@@ -1,0 +1,45 @@
+{
+  "id": "jd_auto_cv_frontend_mid_react",
+  "title": "Frontend Engineer (Mid-Level)",
+  "company": "Techify Solutions",
+  "description": "We are seeking a skilled Frontend Engineer to join our team. As a mid-level engineer, you will be responsible for developing high-quality web applications using React.js, JavaScript, and TypeScript. You will work closely with our design team to translate designs into functional and visually appealing user interfaces.\n\nResponsibilities:\n- Develop responsive web applications using React.js, JavaScript, and TypeScript\n- Collaborate with designers to implement visually appealing user interfaces\n- Work with backend engineers to integrate APIs and ensure seamless data flow\n- Test and debug code to ensure high-quality deliverables\n- Participate in code reviews and contribute to the improvement of the codebase\n- Stay up-to-date with the latest frontend development trends and best practices\n\nMust-have skills:\n- JavaScript\n- TypeScript\n- React.js\n- HTML\n- CSS\n- Jest\n- Webpack\n- Git\n\nNice to have:\n- Redux\n- GraphQL\n- Docker",
+  "expected_skills": [
+    "JavaScript",
+    "TypeScript",
+    "React.js",
+    "HTML",
+    "CSS",
+    "Jest",
+    "Webpack",
+    "Git",
+    "Redux",
+    "GraphQL",
+    "Docker",
+    "Agile",
+    "CI/CD"
+  ],
+  "expected_skills_must_have": [
+    "JavaScript",
+    "TypeScript",
+    "React.js",
+    "HTML",
+    "CSS",
+    "Jest",
+    "Webpack",
+    "Git"
+  ],
+  "paired_cv_id": "cv_frontend_mid_react",
+  "_meta": {
+    "generated_by": "benchmarks.jd_generator",
+    "source_cv_id": "cv_frontend_mid_react",
+    "detected_role": "Frontend Engineer",
+    "detected_seniority": "mid",
+    "tech_stack_signals": [
+      "JavaScript",
+      "TypeScript",
+      "React.js",
+      "HTML",
+      "CSS"
+    ]
+  }
+}

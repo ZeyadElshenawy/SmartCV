@@ -356,13 +356,74 @@ on profile.data_content['has_seen_tour']).
         </section>
         {% endif %}
 
-<section class="space-y-4">
-            {% include "components/section_label.html" with text="Recommended · scanning the web" %}
+<section class="space-y-4" x-data="recommendedScanner()" x-init="init()">
+            <div class="flex items-end justify-between gap-3 flex-wrap">
+                {% include "components/section_label.html" with text="Recommended · scanning the web" %}
+                <div class="flex items-center gap-2">
+                    {% if has_job_preferences %}
+                        <button type="button" @click="startScan()" :disabled="scanning"
+                                class="inline-flex items-center gap-2 h-9 px-4 text-sm font-medium rounded-lg bg-brand-700 hover:bg-brand-800 disabled:opacity-60 disabled:cursor-not-allowed text-white transition-colors">
+                            <span x-show="!scanning">Scan now</span>
+                            <span x-show="scanning" x-cloak class="inline-flex items-center gap-2">
+                                <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-opacity=".25"/><path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+                                <span x-text="progressLabel"></span>
+                            </span>
+                        </button>
+                        <a href="{% url 'job_preferences' %}" class="text-xs text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200">Edit preferences</a>
+                    {% else %}
+                        <a href="{% url 'job_preferences' %}"
+                           class="inline-flex items-center gap-2 h-9 px-4 text-sm font-medium rounded-lg bg-brand-700 hover:bg-brand-800 text-white transition-colors">
+                            Set job preferences
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if scan_failure_banner %}
+            <div class="rounded-2xl bg-amber-50 dark:bg-amber-950/30 ring-1 ring-amber-200 dark:ring-amber-900 px-5 py-3 text-sm text-amber-900 dark:text-amber-100 flex items-start justify-between gap-4">
+                <div class="flex-1">
+                    <strong class="font-medium">The last scan was blocked.</strong>
+                    {{ scan_failure_banner }}
+                </div>
+                <button type="button" @click="startScan()" class="text-xs font-medium underline">Retry now</button>
+            </div>
+            {% endif %}
+
             <div class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 overflow-hidden">
+                {% if not recommended_jobs %}
+                <div x-show="!scanning" class="p-10 text-center space-y-3">
+                    <div aria-hidden="true" class="mx-auto w-2 h-2 rounded-full bg-brand-500 animate-pulse"></div>
+                    <h4 class="font-display text-xl text-neutral-900 dark:text-neutral-50" style="font-variation-settings: 'opsz' 24;">
+                        {% if has_job_preferences %}Ready to scan{% else %}Scanning for matches…{% endif %}
+                    </h4>
+                    <p class="text-sm text-neutral-500 dark:text-neutral-400 max-w-md mx-auto">
+                        {% if has_job_preferences %}
+                            Click "Scan now" to find jobs that fit your profile. Each scan can take up to a minute.
+                        {% else %}
+                            Tell us what jobs you want and we'll start scanning LinkedIn, Indeed, and Glassdoor for matches.
+                        {% endif %}
+                    </p>
+                </div>
+                {% endif %}
+
+                <div x-show="scanning" x-cloak class="p-8 space-y-4">
+                    <div class="flex items-center justify-between gap-4">
+                        <div>
+                            <h4 class="font-display text-xl text-neutral-900 dark:text-neutral-50" style="font-variation-settings: 'opsz' 24;">Scanning…</h4>
+                            <p class="text-xs text-neutral-500 dark:text-neutral-400" x-text="currentStep || 'Starting browser session'"></p>
+                            <p class="text-xs text-neutral-500 dark:text-neutral-400" x-text="message"></p>
+                        </div>
+                        <button type="button" @click="cancelScan()" class="text-xs text-neutral-500 hover:text-red-600">Cancel</button>
+                    </div>
+                    <div class="h-2 rounded-full bg-neutral-100 dark:bg-neutral-800 overflow-hidden">
+                        <div class="h-full bg-brand-500 transition-all" :style="`width: ${progressPct}%`"></div>
+                    </div>
+                </div>
+
                 {% if recommended_jobs %}
-                <ul class="divide-y divide-neutral-100 dark:divide-neutral-800">
+                <ul x-show="!scanning" class="divide-y divide-neutral-100 dark:divide-neutral-800">
                     {% for rec in recommended_jobs %}
-                    <li class="p-5 hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors flex items-center justify-between gap-4">
+                    <li class="p-5 hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors flex items-center justify-between gap-4" data-rec-id="{{ rec.id }}">
                         <div class="flex-1 min-w-0 space-y-1">
                             <div class="flex items-center gap-3 flex-wrap">
                                 <h4 class="font-display text-lg leading-tight text-neutral-900 dark:text-neutral-50"
@@ -374,20 +435,130 @@ on profile.data_content['has_seen_tour']).
                         </div>
                         <div class="flex gap-2 shrink-0">
                             <a href="{{ rec.url }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 h-9 px-3 text-xs font-medium rounded-lg ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">Source</a>
-                            <button class="inline-flex items-center gap-1 h-9 px-3 text-xs font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors">Save & generate</button>
+                            <a href="{% url 'recommended_detail' rec.id %}" class="inline-flex items-center gap-1 h-9 px-3 text-xs font-medium rounded-lg ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">View</a>
+                            <button type="button" @click="dismissRec('{{ rec.id }}', $event)"
+                                    class="inline-flex items-center gap-1 h-9 px-3 text-xs font-medium rounded-lg ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-500 hover:text-red-600 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">Dismiss</button>
+                            <button type="button" @click="saveRec('{{ rec.id }}', $event)"
+                                    class="inline-flex items-center gap-1 h-9 px-3 text-xs font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors">Save</button>
                         </div>
                     </li>
                     {% endfor %}
                 </ul>
-                {% else %}
-                <div class="p-10 text-center space-y-3">
-                    <div aria-hidden="true" class="mx-auto w-2 h-2 rounded-full bg-brand-500 animate-pulse"></div>
-                    <h4 class="font-display text-xl text-neutral-900 dark:text-neutral-50" style="font-variation-settings: 'opsz' 24;">Scanning for matches…</h4>
-                    <p class="text-sm text-neutral-500 dark:text-neutral-400 max-w-md mx-auto">Our agent is looking for jobs that fit your profile. Come back later — or add one yourself in the meantime.</p>
-                </div>
                 {% endif %}
             </div>
         </section>
+
+        <script>
+        function recommendedScanner() {
+            const csrfToken = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value
+                || (document.cookie.split('; ').find(r => r.startsWith('csrftoken=')) || '').split('=')[1] || '';
+            return {
+                scanning: false,
+                scrapeJobId: null,
+                progressPct: 0,
+                completedSteps: 0,
+                totalSteps: 0,
+                currentStep: '',
+                message: '',
+                pollHandle: null,
+
+                init() {
+                    {% if active_scrape_job_id %}
+                    this.scrapeJobId = "{{ active_scrape_job_id }}";
+                    this.scanning = true;
+                    this.poll();
+                    {% endif %}
+                },
+
+                get progressLabel() {
+                    return this.totalSteps > 0 ? `${this.progressPct}%` : 'starting…';
+                },
+
+                async startScan() {
+                    if (this.scanning) return;
+                    this.scanning = true;
+                    this.progressPct = 0;
+                    this.completedSteps = 0;
+                    this.totalSteps = 0;
+                    this.currentStep = 'Starting…';
+                    this.message = '';
+                    try {
+                        const resp = await fetch("{% url 'scan_recommended_jobs' %}", {
+                            method: 'POST',
+                            headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+                        });
+                        const data = await resp.json();
+                        if (!resp.ok) {
+                            this.scanning = false;
+                            if (data.redirect) window.location.href = data.redirect;
+                            else alert(data.error || 'Scan failed to start');
+                            return;
+                        }
+                        this.scrapeJobId = data.scrape_job_id;
+                        this.poll();
+                    } catch (e) {
+                        this.scanning = false;
+                        alert('Network error starting scan');
+                    }
+                },
+
+                poll() {
+                    if (!this.scrapeJobId) return;
+                    if (this.pollHandle) clearTimeout(this.pollHandle);
+                    fetch(`/jobs/recommend/scrape/${this.scrapeJobId}/status/`, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    })
+                        .then(r => r.json())
+                        .then(data => {
+                            this.progressPct = data.progress_pct || 0;
+                            this.completedSteps = data.completed_steps || 0;
+                            this.totalSteps = data.total_steps || 0;
+                            this.currentStep = data.current_step || '';
+                            this.message = data.message || '';
+                            if (data.is_terminal) {
+                                this.scanning = false;
+                                window.location.reload();
+                                return;
+                            }
+                            this.pollHandle = setTimeout(() => this.poll(), 2000);
+                        })
+                        .catch(() => {
+                            this.pollHandle = setTimeout(() => this.poll(), 4000);
+                        });
+                },
+
+                async cancelScan() {
+                    if (!this.scrapeJobId) return;
+                    await fetch(`/jobs/recommend/scrape/${this.scrapeJobId}/cancel/`, {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': csrfToken },
+                    });
+                },
+
+                async saveRec(recId, evt) {
+                    const li = evt.target.closest('[data-rec-id]');
+                    if (li) li.style.opacity = '0.4';
+                    const resp = await fetch(`/jobs/recommend/${recId}/save/`, {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': csrfToken },
+                    });
+                    if (resp.ok) { window.location.reload(); }
+                    else if (li) li.style.opacity = '1';
+                },
+
+                async dismissRec(recId, evt) {
+                    const li = evt.target.closest('[data-rec-id]');
+                    if (li) li.style.opacity = '0.4';
+                    const resp = await fetch(`/jobs/recommend/${recId}/dismiss/`, {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': csrfToken },
+                    });
+                    if (resp.ok && li) { li.remove(); }
+                    else if (li) li.style.opacity = '1';
+                },
+            };
+        }
+        </script>
     </div>
 </div>
 

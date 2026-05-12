@@ -1,0 +1,46 @@
+{
+  "id": "jd_auto_cv_flutter_intern",
+  "title": "Junior Flutter Developer",
+  "company": "Techify Solutions",
+  "description": "We are seeking a Junior Flutter Developer to join our team of mobile app developers. As a Junior Flutter Developer, you will be responsible for developing high-quality mobile applications using Flutter and Dart.\n\nResponsibilities:\n- Develop mobile applications using Flutter and Dart\n- Collaborate with cross-functional teams to design and implement new features\n- Troubleshoot and debug issues in mobile applications\n- Participate in code reviews and contribute to the improvement of the codebase\n- Stay up-to-date with the latest trends and technologies in mobile app development\n\nMust-have skills:\n- Flutter\n- Dart\n- GetX\n- Provider\n- Git\n- Firebase\n- BLoC\n- Agile\n\nNice to have:\n- Experience with CI/CD pipelines\n- Knowledge of testing frameworks such as Jest or Mockito\n- Familiarity with REST API and API design principles",
+  "expected_skills": [
+    "Flutter",
+    "Dart",
+    "GetX",
+    "Provider",
+    "BLoC",
+    "Firebase",
+    "Git",
+    "Agile",
+    "CI/CD",
+    "Jest",
+    "REST API",
+    "Mockito"
+  ],
+  "expected_skills_must_have": [
+    "Flutter",
+    "Dart",
+    "GetX",
+    "Provider",
+    "Git",
+    "Firebase",
+    "BLoC",
+    "Agile"
+  ],
+  "paired_cv_id": "cv_flutter_intern",
+  "_meta": {
+    "generated_by": "benchmarks.jd_generator",
+    "source_cv_id": "cv_flutter_intern",
+    "detected_role": "Flutter Developer",
+    "detected_seniority": "junior",
+    "tech_stack_signals": [
+      "Flutter",
+      "Dart",
+      "GetX",
+      "Provider",
+      "BLoC",
+      "Firebase",
+      "Git"
+    ]
+  }
+}

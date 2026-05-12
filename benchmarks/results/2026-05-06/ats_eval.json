@@ -1,0 +1,91 @@
+{
+  "benchmark": "ats_eval",
+  "version": 1,
+  "fixture_kind": "synthetic",
+  "n_jobs": 3,
+  "n_resumes_matched": 3,
+  "determinism": {
+    "runs_per_fixture": 10,
+    "deterministic": true,
+    "per_fixture": [
+      {
+        "fixture": "backend",
+        "runs": 10,
+        "mean": 100.0,
+        "std": 0.0,
+        "min": 100.0,
+        "max": 100.0
+      },
+      {
+        "fixture": "frontend",
+        "runs": 10,
+        "mean": 100.0,
+        "std": 0.0,
+        "min": 100.0,
+        "max": 100.0
+      },
+      {
+        "fixture": "data",
+        "runs": 10,
+        "mean": 100.0,
+        "std": 0.0,
+        "min": 100.0,
+        "max": 100.0
+      }
+    ]
+  },
+  "separation": {
+    "matched": {
+      "n": 3,
+      "min": 100.0,
+      "mean": 100.0,
+      "median": 100.0,
+      "p95": 100.0,
+      "max": 100.0,
+      "std": 0.0,
+      "scores": [
+        100.0,
+        100.0,
+        100.0
+      ]
+    },
+    "mismatched": {
+      "n": 6,
+      "min": 0.0,
+      "mean": 11.0,
+      "median": 0.0,
+      "p95": 38.5,
+      "max": 44.0,
+      "std": 16.8028,
+      "scores": [
+        0.0,
+        44.0,
+        0.0,
+        0.0,
+        22.0,
+        0.0
+      ]
+    },
+    "cohens_d": 6.267,
+    "separated": true
+  },
+  "stuffing": {
+    "stuffing_threshold": 4,
+    "penalty_per_skill": 5.0,
+    "stuffed_skills_detected": [
+      "Python"
+    ],
+    "stuffing_penalty_applied": 5.0,
+    "expected_penalty_for_detected": 5.0,
+    "penalty_matches_formula": true,
+    "stuffing_fired": true,
+    "keyword_counts": {
+      "Python": 7,
+      "Django": 2,
+      "PostgreSQL": 2,
+      "Docker": 2,
+      "REST API": 2
+    }
+  },
+  "disclosure": "Synthetic in-process fixtures \u2014 no real CVs. ATS algorithm is pure Python; \u03c3=0 is the expected determinism outcome. Separation is measured across 3 matched (resume, job) pairs vs. 6 cross-paired mismatches."
+}

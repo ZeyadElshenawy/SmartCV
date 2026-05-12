@@ -1,0 +1,21 @@
+{
+  "cv_id": "cv_generated_review_export",
+  "personal_info": {
+    "name": "Mohamed Bahgat",
+    "email": "bahgatm226@gmail.com",
+    "phone": "0106319533",
+    "location": "New York, NY"
+  },
+  "education_count": 1,
+  "experience_count": 4,
+  "skills_canonical": [
+    "Python", "Git", "GitHub", "Flask", "scikit-learn", "PyTorch",
+    "TensorFlow", "Spacy", "CUDA", "Calculus", "Linear Algebra",
+    "Probability", "Statistics", "Reinforcement Learning",
+    "Generative Modeling", "Transformers", "Sequence Models",
+    "Machine Learning", "Deep Learning", "Linux", "Databases"
+  ],
+  "section_presence": {
+    "summary": false, "experience": true, "education": true, "projects": false, "skills": true
+  }
+}

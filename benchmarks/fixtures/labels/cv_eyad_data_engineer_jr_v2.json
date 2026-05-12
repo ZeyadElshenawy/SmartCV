@@ -1,0 +1,19 @@
+{
+  "cv_id": "cv_eyad_data_engineer_jr_v2",
+  "personal_info": {
+    "name": "Eyad Saleh",
+    "email": "eyadsaleh.de@gmail.com",
+    "phone": "+201025432119",
+    "location": "6th October, Giza, Egypt"
+  },
+  "education_count": 1,
+  "experience_count": 1,
+  "skills_canonical": [
+    "Python", "SQL", "Shell", "Kafka", "Airflow", "Spark", "ETL",
+    "Data Warehousing", "Data Lakes", "Azure", "AWS", "Docker",
+    "PostgreSQL", "FastAPI", "Linux", "Git"
+  ],
+  "section_presence": {
+    "summary": true, "experience": true, "education": true, "projects": true, "skills": true
+  }
+}

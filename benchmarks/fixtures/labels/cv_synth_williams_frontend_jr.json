@@ -1,0 +1,18 @@
+{
+  "cv_id": "cv_synth_williams_frontend_jr",
+  "personal_info": {
+    "name": "Leonidas Williams",
+    "email": "l.williams@email.com",
+    "phone": "(123) 456-7890",
+    "location": "Seattle, WA"
+  },
+  "education_count": 1,
+  "experience_count": 1,
+  "skills_canonical": [
+    "JavaScript", "HTML", "CSS", "React", "Node.js", "Mocha", "Chai",
+    "Jest", "Git", "Agile"
+  ],
+  "section_presence": {
+    "summary": true, "experience": true, "education": true, "projects": true, "skills": true
+  }
+}

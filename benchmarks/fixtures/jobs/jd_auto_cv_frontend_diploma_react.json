@@ -1,0 +1,46 @@
+{
+  "id": "jd_auto_cv_frontend_diploma_react",
+  "title": "Junior Frontend Engineer",
+  "company": "Techify Solutions",
+  "description": "We are looking for a Junior Frontend Engineer to join our team. As a Junior Frontend Engineer, you will be responsible for building responsive and user-friendly web applications using React, JavaScript/TypeScript, CSS, and HTML.\n\nResponsibilities:\n- Develop high-quality frontend code using React, JavaScript/TypeScript, CSS, and HTML\n- Collaborate with designers to implement visually appealing and user-friendly interfaces\n- Work with backend engineers to integrate APIs and ensure seamless data flow\n- Participate in code reviews and contribute to the improvement of the overall codebase\n- Stay up-to-date with the latest frontend development trends and best practices\n\nMust-have skills:\n- React\n- JavaScript/TypeScript\n- CSS\n- HTML\n- Bootstrap\n- Responsive web design\n- Version control systems (Git)\n- Basic understanding of backend development (APIs)\n\nNice to have:\n- Experience with testing frameworks (Jest, Cypress)\n- Familiarity with containerization (Docker)\n- Knowledge of CI/CD pipelines",
+  "expected_skills": [
+    "React",
+    "JavaScript",
+    "TypeScript",
+    "CSS",
+    "HTML",
+    "Bootstrap",
+    "Git",
+    "REST API",
+    "Jest",
+    "Docker",
+    "CI/CD",
+    "Agile",
+    "Webpack",
+    "Redux"
+  ],
+  "expected_skills_must_have": [
+    "React",
+    "JavaScript",
+    "TypeScript",
+    "CSS",
+    "HTML",
+    "Bootstrap",
+    "Git",
+    "REST API"
+  ],
+  "paired_cv_id": "cv_frontend_diploma_react",
+  "_meta": {
+    "generated_by": "benchmarks.jd_generator",
+    "source_cv_id": "cv_frontend_diploma_react",
+    "detected_role": "Frontend Engineer",
+    "detected_seniority": "junior",
+    "tech_stack_signals": [
+      "React",
+      "JavaScript/TypeScript",
+      "CSS",
+      "HTML",
+      "Bootstrap"
+    ]
+  }
+}

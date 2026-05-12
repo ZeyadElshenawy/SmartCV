@@ -1,0 +1,41 @@
+{
+  "id": "jd_auto_cv_frontend_senior_react_vue",
+  "title": "Senior Frontend Engineer",
+  "company": "Aurora Tech",
+  "description": "We are seeking a highly skilled Senior Frontend Engineer to lead the development of our web applications. The ideal candidate will have a strong background in frontend development, with expertise in creating responsive and user-friendly graphical user interfaces.\n\nResponsibilities:\n- Design and develop high-quality frontend code for web applications\n- Collaborate with cross-functional teams to identify and prioritize project requirements\n- Lead the development of new features and components\n- Mentor junior engineers and provide code reviews\n- Ensure seamless integration with backend services\n- Troubleshoot and resolve complex technical issues\n\nMust-have skills:\n- JavaScript\n- React\n- Frontend Development\n- Graphical User Interfaces\n- HTML/CSS\n- Responsive Web Design\n- Webpack\n- Jest\n\nNice to have:\n- Vue\n- TypeScript\n- GraphQL\n- CI/CD",
+  "expected_skills": [
+    "JavaScript",
+    "React",
+    "Vue",
+    "Graphical User Interfaces",
+    "HTML/CSS",
+    "Webpack",
+    "Jest",
+    "TypeScript",
+    "GraphQL",
+    "CI/CD",
+    "Agile"
+  ],
+  "expected_skills_must_have": [
+    "JavaScript",
+    "React",
+    "Graphical User Interfaces",
+    "HTML/CSS",
+    "Webpack",
+    "Jest"
+  ],
+  "paired_cv_id": "cv_frontend_senior_react_vue",
+  "_meta": {
+    "generated_by": "benchmarks.jd_generator",
+    "source_cv_id": "cv_frontend_senior_react_vue",
+    "detected_role": "Frontend Engineer",
+    "detected_seniority": "senior",
+    "tech_stack_signals": [
+      "JavaScript",
+      "React",
+      "Vue",
+      "Frontend Development",
+      "Graphical User Interfaces"
+    ]
+  }
+}

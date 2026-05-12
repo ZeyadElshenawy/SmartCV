@@ -319,3 +319,58 @@ class OutreachActionEvent(models.Model):
             models.Index(fields=['action', 'created_at']),
         ]
 
+
+class JobPreferences(models.Model):
+    """Per-user matching intent for the job-discovery feature.
+
+    Drives the dashboard "Recommended" panel: the scraper consumes these
+    fields as its search query, the scoring step reads the user's profile
+    to rank candidates. last_scan_failed_at + scan_failure_count drive
+    the retry-on-dashboard-load backoff.
+    """
+    DATE_CHOICES = [
+        ("any", "Any time"),
+        ("24h", "Past 24 hours"),
+        ("week", "Past week"),
+        ("month", "Past month"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='job_preferences',
+    )
+    keyword = models.CharField(max_length=200, blank=True, default='')
+    locations = models.JSONField(default=list)
+    sources = models.JSONField(default=list)
+    date_posted = models.CharField(max_length=16, choices=DATE_CHOICES, default='week')
+    experience_levels = models.JSONField(default=list)
+    workplace_types = models.JSONField(default=list)
+    max_jobs = models.PositiveIntegerField(default=30)
+
+    last_scan_at = models.DateTimeField(null=True, blank=True)
+    last_scan_failed_at = models.DateTimeField(null=True, blank=True)
+    scan_failure_count = models.PositiveIntegerField(default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'job_preferences'
+
+    def __str__(self):
+        return f"JobPreferences<{self.user_id}> {self.keyword!r}"
+
+    def to_params(self) -> dict:
+        """Shape consumed by jobs.services.job_sources.runner."""
+        return {
+            "keyword": self.keyword,
+            "locations": list(self.locations or []),
+            "sources": list(self.sources or []),
+            "date_posted": self.date_posted,
+            "experience_levels": list(self.experience_levels or []),
+            "workplace_types": list(self.workplace_types or []),
+            "max_jobs": int(self.max_jobs),
+        }
+

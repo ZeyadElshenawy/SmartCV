@@ -9,10 +9,9 @@
   "education_count": 1,
   "experience_count": 3,
   "skills_canonical": [
-    "Front-End Development", "Code Review", "Mentorship", "UI/UX",
-    "Reusable Components", "Automated Testing", "Performance Optimization"
+    "HTML", "CSS", "JavaScript", "React", "AWS"
   ],
   "section_presence": {
-    "summary": false, "experience": true, "education": true, "projects": false, "skills": false
+    "summary": false, "experience": true, "education": true, "projects": false, "skills": true
   }
 }

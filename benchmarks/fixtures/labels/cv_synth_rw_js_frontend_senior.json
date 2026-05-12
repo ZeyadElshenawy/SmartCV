@@ -1,0 +1,18 @@
+{
+  "cv_id": "cv_synth_rw_js_frontend_senior",
+  "personal_info": {
+    "name": "First Last",
+    "email": "professionalemail@resumeworded.com",
+    "phone": "+1-234-456-789",
+    "location": "Charleston, West Virginia"
+  },
+  "education_count": 1,
+  "experience_count": 1,
+  "skills_canonical": [
+    "JavaScript", "HTML", "CSS", "Chart.js", "Asynchronous Programming",
+    "Lazy Loading", "Debugging", "Testing"
+  ],
+  "section_presence": {
+    "summary": true, "experience": true, "education": true, "projects": false, "skills": true
+  }
+}

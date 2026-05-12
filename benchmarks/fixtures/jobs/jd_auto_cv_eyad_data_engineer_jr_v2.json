@@ -1,0 +1,47 @@
+{
+  "id": "jd_auto_cv_eyad_data_engineer_jr_v2",
+  "title": "Junior Data Engineer",
+  "company": "NovaTech Solutions",
+  "description": "We are seeking a Junior Data Engineer to join our team. As a Junior Data Engineer, you will be responsible for designing, building, and maintaining large-scale data systems. You will work closely with our data scientists and analysts to ensure that our data pipelines are efficient, scalable, and reliable.\n\nResponsibilities:\n- Design, build, and maintain ETL pipelines using Apache Spark and Kafka\n- Develop and deploy data processing workflows using Airflow\n- Collaborate with data scientists and analysts to understand data requirements\n- Ensure data quality and integrity across all systems\n- Work with cloud-based technologies such as AWS and Azure\n- Participate in code reviews and contribute to the improvement of our data engineering practices\n\nMust-have skills:\n- Python\n- Apache Spark\n- Kafka\n- Airflow\n- ETL Pipelines\n- Docker\n- AWS\n- Azure\n\nNice to have:\n- Experience with containerization using Kubernetes\n- Familiarity with data warehousing concepts\n- Knowledge of data governance principles",
+  "expected_skills": [
+    "Python",
+    "Apache Spark",
+    "Kafka",
+    "Airflow",
+    "ETL Pipelines",
+    "Docker",
+    "AWS",
+    "Azure",
+    "Kubernetes",
+    "Data Warehousing",
+    "Data Governance",
+    "CI/CD"
+  ],
+  "expected_skills_must_have": [
+    "Python",
+    "Apache Spark",
+    "Kafka",
+    "Airflow",
+    "ETL Pipelines",
+    "Docker",
+    "AWS",
+    "Azure"
+  ],
+  "paired_cv_id": "cv_eyad_data_engineer_jr_v2",
+  "_meta": {
+    "generated_by": "benchmarks.jd_generator",
+    "source_cv_id": "cv_eyad_data_engineer_jr_v2",
+    "detected_role": "Data Engineer",
+    "detected_seniority": "junior",
+    "tech_stack_signals": [
+      "Python",
+      "Apache Spark",
+      "Kafka",
+      "Airflow",
+      "AWS",
+      "Azure",
+      "ETL Pipelines",
+      "Docker"
+    ]
+  }
+}

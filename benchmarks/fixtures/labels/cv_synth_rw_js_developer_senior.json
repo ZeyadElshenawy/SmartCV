@@ -1,0 +1,19 @@
+{
+  "cv_id": "cv_synth_rw_js_developer_senior",
+  "personal_info": {
+    "name": "First Last",
+    "email": "professionalemail@resumeworded.com",
+    "phone": "+1-234-456-789",
+    "location": "Bay Area, California"
+  },
+  "education_count": 1,
+  "experience_count": 2,
+  "skills_canonical": [
+    "JavaScript", "ES6", "Redux", "HTML", "XML", "CSS", "Python", "SQL",
+    "ASP", "TypeScript", "REST APIs", "MySQL", "Tableau", "Selenium",
+    "GraphQL", "React"
+  ],
+  "section_presence": {
+    "summary": false, "experience": true, "education": true, "projects": false, "skills": true
+  }
+}

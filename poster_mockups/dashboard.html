@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>SmartCV — Dashboard Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:wght@600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --navy: #0B1B3F;
+    --navy-2: #14275C;
+    --gold: #C9A94A;
+    --bg: #F5F6FA;
+    --card: #FFFFFF;
+    --ink: #0F172A;
+    --muted: #64748B;
+    --line: #E5E7EB;
+    --green: #16A34A;
+    --green-bg: #DCFCE7;
+    --amber: #D97706;
+    --amber-bg: #FEF3C7;
+    --red: #DC2626;
+    --red-bg: #FEE2E2;
+    --blue-bg: #DBEAFE;
+    --blue: #1D4ED8;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    width: 1440px;
+    margin: 0 auto;
+  }
+  /* Top nav */
+  .nav {
+    background: var(--navy);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 40px;
+    border-bottom: 3px solid var(--gold);
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 22px;
+  }
+  .brand-mark {
+    width: 36px; height: 36px;
+    background: var(--gold);
+    color: var(--navy);
+    border-radius: 8px;
+    display: grid; place-items: center;
+    font-weight: 800;
+    font-family: 'Inter', sans-serif;
+  }
+  .nav-links { display: flex; gap: 28px; font-size: 15px; font-weight: 500; }
+  .nav-links a { color: rgba(255,255,255,0.85); text-decoration: none; }
+  .nav-links a.active { color: var(--gold); position: relative; }
+  .nav-links a.active::after {
+    content: ''; position: absolute; left: 0; right: 0; bottom: -22px;
+    height: 3px; background: var(--gold);
+  }
+  .user {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 14px;
+  }
+  .avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--gold), #E6C870);
+    color: var(--navy);
+    display: grid; place-items: center; font-weight: 700;
+  }
+
+  /* Page */
+  .page { padding: 32px 40px 56px; }
+  .h1 {
+    font-family: 'Fraunces', serif;
+    font-size: 32px;
+    font-weight: 700;
+    margin: 0 0 4px;
+  }
+  .sub { color: var(--muted); margin: 0 0 28px; font-size: 15px; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1.1fr 1.5fr;
+    gap: 24px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 22px 24px;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+  }
+  .card h2 {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin: 0 0 16px;
+    font-weight: 600;
+  }
+
+  /* CV Summary */
+  .cv-head { display: flex; align-items: center; gap: 16px; }
+  .cv-avatar {
+    width: 64px; height: 64px;
+    border-radius: 14px;
+    background: var(--navy);
+    color: var(--gold);
+    display: grid; place-items: center;
+    font-family: 'Fraunces', serif;
+    font-size: 26px; font-weight: 700;
+  }
+  .cv-name { font-size: 20px; font-weight: 700; margin: 0; }
+  .cv-role { color: var(--muted); font-size: 14px; margin: 2px 0 0; }
+  .cv-stats {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    margin-top: 22px; gap: 10px;
+    border-top: 1px solid var(--line);
+    padding-top: 18px;
+  }
+  .stat .n {
+    font-family: 'Fraunces', serif;
+    font-size: 26px; font-weight: 700; color: var(--navy);
+  }
+  .stat .l { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .pill {
+    background: var(--blue-bg);
+    color: var(--blue);
+    padding: 6px 12px; border-radius: 999px;
+    font-size: 13px; font-weight: 500;
+  }
+  .pill.muted { background: #EEF2F7; color: var(--muted); }
+
+  /* Active jobs */
+  .jobs { display: flex; flex-direction: column; gap: 14px; }
+  .job {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px 18px;
+    transition: border-color .15s;
+  }
+  .job:hover { border-color: var(--navy); }
+  .job-title { font-weight: 600; font-size: 15px; margin: 0 0 4px; }
+  .job-co { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
+  .job-meta { display: flex; gap: 12px; font-size: 12px; color: var(--muted); }
+  .job-meta b { color: var(--ink); font-weight: 600; }
+
+  .ring {
+    --pct: 87;
+    width: 72px; height: 72px; border-radius: 50%;
+    background:
+      conic-gradient(var(--gold) calc(var(--pct) * 1%), #EEF2F7 0);
+    display: grid; place-items: center;
+    position: relative;
+  }
+  .ring::after {
+    content: ''; position: absolute; inset: 6px; border-radius: 50%;
+    background: white;
+  }
+  .ring span {
+    position: relative; z-index: 1;
+    font-family: 'Fraunces', serif;
+    font-weight: 700; font-size: 18px;
+    color: var(--navy);
+  }
+  .ring small { font-size: 10px; font-weight: 500; color: var(--muted); }
+
+  /* Quick actions */
+  .actions {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-top: 24px;
+  }
+  .action {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 22px;
+    display: flex; align-items: center; gap: 14px;
+    cursor: pointer;
+  }
+  .action .ic {
+    width: 44px; height: 44px; border-radius: 11px;
+    display: grid; place-items: center;
+    font-size: 22px; flex-shrink: 0;
+  }
+  .ic.up { background: var(--blue-bg); color: var(--blue); }
+  .ic.add { background: #E0F2FE; color: #0369A1; }
+  .ic.gen { background: var(--green-bg); color: var(--green); }
+  .action b { display: block; font-size: 15px; }
+  .action span { color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="brand">
+    <div class="brand-mark">S</div>
+    SmartCV
+  </div>
+  <nav class="nav-links">
+    <a href="#" class="active">Dashboard</a>
+    <a href="#">Jobs</a>
+    <a href="#">Resumes</a>
+    <a href="#">Gap Analysis</a>
+    <a href="#">Profile</a>
+  </nav>
+  <div class="user">
+    <span>Zeyad Elshenawy</span>
+    <div class="avatar">ZE</div>
+  </div>
+</header>
+
+<main class="page">
+  <h1 class="h1">Welcome back, Zeyad</h1>
+  <p class="sub">Your CV is up to date. 3 jobs are being tracked.</p>
+
+  <div class="grid">
+
+    <!-- CV Summary -->
+    <section class="card">
+      <h2>Your CV</h2>
+      <div class="cv-head">
+        <div class="cv-avatar">ZE</div>
+        <div>
+          <p class="cv-name">Zeyad Elshenawy</p>
+          <p class="cv-role">Computer Science Student · KSIU</p>
+        </div>
+      </div>
+      <div class="cv-stats">
+        <div class="stat"><div class="n">12</div><div class="l">Skills</div></div>
+        <div class="stat"><div class="n">4</div><div class="l">Projects</div></div>
+        <div class="stat"><div class="n">2</div><div class="l">Experiences</div></div>
+      </div>
+      <div style="margin-top:18px;">
+        <div style="font-size:13px;color:var(--muted);font-weight:500;margin-bottom:8px;">Top skills</div>
+        <div class="pills">
+          <span class="pill">Python</span>
+          <span class="pill">Django</span>
+          <span class="pill">React</span>
+          <span class="pill">PostgreSQL</span>
+          <span class="pill">LangChain</span>
+          <span class="pill muted">+7 more</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Active Jobs -->
+    <section class="card">
+      <h2>Active Jobs</h2>
+      <div class="jobs">
+
+        <div class="job">
+          <div>
+            <p class="job-title">Junior Backend Engineer</p>
+            <p class="job-co">Vodafone · Cairo, Egypt · Full-time</p>
+            <div class="job-meta">
+              <span><b style="color:var(--green)">9</b> matched</span>
+              <span><b style="color:var(--amber)">2</b> partial</span>
+              <span><b style="color:var(--red)">1</b> missing</span>
+            </div>
+          </div>
+          <div class="ring" style="--pct:87"><span>87<small>%</small></span></div>
+        </div>
+
+        <div class="job">
+          <div>
+            <p class="job-title">AI Software Developer</p>
+            <p class="job-co">IBM · Remote · Full-time</p>
+            <div class="job-meta">
+              <span><b style="color:var(--green)">7</b> matched</span>
+              <span><b style="color:var(--amber)">3</b> partial</span>
+              <span><b style="color:var(--red)">3</b> missing</span>
+            </div>
+          </div>
+          <div class="ring" style="--pct:72"><span>72<small>%</small></span></div>
+        </div>
+
+        <div class="job">
+          <div>
+            <p class="job-title">Full-Stack Intern</p>
+            <p class="job-co">Instabug · Hybrid · 6 months</p>
+            <div class="job-meta">
+              <span><b style="color:var(--green)">11</b> matched</span>
+              <span><b style="color:var(--amber)">1</b> partial</span>
+              <span><b style="color:var(--red)">0</b> missing</span>
+            </div>
+          </div>
+          <div class="ring" style="--pct:94"><span>94<small>%</small></span></div>
+        </div>
+
+      </div>
+    </section>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="actions">
+    <div class="action">
+      <div class="ic up">⬆</div>
+      <div>
+        <b>Upload New CV</b>
+        <span>PDF or DOCX, parsed in seconds</span>
+      </div>
+    </div>
+    <div class="action">
+      <div class="ic add">＋</div>
+      <div>
+        <b>Add Job</b>
+        <span>LinkedIn URL or paste description</span>
+      </div>
+    </div>
+    <div class="action">
+      <div class="ic gen">✨</div>
+      <div>
+        <b>Generate Tailored Resume</b>
+        <span>ATS-optimized PDF, one click</span>
+      </div>
+    </div>
+  </div>
+</main>
+
+</body>
+</html>

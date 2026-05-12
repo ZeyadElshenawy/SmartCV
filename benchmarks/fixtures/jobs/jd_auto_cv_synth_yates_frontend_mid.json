@@ -1,0 +1,42 @@
+{
+  "id": "jd_auto_cv_synth_yates_frontend_mid",
+  "title": "Frontend Engineer (React.js)",
+  "company": "Techify Solutions",
+  "description": "We are seeking a mid-level Frontend Engineer to join our team. As a Frontend Engineer, you will be responsible for building responsive and user-friendly interfaces for our web applications.\n\nResponsibilities:\n- Develop high-quality frontend code using React.js and GraphQL\n- Collaborate with designers to implement visually appealing UI components\n- Work with cross-functional teams to ensure seamless integration with backend services\n- Optimize application performance and ensure accessibility\n- Troubleshoot and debug issues in a fast-paced environment\n- Stay up-to-date with industry trends and best practices\n\nMust-have skills:\n- JavaScript\n- React.js\n- GraphQL\n- HTML5\n- Bootstrap\n- CSS3\n- Responsive web design\n- Browser compatibility\n\nNice to have:\n- Redux\n- Jest\n- Webpack",
+  "expected_skills": [
+    "JavaScript",
+    "React.js",
+    "GraphQL",
+    "HTML5",
+    "Bootstrap",
+    "CSS3",
+    "Browser compatibility",
+    "Redux",
+    "Jest",
+    "Webpack",
+    "Agile",
+    "CI/CD"
+  ],
+  "expected_skills_must_have": [
+    "JavaScript",
+    "React.js",
+    "GraphQL",
+    "HTML5",
+    "Bootstrap",
+    "CSS3"
+  ],
+  "paired_cv_id": "cv_synth_yates_frontend_mid",
+  "_meta": {
+    "generated_by": "benchmarks.jd_generator",
+    "source_cv_id": "cv_synth_yates_frontend_mid",
+    "detected_role": "Frontend Engineer",
+    "detected_seniority": "mid",
+    "tech_stack_signals": [
+      "React.js",
+      "GraphQL",
+      "JavaScript",
+      "HTML5",
+      "Bootstrap"
+    ]
+  }
+}

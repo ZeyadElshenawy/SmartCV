@@ -1,0 +1,21 @@
+{
+  "cv_id": "cv_zeyad_datascience_jr",
+  "personal_info": {
+    "name": "Zeyad Elshenawy",
+    "email": "zeyadelshenawy1@gmail.com",
+    "phone": "+201028697404",
+    "location": "Egypt, Cairo"
+  },
+  "education_count": 1,
+  "experience_count": 0,
+  "skills_canonical": [
+    "Python", "Pandas", "NumPy", "scikit-learn", "Matplotlib", "Seaborn",
+    "Plotly", "Power BI", "DAX", "MySQL", "PostgreSQL", "TensorFlow",
+    "Keras", "PyTorch", "Machine Learning", "Deep Learning", "CNNs",
+    "RNNs", "Transfer Learning", "PySpark", "Microsoft Fabric",
+    "Feature Engineering", "Java", "SQL"
+  ],
+  "section_presence": {
+    "summary": false, "experience": false, "education": true, "projects": true, "skills": true
+  }
+}

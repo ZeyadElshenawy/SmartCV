@@ -1,0 +1,3827 @@
+{
+  "benchmark": "gap_eval",
+  "version": 1,
+  "fixture_kind": "real_anonymized_cv_x_jd",
+  "n_cvs": 25,
+  "n_jds": 30,
+  "n_pairs_evaluated": 150,
+  "repeats_per_pair": 1,
+  "parse_wall_seconds": 2.33,
+  "wall_seconds": 630.76,
+  "parse_errors": [],
+  "buckets": {
+    "strong": {
+      "n": 34,
+      "min": 0.0,
+      "mean": 0.5456,
+      "median": 0.625,
+      "p95": 0.8,
+      "max": 0.85,
+      "std": 0.263,
+      "scores": [
+        0.0,
+        0.2,
+        0.85,
+        0.8,
+        0.8,
+        0.0,
+        0.4,
+        0.6,
+        0.35,
+        0.8,
+        0.6,
+        0.0,
+        0.4,
+        0.6,
+        0.7,
+        0.55,
+        0.8,
+        0.75,
+        0.8,
+        0.75,
+        0.7,
+        0.75,
+        0.75,
+        0.7,
+        0.6,
+        0.2,
+        0.05,
+        0.35,
+        0.65,
+        0.45,
+        0.7,
+        0.75,
+        0.35,
+        0.8
+      ]
+    },
+    "partial": {
+      "n": 3,
+      "min": 0.2,
+      "mean": 0.35,
+      "median": 0.4,
+      "p95": 0.45,
+      "max": 0.45,
+      "std": 0.108,
+      "scores": [
+        0.45,
+        0.2,
+        0.4
+      ]
+    },
+    "weak": {
+      "n": 113,
+      "min": 0.0,
+      "mean": 0.196,
+      "median": 0.1,
+      "p95": 0.65,
+      "max": 0.9,
+      "std": 0.2343,
+      "scores": [
+        0.35,
+        0.15,
+        0.15,
+        0.05,
+        0.05,
+        0.1,
+        0.15,
+        0.0,
+        0.35,
+        0.9,
+        0.35,
+        0.35,
+        0.05,
+        0.2,
+        0.35,
+        0.2,
+        0.9,
+        0.9,
+        0.35,
+        0.15,
+        0.05,
+        0.25,
+        0.0,
+        0.0,
+        0.35,
+        0.0,
+        0.0,
+        0.65,
+        0.65,
+        0.65,
+        0.35,
+        0.15,
+        0.35,
+        0.1,
+        0.35,
+        0.1,
+        0.0,
+        0.0,
+        0.0,
+        0.1,
+        0.05,
+        0.35,
+        0.35,
+        0.0,
+        0.35,
+        0.05,
+        0.05,
+        0.0,
+        0.0,
+        0.15,
+        0.0,
+        0.0,
+        0.35,
+        0.15,
+        0.15,
+        0.05,
+        0.0,
+        0.05,
+        0.0,
+        0.65,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.05,
+        0.35,
+        0.55,
+        0.0,
+        0.15,
+        0.15,
+        0.0,
+        0.0,
+        0.2,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.15,
+        0.55,
+        0.0,
+        0.0,
+        0.65,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.15,
+        0.65,
+        0.75,
+        0.0,
+        0.1,
+        0.35,
+        0.0,
+        0.1,
+        0.15,
+        0.1,
+        0.25,
+        0.0,
+        0.35,
+        0.6,
+        0.4,
+        0.0,
+        0.0,
+        0.35,
+        0.45,
+        0.35,
+        0.6,
+        0.6,
+        0.05,
+        0.1
+      ]
+    }
+  },
+  "separation": {
+    "strong_vs_weak_cohens_d": 1.449,
+    "strong_mean_gt_weak_mean": true
+  },
+  "coverage": {
+    "n": 150,
+    "min": 0.9286,
+    "mean": 0.9964,
+    "median": 1.0,
+    "p95": 1.0,
+    "max": 1.0,
+    "std": 0.0147,
+    "perfect_coverage_pairs": 141
+  },
+  "latency_ms": {
+    "n": 150,
+    "min": 1246.21,
+    "mean": 4205.0335,
+    "median": 4471.355,
+    "p95": 5464.9,
+    "max": 6120.13,
+    "std": 1080.3541
+  },
+  "rows": [
+    {
+      "cv_id": "cv_flutter_intern",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "weak",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 10,
+          "n_missing": 20,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1496.95,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_diploma_react",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "partial",
+      "similarity_mean": 0.45,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.45,
+          "n_matched": 10,
+          "n_missing": 20,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1578.76,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "strong",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 30,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1367.16,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_mid_react",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "strong",
+      "similarity_mean": 0.2,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.2,
+          "n_matched": 4,
+          "n_missing": 27,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 31,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 0.9333
+          },
+          "latency_ms": 1661.93,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue_v2",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "strong",
+      "similarity_mean": 0.85,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.85,
+          "n_matched": 28,
+          "n_missing": 2,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1590.07,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_jquery_legacy",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "partial",
+      "similarity_mean": 0.2,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.2,
+          "n_matched": 5,
+          "n_missing": 25,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1310.72,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_entry_no_role",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "weak",
+      "similarity_mean": 0.15,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.15,
+          "n_matched": 6,
+          "n_missing": 24,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1577.58,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_abbas_backend_devops_senior_student",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "weak",
+      "similarity_mean": 0.15,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.15,
+          "n_matched": 7,
+          "n_missing": 24,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 31,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1440.3,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_eyad_data_engineer_jr",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "weak",
+      "similarity_mean": 0.05,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.05,
+          "n_matched": 5,
+          "n_missing": 25,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1474.33,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_eyad_data_engineer_jr_v2",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "weak",
+      "similarity_mean": 0.05,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.05,
+          "n_matched": 5,
+          "n_missing": 25,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1518.88,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_bahgat_ai_research_senior",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "weak",
+      "similarity_mean": 0.1,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.1,
+          "n_matched": 2,
+          "n_missing": 28,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1595.05,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_taher_mobile_jr",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "weak",
+      "similarity_mean": 0.15,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.15,
+          "n_matched": 4,
+          "n_missing": 27,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 31,
+            "n_covered_of_job": 29,
+            "coverage_ratio": 0.9667
+          },
+          "latency_ms": 1303.97,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_zeyad_datascience_jr",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 30,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1392.07,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_bach_frontend_mid",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "weak",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 7,
+          "n_missing": 24,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 31,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 0.9333
+          },
+          "latency_ms": 1246.21,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_santos_frontend_senior",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "weak",
+      "similarity_mean": 0.9,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.9,
+          "n_matched": 28,
+          "n_missing": 2,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 1940.09,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_nitao_frontend_jr",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "weak",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 6,
+          "n_missing": 27,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 33,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 0.9333
+          },
+          "latency_ms": 1444.74,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_rw_js_frontend_senior",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "weak",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 12,
+          "n_missing": 18,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 2426.75,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_rw_js_developer_senior",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "weak",
+      "similarity_mean": 0.05,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.05,
+          "n_matched": 1,
+          "n_missing": 29,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4519.44,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_yates_frontend_mid",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "weak",
+      "similarity_mean": 0.2,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.2,
+          "n_matched": 5,
+          "n_missing": 25,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4753.69,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_williams_frontend_jr",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "weak",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 5,
+          "n_missing": 25,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4583.6,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_crane_frontend_intern",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "weak",
+      "similarity_mean": 0.2,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.2,
+          "n_matched": 5,
+          "n_missing": 25,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 5123.43,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_ridge_frontend_mid",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "weak",
+      "similarity_mean": 0.9,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.9,
+          "n_matched": 28,
+          "n_missing": 2,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 3776.25,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_brooks_frontend_mid_angular",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "weak",
+      "similarity_mean": 0.9,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.9,
+          "n_matched": 28,
+          "n_missing": 2,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4894.53,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_vaughn_frontend_lead",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "weak",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 10,
+          "n_missing": 20,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4506.52,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_generated_review_export",
+      "jd_id": "jd_senior_frontend_react",
+      "expected": "weak",
+      "similarity_mean": 0.15,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.15,
+          "n_matched": 8,
+          "n_missing": 22,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 30,
+            "n_accounted": 30,
+            "n_covered_of_job": 30,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 5625.85,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_flutter_intern",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.05,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.05,
+          "n_matched": 1,
+          "n_missing": 17,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4289.46,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_diploma_react",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.25,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.25,
+          "n_matched": 5,
+          "n_missing": 14,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 19,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4257.27,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 18,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4541.41,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_mid_react",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 18,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4790.01,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue_v2",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 7,
+          "n_missing": 11,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4182.7,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_jquery_legacy",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 18,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4429.39,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_entry_no_role",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 18,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4506.64,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_abbas_backend_devops_senior_student",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.65,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.65,
+          "n_matched": 11,
+          "n_missing": 7,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4783.75,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_eyad_data_engineer_jr",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.65,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.65,
+          "n_matched": 9,
+          "n_missing": 9,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4523.83,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_eyad_data_engineer_jr_v2",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.65,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.65,
+          "n_matched": 9,
+          "n_missing": 9,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4259.12,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_bahgat_ai_research_senior",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 6,
+          "n_missing": 15,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 21,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4784.65,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_taher_mobile_jr",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.15,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.15,
+          "n_matched": 3,
+          "n_missing": 15,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 17,
+            "coverage_ratio": 0.9444
+          },
+          "latency_ms": 4437.59,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_zeyad_datascience_jr",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 6,
+          "n_missing": 12,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 5504.74,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_bach_frontend_mid",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.1,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.1,
+          "n_matched": 2,
+          "n_missing": 17,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 19,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 3786.11,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_santos_frontend_senior",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 7,
+          "n_missing": 11,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 5035.87,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_nitao_frontend_jr",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.1,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.1,
+          "n_matched": 2,
+          "n_missing": 17,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 19,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 3520.06,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_rw_js_frontend_senior",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 18,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4476.21,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_rw_js_developer_senior",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 18,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4456.82,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_yates_frontend_mid",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 18,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4322.65,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_williams_frontend_jr",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.1,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.1,
+          "n_matched": 2,
+          "n_missing": 16,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 5568.59,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_crane_frontend_intern",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.05,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.05,
+          "n_matched": 1,
+          "n_missing": 17,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 3586.98,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_ridge_frontend_mid",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 6,
+          "n_missing": 12,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4207.65,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_brooks_frontend_mid_angular",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 7,
+          "n_missing": 11,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4658.55,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_vaughn_frontend_lead",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 18,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 18,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 3663.11,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_generated_review_export",
+      "jd_id": "jd_backend_python_node",
+      "expected": "weak",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 7,
+          "n_missing": 12,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 18,
+            "n_accounted": 19,
+            "n_covered_of_job": 18,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 5343.04,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_flutter_intern",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.05,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.05,
+          "n_matched": 1,
+          "n_missing": 28,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 29,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4761.2,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_diploma_react",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.05,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.05,
+          "n_matched": 2,
+          "n_missing": 27,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 29,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4362.97,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 28,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 28,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4697.47,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_mid_react",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 28,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 28,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 5002.9,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue_v2",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.15,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.15,
+          "n_matched": 4,
+          "n_missing": 24,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 28,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4883.96,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_jquery_legacy",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 28,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 28,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4415.63,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_entry_no_role",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 28,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 28,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4466.48,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_abbas_backend_devops_senior_student",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 6,
+          "n_missing": 22,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 28,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4592.47,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_eyad_data_engineer_jr",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.15,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.15,
+          "n_matched": 5,
+          "n_missing": 24,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 29,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4371.67,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_eyad_data_engineer_jr_v2",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.15,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.15,
+          "n_matched": 5,
+          "n_missing": 24,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 29,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 5637.32,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_bahgat_ai_research_senior",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.05,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.05,
+          "n_matched": 3,
+          "n_missing": 27,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 30,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4553.08,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_taher_mobile_jr",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 4,
+          "n_missing": 28,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 32,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4741.96,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_zeyad_datascience_jr",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.05,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.05,
+          "n_matched": 1,
+          "n_missing": 27,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 28,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 5398.8,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_bach_frontend_mid",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 28,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 28,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 6120.13,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_santos_frontend_senior",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.65,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.65,
+          "n_matched": 13,
+          "n_missing": 15,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 28,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 2763.09,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_nitao_frontend_jr",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 28,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 28,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4478.55,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_rw_js_frontend_senior",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 28,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 28,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4810.47,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_rw_js_developer_senior",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 28,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 28,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4705.46,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_yates_frontend_mid",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 28,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 28,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4740.36,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_williams_frontend_jr",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 2,
+          "n_missing": 28,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 30,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4419.24,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_crane_frontend_intern",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.05,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.05,
+          "n_matched": 5,
+          "n_missing": 28,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 33,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4661.71,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_ridge_frontend_mid",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 10,
+          "n_missing": 18,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 28,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4378.1,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_brooks_frontend_mid_angular",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.55,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.55,
+          "n_matched": 11,
+          "n_missing": 17,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 28,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4716.32,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_vaughn_frontend_lead",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 28,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 28,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4661.09,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_generated_review_export",
+      "jd_id": "jd_devops_aws_k8s",
+      "expected": "weak",
+      "similarity_mean": 0.15,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.15,
+          "n_matched": 3,
+          "n_missing": 26,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 28,
+            "n_accounted": 29,
+            "n_covered_of_job": 28,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4876.19,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_flutter_intern",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "strong",
+      "similarity_mean": 0.8,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.8,
+          "n_matched": 20,
+          "n_missing": 7,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 27,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4742.26,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_diploma_react",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.15,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.15,
+          "n_matched": 3,
+          "n_missing": 26,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 29,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4498.34,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 27,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 27,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4353.12,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_mid_react",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 27,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 27,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4569.0,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue_v2",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.2,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.2,
+          "n_matched": 4,
+          "n_missing": 23,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 27,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4808.87,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_jquery_legacy",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 27,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 27,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4692.96,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_entry_no_role",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 27,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 27,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4845.76,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_abbas_backend_devops_senior_student",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 27,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 27,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4302.01,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_eyad_data_engineer_jr",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 27,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 27,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4837.7,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_eyad_data_engineer_jr_v2",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 27,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 27,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4740.08,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_bahgat_ai_research_senior",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.15,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.15,
+          "n_matched": 3,
+          "n_missing": 25,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 28,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4340.45,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_taher_mobile_jr",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.55,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.55,
+          "n_matched": 13,
+          "n_missing": 15,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 28,
+            "n_covered_of_job": 26,
+            "coverage_ratio": 0.963
+          },
+          "latency_ms": 5346.6,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_zeyad_datascience_jr",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 27,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 27,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4697.85,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_bach_frontend_mid",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 27,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 27,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4598.6,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_santos_frontend_senior",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.65,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.65,
+          "n_matched": 18,
+          "n_missing": 9,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 27,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4497.78,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_nitao_frontend_jr",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 27,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 27,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4760.13,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_rw_js_frontend_senior",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 27,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 27,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 5029.92,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_rw_js_developer_senior",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 27,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 27,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4941.3,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_yates_frontend_mid",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 27,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 27,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 3333.17,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_williams_frontend_jr",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 8,
+          "n_missing": 26,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 34,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 6078.75,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_crane_frontend_intern",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.15,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.15,
+          "n_matched": 2,
+          "n_missing": 26,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 28,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 3776.42,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_ridge_frontend_mid",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.65,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.65,
+          "n_matched": 18,
+          "n_missing": 9,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 27,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4236.81,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_brooks_frontend_mid_angular",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.75,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.75,
+          "n_matched": 18,
+          "n_missing": 9,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 27,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4503.29,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_vaughn_frontend_lead",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 27,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 27,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4320.51,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_generated_review_export",
+      "jd_id": "jd_flutter_mobile",
+      "expected": "weak",
+      "similarity_mean": 0.1,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.1,
+          "n_matched": 2,
+          "n_missing": 25,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 27,
+            "n_accounted": 27,
+            "n_covered_of_job": 27,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4879.23,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_flutter_intern",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "weak",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 4,
+          "n_missing": 10,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 14,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 5515.73,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_diploma_react",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "strong",
+      "similarity_mean": 0.8,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.8,
+          "n_matched": 11,
+          "n_missing": 3,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 14,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 3336.22,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "strong",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 14,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 14,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4888.65,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_mid_react",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "strong",
+      "similarity_mean": 0.4,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.4,
+          "n_matched": 4,
+          "n_missing": 13,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 17,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4451.87,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue_v2",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "strong",
+      "similarity_mean": 0.6,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.6,
+          "n_matched": 9,
+          "n_missing": 5,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 14,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4276.66,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_jquery_legacy",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "strong",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 4,
+          "n_missing": 10,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 14,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4544.78,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_entry_no_role",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "partial",
+      "similarity_mean": 0.4,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.4,
+          "n_matched": 5,
+          "n_missing": 9,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 14,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4467.26,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_abbas_backend_devops_senior_student",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 6,
+          "n_missing": 14,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 20,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4431.93,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_eyad_data_engineer_jr",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "weak",
+      "similarity_mean": 0.1,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.1,
+          "n_matched": 2,
+          "n_missing": 12,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 14,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4491.15,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_eyad_data_engineer_jr_v2",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "weak",
+      "similarity_mean": 0.15,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.15,
+          "n_matched": 2,
+          "n_missing": 12,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 14,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4631.19,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_bahgat_ai_research_senior",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "weak",
+      "similarity_mean": 0.1,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.1,
+          "n_matched": 2,
+          "n_missing": 12,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 14,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 5126.23,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_taher_mobile_jr",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "weak",
+      "similarity_mean": 0.25,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.25,
+          "n_matched": 4,
+          "n_missing": 10,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 14,
+            "n_covered_of_job": 13,
+            "coverage_ratio": 0.9286
+          },
+          "latency_ms": 4219.32,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_zeyad_datascience_jr",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 14,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 14,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4360.94,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_bach_frontend_mid",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "weak",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 5,
+          "n_missing": 11,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 16,
+            "n_covered_of_job": 13,
+            "coverage_ratio": 0.9286
+          },
+          "latency_ms": 4504.28,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_santos_frontend_senior",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "weak",
+      "similarity_mean": 0.6,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.6,
+          "n_matched": 9,
+          "n_missing": 5,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 14,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4394.52,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_nitao_frontend_jr",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "weak",
+      "similarity_mean": 0.4,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.4,
+          "n_matched": 5,
+          "n_missing": 10,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 15,
+            "n_covered_of_job": 13,
+            "coverage_ratio": 0.9286
+          },
+          "latency_ms": 4239.73,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_rw_js_frontend_senior",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 14,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 14,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4438.19,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_rw_js_developer_senior",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "weak",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 14,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 14,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4602.05,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_yates_frontend_mid",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "weak",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 5,
+          "n_missing": 11,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 16,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 3430.6,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_williams_frontend_jr",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "weak",
+      "similarity_mean": 0.45,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.45,
+          "n_matched": 6,
+          "n_missing": 11,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 17,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4441.61,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_crane_frontend_intern",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "weak",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 5,
+          "n_missing": 10,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 15,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4809.23,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_ridge_frontend_mid",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "weak",
+      "similarity_mean": 0.6,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.6,
+          "n_matched": 9,
+          "n_missing": 5,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 14,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 5070.1,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_brooks_frontend_mid_angular",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "weak",
+      "similarity_mean": 0.6,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.6,
+          "n_matched": 9,
+          "n_missing": 5,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 14,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 3632.57,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_vaughn_frontend_lead",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "weak",
+      "similarity_mean": 0.05,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.05,
+          "n_matched": 1,
+          "n_missing": 13,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 14,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4768.12,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_generated_review_export",
+      "jd_id": "jd_junior_web_dev",
+      "expected": "weak",
+      "similarity_mean": 0.1,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.1,
+          "n_matched": 2,
+          "n_missing": 12,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 14,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4944.53,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_flutter_intern",
+      "jd_id": "jd_auto_cv_flutter_intern",
+      "expected": "strong",
+      "similarity_mean": 0.8,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.8,
+          "n_matched": 19,
+          "n_missing": 2,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 10,
+            "n_accounted": 21,
+            "n_covered_of_job": 10,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 3864.22,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_diploma_react",
+      "jd_id": "jd_auto_cv_frontend_diploma_react",
+      "expected": "strong",
+      "similarity_mean": 0.6,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.6,
+          "n_matched": 6,
+          "n_missing": 7,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 13,
+            "n_accounted": 13,
+            "n_covered_of_job": 13,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4191.69,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue",
+      "jd_id": "jd_auto_cv_frontend_senior_react_vue",
+      "expected": "strong",
+      "similarity_mean": 0.0,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.0,
+          "n_matched": 0,
+          "n_missing": 13,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 13,
+            "n_accounted": 13,
+            "n_covered_of_job": 13,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4243.33,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_mid_react",
+      "jd_id": "jd_auto_cv_frontend_mid_react",
+      "expected": "strong",
+      "similarity_mean": 0.4,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.4,
+          "n_matched": 4,
+          "n_missing": 10,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 14,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4251.7,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_senior_react_vue_v2",
+      "jd_id": "jd_auto_cv_frontend_senior_react_vue_v2",
+      "expected": "strong",
+      "similarity_mean": 0.6,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.6,
+          "n_matched": 8,
+          "n_missing": 6,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 14,
+            "n_accounted": 14,
+            "n_covered_of_job": 14,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4127.86,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_jquery_legacy",
+      "jd_id": "jd_auto_cv_frontend_jquery_legacy",
+      "expected": "strong",
+      "similarity_mean": 0.7,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.7,
+          "n_matched": 10,
+          "n_missing": 3,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 13,
+            "n_accounted": 13,
+            "n_covered_of_job": 13,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 5158.78,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_frontend_entry_no_role",
+      "jd_id": "jd_auto_cv_frontend_entry_no_role",
+      "expected": "strong",
+      "similarity_mean": 0.55,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.55,
+          "n_matched": 6,
+          "n_missing": 6,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 12,
+            "n_accounted": 12,
+            "n_covered_of_job": 12,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4223.33,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_abbas_backend_devops_senior_student",
+      "jd_id": "jd_auto_cv_abbas_backend_devops_senior_student",
+      "expected": "strong",
+      "similarity_mean": 0.8,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.8,
+          "n_matched": 10,
+          "n_missing": 2,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 12,
+            "n_accounted": 12,
+            "n_covered_of_job": 12,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4413.68,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_eyad_data_engineer_jr",
+      "jd_id": "jd_auto_cv_eyad_data_engineer_jr",
+      "expected": "strong",
+      "similarity_mean": 0.75,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.75,
+          "n_matched": 12,
+          "n_missing": 8,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 13,
+            "n_accounted": 20,
+            "n_covered_of_job": 13,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4398.57,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_eyad_data_engineer_jr_v2",
+      "jd_id": "jd_auto_cv_eyad_data_engineer_jr_v2",
+      "expected": "strong",
+      "similarity_mean": 0.8,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.8,
+          "n_matched": 9,
+          "n_missing": 3,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 12,
+            "n_accounted": 12,
+            "n_covered_of_job": 12,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4308.38,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_bahgat_ai_research_senior",
+      "jd_id": "jd_auto_cv_bahgat_ai_research_senior",
+      "expected": "strong",
+      "similarity_mean": 0.75,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.75,
+          "n_matched": 6,
+          "n_missing": 3,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 9,
+            "n_accounted": 9,
+            "n_covered_of_job": 9,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4479.97,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_taher_mobile_jr",
+      "jd_id": "jd_auto_cv_taher_mobile_jr",
+      "expected": "strong",
+      "similarity_mean": 0.7,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.7,
+          "n_matched": 5,
+          "n_missing": 4,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 9,
+            "n_accounted": 9,
+            "n_covered_of_job": 9,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 6034.28,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_zeyad_datascience_jr",
+      "jd_id": "jd_auto_cv_zeyad_datascience_jr",
+      "expected": "strong",
+      "similarity_mean": 0.75,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.75,
+          "n_matched": 8,
+          "n_missing": 5,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 13,
+            "n_accounted": 13,
+            "n_covered_of_job": 13,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 3941.23,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_bach_frontend_mid",
+      "jd_id": "jd_auto_cv_synth_bach_frontend_mid",
+      "expected": "strong",
+      "similarity_mean": 0.75,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.75,
+          "n_matched": 7,
+          "n_missing": 6,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 13,
+            "n_accounted": 13,
+            "n_covered_of_job": 13,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4475.45,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_santos_frontend_senior",
+      "jd_id": "jd_auto_cv_synth_santos_frontend_senior",
+      "expected": "strong",
+      "similarity_mean": 0.7,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.7,
+          "n_matched": 10,
+          "n_missing": 3,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 13,
+            "n_accounted": 13,
+            "n_covered_of_job": 13,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4362.05,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_nitao_frontend_jr",
+      "jd_id": "jd_auto_cv_synth_nitao_frontend_jr",
+      "expected": "strong",
+      "similarity_mean": 0.6,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.6,
+          "n_matched": 6,
+          "n_missing": 6,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 12,
+            "n_accounted": 12,
+            "n_covered_of_job": 12,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4288.27,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_rw_js_frontend_senior",
+      "jd_id": "jd_auto_cv_synth_rw_js_frontend_senior",
+      "expected": "strong",
+      "similarity_mean": 0.2,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.2,
+          "n_matched": 3,
+          "n_missing": 8,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 11,
+            "n_accounted": 11,
+            "n_covered_of_job": 11,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4888.01,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_rw_js_developer_senior",
+      "jd_id": "jd_auto_cv_synth_rw_js_developer_senior",
+      "expected": "strong",
+      "similarity_mean": 0.05,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.05,
+          "n_matched": 1,
+          "n_missing": 12,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 13,
+            "n_accounted": 13,
+            "n_covered_of_job": 13,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 3164.12,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_yates_frontend_mid",
+      "jd_id": "jd_auto_cv_synth_yates_frontend_mid",
+      "expected": "strong",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 5,
+          "n_missing": 8,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 13,
+            "n_accounted": 13,
+            "n_covered_of_job": 13,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4518.73,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_williams_frontend_jr",
+      "jd_id": "jd_auto_cv_synth_williams_frontend_jr",
+      "expected": "strong",
+      "similarity_mean": 0.65,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.65,
+          "n_matched": 7,
+          "n_missing": 6,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 12,
+            "n_accounted": 13,
+            "n_covered_of_job": 12,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4293.76,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_crane_frontend_intern",
+      "jd_id": "jd_auto_cv_synth_crane_frontend_intern",
+      "expected": "strong",
+      "similarity_mean": 0.45,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.45,
+          "n_matched": 5,
+          "n_missing": 5,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 10,
+            "n_accounted": 10,
+            "n_covered_of_job": 10,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4375.12,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_ridge_frontend_mid",
+      "jd_id": "jd_auto_cv_synth_ridge_frontend_mid",
+      "expected": "strong",
+      "similarity_mean": 0.7,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.7,
+          "n_matched": 8,
+          "n_missing": 3,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 11,
+            "n_accounted": 11,
+            "n_covered_of_job": 11,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4376.39,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_brooks_frontend_mid_angular",
+      "jd_id": "jd_auto_cv_synth_brooks_frontend_mid_angular",
+      "expected": "strong",
+      "similarity_mean": 0.75,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.75,
+          "n_matched": 9,
+          "n_missing": 4,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 13,
+            "n_accounted": 13,
+            "n_covered_of_job": 13,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 4743.96,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_synth_vaughn_frontend_lead",
+      "jd_id": "jd_auto_cv_synth_vaughn_frontend_lead",
+      "expected": "strong",
+      "similarity_mean": 0.35,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.35,
+          "n_matched": 5,
+          "n_missing": 8,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 13,
+            "n_accounted": 13,
+            "n_covered_of_job": 13,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 3185.88,
+          "error": null
+        }
+      ]
+    },
+    {
+      "cv_id": "cv_generated_review_export",
+      "jd_id": "jd_auto_cv_generated_review_export",
+      "expected": "strong",
+      "similarity_mean": 0.8,
+      "similarity_std": 0.0,
+      "runs": [
+        {
+          "similarity_score": 0.8,
+          "n_matched": 11,
+          "n_missing": 2,
+          "n_partial": 0,
+          "analysis_method": "llm",
+          "coverage": {
+            "n_job_skills": 13,
+            "n_accounted": 13,
+            "n_covered_of_job": 13,
+            "coverage_ratio": 1.0
+          },
+          "latency_ms": 5416.2,
+          "error": null
+        }
+      ]
+    }
+  ],
+  "method": {
+    "service": "analysis.services.gap_analyzer.compute_gap_analysis",
+    "buckets_source": "fixtures/manifest.json -> expected_match_strength"
+  },
+  "disclosure": "LLM-driven (Groq llama-4-scout). Mean of 1 run(s) per pair. Per-skill ground-truth labels not provided \u2014 separation is measured by similarity_score across hand-graded strong/partial/weak buckets, and coverage validates the analyzer's '100% reconciliation' claim."
+}
