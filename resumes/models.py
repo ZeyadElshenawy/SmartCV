@@ -11,9 +11,14 @@ class GeneratedResume(models.Model):
     html_content = models.TextField(blank=True)
     ats_score = models.FloatField(default=0.0)
     version = models.IntegerField(default=1)
-    
+    # Deterministic bullet-validator findings + stats, written when the
+    # resume_generator post-LLM hook runs (§4 of the RAG plan). Empty dict
+    # on legacy rows / when the validator is disabled. Shape:
+    # {"passed": bool, "findings": [...], "stats": {...}}
+    validation_report = models.JSONField(default=dict, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         db_table = 'generated_resumes'
         ordering = ['-created_at']
