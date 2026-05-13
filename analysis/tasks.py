@@ -25,6 +25,9 @@ def compute_gap_analysis_task(job_id, user_id):
     """
     Synchronously compute gap analysis via LLM and persist to GapAnalysis.
     Raises on failure so callers can surface errors to the user.
+
+    Writes both the new tier-aware fields and the legacy flat lists so older
+    consumers keep working without change.
     """
     from analysis.services.gap_analyzer import compute_gap_analysis
     from analysis.models import GapAnalysis
@@ -38,11 +41,30 @@ def compute_gap_analysis_task(job_id, user_id):
         job=job,
         user_id=user_id,
         defaults={
-            'matched_skills': analysis_results['matched_skills'],
-            'missing_skills': analysis_results['missing_skills'],
-            'partial_skills': analysis_results['partial_skills'],
+            # Legacy flat (back-compat)
+            'matched_skills':  analysis_results['matched_skills'],
+            'missing_skills':  analysis_results['missing_skills'],
+            'partial_skills':  analysis_results['partial_skills'],
             'similarity_score': analysis_results['similarity_score'],
+            # Tier-aware v2
+            'matched_must_have':    analysis_results.get('matched_must_have', []),
+            'matched_nice_to_have': analysis_results.get('matched_nice_to_have', []),
+            'missing_must_have':    analysis_results.get('missing_must_have', []),
+            'missing_nice_to_have': analysis_results.get('missing_nice_to_have', []),
+            'match_band':           analysis_results.get('match_band', ''),
+            'avg_proximity':        analysis_results.get('avg_proximity'),
         }
     )
-    logger.info(f"Successfully computed gap analysis for job {job_id}")
+    logger.info(
+        "Gap analysis persisted for job %s: score=%s band=%s avg_prox=%s "
+        "matched_must=%d matched_nice=%d missing_must=%d missing_nice=%d",
+        job_id,
+        analysis_results.get('similarity_score'),
+        analysis_results.get('match_band'),
+        analysis_results.get('avg_proximity'),
+        len(analysis_results.get('matched_must_have') or []),
+        len(analysis_results.get('matched_nice_to_have') or []),
+        len(analysis_results.get('missing_must_have') or []),
+        len(analysis_results.get('missing_nice_to_have') or []),
+    )
     return analysis_results

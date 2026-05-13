@@ -304,6 +304,15 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         </section>
 <section class="space-y-4">
+            {% if show_proximity_banner %}
+            <div class="rounded-xl bg-gradient-to-r from-brand-50 via-brand-50/70 to-transparent dark:from-brand-950/40 dark:via-brand-950/20 dark:to-transparent ring-1 ring-brand-200/60 dark:ring-brand-900 px-5 py-3 flex items-center gap-3">
+                <span aria-hidden="true" class="h-2 w-2 rounded-full bg-brand-500 flex-shrink-0"></span>
+                <p class="text-sm text-neutral-700 dark:text-neutral-200">
+                    You're <span class="font-display italic tabular-nums text-brand-700 dark:text-brand-300" style="font-variation-settings: 'opsz' 24;">{{ avg_proximity_pct }}%</span> of the way to closing your gaps.
+                    <span class="text-neutral-500 dark:text-neutral-400 text-xs">Hover any missing chip to see why.</span>
+                </p>
+            </div>
+            {% endif %}
             <div class="flex items-start justify-between gap-4 flex-wrap">
                 {% include "components/section_label.html" with text="Reclassify skills" %}
                 <div class="flex items-center gap-3 text-xs text-neutral-500 dark:text-neutral-400">
@@ -345,14 +354,26 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="px-5 pb-5 min-h-[140px] transition-colors duration-200"
                              :class="dropTarget === col.key ? col.dropBg : ''">
                             <div class="flex flex-wrap gap-1.5">
-                                <template x-for="skill in skills[col.key]" :key="col.key + '-' + skill">
+                                <template x-for="(chip, idx) in sortedChips(col.key)" :key="col.key + '-' + chipName(chip) + '-' + idx">
                                     <div draggable="true"
-                                         class="group inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium rounded-md cursor-grab active:cursor-grabbing select-none transition-all duration-150"
-                                         :class="[draggedSkill === skill ? 'opacity-40 scale-95' : 'hover:scale-[1.02]', col.chipClass]"
-                                         @dragstart="onDragStart($event, skill, col.key)"
+                                         class="group relative flex flex-col gap-0 px-2 py-0.5 text-[11px] font-medium rounded-md cursor-grab active:cursor-grabbing select-none transition-all duration-150 min-w-0"
+                                         :class="[draggedSkill === chip ? 'opacity-40 scale-95' : 'hover:scale-[1.02]', col.chipClass]"
+                                         :title="buildTooltip(chip, col.key)"
+                                         @dragstart="onDragStart($event, chip, col.key)"
                                          @dragend="onDragEnd($event)">
-                                        <span aria-hidden="true" class="h-1.5 w-1.5 rounded-full" :class="col.dotClass"></span>
-                                        <span x-text="skill"></span>
+                                        <div class="inline-flex items-center gap-1.5 leading-[1.4]">
+                                            <span aria-hidden="true" class="h-1.5 w-1.5 rounded-full flex-shrink-0" :class="col.dotClass"></span>
+                                            <template x-if="col.key === 'matched' && chipTier(chip) === 'must'">
+                                                <span aria-hidden="true" class="text-amber-500 dark:text-amber-400 text-[10px] leading-none" title="Must-have">★</span>
+                                            </template>
+                                            <span x-text="chipName(chip)"></span>
+                                        </div>
+                                        <template x-if="col.key !== 'matched' && hasRealProximity(chip)">
+                                            <div class="mt-0.5 h-[2px] w-full rounded-full bg-neutral-200/60 dark:bg-neutral-800/60 overflow-hidden">
+                                                <div class="h-full rounded-full transition-all duration-200"
+                                                     :style="proximityBarStyle(chip.proximity)"></div>
+                                            </div>
+                                        </template>
                                     </div>
                                 </template>
                             </div>
@@ -429,27 +450,94 @@ document.addEventListener('DOMContentLoaded', function() {
                 // from what the server persists.
                 initialScore: {{ gap.similarity_score|default:0 }},
 
+                // ---- chip accessors (chips are objects {name, tier, proximity, ...}) ----
+                chipName(chip)  { return chip && typeof chip === 'object' ? (chip.name || '') : String(chip || ''); },
+                chipTier(chip)  { return chip && typeof chip === 'object' ? (chip.tier || 'must') : 'must'; },
+                hasRealProximity(chip) {
+                    if (!chip || typeof chip !== 'object') return false;
+                    const p = chip.proximity;
+                    return p !== null && p !== undefined && !isNaN(p) && Number(p) > 0;
+                },
+                proximityBarStyle(p) {
+                    const v = Math.max(0, Math.min(0.99, Number(p) || 0));
+                    const pct = Math.round(v * 100);
+                    // gradient red (0.0) → amber (0.5) → green (0.8+)
+                    let color;
+                    if (v >= 0.7)      color = '#22c55e';   // emerald-500
+                    else if (v >= 0.5) color = '#f59e0b';   // amber-500
+                    else if (v >= 0.3) color = '#fb923c';   // orange-400
+                    else               color = '#ef4444';   // red-500
+                    return `width: ${pct}%; background-color: ${color};`;
+                },
+                buildTooltip(chip, colKey) {
+                    if (!chip || typeof chip !== 'object') return chip;
+                    const lines = [];
+                    if (colKey === 'matched') {
+                        if (chip.evidence_quote) lines.push(`Evidence: "${chip.evidence_quote}"`);
+                        if (chip.evidence_source) lines.push(`Source: ${chip.evidence_source}`);
+                    } else {
+                        if (chip.source_quote)  lines.push(`JD: "${chip.source_quote}"`);
+                        if (chip.proximity !== null && chip.proximity !== undefined && !isNaN(chip.proximity)) {
+                            const pct = Math.round(Number(chip.proximity) * 100);
+                            lines.push(`Proximity: ${pct}%${chip.proximity_reason ? ' — ' + chip.proximity_reason : ''}`);
+                        }
+                        if (chip.bridge_hint)   lines.push(`Bridge: ${chip.bridge_hint}`);
+                    }
+                    return lines.join('\n') || chip.name;
+                },
+
+                // ---- sorting: missing chips by proximity desc within their column ----
+                sortedChips(colKey) {
+                    const list = this.skills[colKey] || [];
+                    if (colKey === 'matched') {
+                        // Must-haves first in MATCHED — purely a visual nicety.
+                        return [...list].sort((a, b) => {
+                            const ta = this.chipTier(a) === 'must' ? 0 : 1;
+                            const tb = this.chipTier(b) === 'must' ? 0 : 1;
+                            return ta - tb;
+                        });
+                    }
+                    return [...list].sort((a, b) => {
+                        const pa = Number(a.proximity || 0);
+                        const pb = Number(b.proximity || 0);
+                        return pb - pa;
+                    });
+                },
+
+                // ---- score formula — MUST stay a mirror of skill_score.compute_match_score ----
                 get computedScore() {
-                    const m  = this.skills.matched.length;
-                    const mi = this.skills.missing.length;
-                    const s  = this.skills.soft.length;
-                    const total = m + mi + s;
-                    if (total === 0) return Math.round(this.initialScore * 100);
-                    return Math.round(((m + 0.5 * s) / total) * 100);
+                    const all = (this.skills.matched || []).concat(this.skills.missing || [], this.skills.soft || []);
+                    if (all.length === 0) return Math.round(this.initialScore * 100);
+
+                    const matchedMust = (this.skills.matched || []).filter(c => this.chipTier(c) === 'must');
+                    const matchedNice = (this.skills.matched || []).filter(c => this.chipTier(c) === 'nice');
+                    const missingMust = this.skills.missing || [];   // CRITICAL column = must-tier missing
+                    const missingNice = this.skills.soft || [];      // SOFT column    = nice-tier missing
+
+                    const proxCredit = arr => arr.reduce((s, c) => s + 0.5 * Math.max(0, Math.min(0.99, Number(c.proximity || 0))), 0);
+
+                    const totalMust = matchedMust.length + missingMust.length;
+                    const totalNice = matchedNice.length + missingNice.length;
+
+                    const mustRatio = totalMust ? (matchedMust.length + proxCredit(missingMust)) / totalMust : 1.0;
+                    const niceRatio = totalNice ? (matchedNice.length + proxCredit(missingNice)) / totalNice : 1.0;
+
+                    const score = 0.05 + 0.75 * mustRatio + 0.20 * niceRatio;
+                    return Math.round(Math.max(0, Math.min(1, score)) * 100);
                 },
 
                 get scoreTier() {
                     const p = this.computedScore;
-                    if (p >= 80) return 'high';
-                    if (p >= 50) return 'mid';
+                    if (p >= 85) return 'high';
+                    if (p >= 55) return 'mid';
                     return 'low';
                 },
 
-                onDragStart(e, skill, sourceCol) {
-                    this.draggedSkill = skill;
+                onDragStart(e, chip, sourceCol) {
+                    this.draggedSkill = chip;
                     this.dragSource = sourceCol;
                     e.dataTransfer.effectAllowed = 'move';
-                    e.dataTransfer.setData('text/plain', skill);
+                    e.dataTransfer.setData('text/plain', this.chipName(chip));
                     requestAnimationFrame(() => { e.target.classList.add('opacity-40'); });
                 },
                 onDragEnd(e) {
@@ -469,13 +557,44 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 },
                 onDrop(e, targetCol) {
-                    const skill = this.draggedSkill;
+                    const chip = this.draggedSkill;
                     const sourceCol = this.dragSource;
                     this.dropTarget = null;
-                    if (!skill || sourceCol === targetCol) return;
-                    const srcIdx = this.skills[sourceCol].indexOf(skill);
+                    if (!chip || sourceCol === targetCol) return;
+                    const srcIdx = this.skills[sourceCol].indexOf(chip);
                     if (srcIdx > -1) this.skills[sourceCol].splice(srcIdx, 1);
-                    this.skills[targetCol].push(skill);
+
+                    // Transform chip when crossing the matched/missing boundary.
+                    let newChip = chip;
+                    const wasMatched = sourceCol === 'matched';
+                    const goingToMissing = targetCol !== 'matched';
+                    if (wasMatched && goingToMissing) {
+                        // User is overriding the LLM match: drop evidence, default proximity 0.8.
+                        newChip = {
+                            name: this.chipName(chip),
+                            tier: targetCol === 'soft' ? 'nice' : 'must',
+                            source_quote: '',
+                            proximity: 0.8,
+                            proximity_reason: 'User reclassified from matched',
+                            bridge_hint: null,
+                            _legacy_was_matched: true,
+                        };
+                    } else if (!wasMatched && targetCol === 'matched') {
+                        // Moving INTO matched: strip proximity, stub evidence.
+                        newChip = {
+                            name: this.chipName(chip),
+                            tier: this.chipTier(chip),
+                            evidence_source: 'user',
+                            evidence_quote: '',
+                        };
+                    } else if (sourceCol === 'missing' && targetCol === 'soft') {
+                        // Cross-tier within missing: preserve proximity, flip tier.
+                        newChip = { ...(typeof chip === 'object' ? chip : {name: String(chip)}), tier: 'nice' };
+                    } else if (sourceCol === 'soft' && targetCol === 'missing') {
+                        newChip = { ...(typeof chip === 'object' ? chip : {name: String(chip)}), tier: 'must' };
+                    }
+
+                    this.skills[targetCol].push(newChip);
                     this.persistSkills();
                 },
                 persistSkills() {
@@ -485,8 +604,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         method: 'POST',
                         headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json'},
                         body: JSON.stringify({
-                            matched_skills: this.skills.matched,
-                            missing_skills: this.skills.missing,
+                            matched_skills:  this.skills.matched,
+                            missing_skills:  this.skills.missing,
                             soft_skill_gaps: this.skills.soft,
                         }),
                     })

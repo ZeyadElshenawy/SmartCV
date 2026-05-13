@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr, model_validator
+from pydantic import BaseModel, Field, EmailStr, field_validator, model_validator
 from typing import List, Optional, Any, Dict, Union
 from pydantic import ConfigDict
 
@@ -104,11 +104,124 @@ class ResumeSchema(BaseModel):
 # ============================================================
 
 class GapAnalysisResult(BaseModel):
-    """Output schema for gap_analyzer.py"""
+    """Legacy flat-list gap analysis output (kept for backward compat with
+    benchmarks + any caller that still wants the simple shape). New code
+    should use TieredGapAnalysisResult below."""
     critical_missing_skills: List[str] = Field(default_factory=list, description="Hard technical skills the user clearly lacks")
     soft_skill_gaps: List[str] = Field(default_factory=list, description="Soft skills gaps if required and missing")
     matched_skills: List[str] = Field(default_factory=list, description="Skills the user has that match requirements")
     similarity_score: float = Field(default=0.5, description="Overall match score from 0.0 to 1.0 based on skills, experience relevance, and seniority fit")
+
+
+# --------------------------------------------------------------------------
+# Tier-aware gap analysis (v2, 2026-05-14)
+# --------------------------------------------------------------------------
+
+class MatchedSkill(BaseModel):
+    """A JD-required skill the candidate clearly has.
+
+    The evidence_quote is the verbatim phrase from the profile that proves it
+    (≤140 chars) — surfaced in the chip's hover tooltip on the gap page.
+    """
+    name: str = Field(description="Skill name, copied verbatim from the JD's tier list.")
+    evidence_source: str = Field(
+        default="skills",
+        description=(
+            "Where the proof was found. One of: 'skills', 'experience', "
+            "'projects', 'certifications', 'github', 'scholar', 'kaggle', "
+            "'education', 'multiple'. Pick the strongest single source."
+        ),
+    )
+    evidence_quote: str = Field(
+        default="",
+        max_length=140,
+        description="≤140-char verbatim quote from the profile proving the match.",
+    )
+
+
+class MissingSkill(BaseModel):
+    """A JD-required skill the candidate does NOT have, with a proximity score
+    indicating how close they are based on adjacent evidence.
+
+    proximity is strictly less than 1.0 — a skill at 1.0 belongs in
+    matched_*, not missing_*. The Pydantic validator below enforces this; the
+    prompt also tells the LLM to obey it, and gap_analyzer retries once when
+    a 1.0 leaks through.
+    """
+    name: str = Field(description="Skill name, copied verbatim from the JD's tier list.")
+    source_quote: str = Field(
+        default="",
+        max_length=140,
+        description="≤140-char JD sentence that asked for this skill.",
+    )
+    proximity: float = Field(
+        default=0.0,
+        ge=0.0,
+        lt=1.0,
+        description=(
+            "How close the candidate is to having this skill on [0.0, 1.0). "
+            "Anchor scale: 0.0 no related evidence; 0.2 vaguely adjacent "
+            "domain; 0.4 one adjacent skill present; 0.6 multiple adjacent "
+            "OR coursework-level; 0.8 exact skill mentioned but thin evidence "
+            "OR lower seniority than asked. 1.0 is FORBIDDEN — those belong "
+            "in matched_*."
+        ),
+    )
+    proximity_reason: str = Field(
+        default="",
+        max_length=120,
+        description="≤120-char human reason for the proximity score.",
+    )
+    bridge_hint: Optional[str] = Field(
+        default=None,
+        max_length=140,
+        description=(
+            "Optional ≤140-char concrete next step the candidate could take "
+            "to close this gap. Omit when you have nothing concrete — do not "
+            "invent generic advice."
+        ),
+    )
+
+    @field_validator("proximity")
+    @classmethod
+    def reject_one(cls, v: float) -> float:
+        # The Field(lt=1.0) constraint already enforces this; we add an
+        # explicit message so the retry loop in gap_analyzer can show the
+        # LLM exactly why we rejected the value.
+        if v >= 1.0:
+            raise ValueError(
+                "Skills with proximity 1.0 must be in matched_must_have or "
+                "matched_nice_to_have, not missing_*. Re-route the skill or "
+                "lower the proximity (0.8 = exact skill present but thin "
+                "evidence)."
+            )
+        return v
+
+
+class TieredGapAnalysisResult(BaseModel):
+    """Output schema for gap_analyzer.compute_gap_analysis v2.
+
+    Four tier-split lists drive the three on-screen columns:
+        UI MATCHED column      = matched_must_have + matched_nice_to_have
+                                  (must-haves rendered with a ★)
+        UI CRITICAL MISSING    = missing_must_have
+        UI SOFT GAPS           = missing_nice_to_have
+
+    soft_skill_gaps captures non-skill observations (seniority gap, career
+    transition risk) that aren't a single skill — surfaced as a banner /
+    side-note, not a draggable chip.
+    """
+    matched_must_have: List[MatchedSkill] = Field(default_factory=list)
+    matched_nice_to_have: List[MatchedSkill] = Field(default_factory=list)
+    missing_must_have: List[MissingSkill] = Field(default_factory=list)
+    missing_nice_to_have: List[MissingSkill] = Field(default_factory=list)
+    soft_skill_gaps: List[str] = Field(
+        default_factory=list,
+        description=(
+            "Free-text observations about seniority / career transition / "
+            "non-skill fit signals. NOT skill names. ≤20 words each."
+        ),
+    )
 
 class SkillListResult(BaseModel):
     """Output schema for skill_extractor.py — flat list (kept for backward compat)."""
