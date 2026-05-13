@@ -2,7 +2,17 @@ import logging
 import json
 import difflib
 from profiles.services.llm_engine import get_structured_llm
-from profiles.services.schemas import GapAnalysisResult
+from profiles.services.schemas import (
+    GapAnalysisResult,
+    MatchedSkill,
+    MissingSkill,
+    TieredGapAnalysisResult,
+)
+from analysis.services.skill_score import (
+    avg_proximity as _avg_proximity,
+    compute_match_score,
+    match_band,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -259,56 +269,151 @@ def _format_github_activity(profile) -> str:
     return "\n".join(lines)
 
 
+_PROXIMITY_RUBRIC = """=== PROXIMITY ASSESSMENT (CRITICAL — applies to missing_must_have AND missing_nice_to_have) ===
+
+For every skill you place in missing_must_have or missing_nice_to_have, you MUST
+assess proximity by scanning ALL evidence sources — resume skills, experience
+bullets, project tech stacks, certifications, GitHub language stats, Scholar
+publications, Kaggle competitions. Adjacent != matched. Adjacent means there is
+transfer-learning value the candidate could lean on.
+
+Use this anchor scale (verbatim, do not reinterpret):
+
+  0.0 — no related evidence anywhere in the CV, GitHub, Scholar, Kaggle, or projects
+  0.2 — vaguely adjacent domain knowledge only (e.g., JD wants Kubernetes, CV has
+        "deployed apps" with no container detail)
+  0.4 — one clearly adjacent skill present (e.g., JD wants TensorFlow, CV has
+        PyTorch)
+  0.6 — multiple adjacent skills OR the same skill at coursework / hobby level
+        (e.g., JD wants NoSQL, CV has SQL + a class project using MongoDB)
+  0.8 — the exact skill is present but evidence is thin (mentioned once in a
+        project, no professional context) OR the candidate has the underlying
+        capability at a LOWER SENIORITY than the JD asks
+  1.0 — FORBIDDEN. If proximity would be 1.0, the skill belongs in matched_must_have
+        or matched_nice_to_have. Do NOT return proximity == 1.0 for a missing
+        skill. Re-route the skill, or lower the value to 0.8.
+
+WORKED EXAMPLE 1 (mid range):
+  JD asks for: TensorFlow (must-have)
+  Candidate has: PyTorch in 2 projects, scikit-learn, NumPy
+  -> proximity: 0.4
+     proximity_reason: "PyTorch experience transfers; TF API differs but concepts identical"
+     bridge_hint: "1-2 weeks to port a PyTorch project to TF"
+
+WORKED EXAMPLE 2 (low range):
+  JD asks for: Kubernetes (must-have)
+  Candidate has: Django web apps deployed to Heroku, no container or orchestration mentions
+  -> proximity: 0.2
+     proximity_reason: "Some deployment experience but no container/orchestration evidence"
+     bridge_hint: "Start with Docker fundamentals before K8s"
+
+HONESTY CONSTRAINT:
+  Do not inflate proximity to make the candidate feel better. A 0.2 is more useful
+  than a fake 0.6 because it tells the user what to focus on. bridge_hint can be
+  omitted (left null) if you have nothing concrete to suggest — do not invent one.
+"""
+
+
+def _job_tiers(job):
+    """Pull must-have / nice-to-have skill lists from a Job model.
+
+    Prefers the v2 `extracted_skills_tiers` JSONField; falls back to
+    `extracted_skills` (flat list) treated as must-have-only when the tier
+    dict is missing (legacy rows or jobs created before the v2 extractor).
+    """
+    tiers = getattr(job, "extracted_skills_tiers", None) or {}
+    must = list(tiers.get("must_have") or [])
+    nice = list(tiers.get("nice_to_have") or [])
+    if not must and not nice:
+        # Legacy fallback: treat all extracted skills as must-have.
+        must = list(job.extracted_skills or [])
+    return must, nice
+
+
+def _empty_result(method: str, must: list, nice: list) -> dict:
+    """Return shape for the early-exit / failure paths.
+
+    Keeps the new tier-aware fields and the legacy flat union populated so
+    downstream readers (template, drag-drop endpoint, benchmarks) all see
+    consistent data.
+    """
+    flat_missing = list(must) + list(nice)
+    return {
+        # Tier-aware fields (new)
+        'matched_must_have': [],
+        'matched_nice_to_have': [],
+        'missing_must_have': [
+            {'name': s, 'source_quote': '', 'proximity': 0.0,
+             'proximity_reason': 'No related evidence found in profile',
+             'bridge_hint': None}
+            for s in must
+        ],
+        'missing_nice_to_have': [
+            {'name': s, 'source_quote': '', 'proximity': 0.0,
+             'proximity_reason': 'No related evidence found in profile',
+             'bridge_hint': None}
+            for s in nice
+        ],
+        'soft_skill_gaps': [],
+        'similarity_score': 0.0,
+        'match_band': match_band(0.0),
+        'avg_proximity': None,
+        'analysis_method': method,
+        # Legacy flat fields (back-compat)
+        'matched_skills': [],
+        'missing_skills': flat_missing,
+        'partial_skills': [],
+        'critical_missing_skills': list(must)[:5] if must else flat_missing[:5],
+        'seniority_mismatch': None,
+    }
+
+
 def compute_gap_analysis(profile, job):
     """
-    Pure-LLM gap analysis. No local embeddings required.
-    The LLM evaluates skill matches, gaps, and returns a similarity score directly.
+    Tier-aware proximity-enriched gap analysis. One Groq call.
+
+    Reads job.extracted_skills_tiers (must_have / nice_to_have lists) and asks
+    the LLM to return four tier-split skill lists. Each missing skill carries
+    a proximity score and a one-line proximity_reason explaining it.
     """
-    job_skills = job.extracted_skills or []
+    must_skills, nice_skills = _job_tiers(job)
     candidate_context = _build_full_candidate_context(profile)
 
-    # Early exits: when there's nothing to compare, don't waste an LLM call
-    # and don't return a misleading 0% score.
-    if not job_skills:
+    if not must_skills and not nice_skills:
         logger.info("Gap analysis skipped: job has no extracted skills")
-        return {
-            'matched_skills': [],
-            'missing_skills': [],
-            'partial_skills': [],
-            'soft_skill_gaps': [],
-            'critical_missing_skills': [],
-            'seniority_mismatch': None,
-            'similarity_score': 0.0,
-            'analysis_method': 'no_job_skills',
-        }
+        return _empty_result('no_job_skills', [], [])
 
     if not candidate_context.strip():
         logger.info("Gap analysis skipped: profile is effectively empty")
-        return {
-            'matched_skills': [],
-            'missing_skills': list(job_skills),
-            'partial_skills': [],
-            'soft_skill_gaps': [],
-            'critical_missing_skills': list(job_skills)[:5],
-            'seniority_mismatch': None,
-            'similarity_score': 0.0,
-            'analysis_method': 'empty_profile',
-        }
+        return _empty_result('empty_profile', must_skills, nice_skills)
 
-    try:
-        prompt = f"""You are an expert technical recruiter. Compare the candidate's FULL profile against the job requirements.
+    must_json = json.dumps(must_skills)
+    nice_json = json.dumps(nice_skills)
+    domain_hint = (getattr(job, 'domain', '') or '').strip() or 'Unknown'
+
+    base_prompt = f"""You are an expert technical recruiter. Compare the candidate's FULL profile against the job requirements.
 
 JOB TITLE: {job.title}
 JOB COMPANY: {job.company or 'Unknown'}
-JOB REQUIRED SKILLS: {json.dumps(job_skills)}
+JOB DOMAIN: {domain_hint}
+JD MUST-HAVE SKILLS:   {must_json}
+JD NICE-TO-HAVE SKILLS: {nice_json}
 
 {candidate_context}
 
 === YOUR TASK ===
-1. Identify MATCHED SKILLS — skills the candidate demonstrably has (from skills list, experience, projects, OR certifications).
-2. Identify CRITICAL MISSING SKILLS — hard technical skills the candidate clearly lacks.
-3. Identify SOFT SKILL GAPS — soft skills required but missing.
-4. Provide a similarity_score from 0.0 to 1.0 representing overall job fit.
+Produce FOUR tier-split skill lists plus optional soft-skill gap notes:
+
+  1. matched_must_have    — JD must-have skills the candidate clearly HAS
+  2. matched_nice_to_have — JD nice-to-have skills the candidate clearly HAS
+  3. missing_must_have    — JD must-have skills the candidate does NOT have
+  4. missing_nice_to_have — JD nice-to-have skills the candidate does NOT have
+  5. soft_skill_gaps      — free-text observations (seniority gap, career
+                            transition risk). NOT individual skills.
+
+Each matched_* entry has {{name, evidence_source, evidence_quote}}.
+Each missing_* entry has {{name, source_quote, proximity, proximity_reason,
+bridge_hint}}.
 
 === CRITICAL MATCHING RULES ===
 
@@ -318,102 +423,179 @@ A skill is MATCHED if the candidate demonstrates it ANYWHERE in their profile:
 - Demonstrated in WORK EXPERIENCE highlights or descriptions
 - Used in PROJECT highlights or technologies
 - Covered by a CERTIFICATION or training course
-- Corroborated by GITHUB ACTIVITY — a language with multiple public repos OR a top repo using that tech is strong evidence of working knowledge
-- Corroborated by GOOGLE SCHOLAR — published work in a topic implies deep knowledge of the methods/tools mentioned in the paper titles
-- Corroborated by KAGGLE — competition tier (Expert/Master/Grandmaster) + medal counts in a category prove practical skill in that domain (notebooks → coding, competitions → modeling)
-- Is a foundational prerequisite of skills they already have (e.g., someone with "Regression" and "Classification" has implicit knowledge of "Statistics" and "Probabilities")
+- Corroborated by GITHUB ACTIVITY (multiple repos / dominant language)
+- Corroborated by GOOGLE SCHOLAR (publications on the topic)
+- Corroborated by KAGGLE (competition tier + medal counts)
+- Is a foundational prerequisite of skills they already have
 
-RULE 2 — DIRECTIONAL SPECIFICITY (very important):
-- If the job requires a BROAD category (e.g., "SQL", "Data Visualization", "Cloud"), and the candidate has a SPECIFIC tool in that category (e.g., "MySQL"/"PostgreSQL" for SQL, "Matplotlib"/"Power BI" for Data Visualization, "Azure" for Cloud), that is a MATCH.
-- If the job requires a SPECIFIC tool (e.g., "Tableau"), a broad category (e.g., "Data Visualization") alone is NOT a match.
+For each matched skill: pick ONE evidence_source from {{'skills', 'experience',
+'projects', 'certifications', 'github', 'scholar', 'kaggle', 'education',
+'multiple'}}. Provide a ≤140-char evidence_quote that proves the match.
 
-RULE 3 — NO DUPLICATES:
-- Each required skill must appear in EXACTLY ONE list: either matched_skills OR critical_missing_skills. Never both.
-- Use the EXACT spelling from the JOB REQUIRED SKILLS list for consistency.
+RULE 2 — DIRECTIONAL SPECIFICITY:
+- BROAD JD (e.g. "SQL", "Cloud") + SPECIFIC CV (e.g. "MySQL", "AWS") = MATCH
+- SPECIFIC JD (e.g. "Tableau") + BROAD CV ("Data Viz") = NOT a match
 
-RULE 4 — CASE-INSENSITIVE:
-- "PySpark" and "Pyspark" and "pyspark" are the SAME skill. Do not list them separately.
+RULE 3 — NO DUPLICATES, EXACT SPELLING:
+- Each JD skill appears in EXACTLY ONE list. Never both matched_* and missing_*.
+- Use the exact spelling from the JD list (case-insensitive equality).
 
-RULE 5 — SENIORITY & CAREER-SWITCH SIGNALS (soft_skill_gaps):
-- If the job title implies a seniority (Senior, Staff, Lead, Principal) but the candidate has <3 years of relevant experience, add a concise note to soft_skill_gaps like "Seniority gap: job asks for Senior; candidate reads as mid-level".
-- If the candidate's experience is in a different domain than the target role (e.g., teaching background applying to SWE), add "Career transition: limited direct industry experience in [target domain]".
-- These should be CONSTRUCTIVE observations, not blockers. Keep each under 20 words.
+RULE 4 — TIER FIDELITY:
+- A must-have stays in matched_must_have OR missing_must_have. Never crossover
+  into the nice-to-have lists. Same for nice-to-have.
 
-=== SIMILARITY SCORE RUBRIC (CRITICAL) ===
+RULE 5 — SOFT SKILL GAPS (separate field, not chips):
+- If the title implies seniority (Senior / Staff / Lead / Principal) but the
+  candidate has <3 years relevant experience, add "Seniority gap: …".
+- If the candidate is switching domains (e.g. teaching → SWE), add
+  "Career transition: …".
+- ≤20 words each. Constructive, not blockers.
 
-Compute the similarity_score from the matched/missing breakdown YOU produced above. Do NOT pull a number from intuition — anchor it to the ratio.
-
-Let M = len(matched_skills), X = len(critical_missing_skills), T = M + X (total accounted JD skills).
-
-Base score = M / T (rounded to nearest 0.05).
-
-Then APPLY adjustments (cumulative, but final score must stay in [0.0, 1.0]):
-- Subtract 0.05 per soft_skill_gaps entry (cap −0.15 total). Soft gaps lower the score modestly; they don't dominate it.
-- Add 0.05 if M >= 0.7 * T AND the GitHub/Scholar/Kaggle blocks corroborate at least 2 of the matched skills (strong evidence bonus).
-- If T == 0 (job has no required skills), return 0.0.
-
-Examples:
-- 18 matched, 3 missing, 0 soft gaps → base 0.86 → score 0.85 (rounded).
-- 14 matched, 7 missing, 1 soft gap → base 0.67, −0.05 → score 0.60.
-- 5 matched, 16 missing, 0 soft gaps → base 0.24 → score 0.25.
-- 0 matched, 14 missing → base 0.0 → score 0.0.
-
-DO NOT score below the base ratio because the candidate "feels junior" — express that in soft_skill_gaps, not the headline score. A candidate who matches 14 of 21 must-have skills should always score ~0.65, never 0.10.
+{_PROXIMITY_RUBRIC}
 
 === OUTPUT ===
-Return ONLY the structured JSON via the provided function. No preamble."""
+Return ONLY the structured JSON via the provided function. No preamble.
+"""
 
-        # max_tokens trimmed 2000 → 1500. Typical structured responses for
-        # gap analysis land around 800-1200 tokens (matched + missing lists +
-        # 2-3 soft-gap notes + a similarity score). 2000 was conservative and
-        # measurably extended LLM response latency. 1500 leaves a 25% safety
-        # margin without burning generation time on dead headroom.
-        structured_llm = get_structured_llm(GapAnalysisResult, temperature=0.1, max_tokens=1500, task="gap_analyzer")
-        result = structured_llm.invoke(prompt)
+    def _invoke(prompt_text: str, attempt_label: str = 'primary'):
+        # Bigger token budget than v1 (1500 → 2400) — TieredGapAnalysisResult
+        # has 4 lists of nested objects with proximity + bridge_hint strings,
+        # easily 1800-2200 tokens on a 15-skill JD.
+        structured_llm = get_structured_llm(
+            TieredGapAnalysisResult,
+            temperature=0.1,
+            max_tokens=2400,
+            task=f"gap_analyzer_v2_{attempt_label}",
+        )
+        return structured_llm.invoke(prompt_text)
 
-        # Clamp similarity score to valid range
-        score = max(0.0, min(1.0, result.similarity_score))
+    try:
+        result = _invoke(base_prompt)
+    except Exception as exc:
+        # Most common failure mode: the proximity<1.0 validator rejected the
+        # LLM's response. Retry ONCE with the error appended so the model
+        # learns the constraint and re-routes any 1.0 skills.
+        msg = str(exc).lower()
+        is_proximity = 'proximity' in msg or 'less than 1' in msg
+        if is_proximity:
+            retry_prompt = base_prompt + (
+                "\n\n=== PRIOR ATTEMPT FAILED ===\n"
+                "Your last response was rejected because at least one missing "
+                "skill had proximity == 1.0. Skills at 1.0 belong in matched_*, "
+                "NOT missing_*. Either re-route that skill into the matched "
+                "tier with an evidence_quote, or lower its proximity to 0.8 "
+                "(meaning: exact skill present in CV but thin evidence).\n"
+            )
+            try:
+                result = _invoke(retry_prompt, attempt_label='retry')
+                logger.info("Gap analyzer recovered from proximity=1.0 on retry")
+            except Exception as exc2:
+                logger.error("Gap analyzer retry also failed: %s", exc2)
+                return _fallback_gap_analysis(profile, job, must_skills, nice_skills)
+        else:
+            logger.error("LLM gap analysis failed: %s. Falling back to fuzzy set match.", exc)
+            return _fallback_gap_analysis(profile, job, must_skills, nice_skills)
 
-        # ---- Phase 2: Programmatic Reconciliation ----
-        # Ensure every job skill is accounted for in exactly one list.
-        matched_set = {s.lower().strip() for s in result.matched_skills}
-        missing_set = {s.lower().strip() for s in result.critical_missing_skills}
+    # ---- Phase 2: Tier-aware reconciliation ----
+    result = _reconcile_tier(result, must_skills, nice_skills)
 
-        # Deduplicate: remove anything that's in both
-        deduped_missing = [s for s in result.critical_missing_skills if s.lower().strip() not in matched_set]
-        missing_set = {s.lower().strip() for s in deduped_missing}
+    score = compute_match_score(
+        result.matched_must_have, result.missing_must_have,
+        result.matched_nice_to_have, result.missing_nice_to_have,
+    )
+    avg_p = _avg_proximity(result.missing_must_have, result.missing_nice_to_have)
+    band = match_band(score)
 
-        # Reconcile: find skills the LLM forgot to categorize
-        all_accounted = matched_set | missing_set
-        for job_skill in job_skills:
-            js_lower = job_skill.lower().strip()
-            if js_lower in all_accounted:
-                continue
-            # Fuzzy check: did the LLM match it under a slightly different name?
-            close = difflib.get_close_matches(js_lower, matched_set, n=1, cutoff=0.85)
-            if close:
-                # LLM matched it with a variant spelling — count as matched
-                logger.debug("Reconciled '%s' as matched (fuzzy: '%s')", job_skill, close[0])
-                continue
-            # Not accounted for anywhere — conservatively add to missing
-            logger.info("Reconciled unaccounted skill '%s' → missing", job_skill)
-            deduped_missing.append(job_skill)
+    matched_flat = [m.name for m in result.matched_must_have + result.matched_nice_to_have]
+    missing_flat = [m.name for m in result.missing_must_have + result.missing_nice_to_have]
 
-        return {
-            'matched_skills': result.matched_skills,
-            'missing_skills': deduped_missing,
-            'partial_skills': [],
-            'soft_skill_gaps': result.soft_skill_gaps,
-            'critical_missing_skills': deduped_missing,
-            'seniority_mismatch': None,
-            'similarity_score': round(score, 2),
-            'analysis_method': 'llm'
-        }
+    return {
+        # Tier-aware (v2)
+        'matched_must_have':    [m.model_dump() for m in result.matched_must_have],
+        'matched_nice_to_have': [m.model_dump() for m in result.matched_nice_to_have],
+        'missing_must_have':    [m.model_dump() for m in result.missing_must_have],
+        'missing_nice_to_have': [m.model_dump() for m in result.missing_nice_to_have],
+        'soft_skill_gaps':      list(result.soft_skill_gaps or []),
+        'similarity_score':     score,
+        'match_band':           band,
+        'avg_proximity':        avg_p,
+        # Legacy flat (back-compat with template + drag-drop endpoint readers)
+        'matched_skills':       matched_flat,
+        'missing_skills':       missing_flat,
+        'partial_skills':       [],
+        'critical_missing_skills': [m.name for m in result.missing_must_have],
+        'seniority_mismatch':   None,
+        'analysis_method':      'llm_v2',
+    }
 
-    except Exception as e:
-        logger.error(f"LLM Gap Analysis failed: {e}. Falling back to set difference.")
 
-    # ---- Fallback: fuzzy set matching (no LLM) ----
+def _reconcile_tier(result, must_skills: list, nice_skills: list):
+    """Ensure every JD skill is accounted for in exactly one tier list.
+
+    For each JD must-have not seen in matched_must_have or missing_must_have,
+    append a MissingSkill with proximity=0.0 and the honest stub reason.
+    Same for nice-to-have. Cross-tier dedupe: a skill in both matched_* and
+    missing_* keeps the matched_* entry only.
+    """
+    def _norm(s: str) -> str:
+        return (s or '').lower().strip()
+
+    matched_must = list(result.matched_must_have)
+    matched_nice = list(result.matched_nice_to_have)
+    missing_must = list(result.missing_must_have)
+    missing_nice = list(result.missing_nice_to_have)
+
+    matched_must_keys = {_norm(m.name) for m in matched_must}
+    matched_nice_keys = {_norm(m.name) for m in matched_nice}
+
+    missing_must = [m for m in missing_must if _norm(m.name) not in matched_must_keys]
+    missing_nice = [m for m in missing_nice if _norm(m.name) not in matched_nice_keys]
+
+    missing_must_keys = {_norm(m.name) for m in missing_must}
+    missing_nice_keys = {_norm(m.name) for m in missing_nice}
+
+    def _is_accounted(skill: str, missing_keys: set, matched_keys: set) -> bool:
+        k = _norm(skill)
+        if k in missing_keys or k in matched_keys:
+            return True
+        # Fuzzy: LLM may have used a slightly different spelling for a match.
+        return bool(difflib.get_close_matches(k, list(matched_keys), n=1, cutoff=0.85))
+
+    for js in must_skills:
+        if _is_accounted(js, missing_must_keys, matched_must_keys):
+            continue
+        logger.info("Reconciled unaccounted must-have '%s' -> missing_must_have", js)
+        missing_must.append(MissingSkill(
+            name=js, source_quote='', proximity=0.0,
+            proximity_reason='No related evidence found in profile',
+            bridge_hint=None,
+        ))
+        missing_must_keys.add(_norm(js))
+
+    for js in nice_skills:
+        if _is_accounted(js, missing_nice_keys, matched_nice_keys):
+            continue
+        logger.info("Reconciled unaccounted nice-to-have '%s' -> missing_nice_to_have", js)
+        missing_nice.append(MissingSkill(
+            name=js, source_quote='', proximity=0.0,
+            proximity_reason='No related evidence found in profile',
+            bridge_hint=None,
+        ))
+        missing_nice_keys.add(_norm(js))
+
+    return TieredGapAnalysisResult(
+        matched_must_have=matched_must,
+        matched_nice_to_have=matched_nice,
+        missing_must_have=missing_must,
+        missing_nice_to_have=missing_nice,
+        soft_skill_gaps=list(result.soft_skill_gaps or []),
+    )
+
+
+def _fallback_gap_analysis(profile, job, must_skills, nice_skills):
+    """No-LLM fallback. Fuzzy-match each JD skill against the candidate's
+    flat skill list; everything that doesn't fuzzy-match lands in missing_*
+    with proximity=0.0 and the honest stub reason."""
     user_skills_list = []
     for s in profile.skills or []:
         if isinstance(s, dict):
@@ -423,27 +605,42 @@ Return ONLY the structured JSON via the provided function. No preamble."""
         elif isinstance(s, str):
             user_skills_list.append(s.lower().strip())
 
-    matched_skills = []
-    missing_skills = []
+    def _bucket(jd_skills):
+        matched, missing = [], []
+        for js in jd_skills:
+            close = difflib.get_close_matches(js.lower().strip(), user_skills_list, n=1, cutoff=0.8)
+            if close:
+                matched.append(MatchedSkill(
+                    name=js, evidence_source='skills', evidence_quote=close[0][:140],
+                ))
+            else:
+                missing.append(MissingSkill(
+                    name=js, source_quote='', proximity=0.0,
+                    proximity_reason='No related evidence found in profile (fallback path)',
+                    bridge_hint=None,
+                ))
+        return matched, missing
 
-    for js in job_skills:
-        js_clean = js.lower().strip()
-        matches = difflib.get_close_matches(js_clean, user_skills_list, n=1, cutoff=0.8)
-        if matches:
-            matched_skills.append(js)
-        else:
-            missing_skills.append(js)
+    mmh, miss_must = _bucket(must_skills)
+    mnh, miss_nice = _bucket(nice_skills)
 
-    total = max(len(job_skills), 1)
-    fallback_score = round(len(matched_skills) / total, 2)
+    score = compute_match_score(mmh, miss_must, mnh, miss_nice)
+    avg_p = _avg_proximity(miss_must, miss_nice)
+    band = match_band(score)
 
     return {
-        'matched_skills': matched_skills,
-        'missing_skills': missing_skills,
-        'partial_skills': [],
-        'soft_skill_gaps': [],
-        'critical_missing_skills': missing_skills[:5],
-        'seniority_mismatch': None,
-        'similarity_score': fallback_score,
-        'analysis_method': 'fallback'
+        'matched_must_have':    [m.model_dump() for m in mmh],
+        'matched_nice_to_have': [m.model_dump() for m in mnh],
+        'missing_must_have':    [m.model_dump() for m in miss_must],
+        'missing_nice_to_have': [m.model_dump() for m in miss_nice],
+        'soft_skill_gaps':      [],
+        'similarity_score':     score,
+        'match_band':           band,
+        'avg_proximity':        avg_p,
+        'matched_skills':       [m.name for m in mmh + mnh],
+        'missing_skills':       [m.name for m in miss_must + miss_nice],
+        'partial_skills':       [],
+        'critical_missing_skills': [m.name for m in miss_must],
+        'seniority_mismatch':   None,
+        'analysis_method':      'fallback',
     }
