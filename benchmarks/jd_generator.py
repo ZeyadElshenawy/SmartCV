@@ -44,6 +44,14 @@ from pydantic import BaseModel, Field  # noqa: E402
 
 from profiles.services.cv_parser import parse_cv  # noqa: E402
 from profiles.services.llm_engine import get_structured_llm  # noqa: E402
+# RoleClassification + detect_role_seniority + _profile_summary_for_llm moved to
+# profiles.services.role_classifier so the RAG retrieval flow can use them
+# from production code without importing from benchmarks/.
+from profiles.services.role_classifier import (  # noqa: E402
+    RoleClassification,
+    _profile_summary_for_llm,
+    detect_role_seniority,
+)
 
 
 FIXTURES = ROOT / "benchmarks" / "fixtures"
@@ -52,31 +60,6 @@ JOBS_DIR = FIXTURES / "jobs"
 
 
 # ---------- Pydantic schemas (LLM structured outputs) ----------
-
-
-class RoleClassification(BaseModel):
-    """LLM call 1 output — what role best matches this CV?"""
-    primary_role: str = Field(
-        description=(
-            "Single canonical role label. Examples: 'Backend Engineer', "
-            "'Frontend Engineer', 'Mobile Engineer (Flutter)', 'Data Engineer', "
-            "'Data Scientist', 'AI/ML Engineer', 'DevOps Engineer', "
-            "'Full-Stack Engineer'. Be specific — pick the role the candidate's "
-            "evidence most strongly supports."
-        ),
-    )
-    seniority: str = Field(
-        description=(
-            "One of: 'intern', 'junior', 'mid', 'senior', 'lead'. "
-            "Calibrate from years of experience and scope of work."
-        ),
-    )
-    tech_stack_signals: List[str] = Field(
-        description=(
-            "5–8 dominant technologies detected in the CV (concrete tools, "
-            "frameworks, languages). Used as cluster anchors for the JD generator."
-        ),
-    )
 
 
 class GeneratedJd(BaseModel):
@@ -114,86 +97,11 @@ class GeneratedJd(BaseModel):
     )
 
 
-# ---------- Profile distillation (cheap, deterministic) ----------
-
-
-def _profile_summary_for_llm(profile: dict, max_chars: int = 2000) -> str:
-    """Compact profile summary fed to the role-detection LLM call."""
-    parts = []
-    if profile.get("full_name"):
-        parts.append(f"Name: {profile['full_name']}")
-    if profile.get("location"):
-        parts.append(f"Location: {profile['location']}")
-
-    skills = profile.get("skills") or []
-    if isinstance(skills, list):
-        skill_names = [s.get("name") if isinstance(s, dict) else str(s) for s in skills]
-        skill_names = [s for s in skill_names if s]
-        if skill_names:
-            parts.append("Skills: " + ", ".join(skill_names[:40]))
-
-    exps = profile.get("experiences") or []
-    if isinstance(exps, list):
-        exp_lines = []
-        for e in exps[:5]:
-            if not isinstance(e, dict):
-                continue
-            title = e.get("title") or e.get("position") or ""
-            company = e.get("company") or ""
-            if title or company:
-                exp_lines.append(f"  - {title} at {company}".strip())
-        if exp_lines:
-            parts.append("Experience:")
-            parts.extend(exp_lines)
-
-    edu = profile.get("education") or []
-    if isinstance(edu, list):
-        for e in edu[:3]:
-            if not isinstance(e, dict):
-                continue
-            deg = e.get("degree") or ""
-            inst = e.get("institution") or ""
-            if deg or inst:
-                parts.append(f"Education: {deg}, {inst}".strip(", "))
-
-    projects = profile.get("projects") or []
-    if isinstance(projects, list) and projects:
-        names = [p.get("name") if isinstance(p, dict) else str(p) for p in projects[:5]]
-        names = [n for n in names if n]
-        if names:
-            parts.append("Projects: " + ", ".join(names))
-
-    structured = "\n".join(parts)
-
-    # Fallback: if structured profile is too thin (parser missed sections),
-    # append a slice of raw_text so the LLM still has signal.
-    raw = (profile.get("raw_text") or "").strip()
-    if len(structured) < 400 and raw:
-        budget = max_chars - len(structured) - 50
-        if budget > 0:
-            structured += "\n\nRAW CV TEXT (truncated):\n" + raw[:budget]
-    elif raw and len(structured) < max_chars - 600:
-        # Always append a short raw-text excerpt for context (last 500 chars often has skills section).
-        structured += "\n\nRAW CV TEXT EXCERPT:\n" + raw[:500]
-
-    return structured[:max_chars]
+# `_profile_summary_for_llm`, `RoleClassification`, and `detect_role_seniority`
+# now live in profiles.services.role_classifier (imported at top of file).
 
 
 # ---------- LLM calls ----------
-
-
-def detect_role_seniority(profile_summary: str) -> RoleClassification:
-    """LLM call 1 — classify the candidate's role + seniority."""
-    llm = get_structured_llm(RoleClassification, temperature=0.1, max_tokens=400, task="jd_generator")
-    prompt = (
-        "You classify candidate profiles by primary role and seniority. "
-        "Read the profile below and pick the most-supported role label, the "
-        "seniority bucket, and 5–8 dominant tech-stack signals. Anchor your "
-        "answer on the strongest cluster of evidence — do not pick a role from "
-        "a single buzzword.\n\n"
-        f"PROFILE:\n{profile_summary}\n"
-    )
-    return llm.invoke(prompt)
 
 
 def generate_role_jd(role: RoleClassification) -> GeneratedJd:

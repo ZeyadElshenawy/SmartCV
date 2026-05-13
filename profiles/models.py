@@ -374,3 +374,52 @@ class JobPreferences(models.Model):
             "max_jobs": int(self.max_jobs),
         }
 
+
+class KnowledgeChunk(models.Model):
+    """One curated knowledge-base document, indexed for RAG retrieval.
+
+    Sourced from `profiles/knowledge/<category>/*.md`. Populated by the
+    `build_knowledge_index` management command, which parses YAML frontmatter
+    + body and embeds each document with sentence-transformers/all-MiniLM-L6-v2
+    into the `embedding` field (matching the 384-dim dormant fields on
+    UserProfile/Job).
+
+    The `knowledge_retriever` service queries this table with a faceted
+    filter (type/roles/seniority/region) followed by a semantic ORDER BY on
+    the cosine distance to the JD embedding.
+    """
+
+    # Identity — matches the frontmatter `id:` field, e.g. "ats_rules_001_what_is_ats_parsing"
+    kb_id = models.CharField(max_length=128, unique=True, db_index=True)
+
+    # Content
+    title = models.CharField(max_length=255)
+    body = models.TextField()
+    concrete_rule = models.TextField(blank=True, default="")
+    sources = models.JSONField(default=list)
+
+    # Facets — used as faceted filter at query time. JSON arrays for the
+    # multi-value facets (roles, seniority, industries); plain string for
+    # single-value (region, weight).
+    type = models.CharField(max_length=32, db_index=True)
+    roles = models.JSONField(default=list)
+    seniority = models.JSONField(default=list)
+    industries = models.JSONField(default=list)
+    region = models.CharField(max_length=16, default='global', db_index=True)
+    weight = models.CharField(max_length=8, default='medium')
+
+    # Embedding — 384-dim matches all-MiniLM-L6-v2 and the existing
+    # VectorField setup. NULL until the indexer runs.
+    embedding = VectorField(dimensions=384, null=True, blank=True)
+
+    # Metadata
+    source_path = models.CharField(max_length=512)
+    last_updated = models.DateField(null=True, blank=True)
+    indexed_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['type', 'kb_id']
+
+    def __str__(self):  # pragma: no cover — admin/debug only
+        return f"{self.kb_id} ({self.type})"
+

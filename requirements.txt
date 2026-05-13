@@ -17,6 +17,7 @@ whitenoise==6.6.0
 pgvector==0.4.2
 pydantic>=2.9.0  # 2.5.2's pydantic-core has no 3.13 wheels and fails to build from source
 huggingface_hub>=0.36.0
+python-frontmatter==1.1.0  # RAG KB indexer: parses YAML frontmatter from profiles/knowledge/*.md
 django-debug-toolbar==6.3.0  # dev only — auto-disabled when DEBUG=False or during tests
 coverage==7.13.5  # dev only — used by `coverage run manage.py test` and benchmarks/run_all.py
 selenium>=4.20.0  # optional — LinkedIn profile scraper (gated by LINKEDIN_SCRAPING_ENABLED)

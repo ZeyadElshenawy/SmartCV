@@ -1,7 +1,7 @@
 ---
 id: banned_patterns_005_responsible_for_pattern
 type: banned_pattern
-title: "Responsible For" — Duty Language vs. Accomplishment Language
+title: '"Responsible For" — Duty Language vs. Accomplishment Language'
 roles: [all]
 seniority: [all]
 industries: [all]
