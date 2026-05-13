@@ -255,6 +255,43 @@ def _build_evidence_context(profile, job, gap_analysis) -> str:
     return "\n\n".join(sections)
 
 
+def _apply_bullet_validator(resume_content: dict) -> dict:
+    """Run the deterministic bullet validator over a freshly-generated resume,
+    optionally auto-fix safe issues in-place, and stash the report on the
+    result dict under `validation_report` so the views layer can persist it
+    onto `GeneratedResume.validation_report`.
+
+    Mode is governed by `settings.BULLET_AUTOFIX` ("report_only" | "safe_autofix").
+    Any exception in the validator path is swallowed — resume generation must
+    not fail because of a validator bug.
+    """
+    from django.conf import settings as dj_settings
+    mode = getattr(dj_settings, "BULLET_AUTOFIX", "report_only")
+    strict = bool(getattr(dj_settings, "BULLET_VALIDATOR_STRICT", False))
+    if mode not in ("report_only", "safe_autofix"):
+        mode = "report_only"
+
+    try:
+        from resumes.services.bullet_validator import validate_resume
+        if mode == "safe_autofix":
+            resume_content, report = validate_resume(
+                resume_content, seniority="mid", mode="safe_autofix", strict=strict,
+            )
+        else:
+            report = validate_resume(
+                resume_content, seniority="mid", mode="report_only", strict=strict,
+            )
+        resume_content["validation_report"] = report.model_dump()
+        logger.info(
+            "Bullet validator: mode=%s passed=%s errors=%d warns=%d total_bullets=%d",
+            mode, report.passed, report.stats.get("errors", 0),
+            report.stats.get("warns", 0), report.stats.get("total_bullets", 0),
+        )
+    except Exception as exc:  # noqa: BLE001 — validator must not break gen
+        logger.warning("Bullet validator failed (%s); skipping report.", exc)
+    return resume_content
+
+
 def _build_standards_section(profile, job) -> str:
     """Return the RAG STANDARDS prompt block, or "" when RAG is disabled
     or retrieval fails.
@@ -461,6 +498,7 @@ Make it PROFESSIONAL and ATS-OPTIMIZED.
         # mis-mapped from the profile. The LLM is good at rewriting but often
         # drops sections or uses wrong field names (e.g. graduation_year vs year).
         resume_content = _ensure_profile_data_preserved(resume_content, raw_cv_data)
+        resume_content = _apply_bullet_validator(resume_content)
         logger.info(f"✓ Generated tailored resume with sections: {list(resume_content.keys())}")
         return resume_content
 
@@ -476,6 +514,7 @@ Make it PROFESSIONAL and ATS-OPTIMIZED.
         if recovered is not None:
             resume_content = recovered.model_dump()
             resume_content = _ensure_profile_data_preserved(resume_content, raw_cv_data)
+            resume_content = _apply_bullet_validator(resume_content)
             logger.info(
                 "Resume recovered from failed_generation; sections=%s",
                 list(resume_content.keys()),

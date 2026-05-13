@@ -25,7 +25,7 @@ from typing import Iterable, Union
 from pydantic import BaseModel, Field, field_validator
 
 from profiles.services.llm_engine import get_structured_llm
-from profiles.services.prompt_guards import HUMAN_VOICE_RULE
+from profiles.services.prompt_guards import BANNED_PHRASES, HUMAN_VOICE_RULE
 
 
 class AxisScore(BaseModel):
@@ -122,14 +122,11 @@ def _voice_rule_block() -> str:
 
 # ─── Programmatic pre-checks ─────────────────────────────────────────────────
 
-_BANNED_VOICE_TOKENS = (
-    "leverage", "leveraging", "leveraged", "utilize", "utilizing", "utilized",
-    "synergy", "synergize", "robust", "seamless", "seamlessly", "delve",
-    "delving", "unleash", "elevate", "cutting-edge", "world-class",
-    "best-in-class", "game-changer", "paradigm", "tapestry", "holistic",
-    "spearhead", "embark", "foster", "transformative", "thought leader",
-    "results-driven", "demonstrating",
-)
+# Sourced from profiles.services.prompt_guards.BANNED_PHRASES — the single
+# source of truth for the banned-phrase contract. The bullet validator uses
+# the same dict (with replacements) for auto-fix; the judge only needs the
+# keys for membership checks.
+_BANNED_VOICE_TOKENS = tuple(BANNED_PHRASES.keys())
 
 
 def _flatten_text(d) -> str:

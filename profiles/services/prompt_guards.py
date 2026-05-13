@@ -11,6 +11,15 @@ Captures the four common AI tells real recruiters notice:
    a unique ability to Y." — the LinkedIn About-section giveaway.
 
 Single source of truth so generators can't drift apart.
+
+This module exposes three artifacts:
+  - HUMAN_VOICE_RULE  — narrative prompt block (LLM-facing).
+  - BANNED_PHRASES    — dict mapping each banned token to its replacement
+                        (or None when the right action is "delete"). Used by
+                        the bullet validator's deterministic A1 rule and by
+                        benchmarks/llm_judge.banned_phrase_hits.
+  - BANNED_JARGON_PHRASES — extra corporate-jargon set with higher false-
+                        positive risk ("align", "bandwidth"); opt-in only.
 """
 
 
@@ -74,3 +83,80 @@ def append_human_voice(prompt: str) -> str:
     fresh in the model's last-attention window.
     """
     return f"{prompt.rstrip()}\n\n{HUMAN_VOICE_RULE}"
+
+
+# ---------------------------------------------------------------------------
+# Banned-phrase contract — machine-readable form of the HUMAN_VOICE_RULE rule 1.
+#
+# Sourced from profiles/knowledge/banned_patterns/001_overused_buzzwords.md
+# (the canonical KB list). Keys are lowercase substrings the validator
+# matches case-insensitively; values are the suggested replacement, or None
+# when the right action is "delete the offending word and let the surrounding
+# concrete content carry the bullet" (e.g. "passionate", "results-driven").
+# ---------------------------------------------------------------------------
+
+# Type hint uses str | None for Python 3.10+ compat (project pins 3.13).
+BANNED_PHRASES: dict[str, str | None] = {
+    # --- Verbs (with substitutions) ---
+    "leverage": "use", "leveraging": "using", "leveraged": "used",
+    "utilize": "use", "utilizing": "using", "utilized": "used",
+    "spearhead": "led", "spearheaded": "led", "spearheading": "leading",
+    "embark": "start", "embarked": "started", "embarking": "starting",
+    "delve": "investigate", "delving": "investigating", "delved": "investigated",
+    "unleash": "release", "unleashed": "released", "unleashing": "releasing",
+    "elevate": "improve", "elevated": "improved", "elevating": "improving",
+    "foster": None,        # figurative sense; deletion is right when ambiguous
+    "navigate": None,      # figurative sense
+    "demonstrating": None, # also caught structurally by A7 closer regex
+
+    # --- Adjectives (with substitutions or deletion) ---
+    "robust": "reliable",
+    "seamless": "smooth", "seamlessly": "smoothly",
+    "holistic": "comprehensive",
+    "cutting-edge": "modern",
+    "world-class": "top-tier",
+    "best-in-class": "leading",
+    "transformative": "significant",
+    "game-changing": "significant",
+    "game-changer": "significant",
+    "paradigm-shifting": "significant",
+    "dynamic": None,
+    "innovative": None,
+
+    # --- Self-description filler (delete) ---
+    "passionate": None,
+    "highly motivated": None,
+    "results-driven": None,
+    "results-oriented": None,
+    "detail-oriented": None,
+    "self-starter": None,
+    "team player": None,
+    "go-getter": None,
+    "thought leader": None,
+    "visionary": None,
+    "guru": None,
+    "ninja": None,
+    "rockstar": None,
+    "wizard": None,
+
+    # --- Nouns / concepts (delete; almost always figurative) ---
+    "synergy": None,
+    "synergize": None,
+    "tapestry": None,
+    "paradigm": None,
+    "unlock potential": None,
+}
+
+# Higher false-positive risk — corporate jargon. Gated by settings.BULLET_VALIDATOR_STRICT.
+BANNED_JARGON_PHRASES: frozenset[str] = frozenset({
+    "think outside the box",
+    "low-hanging fruit",
+    "circle back",
+    "touch base",
+    "move the needle",
+    "boil the ocean",
+    "bandwidth",   # capacity sense; "network bandwidth" is a real engineering term
+    "align",       # often legitimate; gate behind strict
+    "liaise",
+    "liaised",
+})
