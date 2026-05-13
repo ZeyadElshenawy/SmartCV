@@ -35,6 +35,20 @@ from profiles.services.cv_parser import parse_cv
 from resumes.services.resume_generator import generate_resume_content
 
 
+def _snapshot_treatment_config() -> dict:
+    """Capture the RAG / validator settings active during this run so the
+    AB report can verify treatments came from the right config."""
+    from django.conf import settings as dj_settings
+    return {
+        "RAG_ENABLED": bool(getattr(dj_settings, "RAG_ENABLED", False)),
+        "RAG_TOP_K": int(getattr(dj_settings, "RAG_TOP_K", 6)),
+        "RAG_UNIVERSAL_SHARE": int(getattr(dj_settings, "RAG_UNIVERSAL_SHARE", 3)),
+        "BULLET_AUTOFIX": str(getattr(dj_settings, "BULLET_AUTOFIX", "report_only")),
+        "BULLET_VALIDATOR_STRICT": bool(getattr(dj_settings, "BULLET_VALIDATOR_STRICT", False)),
+        "BULLET_RETRY": bool(getattr(dj_settings, "BULLET_RETRY", False)),
+    }
+
+
 def _profile_from_parsed(parsed: dict) -> types.SimpleNamespace:
     """Duck-typed UserProfile-like for the gap analyzer + generator."""
     # Build a data_content blob that the generator pulls full CV from.
@@ -96,7 +110,12 @@ def _load() -> tuple[dict, dict[str, dict]]:
     return manifest, jds
 
 
-def run(buckets: tuple[str, ...] = ("strong",), max_pairs: int | None = None) -> dict:
+def run(
+    buckets: tuple[str, ...] = ("strong",),
+    max_pairs: int | None = None,
+    treatment_label: str = "T0",
+    section_name: str = "tailoring_eval",
+) -> dict:
     manifest, jds = _load()
     pairs = _select_pairs(manifest, jds, buckets)
     if max_pairs is not None:
@@ -194,6 +213,8 @@ def run(buckets: tuple[str, ...] = ("strong",), max_pairs: int | None = None) ->
     payload = {
         "benchmark": "tailoring_eval",
         "version": 1,
+        "treatment_label": treatment_label,
+        "treatment_config": _snapshot_treatment_config(),
         "fixture_kind": "real_anonymized_cv_x_jd",
         "buckets_evaluated": list(buckets),
         "n_pairs": len(rows),
@@ -228,7 +249,7 @@ def run(buckets: tuple[str, ...] = ("strong",), max_pairs: int | None = None) ->
             "of the LLM judge and provide a non-LLM cross-check."
         ),
     }
-    out_path = write_section("tailoring_eval", payload)
+    out_path = write_section(section_name, payload)
     payload["written_to"] = str(out_path)
     return payload
 
@@ -262,10 +283,16 @@ def _parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
                    choices=["strong", "partial", "weak"],
                    help="which manifest buckets to evaluate (default: strong only)")
     p.add_argument("--max-pairs", type=int, default=None)
+    p.add_argument("--treatment-label", default="T0",
+                   help="Label stamped into payload (e.g. T0/T1/T2/T3 for AB eval)")
     return p.parse_args(list(argv) if argv is not None else None)
 
 
 if __name__ == "__main__":
     args = _parse_args()
-    out = run(buckets=tuple(args.buckets), max_pairs=args.max_pairs)
+    out = run(
+        buckets=tuple(args.buckets),
+        max_pairs=args.max_pairs,
+        treatment_label=args.treatment_label,
+    )
     print(_format_report(out))
