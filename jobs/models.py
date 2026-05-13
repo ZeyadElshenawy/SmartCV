@@ -21,6 +21,15 @@ class Job(models.Model):
     description = models.TextField()
     raw_html = models.TextField(null=True, blank=True)
     extracted_skills = models.JSONField(default=list)
+    # Skill-extractor v2 (2026-05-14): tiered skills + domain. The flat
+    # extracted_skills field above is preserved as the union (must + nice)
+    # for back-compat with the gap analyzer, resume generator, and benchmarks.
+    # Shape: {"must_have": [str, ...], "nice_to_have": [str, ...]}
+    extracted_skills_tiers = models.JSONField(default=dict, blank=True)
+    # Canonical industry domain inferred from the JD body ("Financial Services",
+    # "Healthcare", "Gaming", ...). Free-text fallback when unmapped. "" when
+    # no signal.
+    domain = models.CharField(max_length=64, blank=True, default='')
     embedding = VectorField(dimensions=384, null=True, blank=True)
     application_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='saved')
     created_at = models.DateTimeField(auto_now_add=True)

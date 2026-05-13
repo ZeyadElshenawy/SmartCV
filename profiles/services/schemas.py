@@ -111,8 +111,37 @@ class GapAnalysisResult(BaseModel):
     similarity_score: float = Field(default=0.5, description="Overall match score from 0.0 to 1.0 based on skills, experience relevance, and seniority fit")
 
 class SkillListResult(BaseModel):
-    """Output schema for skill_extractor.py"""
+    """Output schema for skill_extractor.py — flat list (kept for backward compat)."""
     skills: List[str] = Field(default_factory=list, description="List of extracted skill names")
+
+
+class JobExtractionResult(BaseModel):
+    """Unified output of jobs.services.skill_extractor.extract_job_info.
+
+    The LLM splits skills into Must-Have vs Nice-to-Have using the JD's section
+    cues ("Required" / "Must-have" / "Responsibilities" → must_have;
+    "Nice to have" / "Desirable" / "Bonus" / "Plus" → nice_to_have). The flat
+    `Job.extracted_skills` field downstream is the deduped union of both.
+    `domain` is a short noun phrase (canonicalized post-hoc against an alias
+    map) capturing the industry the role serves.
+    """
+    must_have_skills: List[str] = Field(
+        default_factory=list,
+        description="Skills the JD lists as required / must-have / core responsibilities.",
+    )
+    nice_to_have_skills: List[str] = Field(
+        default_factory=list,
+        description="Skills the JD lists as nice-to-have / desirable / bonus / plus.",
+    )
+    domain: str = Field(
+        default="",
+        description=(
+            "Industry domain inferred from the JD (free text, canonicalized "
+            "post-hoc). Examples: 'Financial Services', 'Healthcare', "
+            "'E-commerce', 'Gaming'. Empty when no clear signal."
+        ),
+    )
+
 
 class ExtractedExperienceBullet(BaseModel):
     """A generated resume bullet based on the user's conversational reply."""

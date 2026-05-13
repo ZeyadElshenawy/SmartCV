@@ -59,12 +59,19 @@ class ExtractSkillsFilterTests(SimpleTestCase):
     """End-to-end behavior of extract_skills with the LLM mocked."""
 
     def _mock_llm(self, returned_skills):
-        class _Result:
-            skills = returned_skills
+        """Build a fake structured LLM whose .invoke() returns a
+        JobExtractionResult — the v2 contract — with all skills in the
+        must-have tier. extract_skills() will collapse that to a flat list."""
+        from profiles.services.schemas import JobExtractionResult
+        result = JobExtractionResult(
+            must_have_skills=list(returned_skills),
+            nice_to_have_skills=[],
+            domain="",
+        )
 
         class _StructuredLLM:
             def invoke(self, _prompt):
-                return _Result()
+                return result
 
         return _StructuredLLM()
 
@@ -119,9 +126,19 @@ class GenericSoftSkillDenylistTests(SimpleTestCase):
     """Pin the denylist contents — each entry was an actual benchmark hallucination."""
 
     def test_known_hallucinated_phrases_are_listed(self):
+        # v2 (2026-05-14): leadership/communication/collaboration/mentorship
+        # removed from the unconditional denylist — they're now legitimate
+        # when JD-anchored. What stays here is the pattern set that the LLM
+        # hallucinates regardless of context.
         for phrase in ("technical leadership", "problem solving", "pairing sessions",
-                       "code review", "leadership"):
+                       "code review", "teamwork", "pair programming"):
             self.assertIn(phrase, _GENERIC_SOFT_SKILL_DENYLIST)
+
+    def test_v2_soft_skills_removed_from_denylist(self):
+        # These are kept by the v2 extractor when verbatim in the JD, so they
+        # must NOT live on the unconditional denylist.
+        for phrase in ("leadership", "communication", "collaboration", "mentorship"):
+            self.assertNotIn(phrase, _GENERIC_SOFT_SKILL_DENYLIST)
 
     def test_real_technical_skills_are_not_listed(self):
         # Sanity: the denylist must not accidentally cover real technical skills.

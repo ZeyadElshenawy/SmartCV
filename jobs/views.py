@@ -6,12 +6,30 @@ from django.contrib.auth import get_user_model
 from .models import Job, RecommendedJob, ScrapeJob, JobListing
 from .services.scrapers import scrape_job
 from .services.scrapers.base import ScrapeError
-from .services.skill_extractor import extract_skills
+from .services.skill_extractor import extract_job_info, extract_skills
 
 import json
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def _flat_union(info) -> list[str]:
+    """Flat union (must_have ∪ nice_to_have), deduped, must-have first.
+
+    Mirrors the legacy extract_skills() output so the downstream
+    Job.extracted_skills field keeps the same semantics callers expect.
+    """
+    seen: set[str] = set()
+    out: list[str] = []
+    for s in (info.must_have_skills or []) + (info.nice_to_have_skills or []):
+        key = s.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(s)
+    return out
+
 
 def _bust_job_embedding(job):
     """
@@ -66,9 +84,14 @@ def job_input_view(request):
                         "letting dispatcher routing stand.", source_hint, detected
                     )
 
-                # Extract skills
-                skills = extract_skills(job_data['description'])
-                logger.info("Extracted %d skills", len(skills))
+                # Extract skills (tiered + domain via v2 extractor)
+                info = extract_job_info(job_data['description'])
+                flat_skills = _flat_union(info)
+                logger.info(
+                    "Extracted %d skills (must=%d nice=%d domain=%r)",
+                    len(flat_skills), len(info.must_have_skills),
+                    len(info.nice_to_have_skills), info.domain,
+                )
 
                 # Save to database. Prefer the scraper's cleaned canonical URL
                 # over the raw user-pasted one — strips LinkedIn tracking
@@ -82,7 +105,12 @@ def job_input_view(request):
                     company=job_data['company'],
                     description=job_data['description'],
                     raw_html=job_data.get('raw_html', ''),
-                    extracted_skills=list(skills)
+                    extracted_skills=flat_skills,
+                    extracted_skills_tiers={
+                        'must_have': info.must_have_skills,
+                        'nice_to_have': info.nice_to_have_skills,
+                    },
+                    domain=info.domain,
                 )
                 logger.info("Job saved with ID: %s", job.id)
                 
@@ -94,9 +122,14 @@ def job_input_view(request):
 
                 logger.info("Manual job input: %s at %s", title, company)
 
-                # Extract skills from pasted description
-                skills = extract_skills(description)
-                logger.info("Extracted %d skills", len(skills))
+                # Extract skills from pasted description (v2 extractor)
+                info = extract_job_info(description)
+                flat_skills = _flat_union(info)
+                logger.info(
+                    "Extracted %d skills (must=%d nice=%d domain=%r)",
+                    len(flat_skills), len(info.must_have_skills),
+                    len(info.nice_to_have_skills), info.domain,
+                )
 
                 # Save to database
                 job = Job.objects.create(
@@ -106,7 +139,12 @@ def job_input_view(request):
                     company=company,
                     description=description,
                     raw_html=None,
-                    extracted_skills=list(skills)
+                    extracted_skills=flat_skills,
+                    extracted_skills_tiers={
+                        'must_have': info.must_have_skills,
+                        'nice_to_have': info.nice_to_have_skills,
+                    },
+                    domain=info.domain,
                 )
                 logger.info("Job saved with ID: %s", job.id)
             
@@ -149,9 +187,18 @@ def review_extracted_job(request, job_id):
         if description_changed:
             _bust_job_embedding(job)
             try:
-                skills = extract_skills(new_description)
-                job.extracted_skills = list(skills)
-                logger.info("Re-extracted %d skills after description edit", len(job.extracted_skills))
+                info = extract_job_info(new_description)
+                job.extracted_skills = _flat_union(info)
+                job.extracted_skills_tiers = {
+                    'must_have': info.must_have_skills,
+                    'nice_to_have': info.nice_to_have_skills,
+                }
+                job.domain = info.domain
+                logger.info(
+                    "Re-extracted %d skills (must=%d nice=%d domain=%r) after description edit",
+                    len(job.extracted_skills), len(info.must_have_skills),
+                    len(info.nice_to_have_skills), info.domain,
+                )
             except Exception as e:
                 logger.warning("Skill re-extraction failed: %s", e)
         
@@ -228,10 +275,11 @@ def save_job_extension_view(request):
         company = data.get('company', '')
         description = data.get('description', '')
         
-        # Extract skills via LLM
+        # Extract skills via LLM (v2 extractor — tiered + domain)
         # For production this should be moved to a Celery task since it's blocking
-        skills = extract_skills(description)
-        
+        info = extract_job_info(description)
+        skills = _flat_union(info)
+
         # Save job
         job = Job.objects.create(
             user=user,
@@ -239,7 +287,12 @@ def save_job_extension_view(request):
             title=title,
             company=company,
             description=description,
-            extracted_skills=list(skills),
+            extracted_skills=skills,
+            extracted_skills_tiers={
+                'must_have': info.must_have_skills,
+                'nice_to_have': info.nice_to_have_skills,
+            },
+            domain=info.domain,
             application_status='saved' # Straight to Kanban board
         )
         
@@ -397,9 +450,14 @@ def recommended_save(request, rec_id):
         )
         # Skill extraction is best-effort — failures shouldn't block the save.
         try:
-            from .services.skill_extractor import extract_skills
-            job.extracted_skills = extract_skills(rec.description or "") or []
-            job.save(update_fields=['extracted_skills'])
+            info = extract_job_info(rec.description or "")
+            job.extracted_skills = _flat_union(info)
+            job.extracted_skills_tiers = {
+                'must_have': info.must_have_skills,
+                'nice_to_have': info.nice_to_have_skills,
+            }
+            job.domain = info.domain
+            job.save(update_fields=['extracted_skills', 'extracted_skills_tiers', 'domain'])
         except Exception:
             logging.getLogger(__name__).exception("Skill extraction failed for saved rec %s", rec.id)
 

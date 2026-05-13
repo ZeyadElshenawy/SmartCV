@@ -1,26 +1,24 @@
 import re
 import logging
 from profiles.services.llm_engine import get_structured_llm
-from profiles.services.schemas import SkillListResult
+from profiles.services.schemas import JobExtractionResult, SkillListResult
 
 logger = logging.getLogger(__name__)
 
 # Hard denylist for the post-LLM filter. Each entry was an actual hallucination
 # in benchmarks/results/2026-04-25 — the LLM adds them on most senior-ish JDs
 # regardless of whether they appear in the text. We let the prompt try first,
-# then strip these unconditionally if they slipped through.
+# then strip these unconditionally if they slipped through *and* aren't in the
+# JD verbatim. Soft skills that ARE verbatim in the JD (e.g. "leadership
+# skills" or "Excellent communication") are kept — see _filter_skills below.
 _GENERIC_SOFT_SKILL_DENYLIST = {
     "technical leadership",
     "problem solving",
     "problem-solving",
-    "communication",
     "teamwork",
-    "collaboration",
     "code review",
     "pair programming",
     "pairing sessions",
-    "mentorship",
-    "leadership",
 }
 
 # --------------------------------------------------
@@ -102,7 +100,10 @@ SKILL_KB = {
     "Collaboration": ["collaborate", "collaboration", "collaborative"],
     "Communication": ["communicate", "communication", "presentations", "reports"],
     "Problem Solving": ["solve problems", "problem solving", "problem-solving"],
+    "Leadership": ["leadership", "lead a team", "leading teams", "team leadership"],
+    "Mentorship": ["mentorship", "mentoring", "mentor"],
 }
+
 
 def _is_jd_anchored(skill: str, jd_lower: str) -> bool:
     """True if the extracted skill name plausibly appears in the JD text.
@@ -113,8 +114,9 @@ def _is_jd_anchored(skill: str, jd_lower: str) -> bool:
     1. Full skill name appears as a substring of the JD (case-insensitive).
        Catches the easy 90% case ("AWS", "PostgreSQL", "TypeScript").
     2. After stripping common boilerplate suffixes (" pipelines", " API",
-       " workflows", " testing"), the trimmed name appears as a substring.
-       Lets "REST API" match a JD that just says "REST".
+       " workflows", " testing", " skills", " experience"), the trimmed
+       name appears as a substring. Lets "Leadership skills" match
+       "leadership experience".
     3. Every alphabetic word longer than 2 chars in the skill name appears
        in the JD. Catches multi-word canonicalizations like "Tailwind CSS"
        when the JD only says "Tailwind".
@@ -126,7 +128,11 @@ def _is_jd_anchored(skill: str, jd_lower: str) -> bool:
         return False
     if s in jd_lower:
         return True
-    trimmed = re.sub(r"\s+(pipelines?|apis?|workflows?|testing|clients?|sessions?)$", "", s)
+    trimmed = re.sub(
+        r"\s+(pipelines?|apis?|workflows?|testing|clients?|sessions?|skills?|experience)$",
+        "",
+        s,
+    )
     if trimmed and trimmed != s and trimmed in jd_lower:
         return True
     words = [w for w in re.findall(r"[a-z]+", s) if len(w) > 2]
@@ -182,68 +188,242 @@ def _canonicalize_skill(s: str) -> str:
     return _SKILL_CANONICAL_MAP.get(s.strip().lower(), s.strip())
 
 
-def extract_skills(text):
-    if not text:
+# --------------------------------------------------
+# Domain canonicalization
+# --------------------------------------------------
+# LLM emits free-text domain ("Banking", "FinTech", "financial sector"); we
+# collapse common variants to one canonical surface form so downstream callers
+# (RAG region facet, analytics) see "Financial Services" no matter what the JD
+# wording was. Free-text passthrough (title-cased) for anything unmapped.
+_DOMAIN_ALIAS_MAP = {
+    "banking": "Financial Services",
+    "bank": "Financial Services",
+    "banks": "Financial Services",
+    "finance": "Financial Services",
+    "financial": "Financial Services",
+    "financial services": "Financial Services",
+    "financial sector": "Financial Services",
+    "fintech": "Financial Services",
+    "insurance": "Financial Services",
+    "healthcare": "Healthcare",
+    "health care": "Healthcare",
+    "medical": "Healthcare",
+    "pharma": "Healthcare",
+    "pharmaceutical": "Healthcare",
+    "biotech": "Healthcare",
+    "ecommerce": "E-commerce",
+    "e-commerce": "E-commerce",
+    "retail": "E-commerce",
+    "marketplace": "E-commerce",
+    "saas": "SaaS",
+    "b2b saas": "SaaS",
+    "gaming": "Gaming",
+    "games": "Gaming",
+    "game development": "Gaming",
+    "edtech": "Education",
+    "education": "Education",
+    "education technology": "Education",
+    "government": "Government",
+    "public sector": "Government",
+    "telecom": "Telecommunications",
+    "telecommunications": "Telecommunications",
+    "manufacturing": "Manufacturing",
+    "energy": "Energy",
+    "oil and gas": "Energy",
+    "media": "Media",
+    "entertainment": "Media",
+    "advertising": "Media",
+    "logistics": "Logistics",
+    "supply chain": "Logistics",
+    "real estate": "Real Estate",
+    "proptech": "Real Estate",
+}
+
+
+def _canonicalize_domain(raw: str) -> str:
+    """Map LLM-emitted domain string to a canonical industry label.
+
+    Lowercases + strips, looks up in _DOMAIN_ALIAS_MAP. Falls through to
+    title-cased free text when no alias matches. Returns "" for empty input.
+    """
+    if not raw or not raw.strip():
+        return ""
+    key = raw.strip().lower()
+    if key in _DOMAIN_ALIAS_MAP:
+        return _DOMAIN_ALIAS_MAP[key]
+    # Try single-token fallbacks: "Financial Services & Banking" or
+    # "Banking and Insurance" → first matched token wins.
+    for token in re.split(r"\s*(?:&|/|,|\band\b)\s*", key):
+        token = token.strip()
+        if token in _DOMAIN_ALIAS_MAP:
+            return _DOMAIN_ALIAS_MAP[token]
+    # Unknown — return title-cased free text so downstream displays cleanly.
+    return raw.strip().title()
+
+
+# --------------------------------------------------
+# Filtering helpers (shared between both lists)
+# --------------------------------------------------
+
+def _filter_skills(raw: list[str] | None, jd_lower: str) -> list[str]:
+    """Three-pass post-filter: denylist drop (unless verbatim) → JD anchoring
+    (against raw OR canonical form) → canonicalize + dedupe. Used for both
+    must_have and nice_to_have lists.
+
+    Anchoring against the canonical form catches the alias-mismatch case
+    where the LLM emits "k8s" but the JD says "Kubernetes" (the bare "k8s"
+    string never appears verbatim — anchoring would reject it without this
+    cross-check).
+
+    Soft skills like 'Leadership' or 'Communication' are NOT denylisted at
+    all — they survive as long as they JD-anchor. The denylist is reserved
+    for patterns the LLM hallucinates with no anchor at all (e.g. "Technical
+    Leadership" on a JD that never mentions leadership).
+    """
+    if not raw:
         return []
+    canonical: list[str] = []
+    seen: set[str] = set()
+    for s in raw:
+        if not s:
+            continue
+        sl = s.lower().strip()
+        if sl in _GENERIC_SOFT_SKILL_DENYLIST and sl not in jd_lower:
+            logger.debug("skill_extractor: dropped denylisted '%s' (not in JD text)", s)
+            continue
+        c = _canonicalize_skill(s)
+        # Anchor against EITHER the raw form OR the canonical form. Catches
+        # alias cases where the JD uses the canonical spelling but the LLM
+        # emitted the alias (or vice versa).
+        if not (_is_jd_anchored(s, jd_lower) or _is_jd_anchored(c, jd_lower)):
+            logger.debug("skill_extractor: dropped unanchored '%s' (no substring or word match in JD)", s)
+            continue
+        key = c.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        canonical.append(c)
+    return canonical
 
-    prompt = f"""You are an expert AI recruiter system.
-Extract key professional skills, tools, frameworks, programming languages, and technologies from the following job description text.
 
-Guidelines:
-1. Extract ONLY technical skills, tools, frameworks, languages, platforms, and named technologies.
-2. Try to map extracted skills to canonical names if appropriate (e.g. "aws" -> "AWS", "gen ai" -> "Generative AI", "k8s" -> "Kubernetes").
-3. Return unique skill names.
+_EXTRACTION_PROMPT = """You are an expert AI recruiter system.
 
-=== STRICT ANTI-HALLUCINATION RULES (CRITICAL) ===
-- Only list skills explicitly mentioned in the job description text. Do not invent skills.
-- A skill is "explicitly mentioned" only if its name (or a well-known alias) appears verbatim in the text.
-- DO NOT include generic soft skills. The following are BANNED unless the exact phrase appears verbatim in the JD:
-  Technical Leadership, Problem Solving, Communication, Teamwork, Collaboration,
-  Code Review, Pair Programming, Pairing Sessions, Mentorship, Leadership.
-- DO NOT infer skills from job seniority, company type, or industry. If it isn't in the text, do not list it.
+Your job is to read a job description and produce THREE outputs:
+
+  1. must_have_skills  - technical skills the JD lists as REQUIRED. Cues to
+                         look for: "Required Skills", "Must-have", "You must
+                         have", "Responsibilities", "What you'll do",
+                         "Qualifications", or skills mentioned in bullet
+                         points without a "nice-to-have" qualifier.
+  2. nice_to_have_skills - technical skills the JD lists as DESIRABLE / OPTIONAL.
+                         Cues: "Nice to have", "Desirable Skills", "Bonus",
+                         "Plus", "Preferred", "Good to have", "is a plus".
+  3. domain            - a short noun phrase (1-3 words) naming the INDUSTRY
+                         this role serves, inferred from the company
+                         description and responsibilities. Examples:
+                         "Financial Services", "Healthcare", "E-commerce",
+                         "Gaming", "Telecommunications". If the JD gives no
+                         clear domain signal, return an empty string.
+
+=== WHAT COUNTS AS A SKILL ===
+- Technical skills, tools, frameworks, languages, platforms, named technologies.
+- Soft skills that are EXPLICITLY MENTIONED in the JD with a clear phrase:
+    "leadership experience", "leadership skills", "team leadership" -> Leadership
+    "Excellent communication", "communication skills" -> Communication
+    "mentorship", "mentoring junior engineers" -> Mentorship
+    "collaboration with stakeholders" -> Collaboration
+  Include them when the JD names them; OMIT them when the JD doesn't.
+
+=== ANTI-HALLUCINATION RULES (CRITICAL) ===
+- Every output skill must have its name (or a well-known alias) appear
+  somewhere in the JD text. Aliases: "k8s" -> Kubernetes, "gen ai" ->
+  Generative AI, "ml" -> Machine Learning, etc.
+- DO NOT infer skills from job seniority, company size, or industry alone.
+  If "Python" is not in the text, do not list Python.
+- DO NOT invent generic soft skills the JD never mentions (no "Problem
+  Solving" / "Teamwork" / "Pair Programming" unless verbatim).
+- It is OK to return an empty list for either tier when the JD doesn't
+  use that structure. An empty must_have_skills is unusual; an empty
+  nice_to_have_skills is common for short JDs.
+
+=== TIER ASSIGNMENT RULES ===
+- A skill that appears in BOTH required and desirable sections goes in
+  must_have_skills (the stronger signal wins).
+- A skill mentioned only in the company blurb (e.g. "we leverage AI to
+  serve customers") is must_have only if it's also in the responsibilities;
+  otherwise it goes in nice_to_have.
+
+=== DOMAIN INFERENCE ===
+- Read the company description (often the first paragraph) and the
+  responsibilities. What industry does this role serve?
+- Examples of good answers: "Financial Services" (bank, fintech, insurance),
+  "Healthcare" (hospital, medtech, pharma), "Gaming" (game studio),
+  "E-commerce" (retail, marketplace), "Government" (public sector).
+- One short noun phrase. NOT a sentence. NOT a list. Empty string when no
+  signal.
 
 Job Description Text to analyze:
-{text}"""
+{text}
+"""
+
+
+def extract_job_info(text: str) -> JobExtractionResult:
+    """Single-call LLM extractor producing tiered skills + domain.
+
+    Returns an empty JobExtractionResult on empty input or LLM failure -
+    callers should treat that as "no signal" rather than an error.
+    """
+    if not text:
+        return JobExtractionResult()
+
+    prompt = _EXTRACTION_PROMPT.format(text=text)
 
     try:
-        structured_llm = get_structured_llm(SkillListResult, temperature=0.0, max_tokens=512, task="skill_extractor")
+        structured_llm = get_structured_llm(
+            JobExtractionResult,
+            temperature=0.0,
+            max_tokens=768,
+            task="skill_extractor",
+        )
         result = structured_llm.invoke(prompt)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Failed to extract job info: %s", exc)
+        return JobExtractionResult()
 
-        if not result or not result.skills:
-            return []
+    if not result:
+        return JobExtractionResult()
 
-        # Defense in depth: even with the prompt rules above, the LLM occasionally
-        # adds the banned soft skills on senior JDs. Strip them unconditionally
-        # unless they appear verbatim in the JD text. Then drop anything that
-        # fails JD-substring anchoring.
-        text_lower = text.lower()
-        out: list[str] = []
-        for s in result.skills:
-            if not s:
-                continue
-            sl = s.lower().strip()
-            if sl in _GENERIC_SOFT_SKILL_DENYLIST and sl not in text_lower:
-                logger.debug("skill_extractor: dropped denylisted '%s' (not in JD text)", s)
-                continue
-            if not _is_jd_anchored(s, text_lower):
-                logger.debug("skill_extractor: dropped unanchored '%s' (no substring or word match in JD)", s)
-                continue
-            out.append(s)
+    jd_lower = text.lower()
+    must = _filter_skills(result.must_have_skills, jd_lower)
+    nice = _filter_skills(result.nice_to_have_skills, jd_lower)
 
-        # Canonicalize and dedupe: 'REST' / 'RESTful API' / 'REST APIs' all collapse
-        # to 'REST API'. Without this, downstream gap analysis sees them as distinct
-        # skills, and the eval's 0.85 fuzzy matcher misses short prefix variants.
-        canonical: list[str] = []
-        seen: set[str] = set()
-        for s in out:
-            c = _canonicalize_skill(s)
-            key = c.lower()
-            if key in seen:
-                continue
-            seen.add(key)
-            canonical.append(c)
-        return canonical
+    # Cross-tier dedupe: if a skill landed in both lists somehow (the LLM
+    # sometimes echoes both sides), keep it in must_have only.
+    must_keys = {s.lower() for s in must}
+    nice = [s for s in nice if s.lower() not in must_keys]
 
-    except Exception as e:
-        logger.error(f"Failed to extract skills: {e}")
-        return []
+    domain = _canonicalize_domain(result.domain or "")
+    return JobExtractionResult(
+        must_have_skills=must,
+        nice_to_have_skills=nice,
+        domain=domain,
+    )
+
+
+def extract_skills(text: str) -> list[str]:
+    """Backward-compat shim: returns the flat union of must_have + nice_to_have.
+
+    Existing callers (benchmarks/skill_extractor_eval, gap analyzer, etc.)
+    keep working without change. Order: must_have first, then nice_to_have,
+    deduped while preserving first-seen order.
+    """
+    info = extract_job_info(text)
+    seen: set[str] = set()
+    flat: list[str] = []
+    for s in info.must_have_skills + info.nice_to_have_skills:
+        key = s.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        flat.append(s)
+    return flat
