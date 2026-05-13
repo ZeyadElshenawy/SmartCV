@@ -255,6 +255,41 @@ def _build_evidence_context(profile, job, gap_analysis) -> str:
     return "\n\n".join(sections)
 
 
+def _build_standards_section(profile, job) -> str:
+    """Return the RAG STANDARDS prompt block, or "" when RAG is disabled
+    or retrieval fails.
+
+    Lazily imports the retrieval modules so a settings.RAG_ENABLED=False
+    environment doesn't pay the import cost (sentence-transformers is heavy).
+    Any exception inside the retrieval path is logged and swallowed —
+    resume generation must keep working even if the index is empty or the
+    embedding model fails to load.
+    """
+    from django.conf import settings as dj_settings
+    if not getattr(dj_settings, "RAG_ENABLED", False):
+        return ""
+
+    try:
+        from profiles.services.role_classifier import classify_for_jd
+        from profiles.services.knowledge_retriever import (
+            retrieve_chunks, format_standards_block,
+        )
+
+        profile_dict = (getattr(profile, "data_content", None) or {})
+        jd_text = (getattr(job, "description", "") or "")
+        classification = classify_for_jd(profile_dict, jd_text)
+        chunks = retrieve_chunks(
+            jd_text,
+            classification,
+            k=int(getattr(dj_settings, "RAG_TOP_K", 6)),
+            universal_share=int(getattr(dj_settings, "RAG_UNIVERSAL_SHARE", 3)),
+        )
+        return format_standards_block(chunks)
+    except Exception as exc:  # noqa: BLE001 — retrieval failure must not break resume gen
+        logger.warning("RAG retrieval failed (%s); falling back to no-standards prompt.", exc)
+        return ""
+
+
 def generate_resume_content(profile, job, gap_analysis):
     """
     Generate a PROFESSIONAL, ATS-optimized tailored resume using LangChain
@@ -299,9 +334,12 @@ def generate_resume_content(profile, job, gap_analysis):
     domain = _detect_job_domain(job)
     domain_section = _domain_prompt_section(domain)
     evidence_context = _build_evidence_context(profile, job, gap_analysis)
+    # RAG: retrieve KB chunks + format as STANDARDS block (empty when disabled
+    # or when retrieval errors out — failure must not break resume generation).
+    standards_section = _build_standards_section(profile, job)
     logger.info(
-        "Resume generation: domain='%s' for job '%s'; evidence_block_len=%d",
-        domain, job.title, len(evidence_context),
+        "Resume generation: domain='%s' for job '%s'; evidence_block_len=%d standards_block_len=%d",
+        domain, job.title, len(evidence_context), len(standards_section),
     )
 
     prompt = f"""You are an EXPERT resume optimization strategist. Create a PROFESSIONAL, ATS-optimized resume tailored for this specific job using EVERY source provided.
@@ -407,6 +445,8 @@ This is the difference between a tailored resume and a hallucinated one. Restruc
 3. CRITICAL: ONLY mirror themes genuinely supported by existing experience.
 
 {domain_section}
+
+{standards_section}
 
 Make it PROFESSIONAL and ATS-OPTIMIZED.
 
