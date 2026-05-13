@@ -172,36 +172,26 @@ def review_extracted_job(request, job_id):
     job = get_object_or_404(Job, id=job_id, user=request.user)
     
     if request.method == 'POST':
-        # Update job with user-confirmed/edited data
+        # Update job with user-confirmed/edited data.
+        # Title / company / description edits are saved verbatim; we do NOT
+        # re-run skill extraction here. The whitespace-comparison bug used to
+        # fire the LLM unconditionally on every confirm, costing ~2s + a Groq
+        # call and frequently returning a different (non-deterministic) tier
+        # split than what the user just reviewed. If a user needs a different
+        # extraction, they can resubmit the URL or paste a fresh description
+        # from the input page.
         new_title = request.POST.get('title', job.title).strip()
         new_company = request.POST.get('company', job.company).strip()
         new_description = request.POST.get('description', job.description).strip()
-        
-        # Check if description was changed — re-extract skills if so
-        description_changed = new_description != job.description
-        
+        description_changed = (new_description.strip() != (job.description or '').strip())
+
         job.title = new_title
         job.company = new_company
         job.description = new_description
-        
         if description_changed:
+            # Stale vector — drop it so the next embedding pass regenerates.
             _bust_job_embedding(job)
-            try:
-                info = extract_job_info(new_description)
-                job.extracted_skills = _flat_union(info)
-                job.extracted_skills_tiers = {
-                    'must_have': info.must_have_skills,
-                    'nice_to_have': info.nice_to_have_skills,
-                }
-                job.domain = info.domain
-                logger.info(
-                    "Re-extracted %d skills (must=%d nice=%d domain=%r) after description edit",
-                    len(job.extracted_skills), len(info.must_have_skills),
-                    len(info.nice_to_have_skills), info.domain,
-                )
-            except Exception as e:
-                logger.warning("Skill re-extraction failed: %s", e)
-        
+
         job.save()
         logger.info("Job %s confirmed by user: %s at %s", job.id, job.title, job.company)
         
