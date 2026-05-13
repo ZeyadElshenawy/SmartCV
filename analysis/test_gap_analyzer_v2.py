@@ -33,6 +33,41 @@ from profiles.services.schemas import (
 
 # ---------- Pydantic constraints ----------
 
+class TestStringCoercion(SimpleTestCase):
+    """The LLM sometimes returns null for evidence_source / evidence_quote
+    (when no specific source applies) and sometimes returns over-length
+    quotes. Both used to crash the Groq tool-call validator. Schema now
+    coerces null → "" and truncates to 140 chars in Pydantic."""
+
+    def test_matched_skill_accepts_null_evidence_fields(self):
+        m = MatchedSkill(name="R", evidence_source=None, evidence_quote=None)
+        self.assertEqual(m.evidence_source, "")
+        self.assertEqual(m.evidence_quote, "")
+
+    def test_matched_skill_truncates_long_quote(self):
+        long_quote = "x" * 200
+        m = MatchedSkill(name="Y", evidence_quote=long_quote)
+        self.assertEqual(len(m.evidence_quote), 140)
+
+    def test_missing_skill_accepts_null_source_quote(self):
+        m = MissingSkill(name="Z", source_quote=None, proximity_reason=None, proximity=0.2)
+        self.assertEqual(m.source_quote, "")
+        self.assertEqual(m.proximity_reason, "")
+
+    def test_missing_skill_truncates_long_reason(self):
+        long = "y" * 200
+        m = MissingSkill(name="W", proximity_reason=long, proximity=0.5)
+        self.assertEqual(len(m.proximity_reason), 140)
+
+    def test_bridge_hint_null_stays_null(self):
+        m = MissingSkill(name="A", bridge_hint=None, proximity=0.3)
+        self.assertIsNone(m.bridge_hint)
+
+    def test_bridge_hint_empty_string_becomes_null(self):
+        m = MissingSkill(name="A", bridge_hint="", proximity=0.3)
+        self.assertIsNone(m.bridge_hint)
+
+
 class TestProximityValidator(SimpleTestCase):
     def test_proximity_exactly_one_rejected(self):
         with self.assertRaises(ValidationError) as ctx:
@@ -151,6 +186,67 @@ class TestAvgProximity(SimpleTestCase):
 
 
 # ---------- Phase 2 reconciliation ----------
+
+class TestEvidencelessDemotion(SimpleTestCase):
+    """An LLM-produced matched_* entry with empty evidence_quote should be
+    demoted to missing_* with proximity 0.0 — see Pharco regression."""
+
+    def _run_demote(self, result):
+        from analysis.services.gap_analyzer import _demote_evidenceless_matches
+        return _demote_evidenceless_matches(result)
+
+    def test_empty_evidence_quote_demotes(self):
+        result = TieredGapAnalysisResult(
+            matched_must_have=[
+                MatchedSkill(name="Python", evidence_quote="Python in 3 projects"),
+                MatchedSkill(name="Hadoop", evidence_quote=""),
+            ],
+        )
+        out = self._run_demote(result)
+        self.assertEqual([m.name for m in out.matched_must_have], ["Python"])
+        self.assertEqual([m.name for m in out.missing_must_have], ["Hadoop"])
+        self.assertEqual(out.missing_must_have[0].proximity, 0.0)
+        self.assertIn("without specific evidence", out.missing_must_have[0].proximity_reason)
+
+    def test_whitespace_only_evidence_demotes(self):
+        result = TieredGapAnalysisResult(
+            matched_must_have=[MatchedSkill(name="R", evidence_quote="   ")],
+        )
+        out = self._run_demote(result)
+        self.assertEqual(out.matched_must_have, [])
+        self.assertEqual([m.name for m in out.missing_must_have], ["R"])
+
+    def test_evidence_present_stays_matched(self):
+        result = TieredGapAnalysisResult(
+            matched_must_have=[MatchedSkill(name="Python", evidence_quote="In skills list")],
+        )
+        out = self._run_demote(result)
+        self.assertEqual([m.name for m in out.matched_must_have], ["Python"])
+        self.assertEqual(out.missing_must_have, [])
+
+    def test_demote_skips_when_skill_already_in_missing(self):
+        # Pharco regression: LLM put Hadoop in BOTH matched (no evidence) and
+        # missing (proximity 0.2). We should drop the matched entry without
+        # adding a duplicate 0.0 to missing.
+        result = TieredGapAnalysisResult(
+            matched_must_have=[MatchedSkill(name="Hadoop", evidence_quote="")],
+            missing_must_have=[MissingSkill(name="Hadoop", proximity=0.2,
+                                            proximity_reason="Some PySpark exposure")],
+        )
+        out = self._run_demote(result)
+        self.assertEqual(out.matched_must_have, [])
+        self.assertEqual(len(out.missing_must_have), 1)
+        self.assertEqual(out.missing_must_have[0].proximity, 0.2)
+        self.assertIn("PySpark", out.missing_must_have[0].proximity_reason)
+
+    def test_demote_works_for_nice_tier_too(self):
+        result = TieredGapAnalysisResult(
+            matched_nice_to_have=[MatchedSkill(name="MLflow", evidence_quote="")],
+        )
+        out = self._run_demote(result)
+        self.assertEqual(out.matched_nice_to_have, [])
+        self.assertEqual([m.name for m in out.missing_nice_to_have], ["MLflow"])
+
 
 class TestReconciliation(SimpleTestCase):
 

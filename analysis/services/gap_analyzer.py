@@ -430,15 +430,34 @@ A skill is MATCHED if the candidate demonstrates it ANYWHERE in their profile:
 
 For each matched skill: pick ONE evidence_source from {{'skills', 'experience',
 'projects', 'certifications', 'github', 'scholar', 'kaggle', 'education',
-'multiple'}}. Provide a ≤140-char evidence_quote that proves the match.
+'multiple'}}. Provide an evidence_quote (≤140 characters total — KEEP IT
+SHORT, the schema TRUNCATES anything longer).
+
+HARD RULE — every matched_* entry MUST have a non-empty evidence_quote
+pointing at something in the profile. If you cannot point at a specific
+phrase, the skill is NOT matched: put it in missing_* with a proximity
+score that reflects how close the candidate is. An empty evidence_quote
+on a matched_* entry will be automatically demoted to missing_* with
+proximity 0.0 — don't waste the slot.
 
 RULE 2 — DIRECTIONAL SPECIFICITY:
 - BROAD JD (e.g. "SQL", "Cloud") + SPECIFIC CV (e.g. "MySQL", "AWS") = MATCH
 - SPECIFIC JD (e.g. "Tableau") + BROAD CV ("Data Viz") = NOT a match
 
 RULE 3 — NO DUPLICATES, EXACT SPELLING:
-- Each JD skill appears in EXACTLY ONE list. Never both matched_* and missing_*.
+- Each JD skill appears in EXACTLY ONE list. NEVER place a skill in BOTH
+  matched_must_have AND missing_must_have. If you list it as matched, do
+  NOT also list it as missing. Pick one.
 - Use the exact spelling from the JD list (case-insensitive equality).
+
+RULE 3b — STRING LENGTH LIMITS (HARD — schema will reject longer):
+- evidence_quote:    ≤140 characters
+- source_quote:      ≤140 characters
+- proximity_reason:  ≤120 characters
+- bridge_hint:       ≤140 characters
+- Use the EMPTY STRING "" if no value applies, NOT null/None. The only
+  field that may be null is bridge_hint (omit it when you have no
+  concrete suggestion).
 
 RULE 4 — TIER FIDELITY:
 - A must-have stays in matched_must_have OR missing_must_have. Never crossover
@@ -472,23 +491,53 @@ Return ONLY the structured JSON via the provided function. No preamble.
     try:
         result = _invoke(base_prompt)
     except Exception as exc:
-        # Most common failure mode: the proximity<1.0 validator rejected the
-        # LLM's response. Retry ONCE with the error appended so the model
-        # learns the constraint and re-routes any 1.0 skills.
-        msg = str(exc).lower()
+        # Two common failure modes — both recoverable with a corrective retry:
+        #   (a) proximity == 1.0 leak (Pydantic-side validator)
+        #   (b) Groq tool-call schema rejection (string too long, null where
+        #       string expected) — Groq enforces some constraints BEFORE
+        #       Pydantic sees the data, so we surface them as one big retry
+        #       hint.
+        # Anything else (network error, Groq downtime) drops to the no-LLM
+        # fallback.
+        raw_msg = str(exc)
+        msg = raw_msg.lower()
         is_proximity = 'proximity' in msg or 'less than 1' in msg
-        if is_proximity:
+        is_schema = any(s in msg for s in (
+            'tool call validation failed', 'tool_use_failed',
+            'expected string, but got null', 'length must be',
+        ))
+        if is_proximity or is_schema:
+            corrections = []
+            if is_proximity:
+                corrections.append(
+                    "- At least one missing skill had proximity == 1.0. Skills "
+                    "at 1.0 belong in matched_*, NOT missing_*. Either re-route "
+                    "that skill into the matched tier with an evidence_quote, "
+                    "or lower its proximity to 0.8 (meaning: exact skill "
+                    "present in CV but thin evidence)."
+                )
+            if is_schema:
+                corrections.append(
+                    "- Schema validation failed. Common causes and fixes:\n"
+                    "    * A string field came back as null. Every required "
+                    "string field (evidence_source, evidence_quote, "
+                    "source_quote, proximity_reason) MUST be a string — use "
+                    "the empty string \"\" instead of null when you have "
+                    "no value. ONLY bridge_hint may be null.\n"
+                    "    * A string field exceeded its length limit. "
+                    "evidence_quote / source_quote / bridge_hint are capped "
+                    "at 140 chars; proximity_reason at 120. SHORTEN them — "
+                    "do not over-explain."
+                )
             retry_prompt = base_prompt + (
                 "\n\n=== PRIOR ATTEMPT FAILED ===\n"
-                "Your last response was rejected because at least one missing "
-                "skill had proximity == 1.0. Skills at 1.0 belong in matched_*, "
-                "NOT missing_*. Either re-route that skill into the matched "
-                "tier with an evidence_quote, or lower its proximity to 0.8 "
-                "(meaning: exact skill present in CV but thin evidence).\n"
+                + "\n".join(corrections) +
+                "\nReturn a valid response that fixes the above and obeys "
+                "ALL other rules from this prompt.\n"
             )
             try:
                 result = _invoke(retry_prompt, attempt_label='retry')
-                logger.info("Gap analyzer recovered from proximity=1.0 on retry")
+                logger.info("Gap analyzer recovered on retry (was: %s)", raw_msg[:200])
             except Exception as exc2:
                 logger.error("Gap analyzer retry also failed: %s", exc2)
                 return _fallback_gap_analysis(profile, job, must_skills, nice_skills)
@@ -496,7 +545,16 @@ Return ONLY the structured JSON via the provided function. No preamble.
             logger.error("LLM gap analysis failed: %s. Falling back to fuzzy set match.", exc)
             return _fallback_gap_analysis(profile, job, must_skills, nice_skills)
 
-    # ---- Phase 2: Tier-aware reconciliation ----
+    # ---- Phase 2a: Honesty enforcement (demote evidence-less "matches") ----
+    # The LLM sometimes lists a JD skill as matched even when it can't quote
+    # any supporting evidence — the Pharco/LSEG bug. Defensible only when the
+    # skill genuinely is present and the LLM just couldn't find a tight quote,
+    # but in practice it's hallucination. Treat empty evidence as
+    # "actually missing" with proximity 0.0 — Phase 2b reconciliation then
+    # carries it forward into the correct missing tier.
+    result = _demote_evidenceless_matches(result)
+
+    # ---- Phase 2b: Tier-aware reconciliation ----
     result = _reconcile_tier(result, must_skills, nice_skills)
 
     score = compute_match_score(
@@ -527,6 +585,71 @@ Return ONLY the structured JSON via the provided function. No preamble.
         'seniority_mismatch':   None,
         'analysis_method':      'llm_v2',
     }
+
+
+def _demote_evidenceless_matches(result):
+    """Demote matched skills with empty evidence_quote into missing_* with
+    proximity 0.0. An honest match must point at SOMETHING in the profile;
+    if the LLM can't quote anything, the skill is more honestly described as
+    "we don't know the candidate has this".
+
+    The LLM sometimes also emits the same skill in BOTH matched_* and
+    missing_* lists (Pharco regression: 'Hadoop' appeared in matched_must_have
+    with empty evidence AND in missing_must_have with real proximity). In
+    that case we just drop the matched entry — the missing entry already
+    captures the right truth, no need to add a synthetic 0.0 duplicate.
+    """
+    def _ev_empty(m):
+        return not (getattr(m, 'evidence_quote', '') or '').strip()
+
+    def _norm(s): return (s or '').lower().strip()
+
+    existing_missing_must = {_norm(m.name) for m in result.missing_must_have}
+    existing_missing_nice = {_norm(m.name) for m in result.missing_nice_to_have}
+
+    real_must, demoted_must = [], []
+    for m in result.matched_must_have:
+        if _ev_empty(m):
+            if _norm(m.name) in existing_missing_must:
+                logger.info("Dropped duplicate evidence-less match '%s' (already in missing_must_have)", m.name)
+                continue
+            demoted_must.append(MissingSkill(
+                name=m.name, source_quote='', proximity=0.0,
+                proximity_reason='LLM marked matched without specific evidence',
+                bridge_hint=None,
+            ))
+        else:
+            real_must.append(m)
+
+    real_nice, demoted_nice = [], []
+    for m in result.matched_nice_to_have:
+        if _ev_empty(m):
+            if _norm(m.name) in existing_missing_nice:
+                logger.info("Dropped duplicate evidence-less match '%s' (already in missing_nice_to_have)", m.name)
+                continue
+            demoted_nice.append(MissingSkill(
+                name=m.name, source_quote='', proximity=0.0,
+                proximity_reason='LLM marked matched without specific evidence',
+                bridge_hint=None,
+            ))
+        else:
+            real_nice.append(m)
+
+    if demoted_must or demoted_nice:
+        logger.info(
+            "Demoted %d evidence-less matched skill(s) → missing (must=%s nice=%s)",
+            len(demoted_must) + len(demoted_nice),
+            [m.name for m in demoted_must],
+            [m.name for m in demoted_nice],
+        )
+
+    return TieredGapAnalysisResult(
+        matched_must_have=real_must,
+        matched_nice_to_have=real_nice,
+        missing_must_have=list(result.missing_must_have) + demoted_must,
+        missing_nice_to_have=list(result.missing_nice_to_have) + demoted_nice,
+        soft_skill_gaps=list(result.soft_skill_gaps or []),
+    )
 
 
 def _reconcile_tier(result, must_skills: list, nice_skills: list):

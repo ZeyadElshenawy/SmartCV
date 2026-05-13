@@ -120,23 +120,40 @@ class GapAnalysisResult(BaseModel):
 class MatchedSkill(BaseModel):
     """A JD-required skill the candidate clearly has.
 
-    The evidence_quote is the verbatim phrase from the profile that proves it
-    (≤140 chars) — surfaced in the chip's hover tooltip on the gap page.
+    The evidence_quote is the verbatim phrase from the profile that proves
+    it — surfaced in the chip's hover tooltip on the gap page. String
+    fields use Optional + field_validator coercion (rather than max_length=N
+    on Field) because Groq's tool-call API enforces max_length BEFORE
+    Pydantic gets the response — a 153-char quote there breaks the whole
+    structured call. We accept whatever the LLM emits, coerce null → "",
+    and truncate in Python.
     """
     name: str = Field(description="Skill name, copied verbatim from the JD's tier list.")
-    evidence_source: str = Field(
-        default="skills",
+    evidence_source: Optional[str] = Field(
+        default="",
         description=(
             "Where the proof was found. One of: 'skills', 'experience', "
             "'projects', 'certifications', 'github', 'scholar', 'kaggle', "
-            "'education', 'multiple'. Pick the strongest single source."
+            "'education', 'multiple'. Empty string when no single source "
+            "stands out. Pick the strongest single source when possible."
         ),
     )
-    evidence_quote: str = Field(
+    evidence_quote: Optional[str] = Field(
         default="",
-        max_length=140,
-        description="≤140-char verbatim quote from the profile proving the match.",
+        description=(
+            "Short verbatim quote from the profile proving the match. Target "
+            "≤140 chars; longer responses get truncated client-side. Empty "
+            "string when no specific quote applies."
+        ),
     )
+
+    @field_validator("evidence_source", "evidence_quote", mode="before")
+    @classmethod
+    def _coerce_str(cls, v):
+        if v is None:
+            return ""
+        s = str(v).strip()
+        return s[:140]
 
 
 class MissingSkill(BaseModel):
@@ -147,12 +164,18 @@ class MissingSkill(BaseModel):
     matched_*, not missing_*. The Pydantic validator below enforces this; the
     prompt also tells the LLM to obey it, and gap_analyzer retries once when
     a 1.0 leaks through.
+
+    String fields are Optional with `_coerce_str` rather than `max_length`
+    constraints because Groq's tool-call API rejects over-long strings BEFORE
+    Pydantic sees them. Truncation happens in the validator.
     """
     name: str = Field(description="Skill name, copied verbatim from the JD's tier list.")
-    source_quote: str = Field(
+    source_quote: Optional[str] = Field(
         default="",
-        max_length=140,
-        description="≤140-char JD sentence that asked for this skill.",
+        description=(
+            "Short JD sentence that asked for this skill. Target ≤140 chars; "
+            "truncated client-side if longer. Empty string acceptable."
+        ),
     )
     proximity: float = Field(
         default=0.0,
@@ -167,20 +190,39 @@ class MissingSkill(BaseModel):
             "in matched_*."
         ),
     )
-    proximity_reason: str = Field(
+    proximity_reason: Optional[str] = Field(
         default="",
-        max_length=120,
-        description="≤120-char human reason for the proximity score.",
+        description=(
+            "Human reason for the proximity score. Target ≤120 chars; "
+            "truncated client-side if longer."
+        ),
     )
     bridge_hint: Optional[str] = Field(
         default=None,
-        max_length=140,
         description=(
-            "Optional ≤140-char concrete next step the candidate could take "
-            "to close this gap. Omit when you have nothing concrete — do not "
-            "invent generic advice."
+            "Optional concrete next step the candidate could take to close "
+            "this gap. Target ≤140 chars. Omit (use null) when you have "
+            "nothing concrete — do not invent generic advice."
         ),
     )
+
+    @field_validator("source_quote", "proximity_reason", mode="before")
+    @classmethod
+    def _coerce_str_140(cls, v):
+        if v is None:
+            return ""
+        s = str(v).strip()
+        return s[:140]
+
+    @field_validator("bridge_hint", mode="before")
+    @classmethod
+    def _coerce_optional_140(cls, v):
+        if v is None:
+            return None
+        s = str(v).strip()
+        if not s:
+            return None
+        return s[:140]
 
     @field_validator("proximity")
     @classmethod
