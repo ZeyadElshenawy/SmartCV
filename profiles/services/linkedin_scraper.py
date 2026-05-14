@@ -1437,25 +1437,24 @@ def _scrape_detail_sections(
 ) -> None:
     base = _normalize_profile_base(profile_url)
     debug_dump_dir = os.environ.get("LINKEDIN_SCRAPER_DEBUG_DIR")
+    dump_all = bool(os.environ.get("LINKEDIN_SCRAPER_DUMP_ALL"))
     for label, path, parser, attr in _DETAIL_SECTIONS:
         try:
             section_soup = _fetch_soup(driver, base + path, page_wait)
             parsed = parser(section_soup)
             _apply_section_result(result, attr, parsed, label)
             if not parsed:
-                # Log what LinkedIn actually returned so the next failure is
-                # diagnosable without re-running the scraper. WARNING because
-                # zero parsed items always indicates either a real empty
-                # section or selector drift — both worth surfacing.
+                # WARNING because zero parsed items always means either a
+                # real empty section or selector drift — both worth surfacing.
                 logger.warning(_log_zero_section_diagnostic(section_soup, label))
-                if debug_dump_dir:
-                    try:
-                        dump_path = Path(debug_dump_dir) / f"{label}.html"
-                        dump_path.parent.mkdir(parents=True, exist_ok=True)
-                        dump_path.write_text(str(section_soup), encoding="utf-8")
-                        logger.warning("linkedin_scraper: dumped raw HTML to %s", dump_path)
-                    except OSError as exc:
-                        logger.warning("linkedin_scraper: could not write dump: %s", exc)
+            if debug_dump_dir and (dump_all or not parsed):
+                try:
+                    dump_path = Path(debug_dump_dir) / f"{label}.html"
+                    dump_path.parent.mkdir(parents=True, exist_ok=True)
+                    dump_path.write_text(str(section_soup), encoding="utf-8")
+                    logger.warning("linkedin_scraper: dumped raw HTML to %s", dump_path)
+                except OSError as exc:
+                    logger.warning("linkedin_scraper: could not write dump: %s", exc)
         except WebDriverException as exc:
             result.warnings.append(f"Failed to load {path}: {exc}")
 
