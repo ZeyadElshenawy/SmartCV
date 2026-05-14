@@ -44,9 +44,9 @@ class AtsBreakdown(TypedDict):
 
 
 class EvidenceConfidence(TypedDict):
-    score: int                  # 0–3 stars
+    score: int                  # 0–4 stars
     label: str                  # "Strong" / "Moderate" / "Limited" / "Untested"
-    sources: list[str]          # ["github", "scholar", "kaggle"] — only those that contributed
+    sources: list[str]          # ["github", "scholar", "kaggle", "linkedin"] — only those that contributed
     detail: str                 # one-sentence explanation for the UI
 
 
@@ -129,11 +129,14 @@ def compute_evidence_confidence(profile) -> EvidenceConfidence:
     """Rate how well the candidate's profile is corroborated by external signals.
 
     Counts signals that meaningfully exist (non-error, non-trivial):
-    - GitHub: at least 1 public repo
-    - Scholar: at least 1 publication OR any citations
-    - Kaggle:  at least 1 entry in any category
+    - GitHub:   at least 1 public repo
+    - Scholar:  at least 1 publication OR any citations
+    - Kaggle:   at least 1 entry in any category
+    - LinkedIn: a parsed profile URL/username (and no error) — even a
+                link-only connection counts because recruiters can verify
+                identity from the link alone.
 
-    Returns 0–3 confidence with a label + one-sentence detail.
+    Returns 0–4 confidence with a label + one-sentence detail.
     """
     data = getattr(profile, 'data_content', None) or {}
     if not isinstance(data, dict):
@@ -164,13 +167,31 @@ def compute_evidence_confidence(profile) -> EvidenceConfidence:
         if any_activity:
             sources.append('kaggle')
 
+    # LinkedIn — link-only snapshots still produce a profile_url + username.
+    # A fully-scraped snapshot adds name/headline/about/experience. We accept
+    # either as a signal: the recruiter can verify identity from the link, and
+    # an unblocked, error-free LinkedIn entry on the profile is itself meaningful.
+    li = data.get('linkedin_signals') or {}
+    if (
+        isinstance(li, dict)
+        and not li.get('error')
+        and (li.get('profile_url') or li.get('username'))
+    ):
+        sources.append('linkedin')
+
     score = len(sources)
-    label = {0: 'Untested', 1: 'Limited', 2: 'Moderate', 3: 'Strong'}.get(score, 'Untested')
+    # Label bucketing: 1 signal is thin; 2 is corroborated; 3+ is comprehensive.
+    # Keeps backward compat with the prior 3-signal "Strong" assertion in the
+    # ComputeEvidenceConfidenceTests fixture.
+    label = {0: 'Untested', 1: 'Limited', 2: 'Moderate', 3: 'Strong', 4: 'Strong'}.get(score, 'Untested')
+
+    # Pretty display names — `.capitalize()` mangles GitHub/LinkedIn.
+    _DISPLAY = {'github': 'GitHub', 'scholar': 'Scholar', 'kaggle': 'Kaggle', 'linkedin': 'LinkedIn'}
 
     if score == 0:
-        detail = "No external signals connected — connect GitHub, Scholar, or Kaggle to corroborate skills."
+        detail = "No external signals connected — connect GitHub, Scholar, Kaggle, or LinkedIn to corroborate skills."
     else:
-        names = ", ".join(s.capitalize() for s in sources)
+        names = ", ".join(_DISPLAY.get(s, s.capitalize()) for s in sources)
         detail = f"Backed by {names}."
 
     return EvidenceConfidence(

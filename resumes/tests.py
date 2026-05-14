@@ -278,6 +278,33 @@ class ComputeEvidenceConfidenceTests(SimpleTestCase):
         self.assertEqual(out["label"], "Strong")
         self.assertEqual(set(out["sources"]), {"github", "scholar", "kaggle"})
 
+    def test_linkedin_link_only_counts(self):
+        # A parsed handle without scraped rich fields still counts — the
+        # recruiter can verify identity via the URL alone.
+        out = compute_evidence_confidence(self._profile(
+            linkedin_signals={"username": "jane-doe", "profile_url": "https://linkedin.com/in/jane-doe"},
+        ))
+        self.assertEqual(out["score"], 1)
+        self.assertEqual(out["sources"], ["linkedin"])
+
+    def test_linkedin_error_snapshot_skipped(self):
+        out = compute_evidence_confidence(self._profile(
+            linkedin_signals={"error": "blocked", "profile_url": "x"},
+        ))
+        self.assertEqual(out["score"], 0)
+
+    def test_all_four_signals_max_score(self):
+        out = compute_evidence_confidence(self._profile(
+            github_signals={"public_repos": 5},
+            scholar_signals={"total_citations": 100, "top_publications": [{"title": "X"}]},
+            kaggle_signals={"competitions": {"count": 1}, "datasets": {"count": 0},
+                            "notebooks": {"count": 0}, "discussion": {"count": 0}},
+            linkedin_signals={"username": "jane", "profile_url": "https://linkedin.com/in/jane"},
+        ))
+        self.assertEqual(out["score"], 4)
+        self.assertEqual(out["label"], "Strong")
+        self.assertEqual(set(out["sources"]), {"github", "scholar", "kaggle", "linkedin"})
+
 
 from django.test import TestCase
 from django.contrib.auth import get_user_model
