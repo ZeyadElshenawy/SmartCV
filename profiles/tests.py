@@ -853,6 +853,40 @@ class ProjectMergeDedupeTests(SimpleTestCase):
         self.assertTrue(any('star-schema' in b for b in merged['description']))
 
 
+class LinkedinScraperBuilderRetryTests(SimpleTestCase):
+    """Chrome-launch retry around `_construct_with_retry`. The first
+    launch occasionally fails with 'session not created' / 'cannot
+    connect to chrome' — a single retry usually wins, and the test fakes
+    a flaky builder to confirm we don't give up on the first try."""
+
+    def test_transient_error_retries_and_succeeds(self):
+        from profiles.services.linkedin_scraper import _construct_with_retry
+        from selenium.common.exceptions import WebDriverException
+        calls = []
+        def flaky():
+            calls.append(1)
+            if len(calls) == 1:
+                raise WebDriverException(
+                    'session not created: cannot connect to chrome at 127.0.0.1:63645'
+                )
+            return 'driver-ok'
+        result = _construct_with_retry(flaky)
+        self.assertEqual(result, 'driver-ok')
+        self.assertEqual(len(calls), 2)
+
+    def test_non_transient_error_fails_fast(self):
+        from profiles.services.linkedin_scraper import _construct_with_retry
+        from selenium.common.exceptions import WebDriverException
+        calls = []
+        def fatal():
+            calls.append(1)
+            raise WebDriverException('chromedriver binary not found on PATH')
+        with self.assertRaises(WebDriverException):
+            _construct_with_retry(fatal)
+        # Only one attempt — non-transient errors don't get the retry.
+        self.assertEqual(len(calls), 1)
+
+
 class GithubFallbackNoStarBraggingTests(SimpleTestCase):
     """The no-LLM fallback path no longer manufactures star/fork bullets."""
 
