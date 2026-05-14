@@ -618,31 +618,47 @@ def _expand_show_more_buttons(
     entries behind such a button — `<button>` with literal text "Show more"
     and no stable identifier (CSS classes are auto-generated). Repeating
     clicks until the button disappears mirrors how a human would expand
-    the list. Returns True iff anything was clicked.
+    the list. Uses a JS-dispatched click (more reliable than `.click()`
+    under headless Chrome where the button may be intercepted by overlays).
+    Returns True iff anything was clicked.
     """
     clicked_any = False
-    xpath = "//button[normalize-space(.)='Show more']"
-    for _ in range(max_iters):
+    # Case-insensitive XPath match in case LinkedIn ever varies the casing.
+    xpath = (
+        "//button[translate(normalize-space(.), "
+        "'ABCDEFGHIJKLMNOPQRSTUVWXYZ', "
+        "'abcdefghijklmnopqrstuvwxyz') = 'show more']"
+    )
+    for iter_i in range(max_iters):
         try:
             buttons = driver.find_elements(By.XPATH, xpath)
-        except WebDriverException:
+        except WebDriverException as exc:
+            logger.info("expand_show_more: query failed: %s", exc)
             return clicked_any
         if not buttons:
+            logger.info("expand_show_more: no buttons on iter %d", iter_i)
             return clicked_any
+        logger.info(
+            "expand_show_more: iter %d found %d 'Show more' button(s)",
+            iter_i, len(buttons),
+        )
         clicked_this_round = False
         for btn in buttons:
             try:
                 driver.execute_script(
                     "arguments[0].scrollIntoView({block:'center'});", btn,
                 )
-                sleep(0.4)
-                btn.click()
-                sleep(page_wait * 0.6)
+                sleep(0.5)
+                # JS click bypasses overlay interception that Selenium's
+                # native click() often hits in headless mode.
+                driver.execute_script("arguments[0].click();", btn)
+                sleep(max(page_wait * 0.8, 2.0))
                 clicked_any = True
                 clicked_this_round = True
             except (ElementClickInterceptedException,
                     StaleElementReferenceException,
-                    WebDriverException):
+                    WebDriverException) as exc:
+                logger.info("expand_show_more: click failed: %s", exc)
                 continue
         if not clicked_this_round:
             return clicked_any
