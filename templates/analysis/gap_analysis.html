@@ -303,8 +303,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 </p>
             </div>
             {% endif %}
-            {# Four read-only columns visible always. Drag-drop is hidden
-               behind the "Reorganize" disclosure below. #}
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <template x-for="col in columns" :key="col.key">
                     <div class="relative overflow-hidden rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 transition-shadow duration-200"
