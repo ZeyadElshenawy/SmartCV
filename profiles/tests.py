@@ -748,6 +748,78 @@ class LinkedinFallbackTests(SimpleTestCase):
         self.assertEqual(_linkedin_fallback([], 'https://example.com'), [])
 
 
+class UrlClassifierTests(SimpleTestCase):
+    """Smart URL classification for `other_urls` promotion."""
+
+    def test_classifies_common_platforms(self):
+        from profiles.services.url_classifier import classify_url
+        cases = {
+            'https://kaggle.com/zeyadelshenawy': 'kaggle',
+            'https://www.kaggle.com/foo/bar': 'kaggle',
+            'https://www.linkedin.com/in/jane-doe': 'linkedin',
+            'https://uk.linkedin.com/in/jane': 'linkedin',
+            'https://github.com/octocat': 'github',
+            'https://github.com/me/repo': 'github',
+            'https://scholar.google.com/citations?user=ABC123XY': 'scholar',
+            'https://twitter.com/jack': 'twitter',
+            'https://x.com/elonmusk': 'twitter',
+            'https://medium.com/@user': 'medium',
+            'https://janedoe.medium.com/some-post': 'medium',
+            'https://janedoe.hashnode.dev/': 'hashnode',
+            'https://dev.to/janedoe': 'devto',
+            'https://janedoe.substack.com': 'substack',
+        }
+        for url, expected in cases.items():
+            self.assertEqual(classify_url(url), expected, f'failed for {url!r}')
+
+    def test_unknown_urls_return_none(self):
+        from profiles.services.url_classifier import classify_url
+        for url in ('https://example.com', 'https://my-portfolio.vercel.app',
+                    'https://docs.python.org', '', None):
+            self.assertIsNone(classify_url(url))
+
+    def test_promote_known_urls_moves_kaggle_out_of_other_urls(self):
+        # Exact bug the user reported: Kaggle URL stranded in other_urls.
+        from profiles.services.url_classifier import promote_known_urls_into_data
+        data = {
+            'other_urls': ['https://kaggle.com/zeyadelshenawy',
+                           'https://my-portfolio.example.com'],
+        }
+        promotions = promote_known_urls_into_data(data)
+        self.assertEqual(promotions, {'kaggle': 'https://kaggle.com/zeyadelshenawy'})
+        self.assertEqual(data['kaggle_url'], 'https://kaggle.com/zeyadelshenawy')
+        self.assertEqual(data['other_urls'], ['https://my-portfolio.example.com'])
+
+    def test_promote_skips_when_canonical_field_already_set(self):
+        from profiles.services.url_classifier import promote_known_urls_into_data
+        data = {
+            'kaggle_url': 'https://kaggle.com/preset',
+            'other_urls': ['https://kaggle.com/from_cv_parser'],
+        }
+        promotions = promote_known_urls_into_data(data)
+        self.assertNotIn('kaggle', promotions)
+        # The user's typed value wins; the parsed-out URL is preserved in
+        # other_urls so nothing is silently dropped.
+        self.assertEqual(data['kaggle_url'], 'https://kaggle.com/preset')
+        self.assertIn('https://kaggle.com/from_cv_parser', data['other_urls'])
+
+    def test_promote_surfaces_model_field_promotions(self):
+        # linkedin/github don't live in data_content, so promote_known_urls
+        # returns them with a 'model:' prefix in the storage key — the
+        # caller (view) handles the model write. The summary dict returned
+        # by the function still surfaces the hit so the view sees it.
+        from profiles.services.url_classifier import promote_known_urls_into_data
+        data = {'other_urls': ['https://github.com/octocat',
+                               'https://www.linkedin.com/in/octocat']}
+        promotions = promote_known_urls_into_data(data)
+        self.assertEqual(set(promotions.keys()), {'github', 'linkedin'})
+        # Neither URL written into data_content (those go on the model);
+        # both also dropped from other_urls (consumed).
+        self.assertNotIn('github_url', data)
+        self.assertNotIn('linkedin_url', data)
+        self.assertEqual(data['other_urls'], [])
+
+
 class ProjectSortTests(SimpleTestCase):
     """Newest-first sort across mixed date shapes."""
 
