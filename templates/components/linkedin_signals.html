@@ -1,13 +1,7 @@
 {% comment %}
-LinkedIn signals tile. Two display modes driven by the snapshot shape:
-
-- **Link only**: when LINKEDIN_SCRAPING_ENABLED is off OR the scraper failed,
-  the snapshot has just username + profile_url. Card shows the link and a
-  small note explaining why scraping is gated.
-- **Scraped**: when the snapshot has rich fields (name, headline, experience,
-  certifications, projects, featured), the card surfaces a summary of what
-  was pulled. Projects + featured items flow through the enrichment pipeline.
-
+LinkedIn signals tile. Two display modes:
+- Link-only: the snapshot has just username + profile_url.
+- Imported: the snapshot has rich fields and the card surfaces a count summary.
 Required context: `profile`.
 {% endcomment %}
 {{ profile.data_content.linkedin_signals|default:""|json_script:"linkedin-signals-initial" }}
@@ -33,13 +27,9 @@ Required context: `profile`.
 
         <div x-show="!hasData && !editing && !error" x-cloak class="space-y-1.5">
             <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
-                Paste your LinkedIn URL. If scraping is enabled (LINKEDIN_SCRAPING_ENABLED=1),
-                we'll log in headlessly and pull experience, certifications, projects, and
-                featured items — otherwise we just store the link.
-            </p>
-            <p class="text-[11px] text-neutral-400 dark:text-neutral-500 leading-relaxed">
-                <strong class="font-medium text-neutral-600 dark:text-neutral-300">Heads up:</strong>
-                LinkedIn's ToS doesn't love automation. Self-hosted only.
+                Paste your LinkedIn URL. We'll sign in and pull your experience, certifications,
+                projects, skills, volunteering, and featured items. If we can't connect, we'll
+                just save the link.
             </p>
         </div>
 
@@ -53,8 +43,8 @@ Required context: `profile`.
         </form>
 
         <p x-show="loading" x-cloak class="text-[11px] text-neutral-500 dark:text-neutral-400 leading-relaxed">
-            Driving Chrome through LinkedIn login + profile pages — this can take 20-40 seconds.
-            If a verification challenge appears, a visible browser window will open so you can solve it once.
+            Importing your LinkedIn profile. This can take up to a minute. If LinkedIn
+            asks for a security check, a sign-in window will pop up so you can complete it.
         </p>
 
         <div x-show="error" x-cloak class="rounded-lg bg-red-50 dark:bg-red-950/40 ring-1 ring-red-200 dark:ring-red-900 px-3 py-2 text-xs text-red-700 dark:text-red-300">
@@ -91,8 +81,16 @@ Required context: `profile`.
                                 <span class="text-neutral-400 dark:text-neutral-500">certifications</span>
                             </div>
                             <div>
+                                <span x-text="(snapshot.skills || []).length"></span>
+                                <span class="text-neutral-400 dark:text-neutral-500">skills</span>
+                            </div>
+                            <div>
                                 <span x-text="(snapshot.projects || []).length"></span>
                                 <span class="text-neutral-400 dark:text-neutral-500">projects</span>
+                            </div>
+                            <div>
+                                <span x-text="(snapshot.volunteering || []).length"></span>
+                                <span class="text-neutral-400 dark:text-neutral-500">volunteering</span>
                             </div>
                             <div>
                                 <span x-text="(snapshot.featured || []).length"></span>

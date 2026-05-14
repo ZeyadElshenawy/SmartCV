@@ -13,6 +13,7 @@ by the calling view so we don't re-hit the API on every page view.
 """
 from __future__ import annotations
 
+import base64
 import logging
 import os
 import re
@@ -47,7 +48,14 @@ class RepoSnapshot(TypedDict):
     pushed_at: Optional[str]
 
 
-class GithubSnapshot(TypedDict):
+class ProfileReadme(TypedDict, total=False):
+    repo_url: str
+    raw_url: str
+    content: str
+    fetched_at: str
+
+
+class GithubSnapshot(TypedDict, total=False):
     username: str
     profile_url: str
     name: Optional[str]
@@ -62,6 +70,11 @@ class GithubSnapshot(TypedDict):
     recent_commit_count: int  # last 90 days, approximate (capped by events API)
     fetched_at: str  # ISO timestamp
     error: Optional[str]
+    # The GitHub profile-README repo (`{username}/{username}`) is excluded from
+    # `top_repos` so it doesn't pollute the resume's projects list. Its README
+    # body is fetched separately and stored here so downstream consumers (gap
+    # analysis, soft-skills extraction) can still use it as rich context.
+    profile_readme: ProfileReadme
 
 
 def parse_github_username(value: str) -> Optional[str]:
@@ -171,6 +184,17 @@ def fetch_github_snapshot(username_or_url: str, top_n: int = 6) -> GithubSnapsho
 
     total_stars = sum(int(r.get('stargazers_count') or 0) for r in repos)
 
+    # Pull the profile-README repo aside before ranking. GitHub's convention is
+    # `{username}/{username}` — a "special" repo whose README renders at the top
+    # of the user's profile page. It's almost never a real project, so we don't
+    # want it in `top_repos`. We still capture its README body separately as a
+    # rich signal source.
+    profile_readme_repo = next(
+        (r for r in repos if (r.get('name') or '').lower() == username.lower()),
+        None,
+    )
+    repos = [r for r in repos if r is not profile_readme_repo]
+
     # Top N by stars (then by recency as tiebreaker)
     top = sorted(
         repos,
@@ -217,7 +241,7 @@ def fetch_github_snapshot(username_or_url: str, top_n: int = 6) -> GithubSnapsho
             payload = ev.get('payload') or {}
             recent_commits += int(payload.get('size') or 0)
 
-    return GithubSnapshot(
+    snapshot = GithubSnapshot(
         username=username,
         profile_url=f"https://github.com/{username}",
         name=user.get('name'),
@@ -232,4 +256,36 @@ def fetch_github_snapshot(username_or_url: str, top_n: int = 6) -> GithubSnapsho
         recent_commit_count=recent_commits,
         fetched_at=now_iso,
         error=None,
+    )
+
+    if profile_readme_repo is not None:
+        readme = _fetch_profile_readme(session, username)
+        if readme:
+            snapshot['profile_readme'] = readme
+
+    return snapshot
+
+
+def _fetch_profile_readme(session: requests.Session, username: str) -> Optional[ProfileReadme]:
+    """Fetch the markdown body of `{username}/{username}/README.md`.
+
+    Returns None if the repo has no README or the request fails — the caller
+    treats absence as "no rich signal available" without raising.
+    """
+    data = _get(session, f"/repos/{username}/{username}/readme")
+    if not isinstance(data, dict):
+        return None
+    encoded = data.get('content') or ''
+    encoding = data.get('encoding') or 'base64'
+    content = ''
+    if encoded and encoding == 'base64':
+        try:
+            content = base64.b64decode(encoded).decode('utf-8', errors='replace')
+        except (ValueError, TypeError):
+            content = ''
+    return ProfileReadme(
+        repo_url=f"https://github.com/{username}/{username}",
+        raw_url=data.get('download_url') or '',
+        content=content,
+        fetched_at=datetime.now(timezone.utc).isoformat(timespec='seconds'),
     )

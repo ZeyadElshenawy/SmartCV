@@ -62,17 +62,52 @@ logger = logging.getLogger(__name__)
 # Suffixes of the LazyColumn ``componentkey`` for each section's detail page.
 # The full key is shaped like
 # "com.linkedin.sdui.profile.card.ref<profile-urn><Suffix>".
-SECTION_LAZYCOL_SUFFIX = {
-    "experience": "ExperienceDetailsSection",
-    "education": "EducationDetailsSection",
-    "licenses": "CertificationDetailsLevel",
-    "projects": "ProjectsDetails",
-    "courses": "CourseDetailsSection",
-    "honors": "HonorsDetails",
+# Each section's LazyColumn `componentkey` ends with one of these suffixes.
+# LinkedIn rotates these names every few months; tuples let us try multiple
+# known variants without losing the whole section to a single rename.
+SECTION_LAZYCOL_SUFFIX: dict[str, tuple[str, ...]] = {
+    "experience": (
+        "ExperienceDetailsSection",
+        "ExperienceDetails",
+        "PositionDetails",
+        "ProfileExperience",
+    ),
+    "education": (
+        "EducationDetailsSection",
+        "EducationDetails",
+    ),
+    "licenses": (
+        "CertificationDetailsLevel",
+        "CertificationDetails",
+        "LicensesAndCertificationsDetails",
+    ),
+    "projects": (
+        "ProjectsDetails",
+        "ProjectDetails",
+    ),
+    "courses": (
+        "CourseDetailsSection",
+        "CourseDetails",
+    ),
+    "honors": (
+        "HonorsDetails",
+        "HonorsAndAwardsDetails",
+    ),
+    "skills": (
+        "SkillsDetails",
+        "SkillDetails",
+        "SkillsDetailsSection",
+    ),
+    "volunteering": (
+        "VolunteeringExperienceDetails",
+        "VolunteerExperienceDetails",
+        "VolunteeringDetails",
+    ),
 }
 
 # Heading text that LinkedIn puts at the top of each section. Used to skip
-# the heading paragraph when collecting item text.
+# the heading paragraph when collecting item text and as a fallback to locate
+# the section container when the componentkey suffix has drifted.
 SECTION_HEADING_TEXT = {
     "experience": "Experience",
     "education": "Education",
@@ -80,6 +115,8 @@ SECTION_HEADING_TEXT = {
     "projects": "Projects",
     "courses": "Courses",
     "honors": "Honors & awards",
+    "skills": "Skills",
+    "volunteering": "Volunteering",
 }
 
 # Markers that indicate we've walked past the section content into the
@@ -108,6 +145,8 @@ class ScrapeResult:
     courses: list[dict[str, Any]] = field(default_factory=list)
     honors_and_awards: list[str] = field(default_factory=list)
     featured: list[dict[str, Any]] = field(default_factory=list)
+    skills: list[dict[str, Any]] = field(default_factory=list)
+    volunteering: list[dict[str, Any]] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -123,6 +162,8 @@ class ScrapeResult:
             "courses": self.courses,
             "honors_and_awards": self.honors_and_awards,
             "featured": self.featured,
+            "skills": self.skills,
+            "volunteering": self.volunteering,
             "warnings": self.warnings,
         }
 
@@ -614,11 +655,32 @@ def _unwrap_safety_url(url: str) -> str:
 
 
 def _find_section_lazycol(soup: BeautifulSoup, section_key: str) -> Tag | None:
-    suffix = SECTION_LAZYCOL_SUFFIX[section_key]
-    for div in soup.find_all("div", attrs={"data-component-type": "LazyColumn"}):
+    """Locate the LazyColumn for a section.
+
+    Tries each known componentkey suffix; if all miss (LinkedIn has rotated
+    them again), falls back to finding the section's <h2> heading and walking
+    forward to the nearest LazyColumn — which keeps the scraper working for
+    most rename events without needing a hot fix.
+    """
+    suffixes = SECTION_LAZYCOL_SUFFIX[section_key]
+    lazy_cols = soup.find_all("div", attrs={"data-component-type": "LazyColumn"})
+    for div in lazy_cols:
         ck = div.get("componentkey", "")
-        if ck.endswith(suffix):
+        if any(ck.endswith(suffix) for suffix in suffixes):
             return div
+
+    heading_text = SECTION_HEADING_TEXT.get(section_key)
+    if not heading_text:
+        return None
+    h2 = next(
+        (h for h in soup.find_all("h2")
+         if h.get_text(strip=True).lower() == heading_text.lower()),
+        None,
+    )
+    if h2 is None:
+        return None
+    for el in h2.find_all_next("div", attrs={"data-component-type": "LazyColumn"}):
+        return el
     return None
 
 
@@ -943,15 +1005,70 @@ def parse_licenses(soup: BeautifulSoup) -> list[dict[str, Any]]:
     return out
 
 
+# LinkedIn renders an empty-state placeholder ("Projects that <name> adds will
+# appear here.") inside the /projects detail page when the user has no real
+# projects. The parser used to capture that text as a project entry.
+_PROJECT_PLACEHOLDER_RE = re.compile(
+    r"^(?:projects?\s+that\s+.+\s+adds?\s+will\s+appear\s+here|add\s+(?:a\s+)?project)\.?$",
+    re.IGNORECASE,
+)
+
+
 def parse_projects(soup: BeautifulSoup) -> list[dict[str, Any]]:
     """Each item: [project_name, duration, description?]."""
     items = _section_items(soup, "projects")
     out: list[dict[str, Any]] = []
     for texts in items:
+        name = texts[0].strip() if len(texts) > 0 else ""
+        if not name or _PROJECT_PLACEHOLDER_RE.match(name):
+            continue
         out.append({
-            "project_name": texts[0].strip() if len(texts) > 0 else "",
+            "project_name": name,
             "duration": texts[1].strip() if len(texts) > 1 else "",
             "description": texts[2].strip() if len(texts) > 2 else "",
+        })
+    return out
+
+
+def parse_skills(soup: BeautifulSoup) -> list[dict[str, Any]]:
+    """Each item: [skill_name, (one or more endorsement-source lines)?].
+
+    LinkedIn's /details/skills/ page lists each skill once at the top of its
+    block, then nests the supporting certifications / experiences / projects
+    that endorse it underneath. We surface those as `sources` so downstream
+    consumers can show provenance without inflating the skill count.
+    """
+    items = _section_items(soup, "skills")
+    out: list[dict[str, Any]] = []
+    for texts in items:
+        if not texts:
+            continue
+        name = texts[0].strip()
+        if not name:
+            continue
+        sources = [t.strip() for t in texts[1:] if t.strip()]
+        out.append({"name": name, "sources": sources})
+    return out
+
+
+def parse_volunteering(soup: BeautifulSoup) -> list[dict[str, Any]]:
+    """Each item: [role, organization, duration, cause?, description?].
+
+    `cause` is the short tag LinkedIn shows under the dates (e.g.
+    "Environment", "Education"). Anything after that we treat as the free-form
+    description.
+    """
+    items = _section_items(soup, "volunteering")
+    out: list[dict[str, Any]] = []
+    for texts in items:
+        if not texts:
+            continue
+        out.append({
+            "role": texts[0].strip() if len(texts) > 0 else "",
+            "organization": texts[1].strip() if len(texts) > 1 else "",
+            "duration": texts[2].strip() if len(texts) > 2 else "",
+            "cause": texts[3].strip() if len(texts) > 3 else "",
+            "description": " ".join(t.strip() for t in texts[4:]).strip(),
         })
     return out
 
@@ -1095,6 +1212,7 @@ DETAIL_PATHS = [
     ("08_details_honors", "details/honors/"),
     ("09_details_skills", "details/skills/"),
     ("10_details_featured", "details/featured/"),
+    ("11_details_volunteering", "details/volunteering-experiences/"),
 ]
 
 
@@ -1196,6 +1314,8 @@ _DETAIL_SECTIONS = [
     ("courses", "details/courses/", parse_courses, "courses"),
     ("honors", "details/honors/", parse_honors, "honors_and_awards"),
     ("featured", "details/featured/", parse_featured, "featured"),
+    ("skills", "details/skills/", parse_skills, "skills"),
+    ("volunteering", "details/volunteering-experiences/", parse_volunteering, "volunteering"),
 ]
 
 
@@ -1327,7 +1447,9 @@ DUMP_FILE_TO_SECTION = {
     "06_details_projects.html": ("projects", parse_projects),
     "07_details_courses.html": ("courses", parse_courses),
     "08_details_honors.html": ("honors_and_awards", parse_honors),
+    "09_details_skills.html": ("skills", parse_skills),
     "10_details_featured.html": ("featured", parse_featured),
+    "11_details_volunteering.html": ("volunteering", parse_volunteering),
 }
 
 

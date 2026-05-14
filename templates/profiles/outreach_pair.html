@@ -11,7 +11,7 @@
                 Pair your <em class="font-medium text-brand-700 dark:text-brand-400">extension</em>.
             </h1>
             <p class="text-neutral-600 dark:text-neutral-300 leading-relaxed">
-                Paste this token into the SmartCV outreach Chrome extension's options page. The extension uses it to fetch your queued actions — it never holds your SmartCV password or session cookie.
+                Paste this token into the SmartCV outreach companion app's settings. It uses the token to pick up your queued messages — it never sees your SmartCV password or session.
             </p>
         </header>
 
@@ -69,14 +69,14 @@
                        x-data="{ copied: false }"
                        @click="navigator.clipboard.writeText('chrome://extensions'); copied = true; setTimeout(() => copied = false, 1500)"
                        class="relative inline-flex items-center gap-1 font-mono text-[13px] text-brand-700 dark:text-brand-400 hover:text-brand-800 dark:hover:text-brand-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded px-1.5 py-0.5 underline decoration-brand-300 dark:decoration-brand-700 underline-offset-2 transition-colors"
-                       title="Link copied to clipboard — paste into a new Chrome tab (chrome:// can't open from web pages)">
+                       title="Link copied to clipboard — paste it into a new browser tab to open">
                         chrome://extensions
                         <span x-show="copied" x-transition
                               class="absolute left-1/2 -translate-x-1/2 -top-7 whitespace-nowrap text-[10px] uppercase tracking-[0.14em] font-medium text-emerald-700 dark:text-emerald-400 bg-white dark:bg-neutral-900 ring-1 ring-emerald-300 dark:ring-emerald-800 rounded px-2 py-0.5">
                             Copied — paste in a new tab
                         </span>
                     </a>
-                    in Chrome and enable Developer mode.
+                    in your browser and turn on the developer toggle.
                 </li>
                 <li>Click <em class="not-italic font-medium text-neutral-900 dark:text-neutral-100">Load unpacked</em> and pick the extension folder.</li>
                 <li>Open the extension's options page and paste the token above.</li>

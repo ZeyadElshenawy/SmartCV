@@ -461,6 +461,61 @@ class FetchGithubSnapshotTests(SimpleTestCase):
             fetch_github_snapshot('octocat')
         self.assertNotIn('Authorization', captured)
 
+    def test_profile_readme_repo_excluded_from_top_repos(self):
+        # The repo named `{username}/{username}` is GitHub's profile-README
+        # convention. It almost never represents a real project, so the
+        # aggregator filters it out of `top_repos` before ranking.
+        import base64 as _b64
+        repos_payload = [
+            {'name': 'octocat', 'full_name': 'octocat/octocat',
+             'description': 'Profile README', 'html_url': 'https://github.com/octocat/octocat',
+             'stargazers_count': 999, 'forks_count': 0, 'language': 'Markdown',
+             'pushed_at': '2026-05-01T00:00:00Z'},
+            {'name': 'real-project', 'full_name': 'octocat/real-project',
+             'description': 'A real project', 'html_url': 'https://github.com/octocat/real-project',
+             'stargazers_count': 5, 'forks_count': 0, 'language': 'Python',
+             'pushed_at': '2026-04-01T00:00:00Z'},
+        ]
+        readme_payload = {
+            'content': _b64.b64encode(b'# Hi, I am Octo\n').decode('ascii'),
+            'encoding': 'base64',
+            'download_url': 'https://raw.githubusercontent.com/octocat/octocat/main/README.md',
+        }
+        routes = {
+            '/users/octocat/repos': _fake_response(repos_payload),
+            '/users/octocat/events/public': _fake_response([]),
+            '/repos/octocat/octocat/readme': _fake_response(readme_payload),
+            '/users/octocat': _fake_response({'name': 'Octo Cat', 'public_repos': 2,
+                                              'created_at': '2018-01-15T10:00:00Z'}),
+        }
+        with patch('profiles.services.github_aggregator.requests.Session',
+                   return_value=_stub_session(routes)):
+            snap = fetch_github_snapshot('octocat', top_n=6)
+
+        self.assertNotIn('octocat', [r['name'] for r in snap['top_repos']])
+        self.assertEqual([r['name'] for r in snap['top_repos']], ['real-project'])
+        # The README content is captured as a separate signal.
+        self.assertIn('profile_readme', snap)
+        self.assertEqual(snap['profile_readme']['content'], '# Hi, I am Octo\n')
+        self.assertEqual(snap['profile_readme']['repo_url'], 'https://github.com/octocat/octocat')
+
+    def test_profile_readme_absent_when_no_profile_repo(self):
+        repos_payload = [
+            {'name': 'real-project', 'full_name': 'octocat/real-project',
+             'description': 'A real project', 'html_url': 'https://github.com/octocat/real-project',
+             'stargazers_count': 5, 'forks_count': 0, 'language': 'Python',
+             'pushed_at': '2026-04-01T00:00:00Z'},
+        ]
+        routes = {
+            '/users/octocat/repos': _fake_response(repos_payload),
+            '/users/octocat/events/public': _fake_response([]),
+            '/users/octocat': _fake_response({'name': 'Octo'}),
+        }
+        with patch('profiles.services.github_aggregator.requests.Session',
+                   return_value=_stub_session(routes)):
+            snap = fetch_github_snapshot('octocat')
+        self.assertNotIn('profile_readme', snap)
+
 
 
 
@@ -627,14 +682,29 @@ class LinkedinEnrichmentPredicateTests(SimpleTestCase):
         }
         self.assertFalse(_linkedin_has_projectable_content(snap))
 
-    def test_snapshot_with_link_featured_has_projectable_content(self):
+    def test_snapshot_with_only_link_featured_has_no_projectable_content(self):
+        # Featured links live alongside projects on LinkedIn but are not
+        # themselves projects; routing them into the resume's project list
+        # produced bogus "Link: my CV Google Docs" entries.
         from profiles.services.project_enricher import _linkedin_has_projectable_content
         snap = {
             'username': 'jane-doe', 'profile_url': '…',
             'projects': [],
             'featured': [{'kind': 'link', 'title': 'Blog post on X', 'url': 'https://example.com'}],
         }
-        self.assertTrue(_linkedin_has_projectable_content(snap))
+        self.assertFalse(_linkedin_has_projectable_content(snap))
+
+    def test_snapshot_with_only_placeholder_project_has_no_projectable_content(self):
+        # LinkedIn's empty-state placeholder ("Projects that <name> adds will
+        # appear here.") is rendered inside the projects detail page; we
+        # filter it before enrichment.
+        from profiles.services.project_enricher import _linkedin_has_projectable_content
+        snap = {
+            'username': 'jane-doe', 'profile_url': '…',
+            'projects': [{'project_name': 'Projects that Jane adds will appear here.'}],
+            'featured': [],
+        }
+        self.assertFalse(_linkedin_has_projectable_content(snap))
 
     def test_errored_snapshot_has_no_projectable_content(self):
         from profiles.services.project_enricher import _linkedin_has_projectable_content
@@ -657,7 +727,6 @@ class LinkedinFallbackTests(SimpleTestCase):
                  'duration': '2024',
                  'description': 'Built a recommender for music.'},
             ],
-            featured=[],
             profile_url='https://www.linkedin.com/in/jane-doe/',
         )
         self.assertEqual(len(out), 1)
@@ -666,24 +735,103 @@ class LinkedinFallbackTests(SimpleTestCase):
         self.assertEqual(out[0].source_url, 'https://www.linkedin.com/in/jane-doe/')
         self.assertIn('recommender', out[0].summary.lower())
 
-    def test_featured_links_become_enriched_entries(self):
+    def test_featured_items_no_longer_passed_through_fallback(self):
+        # The fallback signature dropped its `featured` parameter — Featured
+        # items live in `linkedin_signals['featured']` only, never as projects.
+        import inspect
         from profiles.services.project_enricher import _linkedin_fallback
-        out = _linkedin_fallback(
-            projects=[],
-            featured=[
-                {'kind': 'document', 'title': 'My Talk Slides',
-                 'url': 'https://example.com/slides.pdf'},
-            ],
-            profile_url='https://www.linkedin.com/in/jane-doe/',
-        )
-        self.assertEqual(len(out), 1)
-        self.assertEqual(out[0].source, 'linkedin')
-        self.assertEqual(out[0].source_url, 'https://example.com/slides.pdf')
-        self.assertIn('document', out[0].summary.lower())
+        params = inspect.signature(_linkedin_fallback).parameters
+        self.assertNotIn('featured', params)
 
     def test_empty_inputs_yield_no_entries(self):
         from profiles.services.project_enricher import _linkedin_fallback
-        self.assertEqual(_linkedin_fallback([], [], 'https://example.com'), [])
+        self.assertEqual(_linkedin_fallback([], 'https://example.com'), [])
+
+
+class LinkedinScraperSectionTests(SimpleTestCase):
+    """Parser-side coverage for sections that don't talk to Selenium.
+
+    Uses minimal LazyColumn fixtures that mirror what LinkedIn's SDUI markup
+    looks like — a `<div data-component-type="LazyColumn" componentkey="…">`
+    whose contents are item fragments separated by `<hr>` tags.
+    """
+
+    @staticmethod
+    def _make_soup(component_key: str, body_html: str):
+        from bs4 import BeautifulSoup
+        html = (
+            f'<div data-component-type="LazyColumn" '
+            f'componentkey="urn:{component_key}">'
+            f'{body_html}'
+            f'</div>'
+        )
+        return BeautifulSoup(html, 'lxml')
+
+    def test_parse_projects_drops_empty_state_placeholder(self):
+        from profiles.services.linkedin_scraper import parse_projects
+        body = (
+            '<p>Projects</p>'
+            '<p>Real Project</p>'
+            '<p>2024</p>'
+            '<p>A description.</p>'
+            '<hr role="presentation">'
+            '<p>Projects that Jane adds will appear here.</p>'
+        )
+        soup = self._make_soup('ProjectsDetails', body)
+        out = parse_projects(soup)
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]['project_name'], 'Real Project')
+
+    def test_parse_skills_emits_skill_name_with_endorsement_sources(self):
+        from profiles.services.linkedin_scraper import parse_skills
+        body = (
+            '<p>Skills</p>'
+            '<p>Python</p>'
+            '<p>Endorsed by 5 colleagues</p>'
+            '<hr role="presentation">'
+            '<p>SQL</p>'
+        )
+        soup = self._make_soup('SkillsDetails', body)
+        out = parse_skills(soup)
+        names = [s['name'] for s in out]
+        self.assertIn('Python', names)
+        self.assertIn('SQL', names)
+        python = next(s for s in out if s['name'] == 'Python')
+        self.assertIn('Endorsed by 5 colleagues', python['sources'])
+
+    def test_parse_volunteering_extracts_role_org_duration_cause(self):
+        from profiles.services.linkedin_scraper import parse_volunteering
+        body = (
+            '<p>Volunteering</p>'
+            '<p>Youth Volunteer</p>'
+            '<p>COP27 - UN Climate Change Conference</p>'
+            '<p>Nov 2022 · 1 mo</p>'
+            '<p>Environment</p>'
+        )
+        soup = self._make_soup('VolunteeringExperienceDetails', body)
+        out = parse_volunteering(soup)
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]['role'], 'Youth Volunteer')
+        self.assertEqual(out[0]['organization'], 'COP27 - UN Climate Change Conference')
+        self.assertEqual(out[0]['cause'], 'Environment')
+
+    def test_find_section_lazycol_falls_back_when_suffix_drifted(self):
+        # Simulate a future LinkedIn rename: componentkey suffix is unknown,
+        # but the section heading <h2> is still present. The locator should
+        # walk forward from the heading to the LazyColumn.
+        from bs4 import BeautifulSoup
+        from profiles.services.linkedin_scraper import _find_section_lazycol
+        html = (
+            '<section>'
+            '<h2>Skills</h2>'
+            '<div data-component-type="LazyColumn" componentkey="urn:SomeFutureNameWePredidntKnow">'
+            '<p>Skills</p><p>Rust</p>'
+            '</div>'
+            '</section>'
+        )
+        soup = BeautifulSoup(html, 'lxml')
+        container = _find_section_lazycol(soup, 'skills')
+        self.assertIsNotNone(container)
 
 
 # ---- Scholar --------------------------------------------------
