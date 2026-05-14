@@ -122,7 +122,14 @@ def _merge_experiences(existing: list[dict], linkedin_exp: list[dict]) -> tuple[
     Flatten so each designation becomes one master-profile experience, then
     dedupe. Match strategy: (1) exact canonical key on company+title, then
     (2) fuzzy company-name match alone — catches typos like "Al-Mansour
-    Automotive" vs "Almansour Automative"."""
+    Automotive" vs "Almansour Automative".
+
+    Side-effect: when a fuzzy-matched existing entry has end_date='Present'
+    but LinkedIn's duration shows the role is finite and already in the
+    past, correct the existing entry's end_date. The CV parser tends to
+    drop "Present" on short internships when no explicit end is in the
+    PDF; LinkedIn's "Aug 2025 · 1 mo" is authoritative.
+    """
     seen_keys = {_exp_key(e) for e in existing}
     seen_companies = {_canonical(e.get('company')) for e in existing if e.get('company')}
     added: list[dict] = []
@@ -148,16 +155,49 @@ def _merge_experiences(existing: list[dict], linkedin_exp: list[dict]) -> tuple[
                 'source': 'linkedin',
             }
             key = _exp_key(mapped)
-            if key in seen_keys:
-                continue
             company_canon = _canonical(company)
-            if company_canon and _fuzzy_match(company_canon, seen_companies):
+            fuzzy_match = bool(company_canon and _fuzzy_match(company_canon, seen_companies))
+            if key in seen_keys or fuzzy_match:
+                _correct_wrong_present(existing, company_canon, start, end)
                 continue
             seen_keys.add(key)
             if company_canon:
                 seen_companies.add(company_canon)
             added.append(mapped)
     return existing + added, len(added)
+
+
+def _correct_wrong_present(
+    existing: list[dict], company_canon: str, new_start: str, new_end: str,
+) -> None:
+    """If an existing entry for the same company carries end_date='Present'
+    but LinkedIn says the role ended in the past, overwrite with LinkedIn's
+    dates. Guard: only fires when LinkedIn's `new_end` parses as a real
+    month/year — never blanks an end-date with no replacement. Uses fuzzy
+    match on the company name (same threshold the dedupe path uses) so
+    typos like "Almansour Automative" ≈ "Al-Mansour Automotive" are
+    treated as the same entry."""
+    if not new_end or new_end.lower() == 'present':
+        return
+    new_end_parsed = _parse_month_year(new_end)
+    if not new_end_parsed:
+        return
+    import datetime as _dt
+    today = _dt.date.today()
+    end_y, end_m = new_end_parsed
+    if (end_y, end_m) > (today.year, today.month):
+        return  # End is in the future — leave 'Present' alone.
+    for entry in existing:
+        entry_canon = _canonical(entry.get('company'))
+        if not entry_canon:
+            continue
+        if entry_canon != company_canon and not _fuzzy_match(entry_canon, {company_canon}):
+            continue
+        if (entry.get('end_date') or '').strip().lower() != 'present':
+            continue
+        entry['end_date'] = new_end
+        if new_start and not (entry.get('start_date') or '').strip():
+            entry['start_date'] = new_start
 
 
 def _exp_key(exp: dict) -> str:
@@ -303,19 +343,78 @@ _DATE_RANGE_RE = re.compile(
     r"(?P<end>(?:[A-Za-z]+\s+\d{4}|\d{4}|Present))",
     re.IGNORECASE,
 )
+# LinkedIn renders short stints as "Aug 2025 · 1 mo" or "May 2024 · 2 yrs":
+# a single anchor date plus a `· N mo|yr` length. No explicit end. We use
+# the length to compute the end date so the role isn't surfaced as ongoing.
+_SINGLE_DATE_DURATION_RE = re.compile(
+    r"^\s*(?P<start>(?:[A-Za-z]+\s+\d{4}|\d{4}))\s*·\s*"
+    r"(?P<n>\d+)\s*(?P<unit>yr|mo|year|month)",
+    re.IGNORECASE,
+)
+_MONTH_NAMES = (
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+)
+_MONTH_LOOKUP = {n.lower(): i + 1 for i, n in enumerate(_MONTH_NAMES)}
 
 
 def _split_date_range(text: str) -> tuple[str, str]:
-    """Pull start + end out of a LinkedIn duration string like
-    'Jun 2025 - Dec 2025 · 7 mos'. Returns ('', '') if the shape doesn't
-    match — caller stores whatever raw text remains in `duration` if needed.
+    """Pull start + end out of a LinkedIn duration string. Handles:
+      - "Jun 2025 - Dec 2025 · 7 mos" → ("Jun 2025", "Dec 2025")
+      - "Aug 2025 · 1 mo"            → ("Aug 2025", "Sep 2025")
+      - "May 2023 · 2 yrs"           → ("May 2023", "May 2025")
+    Returns ("", "") when no shape matches — caller leaves the dates empty
+    so the user can fill them rather than persisting a wrong guess.
     """
     if not text:
         return "", ""
     m = _DATE_RANGE_RE.match(text)
-    if not m:
-        return "", ""
-    return m.group('start').strip(), m.group('end').strip()
+    if m:
+        return m.group('start').strip(), m.group('end').strip()
+    m = _SINGLE_DATE_DURATION_RE.match(text)
+    if m:
+        start = m.group('start').strip()
+        n = int(m.group('n'))
+        unit = m.group('unit').lower()
+        months = n * 12 if unit.startswith('y') else n
+        end = _add_months_to_date(start, months)
+        return start, end
+    return "", ""
+
+
+def _parse_month_year(text: str) -> tuple[int, int] | None:
+    """Parse 'Aug 2025' / '2025' / 'August 2025' → (year, month). Returns
+    None if the shape doesn't match. Year-only returns month=1 so the
+    arithmetic still works (treated as January)."""
+    if not text:
+        return None
+    t = text.strip()
+    parts = t.split()
+    if len(parts) == 1 and parts[0].isdigit() and len(parts[0]) == 4:
+        return int(parts[0]), 1
+    if len(parts) == 2:
+        month_name, year_str = parts
+        month = _MONTH_LOOKUP.get(month_name[:3].lower())
+        if month and year_str.isdigit() and len(year_str) == 4:
+            return int(year_str), month
+    return None
+
+
+def _add_months_to_date(start: str, months: int) -> str:
+    """Add `months` to a 'Mon YYYY' / 'YYYY' string. Returns the formatted
+    end date or '' if the start couldn't be parsed."""
+    parsed = _parse_month_year(start)
+    if not parsed:
+        return ""
+    year, month = parsed
+    month += months
+    while month > 12:
+        month -= 12
+        year += 1
+    while month < 1:
+        month += 12
+        year -= 1
+    return f"{_MONTH_NAMES[month - 1]} {year}"
 
 
 _YEAR_RE = re.compile(r"\b(?:19|20)\d{2}\b")
