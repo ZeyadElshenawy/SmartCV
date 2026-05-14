@@ -580,30 +580,41 @@ def _scroll_to_bottom(driver: webdriver.Chrome, page_wait: float, passes: int = 
 
 
 def _scroll_detail_page(driver: webdriver.Chrome, page_wait: float) -> None:
-    """Walk down a detail page in chunks until the page stops growing.
+    """Walk down a detail page in small chunks until it stops growing.
 
-    LinkedIn's /details/* pages paginate by IntersectionObserver — jumping
-    straight to the bottom loads only the first batch, then stops because
-    the observer never sees the trigger element become visible. Scrolling
-    in ~1200px increments at a human-ish pace gets each batch to render
-    before the next request fires. Requires two consecutive stable readings
-    (height unchanged + we're at the current bottom) before exiting so we
-    don't bail on a slow batch.
+    LinkedIn's /details/* pages paginate via IntersectionObserver. The
+    observer is sensitive to scroll velocity — jumping or moving too fast
+    means the sentinel briefly enters view and the fetch never fires. We:
+      * advance in small 400px steps so the sentinel sits in the viewport
+        long enough for the observer callback to land,
+      * dispatch both `scroll` and `wheel` events explicitly (LinkedIn
+        listens on `wheel` in some builds),
+      * once we believe we're at the bottom, idle there for ~3s before
+        accepting "stable" — that's how long the XHR for the next batch
+        usually takes to complete and re-render.
     """
-    increment = 1200
-    max_passes = 16
+    increment = 400
+    max_passes = 30
     stable_streak = 0
     scroll_y = 0
     for _ in range(max_passes):
         page_bottom = int(driver.execute_script("return document.body.scrollHeight"))
         scroll_y = min(scroll_y + increment, page_bottom)
-        driver.execute_script(f"window.scrollTo(0, {scroll_y});")
-        sleep(page_wait * 0.7)
+        driver.execute_script(
+            "window.scrollTo({top: arguments[0], behavior: 'instant'});"
+            "window.dispatchEvent(new WheelEvent('wheel', {deltaY: 400}));"
+            "window.dispatchEvent(new Event('scroll'));",
+            scroll_y,
+        )
+        sleep(max(page_wait * 0.4, 0.6))
         new_bottom = int(driver.execute_script("return document.body.scrollHeight"))
         at_bottom = scroll_y >= new_bottom - 50
         if new_bottom == page_bottom and at_bottom:
             stable_streak += 1
-            if stable_streak >= 2:
+            if stable_streak >= 4:
+                # We've been parked at the bottom across multiple cycles —
+                # one final long wait in case pagination is fetching now.
+                sleep(max(page_wait * 0.8, 2.0))
                 return
         else:
             stable_streak = 0
