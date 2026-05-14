@@ -81,12 +81,17 @@ def _build_profile_form_context(profile):
             elif key not in standard_keys and value and isinstance(value, list) and not isinstance(value, str):
                 extra_sections[key] = value
 
+    # Read-time safety net: sort projects newest→oldest even for profiles
+    # whose stored list pre-dates project_sort. New saves go through the
+    # write-time sort in rebuild_master_profile and the form POST handler.
+    from profiles.services.project_sort import sort_projects_newest_first
+    sorted_projects = sort_projects_newest_first(profile.projects or [])
     return {
         'profile': profile,
         'skills_json': json.dumps(profile.skills or []),
         'experiences_json': json.dumps(profile.experiences or []),
         'education_json': json.dumps(profile.education or []),
-        'projects_json': json.dumps(profile.projects or []),
+        'projects_json': json.dumps(sorted_projects),
         'certifications_json': json.dumps(profile.certifications or []),
         'extra_sections_json': json.dumps(extra_sections),
         'contact_links_json': json.dumps(contact_links),
