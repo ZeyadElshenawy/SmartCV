@@ -1094,29 +1094,18 @@ class FetchKaggleSnapshotTests(SimpleTestCase):
         snap = fetch_kaggle_snapshot("https://example.com/octocat")
         self.assertIn("Could not parse", snap["error"])
 
-    def test_happy_path_parses_next_data(self):
-        next_data = {
-            "props": {"pageProps": {"userProfile": {
-                "userName": "octocat",
-                "displayName": "Octo Cat",
-                "performanceTier": "Expert",
-                "competitionsCount": 12, "competitionsTier": "Master",
-                "competitionsMedals": {"gold": 1, "silver": 3, "bronze": 5},
-                "datasetsCount": 4, "datasetsTier": "Contributor",
-                "datasetsMedals": {"gold": 0, "silver": 1, "bronze": 2},
-                "kernelsCount": 30, "kernelsTier": "Master",
-                "kernelsMedals": {"gold": 2, "silver": 5, "bronze": 8},
-                "discussionCount": 50, "discussionTier": "Contributor",
-                "discussionMedals": {"gold": 0, "silver": 0, "bronze": 1},
-                "followersCount": 200,
-            }}}
-        }
-        # Use double quotes inside the embedded script tag to avoid the apostrophe issue.
+    def test_happy_path_parses_dom_counts(self):
+        # Kaggle stopped embedding __NEXT_DATA__; the aggregator now scrapes
+        # the rendered DOM looking for text patterns like "Competitions (12)".
         html = (
-            "<html><body>"
-            "<script id=\"__NEXT_DATA__\" type=\"application/json\">"
-            + _json.dumps(next_data) +
-            "</script></body></html>"
+            "<html><head><title>Octo Cat | Kaggle</title></head>"
+            "<body>"
+            "<div>Competitions (12)</div>"
+            "<div>Datasets (4)</div>"
+            "<div>Code (30)</div>"
+            "<div>Discussion (50)</div>"
+            "<div>Followers (200)</div>"
+            "</body></html>"
         )
         resp = MagicMock()
         resp.ok = True
@@ -1127,23 +1116,29 @@ class FetchKaggleSnapshotTests(SimpleTestCase):
         self.assertIsNone(snap["error"])
         self.assertEqual(snap["username"], "octocat")
         self.assertEqual(snap["display_name"], "Octo Cat")
-        self.assertEqual(snap["overall_tier"], "Expert")
         self.assertEqual(snap["competitions"]["count"], 12)
-        self.assertEqual(snap["competitions"]["tier"], "Master")
-        self.assertEqual(snap["competitions"]["medals"]["gold"], 1)
-        self.assertEqual(snap["notebooks"]["count"], 30)
         self.assertEqual(snap["datasets"]["count"], 4)
+        self.assertEqual(snap["notebooks"]["count"], 30)
         self.assertEqual(snap["discussion"]["count"], 50)
         self.assertEqual(snap["followers"], 200)
 
-    def test_missing_next_data_returns_error(self):
+    def test_no_activity_returns_zero_counts_without_error(self):
+        # Sparse profile page (real Kaggle UI when user has no activity).
+        # Previous behavior was to flag this as a __NEXT_DATA__ error; the
+        # DOM-based parser correctly treats it as 0 across the board with
+        # no error so the widget still renders the "account linked" state.
         resp = MagicMock()
         resp.ok = True
         resp.status_code = 200
-        resp.text = "<html></html>"
+        resp.text = "<html><head><title>Newbie | Kaggle</title></head><body><h1>Profile</h1></body></html>"
         with patch("profiles.services.kaggle_aggregator.requests.get", return_value=resp):
-            snap = fetch_kaggle_snapshot("octocat")
-        self.assertIn("__NEXT_DATA__", snap["error"])
+            snap = fetch_kaggle_snapshot("newbie")
+        self.assertIsNone(snap["error"])
+        self.assertEqual(snap["competitions"]["count"], 0)
+        self.assertEqual(snap["datasets"]["count"], 0)
+        self.assertEqual(snap["notebooks"]["count"], 0)
+        self.assertEqual(snap["discussion"]["count"], 0)
+        self.assertEqual(snap["followers"], 0)
 
 
 # ============================================================

@@ -1151,6 +1151,60 @@ def _refresh_signal(request, *, signal_key: str, input_field: str, fetcher,
     })
 
 
+def _disconnect_signal(request, *, signal_key: str, url_attr: str | None = None,
+                       data_url_keys: tuple[str, ...] = ()):
+    """Shared helper for the four disconnect endpoints.
+
+    Clears the cached snapshot at `data_content[signal_key]`, the URL field
+    on the model (if `url_attr` set — github_url / linkedin_url), and any
+    URL keys inside data_content (`scholar_url`, `kaggle_url`).
+
+    Intentionally does NOT strip entries the signal_merger previously added
+    to experiences / certifications / skills / education / volunteer_experience.
+    Those went through the user's review screen; disconnecting only severs the
+    link, it doesn't roll back resume edits.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST only'}, status=405)
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+
+    data = profile.data_content or {}
+    data.pop(signal_key, None)
+    for key in data_url_keys:
+        data.pop(key, None)
+    profile.data_content = data
+
+    update_fields = ['data_content', 'updated_at']
+    if url_attr and hasattr(profile, url_attr):
+        setattr(profile, url_attr, '')
+        update_fields.insert(0, url_attr)
+
+    profile.save(update_fields=update_fields)
+    return JsonResponse({'ok': True, 'signal': signal_key})
+
+
+@login_required
+def disconnect_github_signals(request):
+    return _disconnect_signal(request, signal_key='github_signals', url_attr='github_url')
+
+
+@login_required
+def disconnect_linkedin_signals(request):
+    return _disconnect_signal(request, signal_key='linkedin_signals', url_attr='linkedin_url')
+
+
+@login_required
+def disconnect_scholar_signals(request):
+    return _disconnect_signal(request, signal_key='scholar_signals',
+                              data_url_keys=('scholar_url',))
+
+
+@login_required
+def disconnect_kaggle_signals(request):
+    return _disconnect_signal(request, signal_key='kaggle_signals',
+                              data_url_keys=('kaggle_url',))
+
+
 @login_required
 def refresh_linkedin_signals(request):
     """Validate a LinkedIn URL/handle and store it. No scraping (LinkedIn

@@ -43,6 +43,10 @@ urlpatterns = [
     path('refresh-linkedin/', views.refresh_linkedin_signals, name='refresh_linkedin_signals'),
     path('refresh-scholar/',  views.refresh_scholar_signals,  name='refresh_scholar_signals'),
     path('refresh-kaggle/',   views.refresh_kaggle_signals,   name='refresh_kaggle_signals'),
+    path('disconnect-github/',   views.disconnect_github_signals,   name='disconnect_github_signals'),
+    path('disconnect-linkedin/', views.disconnect_linkedin_signals, name='disconnect_linkedin_signals'),
+    path('disconnect-scholar/',  views.disconnect_scholar_signals,  name='disconnect_scholar_signals'),
+    path('disconnect-kaggle/',   views.disconnect_kaggle_signals,   name='disconnect_kaggle_signals'),
 
     # Project enrichment + dedupe
     path('api/projects/enrich-from-signals/', views.enrich_from_signals_view, name='enrich_from_signals'),

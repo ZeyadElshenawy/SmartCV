@@ -18,6 +18,8 @@ Required context: `profile`.
                         class="text-brand-700 dark:text-brand-400 hover:underline">Refresh</button>
                 <button x-show="hasData && !editing && !loading" type="button" @click="startEdit"
                         class="text-neutral-500 dark:text-neutral-400 hover:underline">Edit</button>
+                <button x-show="hasData && !editing && !loading" type="button" @click="disconnect"
+                        class="text-neutral-500 dark:text-neutral-400 hover:text-red-600 dark:hover:text-red-400 hover:underline">Disconnect</button>
                 <button x-show="editing && !loading" type="button" @click="cancelEdit"
                         class="text-neutral-500 dark:text-neutral-400 hover:underline">Cancel</button>
             </div>
@@ -132,7 +134,33 @@ function scholarSignals(snapshotElementId) {
                 if (!resp.ok || data.error) { this.error = data.error || ('Server returned ' + resp.status); return; }
                 this.snapshot = data.snapshot;
                 if (data.snapshot && data.snapshot.error) { this.error = data.snapshot.error; return; }
+                // Update the strength ring live without a page reload.
+                if (data.strength && window.updateStrengthRing) {
+                    window.updateStrengthRing(data.strength.score, data.strength.tier, data.strength.hint);
+                }
                 this._savedUrl = this.urlInput;
+                this.editing = false;
+            } catch (e) { this.error = e.message || 'Network error'; }
+            finally { this.loading = false; }
+        },
+        async disconnect() {
+            if (!confirm('Disconnect your Google Scholar profile? This clears the saved link and the imported data on this tile.')) return;
+            this.loading = true; this.error = null;
+            try {
+                const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value
+                          || document.cookie.split('; ').find(c => c.startsWith('csrftoken='))?.split('=')[1] || '';
+                const resp = await fetch('/profiles/disconnect-scholar/', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/x-www-form-urlencoded' },
+                });
+                if (!resp.ok) {
+                    const data = await resp.json().catch(() => ({}));
+                    this.error = data.error || ('Server returned ' + resp.status);
+                    return;
+                }
+                this.snapshot = null;
+                this.urlInput = '';
+                this._savedUrl = '';
                 this.editing = false;
             } catch (e) { this.error = e.message || 'Network error'; }
             finally { this.loading = false; }
