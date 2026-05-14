@@ -247,13 +247,43 @@ def _common_chrome_args(headless: bool, user_data_dir: Path | None) -> list[str]
     return args
 
 
+def _construct_with_retry(builder) -> webdriver.Chrome:
+    """Call `builder()` to construct a Chrome driver. On a transient
+    'cannot connect to chrome' / 'session not created' failure, wait 2s
+    and try once more. After the retry, the original exception
+    propagates so the caller's error handling fires."""
+    try:
+        return builder()
+    except WebDriverException as exc:
+        msg = str(exc).lower()
+        transient = (
+            'cannot connect to chrome' in msg
+            or 'session not created' in msg
+            or 'chrome not reachable' in msg
+        )
+        if not transient:
+            raise
+        logger.info(
+            "Chrome launch failed (transient); retrying once after 2s: %s",
+            msg.split('stacktrace')[0].strip()[:160],
+        )
+        sleep(2.0)
+        return builder()
+
+
 def _build_driver(
     headless: bool = False,
     user_data_dir: Path | None = None,
     use_undetected: bool = True,
 ) -> webdriver.Chrome:
     """Build a Chrome driver. Prefers undetected-chromedriver if installed
-    and ``use_undetected`` is True; falls back to vanilla selenium."""
+    and ``use_undetected`` is True; falls back to vanilla selenium.
+
+    Retries once on transient Chrome-launch failures ("session not
+    created: cannot connect to chrome at 127.0.0.1:..."). The first
+    launch occasionally loses the race between chromedriver and Chrome
+    itself — a fresh attempt with a small backoff usually wins.
+    """
     if use_undetected and _HAS_UC:
         opts = uc.ChromeOptions()
         for arg in _common_chrome_args(headless, user_data_dir):
@@ -271,7 +301,7 @@ def _build_driver(
         chrome_major = _detect_chrome_major()
         if chrome_major is not None:
             kwargs["version_main"] = chrome_major
-        return uc.Chrome(**kwargs)
+        return _construct_with_retry(lambda: uc.Chrome(**kwargs))
 
     options = Options()
     for arg in _common_chrome_args(headless, user_data_dir):
@@ -284,7 +314,7 @@ def _build_driver(
         )
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     options.add_experimental_option("useAutomationExtension", False)
-    driver = webdriver.Chrome(options=options)
+    driver = _construct_with_retry(lambda: webdriver.Chrome(options=options))
     try:
         driver.execute_cdp_cmd(
             "Page.addScriptToEvaluateOnNewDocument",
