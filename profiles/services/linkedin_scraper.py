@@ -27,6 +27,7 @@ from __future__ import annotations
 import functools
 import hashlib
 import logging
+import os
 import random
 import re
 import sys
@@ -654,13 +655,21 @@ def _unwrap_safety_url(url: str) -> str:
     return url
 
 
+def _normalize_heading(text: str) -> str:
+    """Lowercase + drop a trailing parenthetical count like ' (52)' so a
+    heading rendered as 'Skills (52)' still matches 'skills'."""
+    t = re.sub(r"\s*\([^)]*\)\s*$", "", text or "").strip().lower()
+    return t
+
+
 def _find_section_lazycol(soup: BeautifulSoup, section_key: str) -> Tag | None:
     """Locate the LazyColumn for a section.
 
-    Tries each known componentkey suffix; if all miss (LinkedIn has rotated
-    them again), falls back to finding the section's <h2> heading and walking
-    forward to the nearest LazyColumn — which keeps the scraper working for
-    most rename events without needing a hot fix.
+    Strategy: (1) match by known componentkey suffix; (2) fall back to
+    walking forward from a heading whose normalized text equals/contains the
+    section's heading text; (3) if every LazyColumn's componentkey contains
+    the section key as a substring, return that one. The fallbacks keep the
+    scraper alive across LinkedIn's periodic SDUI renames.
     """
     suffixes = SECTION_LAZYCOL_SUFFIX[section_key]
     lazy_cols = soup.find_all("div", attrs={"data-component-type": "LazyColumn"})
@@ -669,19 +678,40 @@ def _find_section_lazycol(soup: BeautifulSoup, section_key: str) -> Tag | None:
         if any(ck.endswith(suffix) for suffix in suffixes):
             return div
 
-    heading_text = SECTION_HEADING_TEXT.get(section_key)
-    if not heading_text:
-        return None
-    h2 = next(
-        (h for h in soup.find_all("h2")
-         if h.get_text(strip=True).lower() == heading_text.lower()),
-        None,
-    )
-    if h2 is None:
-        return None
-    for el in h2.find_all_next("div", attrs={"data-component-type": "LazyColumn"}):
-        return el
+    heading_text = (SECTION_HEADING_TEXT.get(section_key) or "").lower()
+    if heading_text:
+        for tag in soup.find_all(["h1", "h2", "h3"]):
+            normalized = _normalize_heading(tag.get_text(" ", strip=True))
+            if normalized == heading_text or heading_text in normalized:
+                for el in tag.find_all_next("div", attrs={"data-component-type": "LazyColumn"}):
+                    return el
+                break
+
+    # Final fallback: any LazyColumn whose componentkey mentions the section
+    # word at all (e.g. componentkey="urn:li:fsd_skill:1234").
+    for div in lazy_cols:
+        ck = (div.get("componentkey") or "").lower()
+        if section_key in ck:
+            return div
     return None
+
+
+def _log_zero_section_diagnostic(soup: BeautifulSoup, section_key: str) -> str:
+    """Build a one-line diagnostic listing every LazyColumn componentkey on
+    the page. Used to make 'why did this section return 0?' debuggable
+    without re-running the scraper."""
+    lazy_cols = soup.find_all("div", attrs={"data-component-type": "LazyColumn"})
+    keys = [d.get("componentkey", "<no-key>") for d in lazy_cols]
+    headings = [
+        tag.get_text(" ", strip=True)
+        for tag in soup.find_all(["h1", "h2", "h3"])
+        if tag.get_text(strip=True)
+    ][:8]
+    return (
+        f"section={section_key!r}: 0 items parsed; "
+        f"found {len(lazy_cols)} LazyColumns with keys={keys[:8]}; "
+        f"headings={headings}"
+    )
 
 
 def _truncate_at_end_marker(html: str) -> str:
@@ -1358,10 +1388,26 @@ def _scrape_detail_sections(
     page_wait: float,
 ) -> None:
     base = _normalize_profile_base(profile_url)
+    debug_dump_dir = os.environ.get("LINKEDIN_SCRAPER_DEBUG_DIR")
     for label, path, parser, attr in _DETAIL_SECTIONS:
         try:
             section_soup = _fetch_soup(driver, base + path, page_wait)
-            _apply_section_result(result, attr, parser(section_soup), label)
+            parsed = parser(section_soup)
+            _apply_section_result(result, attr, parsed, label)
+            if not parsed:
+                # Log what LinkedIn actually returned so the next failure is
+                # diagnosable without re-running the scraper. WARNING because
+                # zero parsed items always indicates either a real empty
+                # section or selector drift — both worth surfacing.
+                logger.warning(_log_zero_section_diagnostic(section_soup, label))
+                if debug_dump_dir:
+                    try:
+                        dump_path = Path(debug_dump_dir) / f"{label}.html"
+                        dump_path.parent.mkdir(parents=True, exist_ok=True)
+                        dump_path.write_text(str(section_soup), encoding="utf-8")
+                        logger.warning("linkedin_scraper: dumped raw HTML to %s", dump_path)
+                    except OSError as exc:
+                        logger.warning("linkedin_scraper: could not write dump: %s", exc)
         except WebDriverException as exc:
             result.warnings.append(f"Failed to load {path}: {exc}")
 
