@@ -64,6 +64,27 @@ def _build_profile_form_context(profile):
     
     extra_sections = {}
     
+    # Read-time URL promotion: if the user has Kaggle / Scholar / Twitter /
+    # blog URLs stranded in other_urls (legacy data from CVs uploaded before
+    # the classifier shipped), promote them now and persist so the page
+    # they're visiting already reflects the fix.
+    if profile.data_content:
+        from profiles.services.url_classifier import promote_known_urls_into_data
+        promotions = promote_known_urls_into_data(profile.data_content)
+        if promotions:
+            if 'linkedin' in promotions and not profile.linkedin_url:
+                profile.linkedin_url = promotions['linkedin']
+            if 'github' in promotions and not profile.github_url:
+                profile.github_url = promotions['github']
+            try:
+                profile.save(update_fields=[
+                    'data_content', 'updated_at', 'linkedin_url', 'github_url',
+                ])
+            except Exception:
+                # Read-time write is best-effort; the next real save will
+                # carry the same normalization.
+                pass
+
     # Build dynamic contact links from existing fields. LinkedIn/GitHub
     # come off the model directly; Kaggle/Scholar are @property accessors
     # that read from data_content (or fall back to {source}_signals).
@@ -160,6 +181,16 @@ def profile_upload_cv(request, job_id):
             # the upcoming save() runs on a fresh connection.
             from django.db import close_old_connections
             close_old_connections()
+
+            # Normalize URLs the parser dumped into other_urls — promote any
+            # recognized platform link to its canonical home so the
+            # connect_accounts page pre-populates Kaggle / Scholar / etc.
+            from profiles.services.url_classifier import promote_known_urls_into_data
+            _promotions = promote_known_urls_into_data(validated_data)
+            if 'linkedin' in _promotions and not validated_data.get('linkedin_url'):
+                validated_data['linkedin_url'] = _promotions['linkedin']
+            if 'github' in _promotions and not validated_data.get('github_url'):
+                validated_data['github_url'] = _promotions['github']
 
             # Step 4: Store COMPLETE CV data (no data loss!)
             profile.data_content = validated_data
@@ -442,6 +473,15 @@ def upload_master_profile(request):
             from django.db import close_old_connections
             close_old_connections()
 
+            # Promote any platform-classifiable URLs the parser dumped into
+            # other_urls so the connect_accounts page sees them.
+            from profiles.services.url_classifier import promote_known_urls_into_data
+            _promotions = promote_known_urls_into_data(validated_data)
+            if 'linkedin' in _promotions and not validated_data.get('linkedin_url'):
+                validated_data['linkedin_url'] = _promotions['linkedin']
+            if 'github' in _promotions and not validated_data.get('github_url'):
+                validated_data['github_url'] = _promotions['github']
+
             # 4. Map Fields
             profile.full_name = validated_data.get('full_name', '')
             profile.email = validated_data.get('email') or request.user.email
@@ -625,6 +665,24 @@ def connect_accounts_view(request):
     same place.
     """
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
+
+    # Promote any platform URLs the CV parser stranded in other_urls into
+    # their dedicated fields (kaggle_url, scholar_url, etc.) so the form
+    # below pre-populates correctly on first render.
+    if profile.data_content:
+        from profiles.services.url_classifier import promote_known_urls_into_data
+        promotions = promote_known_urls_into_data(profile.data_content)
+        if promotions:
+            if 'linkedin' in promotions and not profile.linkedin_url:
+                profile.linkedin_url = promotions['linkedin']
+            if 'github' in promotions and not profile.github_url:
+                profile.github_url = promotions['github']
+            try:
+                profile.save(update_fields=[
+                    'data_content', 'updated_at', 'linkedin_url', 'github_url',
+                ])
+            except Exception:
+                logger.exception("connect_accounts: url promotion save failed")
 
     if request.method == 'POST':
         # When external signals are connected, silently auto-merge the
