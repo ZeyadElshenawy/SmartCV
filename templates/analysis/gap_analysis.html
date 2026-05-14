@@ -199,13 +199,19 @@ document.addEventListener('DOMContentLoaded', function() {
                         <span class="text-4xl sm:text-5xl leading-none not-italic font-medium ml-1 opacity-70">%</span>
                     </div>
                     <p class="text-base text-neutral-600 dark:text-neutral-400 leading-relaxed max-w-md">
-                        {% if close_headline_count > 0 %}
-                        <span>You're close on <span class="font-medium text-neutral-900 dark:text-neutral-100 tabular-nums">{{ close_headline_count }}</span> skill{{ close_headline_count|pluralize }} — review partials below before generating.</span>
-                        {% else %}
-                        <span x-show="scoreTier === 'high'" x-cloak>You're strongly aligned with this role. Generate a tailored résumé and apply.</span>
-                        <span x-show="scoreTier === 'mid'"  x-cloak>Solid fit with fixable gaps. Use the chatbot to fill in the weak spots, then generate.</span>
-                        <span x-show="scoreTier === 'low'"  x-cloak>Significant gaps — consider building the missing skills first, or reframe with the chatbot.</span>
-                        {% endif %}
+                        {# Headline message is fully reactive: re-evaluates as
+                           chips move between columns. "You're close on N"
+                           takes priority whenever the partials column has
+                           entries; otherwise the score-tier verdict applies. #}
+                        <span x-show="partialCount > 0" x-cloak>
+                            You're close on
+                            <span class="font-medium text-neutral-900 dark:text-neutral-100 tabular-nums" x-text="partialCount"></span>
+                            <span x-text="partialCount === 1 ? 'skill' : 'skills'"></span>
+                            — review partials below before generating.
+                        </span>
+                        <span x-show="partialCount === 0 && scoreTier === 'high'" x-cloak>You're strongly aligned with this role. Generate a tailored résumé and apply.</span>
+                        <span x-show="partialCount === 0 && scoreTier === 'mid'"  x-cloak>Solid fit with fixable gaps. Use the chatbot to fill in the weak spots, then generate.</span>
+                        <span x-show="partialCount === 0 && scoreTier === 'low'"  x-cloak>Significant gaps — consider building the missing skills first, or reframe with the chatbot.</span>
                     </p>
 
                     <p class="pt-2 text-[11px] uppercase tracking-[0.16em] font-medium text-neutral-500 dark:text-neutral-400">
@@ -222,13 +228,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     the user knows where they sit and why.
                     {% endcomment %}
                     <div class="flex items-center justify-between gap-2">
-                        {% if gap.similarity_score >= 0.8 %}
-                            {% include "components/section_label.html" with text="Recommended" tone="brand" %}
-                        {% elif gap.similarity_score >= 0.5 %}
-                            {% include "components/section_label.html" with text="Recommended" tone="accent" %}
-                        {% else %}
-                            {% include "components/section_label.html" with text="Recommended" tone="danger" %}
-                        {% endif %}
+                        {# Reactive Recommended label — re-tones as the user
+                           drags chips and the computed score crosses a band. #}
+                        <div class="flex items-center gap-3 transition-colors duration-300"
+                             :class="{
+                                'text-brand-700 dark:text-brand-400':   scoreTier === 'high',
+                                'text-accent-700 dark:text-accent-400': scoreTier === 'mid',
+                                'text-red-700 dark:text-red-400':       scoreTier === 'low',
+                             }">
+                            <span aria-hidden="true" class="h-px w-6 bg-current opacity-60"></span>
+                            <span class="text-[11px] font-medium uppercase tracking-[0.18em]">Recommended</span>
+                        </div>
                         <details class="group" x-data>
                             <summary class="cursor-pointer text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400 hover:text-brand-700 dark:hover:text-brand-400 transition-colors list-none">
                                 <span class="inline-flex items-center gap-1">Why this? <svg class="w-3 h-3 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></span>
@@ -240,11 +250,18 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <li><span class="text-amber-600 dark:text-amber-400 font-medium">50–80%</span> → there are gaps the bot can probably surface from your real experience; chat first.</li>
                                     <li><span class="text-red-600 dark:text-red-400 font-medium">&lt;50%</span> → tailoring won't paper over real missing skills; build a learning path instead.</li>
                                 </ul>
-                                <p class="mt-3 text-[11px] text-neutral-500 dark:text-neutral-400">You scored {{ gap.similarity_score|floatformat:2 }}. The other two paths are still one click away below.</p>
+                                <p class="mt-3 text-[11px] text-neutral-500 dark:text-neutral-400">
+                                    You scored <span class="font-medium text-neutral-700 dark:text-neutral-200 tabular-nums" x-text="computedScore + '%'">{% widthratio gap.similarity_score 1 100 %}%</span>. The other two paths are still one click away below.
+                                </p>
                             </div>
                         </details>
                     </div>
-                    {% if gap.similarity_score >= 0.8 %}
+                    {# Reactive CTA — three layouts, gated by scoreTier so
+                       dragging chips between columns can promote a "Chat to
+                       fill the gaps" recommendation to "Generate tailored
+                       resume" the moment the score crosses 80%. All three
+                       blocks are in the DOM at once; only one is visible. #}
+                    <div x-show="scoreTier === 'high'" x-cloak class="space-y-4">
                         <a href="{% url 'generate_resume' job.id %}" class="group/btn relative inline-flex w-full items-center justify-between gap-2 h-12 px-5 rounded-xl bg-brand-600 text-white text-sm font-medium tracking-tight shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-brand-700 hover:-translate-y-px transition-[background-color,transform] duration-150">
                             Generate tailored resume
                             <span aria-hidden="true" class="transition-transform duration-200 group-hover/btn:translate-x-0.5">→</span>
@@ -259,7 +276,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <span aria-hidden="true" class="opacity-40">↗</span>
                             </a>
                         </div>
-                    {% elif gap.similarity_score >= 0.5 %}
+                    </div>
+                    <div x-show="scoreTier === 'mid'" x-cloak class="space-y-4">
                         <a href="{% url 'profile_chatbot' job.id %}" class="group/btn relative inline-flex w-full items-center justify-between gap-2 h-12 px-5 rounded-xl bg-brand-600 text-white text-sm font-medium tracking-tight shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-brand-700 hover:-translate-y-px transition-[background-color,transform] duration-150">
                             Chat to fill the gaps
                             <span aria-hidden="true" class="transition-transform duration-200 group-hover/btn:translate-x-0.5">→</span>
@@ -274,7 +292,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <span aria-hidden="true" class="opacity-40">↗</span>
                             </a>
                         </div>
-                    {% else %}
+                    </div>
+                    <div x-show="scoreTier === 'low'" x-cloak class="space-y-4">
                         <a href="{% url 'learning_path' job.id %}" class="group/btn relative inline-flex w-full items-center justify-between gap-2 h-12 px-5 rounded-xl bg-brand-600 text-white text-sm font-medium tracking-tight shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-brand-700 hover:-translate-y-px transition-[background-color,transform] duration-150">
                             Build a learning path
                             <span aria-hidden="true" class="transition-transform duration-200 group-hover/btn:translate-x-0.5">→</span>
@@ -289,7 +308,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <span aria-hidden="true" class="opacity-40">↗</span>
                             </a>
                         </div>
-                    {% endif %}
+                    </div>
                 </div>
             </div>
         </section>
@@ -555,10 +574,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
 
                 get scoreTier() {
+                    // Thresholds match the "Why this?" tooltip and the
+                    // server-side routing in this template (>= 80 generate,
+                    // >= 50 chat, else learning path).
                     const p = this.computedScore;
-                    if (p >= 85) return 'high';
-                    if (p >= 55) return 'mid';
+                    if (p >= 80) return 'high';
+                    if (p >= 50) return 'mid';
                     return 'low';
+                },
+                get partialCount() {
+                    return (this.skills.partial || []).length;
                 },
 
                 onDragStart(e, chip, sourceCol) {
