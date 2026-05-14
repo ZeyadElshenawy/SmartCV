@@ -748,6 +748,149 @@ class LinkedinFallbackTests(SimpleTestCase):
         self.assertEqual(_linkedin_fallback([], 'https://example.com'), [])
 
 
+class SignalMergerTests(SimpleTestCase):
+    """Dedup-on-add merger that flows LinkedIn signal sections into the
+    master profile (experiences, certs, skills, education, volunteering)."""
+
+    def _profile(self, data):
+        class _P:
+            def __init__(self, d): self.data_content = d
+            def save(self, **kw): pass
+        return _P(data)
+
+    def test_skills_dedup_strips_trailing_parenthetical(self):
+        from profiles.services.signal_merger import merge_signals_into_profile
+        profile = self._profile({
+            'skills': [{'name': 'Python'}],
+            'linkedin_signals': {
+                'scraped': True, 'error': None,
+                'skills': [{'name': 'Python (Programming Language)'}, {'name': 'Rust'}],
+            },
+        })
+        summary = merge_signals_into_profile(profile)
+        # Python should dedupe; Rust should be added.
+        self.assertEqual(summary['skills'], 1)
+        names = [s['name'] if isinstance(s, dict) else s
+                 for s in profile.data_content['skills']]
+        self.assertEqual(names, ['Python', 'Rust'])
+
+    def test_experience_dedupes_company_with_typo_via_fuzzy_match(self):
+        # CV typo "Al-Mansour Automotive" vs "Almansour Automative" — both
+        # the same employer; merger must catch this with fuzzy match instead
+        # of double-listing.
+        from profiles.services.signal_merger import merge_signals_into_profile
+        profile = self._profile({
+            'experiences': [{'company': 'Almansour Automative', 'title': ''}],
+            'linkedin_signals': {
+                'scraped': True, 'error': None,
+                'experience': [{
+                    'company_name': 'Al-Mansour Automotive',
+                    'employment_type': 'Full-time',
+                    'designations': [{
+                        'designation': 'Intern',
+                        'duration': 'Aug 2025 · 1 mo',
+                        'location': 'Cairo',
+                        'description': '',
+                    }],
+                }],
+            },
+        })
+        summary = merge_signals_into_profile(profile)
+        self.assertEqual(summary['experiences'], 0)
+        self.assertEqual(len(profile.data_content['experiences']), 1)
+
+    def test_certs_dedup_by_canonical_name(self):
+        from profiles.services.signal_merger import merge_signals_into_profile
+        profile = self._profile({
+            'certifications': [{'name': 'Data Mining Methods'}],
+            'linkedin_signals': {
+                'scraped': True, 'error': None,
+                'licenses': [
+                    {'name': 'Data Mining Methods', 'institute': 'CU Boulder',
+                     'issued_date': 'Dec 2025'},
+                    {'name': 'Project Management: The Basics for Success',
+                     'institute': 'UC Irvine', 'issued_date': 'Oct 2025'},
+                ],
+            },
+        })
+        summary = merge_signals_into_profile(profile)
+        self.assertEqual(summary['certifications'], 1)
+        names = [c['name'] for c in profile.data_content['certifications']]
+        self.assertEqual(set(names), {'Data Mining Methods',
+                                      'Project Management: The Basics for Success'})
+
+    def test_volunteering_appended_when_absent(self):
+        from profiles.services.signal_merger import merge_signals_into_profile
+        profile = self._profile({
+            'volunteer_experience': [],
+            'linkedin_signals': {
+                'scraped': True, 'error': None,
+                'volunteering': [{'role': 'Youth Volunteer',
+                                  'organization': 'COP27 - UN Climate Change Conference',
+                                  'duration': 'Nov 2022 · 1 mo',
+                                  'cause': 'Environment', 'description': ''}],
+            },
+        })
+        summary = merge_signals_into_profile(profile)
+        self.assertEqual(summary['volunteer_experience'], 1)
+        vol = profile.data_content['volunteer_experience'][0]
+        self.assertEqual(vol['title'], 'Youth Volunteer')
+        self.assertEqual(vol['organization'], 'COP27 - UN Climate Change Conference')
+
+    def test_merger_is_idempotent_on_unchanged_signals(self):
+        # Two consecutive merges with identical signals should be a no-op
+        # on the second pass — guards against the merger doubling entries
+        # when the user clicks Refresh repeatedly.
+        from profiles.services.signal_merger import merge_signals_into_profile
+        profile = self._profile({
+            'skills': [], 'experiences': [], 'certifications': [],
+            'education': [], 'volunteer_experience': [],
+            'linkedin_signals': {
+                'scraped': True, 'error': None,
+                'skills': [{'name': 'Python'}],
+                'experience': [{'company_name': 'X', 'employment_type': '',
+                                'designations': [{'designation': 'Dev', 'duration': '',
+                                                  'location': '', 'description': ''}]}],
+                'licenses': [{'name': 'Cert A', 'institute': '', 'issued_date': ''}],
+                'education': [{'college': 'Uni X', 'degree': 'BSc', 'duration': '2020 - 2024',
+                               'description': ''}],
+                'volunteering': [{'role': 'V', 'organization': 'O',
+                                  'duration': '', 'cause': '', 'description': ''}],
+            },
+        })
+        first = merge_signals_into_profile(profile)
+        second = merge_signals_into_profile(profile)
+        self.assertEqual(sum(first.values()), 5)
+        self.assertEqual(sum(second.values()), 0)
+
+    def test_errored_snapshot_is_skipped(self):
+        from profiles.services.signal_merger import merge_signals_into_profile
+        profile = self._profile({
+            'skills': [{'name': 'Python'}],
+            'linkedin_signals': {'scraped': False, 'error': 'Scrape failed',
+                                 'skills': [{'name': 'Rust'}]},
+        })
+        summary = merge_signals_into_profile(profile)
+        # Nothing pulled from an errored snapshot.
+        self.assertEqual(summary['skills'], 0)
+
+    def test_github_languages_become_skills(self):
+        from profiles.services.signal_merger import merge_signals_into_profile
+        profile = self._profile({
+            'skills': [{'name': 'Python'}],
+            'github_signals': {
+                'error': None,
+                'language_breakdown': [['Python', 5], ['Rust', 3], ['Go', 2]],
+            },
+        })
+        summary = merge_signals_into_profile(profile)
+        self.assertEqual(summary['skills'], 2)  # Rust + Go; Python deduped
+        names = [s['name'] if isinstance(s, dict) else s
+                 for s in profile.data_content['skills']]
+        self.assertIn('Rust', names)
+        self.assertIn('Go', names)
+
+
 class LinkedinScraperSectionTests(SimpleTestCase):
     """Parser-side coverage for sections that don't talk to Selenium.
 
