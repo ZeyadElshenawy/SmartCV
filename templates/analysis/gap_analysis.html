@@ -168,10 +168,10 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="flex items-center gap-2 text-xs text-neutral-600 dark:text-neutral-400">
             {% if gap.analysis_method == 'fallback' %}
                 <span aria-hidden="true" class="h-1.5 w-1.5 rounded-full bg-amber-500 flex-shrink-0"></span>
-                Fuzzy fallback (difflib) · LLM unavailable during this run
+                Quick match — some signals weren't available this run
             {% else %}
                 <span aria-hidden="true" class="h-1.5 w-1.5 rounded-full bg-emerald-500 flex-shrink-0"></span>
-                LLM structured extraction · fuzzy reconciliation ensures every required skill is accounted for
+                Every required skill is checked against your profile
             {% endif %}
         </div>
 <div x-data="skillDragDrop()" class="space-y-10">

@@ -27,6 +27,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 from typing import Optional
 
 from profiles.services.llm_engine import get_structured_llm
@@ -131,10 +132,7 @@ def enrich_profile(profile, *, force: bool = False) -> list[dict]:
         len(out), len(github.get('top_repos') or []),
         len(scholar.get('top_publications') or []),
         sum(1 for k in ('competitions', 'datasets', 'notebooks') if (kaggle.get(k) or {}).get('count', 0) > 0),
-        len(linkedin.get('projects') or []) + len([
-            f for f in (linkedin.get('featured') or [])
-            if f.get('kind') in ('link', 'document', 'article', 'newsletter')
-        ]),
+        len(linkedin.get('projects') or []),
     )
     return out
 
@@ -347,49 +345,60 @@ CATEGORIES:
 # whose kind looks project-shaped (links, documents, articles, newsletters).
 # We deliberately exclude `image`, `post`, `video` from the featured pull —
 # those are usually social posts, not technical artifacts.
-_LINKEDIN_FEATURED_KINDS = ('link', 'document', 'article', 'newsletter')
 _MAX_LINKEDIN_PROJECTS = 6
-_MAX_LINKEDIN_FEATURED = 6
+
+
+# LinkedIn's /projects detail page sometimes returns the section's literal
+# empty-state placeholder ("Projects that <name> adds will appear here.") when
+# the user has no real projects. Drop those before enrichment.
+_LINKEDIN_PROJECT_PLACEHOLDER_RE = re.compile(
+    r"^(?:projects?\s+that\s+.+\s+adds?\s+will\s+appear\s+here|add\s+(?:a\s+)?project)\.?$",
+    re.IGNORECASE,
+)
+
+
+def _filtered_linkedin_projects(projects: list[dict]) -> list[dict]:
+    out = []
+    for entry in projects:
+        name = (entry.get('project_name') or '').strip()
+        if not name:
+            continue
+        if _LINKEDIN_PROJECT_PLACEHOLDER_RE.match(name):
+            continue
+        out.append(entry)
+    return out
 
 
 def _linkedin_has_projectable_content(linkedin: dict) -> bool:
-    """True iff the snapshot has at least one entry the enricher can work with."""
+    """True iff the snapshot has at least one real LinkedIn project entry.
+
+    Featured items (links, documents, articles) are intentionally not eligible.
+    They live on the profile alongside projects but aren't projects themselves;
+    routing them into the resume's project list produced noise like "Link: my
+    CV Google Docs" and the user's own profile URL appearing as a project.
+    """
     if not linkedin or linkedin.get('error'):
         return False
-    if linkedin.get('projects'):
-        return True
-    for f in linkedin.get('featured') or []:
-        if f.get('kind') in _LINKEDIN_FEATURED_KINDS and (f.get('url') or f.get('title')):
-            return True
-    return False
+    return bool(_filtered_linkedin_projects(linkedin.get('projects') or []))
 
 
 def _enrich_linkedin(linkedin: dict) -> list[EnrichedProject]:
-    """LinkedIn surfaces two project-shaped streams:
+    """Convert LinkedIn /projects entries into resume-shaped projects.
 
-    - The /projects section (one entry per project, with name + duration +
-      description). This is the obvious match.
-    - Featured items (one entry per pinned link / document / article). These
-      are usually case studies, blog posts, or external publications — close
-      enough to "project" for the user to decide via the dedupe review.
-
-    Both share the resume-bullet style of the other sources: lead with the
-    action, never invent metrics, surface what the snapshot evidences.
+    Featured items are deliberately excluded — see
+    `_linkedin_has_projectable_content` for the rationale.
     """
     profile_url = linkedin.get('profile_url') or ''
-    raw_projects = (linkedin.get('projects') or [])[:_MAX_LINKEDIN_PROJECTS]
-    raw_featured = [
-        f for f in (linkedin.get('featured') or [])
-        if f.get('kind') in _LINKEDIN_FEATURED_KINDS and (f.get('url') or f.get('title'))
-    ][:_MAX_LINKEDIN_FEATURED]
-
-    if not raw_projects and not raw_featured:
+    raw_projects = _filtered_linkedin_projects(
+        (linkedin.get('projects') or [])[:_MAX_LINKEDIN_PROJECTS]
+    )
+    if not raw_projects:
         return []
 
-    prompt = f"""Turn each LinkedIn entry below into a project-shaped resume entry.
-Return one entry per input, in the same order: projects first, then featured items.
+    prompt = f"""Turn each LinkedIn project below into a project-shaped resume entry.
+Return one entry per input, in the same order.
 
-For PROJECTS section entries:
+Each entry needs:
   - `name`: the `project_name` verbatim.
   - `summary`: one sentence drawn from the description; if the description is
     blank, infer cautiously from the name only.
@@ -402,22 +411,8 @@ For PROJECTS section entries:
   - `source_url`: the candidate's profile_url ({profile_url!r}) — LinkedIn
     projects don't have stable per-item URLs.
 
-For FEATURED items:
-  - `name`: the `title` verbatim, trimmed if it's longer than 80 chars.
-  - `summary`: one sentence describing what kind of artifact it is (link,
-    document, article, newsletter) and what the title suggests it covers.
-  - `tech_stack`: empty list (featured titles rarely encode tech reliably).
-  - `bullets`: 1 bullet stating the kind + a clean version of the title.
-  - `source`: always "linkedin".
-  - `source_id`: a slug from the title.
-  - `source_url`: the item's `url` (already unwrapped from LinkedIn's safety
-    redirector — pass through verbatim).
-
 LINKEDIN PROJECTS:
 {json.dumps(raw_projects, indent=2, default=str)}
-
-LINKEDIN FEATURED:
-{json.dumps(raw_featured, indent=2, default=str)}
 """
     structured = get_structured_llm(
         EnrichedProjectBatch,
@@ -438,9 +433,8 @@ LINKEDIN FEATURED:
             items = recovered
         else:
             logger.exception("project_enricher: LinkedIn LLM call failed; falling back")
-            return _linkedin_fallback(raw_projects, raw_featured, profile_url)
+            return _linkedin_fallback(raw_projects, profile_url)
 
-    # Defensive: backfill source / source_url / source_id when the LLM omits them.
     for i, p in enumerate(items):
         if not p.source:
             p.source = 'linkedin'
@@ -450,14 +444,6 @@ LINKEDIN FEATURED:
                 p.source_url = profile_url
             if not p.source_id:
                 p.source_id = _slugify(entry.get('project_name', ''))
-        else:
-            j = i - len(raw_projects)
-            if j < len(raw_featured):
-                entry = raw_featured[j]
-                if not p.source_url:
-                    p.source_url = entry.get('url') or profile_url
-                if not p.source_id:
-                    p.source_id = _slugify(entry.get('title', ''))
     return items
 
 
@@ -522,7 +508,7 @@ def _scholar_fallback(pubs: list[dict], profile_url: str) -> list[EnrichedProjec
 
 
 def _linkedin_fallback(
-    projects: list[dict], featured: list[dict], profile_url: str,
+    projects: list[dict], profile_url: str,
 ) -> list[EnrichedProject]:
     out: list[EnrichedProject] = []
     for entry in projects:
@@ -544,21 +530,6 @@ def _linkedin_fallback(
             source='linkedin',
             source_id=_slugify(name),
             source_url=profile_url,
-        ))
-    for entry in featured:
-        title = (entry.get('title') or '').strip()
-        if not title:
-            continue
-        kind = (entry.get('kind') or 'link').strip()
-        url = (entry.get('url') or '').strip() or profile_url
-        out.append(EnrichedProject(
-            name=title[:80],
-            summary=f"Featured {kind} on LinkedIn: {title}",
-            tech_stack=[],
-            bullets=[f"Featured {kind}: {title}"],
-            source='linkedin',
-            source_id=_slugify(title),
-            source_url=url,
         ))
     return out
 

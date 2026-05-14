@@ -43,6 +43,8 @@ class LinkedinSnapshot(TypedDict, total=False):
     courses: list[dict[str, Any]]
     honors_and_awards: list[str]
     featured: list[dict[str, Any]]
+    skills: list[dict[str, Any]]
+    volunteering: list[dict[str, Any]]
     warnings: list[str]
     scraped: bool
 
@@ -206,6 +208,8 @@ def _scraped_snapshot(handle: str) -> LinkedinSnapshot:
         'courses': result.courses,
         'honors_and_awards': result.honors_and_awards,
         'featured': result.featured,
+        'skills': result.skills,
+        'volunteering': result.volunteering,
         'warnings': result.warnings,
         'scraped': True,
         'error': None,
