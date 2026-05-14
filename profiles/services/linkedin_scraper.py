@@ -42,7 +42,9 @@ from urllib.parse import parse_qs, urlparse
 from bs4 import BeautifulSoup, Tag
 from selenium import webdriver
 from selenium.common.exceptions import (
+    ElementClickInterceptedException,
     NoSuchElementException,
+    StaleElementReferenceException,
     TimeoutException,
     WebDriverException,
 )
@@ -605,6 +607,46 @@ def _scroll_detail_page(driver: webdriver.Chrome, page_wait: float) -> None:
                 return
         else:
             stable_streak = 0
+
+
+def _expand_show_more_buttons(
+    driver: webdriver.Chrome, page_wait: float, max_iters: int = 8,
+) -> bool:
+    """Click any visible `<button>Show more</button>` until none remain.
+
+    Skills and Licenses & certifications hide everything past the first ~10
+    entries behind such a button — `<button>` with literal text "Show more"
+    and no stable identifier (CSS classes are auto-generated). Repeating
+    clicks until the button disappears mirrors how a human would expand
+    the list. Returns True iff anything was clicked.
+    """
+    clicked_any = False
+    xpath = "//button[normalize-space(.)='Show more']"
+    for _ in range(max_iters):
+        try:
+            buttons = driver.find_elements(By.XPATH, xpath)
+        except WebDriverException:
+            return clicked_any
+        if not buttons:
+            return clicked_any
+        clicked_this_round = False
+        for btn in buttons:
+            try:
+                driver.execute_script(
+                    "arguments[0].scrollIntoView({block:'center'});", btn,
+                )
+                sleep(0.4)
+                btn.click()
+                sleep(page_wait * 0.6)
+                clicked_any = True
+                clicked_this_round = True
+            except (ElementClickInterceptedException,
+                    StaleElementReferenceException,
+                    WebDriverException):
+                continue
+        if not clicked_this_round:
+            return clicked_any
+    return clicked_any
 
 
 def _normalize_profile_base(profile_url: str) -> str:
@@ -1381,6 +1423,11 @@ def _fetch_soup(driver: webdriver.Chrome, url: str, page_wait: float) -> Beautif
     driver.get(url)
     sleep(page_wait)
     _scroll_detail_page(driver, page_wait)
+    # Expand any "Show more" pagination, then re-scroll to load whatever the
+    # expansion appended (which may itself contain more lazy-load triggers).
+    if _expand_show_more_buttons(driver, page_wait):
+        _scroll_detail_page(driver, page_wait)
+        _expand_show_more_buttons(driver, page_wait)
     return BeautifulSoup(driver.page_source, "lxml")
 
 
