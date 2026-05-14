@@ -336,9 +336,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                             <span aria-hidden="true" class="h-1.5 w-1.5 rounded-full flex-shrink-0" :class="col.dotClass"></span>
                                             <span x-text="chipName(chip)"></span>
                                         </div>
-                                        <template x-if="col.key !== 'matched' && chipReason(chip)">
-                                            <span class="block text-[10px] font-normal opacity-70 leading-snug max-w-[14rem]" x-text="chipReason(chip)"></span>
-                                        </template>
                                         <template x-if="col.key !== 'matched' && hasRealProximity(chip)">
                                             <div class="mt-0.5 h-[2px] w-full rounded-full bg-neutral-200/60 dark:bg-neutral-800/60 overflow-hidden">
                                                 <div class="h-full rounded-full transition-all duration-200"
