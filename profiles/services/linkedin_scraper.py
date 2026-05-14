@@ -1060,24 +1060,42 @@ def parse_projects(soup: BeautifulSoup) -> list[dict[str, Any]]:
     return out
 
 
-def parse_skills(soup: BeautifulSoup) -> list[dict[str, Any]]:
-    """Each item: [skill_name, (one or more endorsement-source lines)?].
+_SKILL_ITEM_KEY_PREFIX = "com.linkedin.sdui.profile.skill("
 
-    LinkedIn's /details/skills/ page lists each skill once at the top of its
-    block, then nests the supporting certifications / experiences / projects
-    that endorse it underneath. We surface those as `sources` so downstream
-    consumers can show provenance without inflating the skill count.
+
+def parse_skills(soup: BeautifulSoup) -> list[dict[str, Any]]:
+    """Pull one entry per skill from the dedicated /details/skills/ page.
+
+    LinkedIn's skills page has its own DOM shape — each skill sits in a
+    `<div componentkey="com.linkedin.sdui.profile.skill(<urn>, <id>)">` and
+    the parent section container ends in `SkillDetails` rather than being a
+    `<div data-component-type="LazyColumn">` like other sections. The flat
+    `_section_items` splitter doesn't work here, so we walk the skill divs
+    directly. Each one's first `<p>` is the skill name; subsequent `<p>`s
+    are endorsement sources (certs / experiences / projects).
     """
-    items = _section_items(soup, "skills")
     out: list[dict[str, Any]] = []
-    for texts in items:
+    seen_names: set[str] = set()
+    for div in soup.find_all("div", attrs={"componentkey": True}):
+        ck = div.get("componentkey", "")
+        if not ck.startswith(_SKILL_ITEM_KEY_PREFIX):
+            continue
+        texts: list[str] = []
+        for p in div.find_all("p"):
+            t = p.get_text(" ", strip=True)
+            if t and (not texts or texts[-1] != t):
+                texts.append(t)
         if not texts:
             continue
         name = texts[0].strip()
-        if not name:
+        if not name or name.lower() in {"show all", "see all", "all"}:
             continue
-        sources = [t.strip() for t in texts[1:] if t.strip()]
-        out.append({"name": name, "sources": sources})
+        # LinkedIn renders each skill twice in some layouts (once in a tabbed
+        # "All" view, once in its category). Dedupe by name.
+        if name in seen_names:
+            continue
+        seen_names.add(name)
+        out.append({"name": name, "sources": [t for t in texts[1:] if t]})
     return out
 
 

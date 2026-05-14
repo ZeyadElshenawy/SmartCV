@@ -782,22 +782,33 @@ class LinkedinScraperSectionTests(SimpleTestCase):
         self.assertEqual(len(out), 1)
         self.assertEqual(out[0]['project_name'], 'Real Project')
 
-    def test_parse_skills_emits_skill_name_with_endorsement_sources(self):
+    def test_parse_skills_walks_per_skill_componentkey_divs(self):
+        # Real LinkedIn skills page shape: each skill is its own div with a
+        # componentkey starting "com.linkedin.sdui.profile.skill(...)" — the
+        # surrounding section container isn't a LazyColumn at all, so the
+        # generic _section_items splitter doesn't apply.
+        from bs4 import BeautifulSoup
         from profiles.services.linkedin_scraper import parse_skills
-        body = (
-            '<p>Skills</p>'
-            '<p>Python</p>'
-            '<p>Endorsed by 5 colleagues</p>'
-            '<hr role="presentation">'
+        html = (
+            '<div componentkey="com.linkedin.sdui.profile.skill(URN, 1)">'
+            '<p>Python</p><p>Endorsed by Coursera Certificate</p>'
+            '</div>'
+            '<div componentkey="com.linkedin.sdui.profile.skill(URN, 2)">'
             '<p>SQL</p>'
+            '</div>'
+            # Duplicate name in a second tabbed view — should dedupe.
+            '<div componentkey="com.linkedin.sdui.profile.skill(URN, 1)">'
+            '<p>Python</p>'
+            '</div>'
+            # Unrelated div with a componentkey — must NOT be picked up.
+            '<div componentkey="com.linkedin.sdui.profile.unrelated"><p>Noise</p></div>'
         )
-        soup = self._make_soup('SkillsDetails', body)
+        soup = BeautifulSoup(html, 'lxml')
         out = parse_skills(soup)
         names = [s['name'] for s in out]
-        self.assertIn('Python', names)
-        self.assertIn('SQL', names)
+        self.assertEqual(names, ['Python', 'SQL'])
         python = next(s for s in out if s['name'] == 'Python')
-        self.assertIn('Endorsed by 5 colleagues', python['sources'])
+        self.assertIn('Endorsed by Coursera Certificate', python['sources'])
 
     def test_parse_volunteering_extracts_role_org_duration_cause(self):
         from profiles.services.linkedin_scraper import parse_volunteering
