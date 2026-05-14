@@ -64,13 +64,19 @@ def _build_profile_form_context(profile):
     
     extra_sections = {}
     
-    # Build dynamic contact links from existing fields
+    # Build dynamic contact links from existing fields. LinkedIn/GitHub
+    # come off the model directly; Kaggle/Scholar are @property accessors
+    # that read from data_content (or fall back to {source}_signals).
     contact_links = []
     if profile.linkedin_url:
         contact_links.append({"platform": "LinkedIn", "url": profile.linkedin_url})
     if profile.github_url:
         contact_links.append({"platform": "GitHub", "url": profile.github_url})
-        
+    if getattr(profile, 'kaggle_url', None):
+        contact_links.append({"platform": "Kaggle", "url": profile.kaggle_url})
+    if getattr(profile, 'scholar_url', None):
+        contact_links.append({"platform": "Scholar", "url": profile.scholar_url})
+
     # See if they have other links in data_content (like portfolio, twitter, etc.)
     if profile.data_content:
         for key, value in profile.data_content.items():
@@ -210,15 +216,20 @@ def profile_manual_form(request, job_id):
                 # Map standard ones back
                 profile.linkedin_url = ""
                 profile.github_url = ""
-                
+                if profile.data_content:
+                    profile.data_content.pop('kaggle_url', None)
+                    profile.data_content.pop('scholar_url', None)
+
                 for link in contact_links:
                     platform = link.get('platform', '').strip().lower()
                     url = link.get('url', '').strip()
-                    
+
                     if platform == 'linkedin':
                         profile.linkedin_url = url
                     elif platform == 'github':
                         profile.github_url = url
+                    elif platform in ('kaggle', 'scholar'):
+                        profile.data_content[f'{platform}_url'] = url
                     else:
                         # Stash unknown links in data_content so they aren't lost
                         profile.data_content[platform] = url
@@ -523,18 +534,28 @@ def review_master_profile(request):
                 contact_links = json.loads(request.POST.get('contact_links_json'))
                 profile.linkedin_url = ""
                 profile.github_url = ""
-                
+                # Clear the persisted Kaggle/Scholar URLs too so removing a
+                # row in the form actually drops the link. data_content[*_url]
+                # is what the @property accessors read first.
+                if profile.data_content:
+                    profile.data_content.pop('kaggle_url', None)
+                    profile.data_content.pop('scholar_url', None)
+
                 for link in contact_links:
                     platform = link.get('platform', '').strip().lower()
                     url = link.get('url', '').strip()
-                    
+
                     if platform == 'linkedin':
                         profile.linkedin_url = url
                     elif platform == 'github':
                         profile.github_url = url
+                    elif platform in ('kaggle', 'scholar'):
+                        # Match the key the model's @property accessor reads
+                        # so the link survives a round-trip through the form.
+                        profile.data_content[f'{platform}_url'] = url
                     else:
                         profile.data_content[platform] = url
-                        
+
             if request.POST.get('skills_json'):
                 profile.skills = json.loads(request.POST.get('skills_json'))
             if request.POST.get('experiences_json'):

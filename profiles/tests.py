@@ -934,6 +934,76 @@ class SignalMergerTests(SimpleTestCase):
         self.assertEqual(sum(first.values()), 5)
         self.assertEqual(sum(second.values()), 0)
 
+    def test_split_date_range_handles_single_anchor_plus_duration(self):
+        # LinkedIn's short-stint shape: "Aug 2025 · 1 mo" → start='Aug 2025',
+        # end='Sep 2025'. Previously this fell through with both blank, and
+        # the CV-parsed entry's wrong end='Present' survived.
+        from profiles.services.signal_merger import _split_date_range
+        self.assertEqual(_split_date_range('Aug 2025 \xb7 1 mo'), ('Aug 2025', 'Sep 2025'))
+        self.assertEqual(_split_date_range('May 2023 \xb7 2 yrs'), ('May 2023', 'May 2025'))
+        self.assertEqual(_split_date_range('Dec 2024 \xb7 1 mo'), ('Dec 2024', 'Jan 2025'))
+        # Two-anchor shape still works.
+        self.assertEqual(_split_date_range('Jun 2025 - Dec 2025 \xb7 7 mos'),
+                         ('Jun 2025', 'Dec 2025'))
+
+    def test_merger_corrects_wrong_present_end_date_on_fuzzy_match(self):
+        # User's actual bug: CV parsed "Almansour Automative" with
+        # end_date='Present' for a 1-month internship. LinkedIn shows
+        # duration='Aug 2025 · 1 mo' for the same role (fuzzy company match).
+        # Merger must overwrite the stale 'Present' with the computed end.
+        from profiles.services.signal_merger import merge_signals_into_profile
+        profile = self._profile({
+            'experiences': [{
+                'title': 'Digital Transformation Intern',
+                'company': 'Almansour Automative',
+                'start_date': 'August 2025',
+                'end_date': 'Present',
+            }],
+            'linkedin_signals': {
+                'scraped': True, 'error': None,
+                'experience': [{
+                    'company_name': 'Al-Mansour Automotive',
+                    'employment_type': 'Full-time',
+                    'designations': [{
+                        'designation': 'Intern',
+                        'duration': 'Aug 2025 \xb7 1 mo',
+                        'location': 'Al Jizah, Egypt',
+                        'description': '',
+                    }],
+                }],
+            },
+        })
+        merge_signals_into_profile(profile)
+        # No new entry — fuzzy match dedupes — and the existing entry's
+        # bogus 'Present' is now 'Sep 2025'.
+        self.assertEqual(len(profile.data_content['experiences']), 1)
+        self.assertEqual(profile.data_content['experiences'][0]['end_date'], 'Sep 2025')
+
+    def test_merger_leaves_genuine_present_alone(self):
+        # If LinkedIn's computed end is still in the future, don't touch the
+        # user's 'Present' — the role really is ongoing.
+        from profiles.services.signal_merger import merge_signals_into_profile
+        import datetime as _dt
+        # Future start so even with 1-mo duration the end stays future.
+        future_year = _dt.date.today().year + 2
+        profile = self._profile({
+            'experiences': [{'company': 'X Corp', 'title': 'Eng',
+                             'end_date': 'Present'}],
+            'linkedin_signals': {
+                'scraped': True, 'error': None,
+                'experience': [{
+                    'company_name': 'X Corp', 'employment_type': '',
+                    'designations': [{
+                        'designation': 'Eng',
+                        'duration': f'Aug {future_year} \xb7 1 mo',
+                        'location': '', 'description': '',
+                    }],
+                }],
+            },
+        })
+        merge_signals_into_profile(profile)
+        self.assertEqual(profile.data_content['experiences'][0]['end_date'], 'Present')
+
     def test_errored_snapshot_is_skipped(self):
         from profiles.services.signal_merger import merge_signals_into_profile
         profile = self._profile({
