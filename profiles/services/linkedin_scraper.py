@@ -577,6 +577,36 @@ def _scroll_to_bottom(driver: webdriver.Chrome, page_wait: float, passes: int = 
         last_height = new_height
 
 
+def _scroll_detail_page(driver: webdriver.Chrome, page_wait: float) -> None:
+    """Walk down a detail page in chunks until the page stops growing.
+
+    LinkedIn's /details/* pages paginate by IntersectionObserver — jumping
+    straight to the bottom loads only the first batch, then stops because
+    the observer never sees the trigger element become visible. Scrolling
+    in ~1200px increments at a human-ish pace gets each batch to render
+    before the next request fires. Requires two consecutive stable readings
+    (height unchanged + we're at the current bottom) before exiting so we
+    don't bail on a slow batch.
+    """
+    increment = 1200
+    max_passes = 16
+    stable_streak = 0
+    scroll_y = 0
+    for _ in range(max_passes):
+        page_bottom = int(driver.execute_script("return document.body.scrollHeight"))
+        scroll_y = min(scroll_y + increment, page_bottom)
+        driver.execute_script(f"window.scrollTo(0, {scroll_y});")
+        sleep(page_wait * 0.7)
+        new_bottom = int(driver.execute_script("return document.body.scrollHeight"))
+        at_bottom = scroll_y >= new_bottom - 50
+        if new_bottom == page_bottom and at_bottom:
+            stable_streak += 1
+            if stable_streak >= 2:
+                return
+        else:
+            stable_streak = 0
+
+
 def _normalize_profile_base(profile_url: str) -> str:
     return profile_url.rstrip("/") + "/"
 
@@ -1350,7 +1380,7 @@ def dump_raw_pages(
 def _fetch_soup(driver: webdriver.Chrome, url: str, page_wait: float) -> BeautifulSoup:
     driver.get(url)
     sleep(page_wait)
-    _scroll_to_bottom(driver, page_wait)
+    _scroll_detail_page(driver, page_wait)
     return BeautifulSoup(driver.page_source, "lxml")
 
 
