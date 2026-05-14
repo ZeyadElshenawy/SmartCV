@@ -42,10 +42,20 @@ Required context: `profile`.
             </button>
         </form>
 
-        <p x-show="loading" x-cloak class="text-[11px] text-neutral-500 dark:text-neutral-400 leading-relaxed">
-            Importing your LinkedIn profile. This can take up to a minute. If LinkedIn
-            asks for a security check, a sign-in window will pop up so you can complete it.
-        </p>
+        <div x-show="loading" x-cloak class="space-y-1.5">
+            <div class="h-1 w-full rounded-full bg-neutral-100 dark:bg-neutral-800 overflow-hidden">
+                <div class="h-full bg-[#0a66c2] transition-[width] duration-500 ease-out"
+                     :style="`width: ${progress}%`"></div>
+            </div>
+            <div class="flex items-center justify-between text-[11px] text-neutral-500 dark:text-neutral-400">
+                <span class="uppercase tracking-[0.14em] font-medium" x-text="progressLabel">Starting</span>
+                <span class="font-mono tabular-nums" x-text="Math.round(progress) + '%'"></span>
+            </div>
+            <p class="text-[11px] text-neutral-400 dark:text-neutral-500 leading-relaxed">
+                Importing your LinkedIn profile — this usually takes 2–3 minutes. If LinkedIn
+                asks for a security check, a sign-in window will pop up so you can complete it.
+            </p>
+        </div>
 
         <div x-show="error" x-cloak class="rounded-lg bg-red-50 dark:bg-red-950/40 ring-1 ring-red-200 dark:ring-red-900 px-3 py-2 text-xs text-red-700 dark:text-red-300">
             <span x-text="error"></span>
@@ -116,6 +126,24 @@ function linkedinSignals(initialUrl, snapshotElementId) {
         const raw = el ? el.textContent.trim() : '';
         if (raw && raw !== '""') initialSnapshot = JSON.parse(raw);
     } catch (_) { initialSnapshot = null; }
+    // The server-side refresh is synchronous and can take 2-3 minutes. We
+    // can't get real progress events back without WebSocket plumbing, so we
+    // drive a time-based bar with stage labels that match what the scraper
+    // is actually doing in roughly the order it does it. Tuned against the
+    // observed run times — total budget 180s, capped at 95% so the bar
+    // never claims done until the fetch actually resolves.
+    const STAGES = [
+        { until: 25,  label: 'Signing in to LinkedIn' },
+        { until: 40,  label: 'Reading your profile' },
+        { until: 60,  label: 'Pulling experience' },
+        { until: 75,  label: 'Pulling education' },
+        { until: 105, label: 'Pulling certifications' },
+        { until: 125, label: 'Pulling projects' },
+        { until: 160, label: 'Pulling skills' },
+        { until: 175, label: 'Pulling volunteering' },
+        { until: 180, label: 'Finishing up' },
+    ];
+    const TOTAL_BUDGET_SECS = 180;
     return {
         urlInput: initialUrl || '',
         _savedUrl: initialUrl || '',
@@ -123,6 +151,9 @@ function linkedinSignals(initialUrl, snapshotElementId) {
         loading: false,
         error: null,
         editing: false,
+        progress: 0,
+        progressLabel: 'Starting',
+        _progressTimer: null,
         get hasData() { return this.snapshot && this.snapshot.username && !this.snapshot.error; },
         startEdit() {
             this.editing = true;
@@ -134,8 +165,30 @@ function linkedinSignals(initialUrl, snapshotElementId) {
             this.error = null;
             this.urlInput = this._savedUrl;
         },
+        _startProgress() {
+            this.progress = 0;
+            this.progressLabel = STAGES[0].label;
+            const start = Date.now();
+            this._progressTimer = setInterval(() => {
+                const elapsed = (Date.now() - start) / 1000;
+                // Cap at 95% — the final 5% lands when the fetch resolves.
+                const pct = Math.min(95, (elapsed / TOTAL_BUDGET_SECS) * 95);
+                this.progress = pct;
+                const stage = STAGES.find(s => elapsed < s.until) || STAGES[STAGES.length - 1];
+                this.progressLabel = stage.label;
+            }, 500);
+        },
+        _stopProgress() {
+            if (this._progressTimer) {
+                clearInterval(this._progressTimer);
+                this._progressTimer = null;
+            }
+            this.progress = 100;
+            this.progressLabel = 'Done';
+        },
         async refresh() {
             this.loading = true; this.error = null;
+            this._startProgress();
             try {
                 const csrf = document.cookie.split('; ').find(c => c.startsWith('csrftoken='))?.split('=')[1] || '';
                 const body = new URLSearchParams();
@@ -152,7 +205,7 @@ function linkedinSignals(initialUrl, snapshotElementId) {
                 this._savedUrl = this.urlInput;
                 this.editing = false;
             } catch (e) { this.error = e.message || 'Network error'; }
-            finally { this.loading = false; }
+            finally { this._stopProgress(); this.loading = false; }
         },
     };
 }
