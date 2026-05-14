@@ -1439,12 +1439,16 @@ def _fetch_soup(driver: webdriver.Chrome, url: str, page_wait: float) -> Beautif
     driver.get(url)
     sleep(page_wait)
     _scroll_detail_page(driver, page_wait)
-    # Expand any "Show more" pagination, then re-scroll to load whatever the
-    # expansion appended (which may itself contain more lazy-load triggers).
-    if _expand_show_more_buttons(driver, page_wait):
-        _scroll_detail_page(driver, page_wait)
-        _expand_show_more_buttons(driver, page_wait)
     return BeautifulSoup(driver.page_source, "lxml")
+# NOTE: We previously called `_expand_show_more_buttons` here hoping it would
+# expand the section's pagination. Inspection of the dumps confirmed the only
+# "Show more" button on these pages is the "More profiles for you" ad
+# sidebar's expander — clicking it just toggles ads to "Show less" and adds no
+# section data. LinkedIn's actual cert/skill pagination happens via a
+# server-side XHR that the scroll-and-observer trigger doesn't reliably fire
+# in headless mode, and intercepting it is a much bigger change than this
+# bug ticket warrants. We keep `_expand_show_more_buttons` available for
+# future use; just not on the per-section fetch path.
 
 
 _DETAIL_SECTIONS = [
