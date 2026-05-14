@@ -748,6 +748,77 @@ class LinkedinFallbackTests(SimpleTestCase):
         self.assertEqual(_linkedin_fallback([], 'https://example.com'), [])
 
 
+class ProjectSortTests(SimpleTestCase):
+    """Newest-first sort across mixed date shapes."""
+
+    def test_pushed_at_iso_beats_year_string(self):
+        from profiles.services.project_sort import sort_projects_newest_first
+        out = sort_projects_newest_first([
+            {'name': 'Older repo', 'source': 'github',
+             'pushed_at': '2023-05-01T00:00:00Z'},
+            {'name': 'Newer repo', 'source': 'github',
+             'pushed_at': '2026-04-01T00:00:00Z'},
+        ])
+        self.assertEqual([p['name'] for p in out], ['Newer repo', 'Older repo'])
+
+    def test_month_breaks_year_tie(self):
+        from profiles.services.project_sort import sort_projects_newest_first
+        out = sort_projects_newest_first([
+            {'name': 'Early 2025', 'duration': 'Jan 2025'},
+            {'name': 'Late 2025',  'duration': 'Dec 2025'},
+        ])
+        self.assertEqual([p['name'] for p in out], ['Late 2025', 'Early 2025'])
+
+    def test_undateable_projects_sink_to_bottom(self):
+        from profiles.services.project_sort import sort_projects_newest_first
+        out = sort_projects_newest_first([
+            {'name': 'No date'},
+            {'name': 'Has 2024',
+             'description': ['Built in 2024 over six months.']},
+        ])
+        self.assertEqual([p['name'] for p in out], ['Has 2024', 'No date'])
+
+    def test_year_found_in_description_text(self):
+        # Master-profile projects routinely have no explicit date fields,
+        # only a year mention inside the description bullets. The extractor
+        # must walk free-text fields too.
+        from profiles.services.project_sort import sort_projects_newest_first
+        out = sort_projects_newest_first([
+            {'name': 'A', 'description': 'Built in 2022.'},
+            {'name': 'B', 'description': ['Shipped 2026 release.', 'Cut latency.']},
+            {'name': 'C', 'description': 'Launched 2024.'},
+        ])
+        self.assertEqual([p['name'] for p in out], ['B', 'C', 'A'])
+
+    def test_iso_pushed_at_extracts_month(self):
+        from profiles.services.project_sort import project_sort_key
+        # Real-world GitHub pushed_at shape — must yield (2026, 4).
+        self.assertEqual(
+            project_sort_key({'pushed_at': '2026-04-15T10:30:00Z'}),
+            (2026, 4),
+        )
+
+    def test_backfill_github_dates_from_signals(self):
+        from profiles.services.project_sort import backfill_github_dates
+        projects = [
+            {'name': 'repo-a', 'source': 'github', 'source_id': 'me/repo-a'},
+            {'name': 'repo-b', 'source': 'github', 'source_id': 'me/repo-b',
+             'pushed_at': 'already-set'},  # untouched
+            {'name': 'linkedin-proj', 'source': 'linkedin', 'source_id': 'me/repo-a'},  # untouched
+        ]
+        data_content = {
+            'github_signals': {
+                'top_repos': [
+                    {'full_name': 'me/repo-a', 'pushed_at': '2025-03-01T00:00:00Z'},
+                ],
+            },
+        }
+        backfill_github_dates(projects, data_content)
+        self.assertEqual(projects[0]['pushed_at'], '2025-03-01T00:00:00Z')
+        self.assertEqual(projects[1]['pushed_at'], 'already-set')
+        self.assertNotIn('pushed_at', projects[2])
+
+
 class SignalMergerTests(SimpleTestCase):
     """Dedup-on-add merger that flows LinkedIn signal sections into the
     master profile (experiences, certs, skills, education, volunteering)."""
