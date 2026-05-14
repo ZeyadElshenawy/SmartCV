@@ -32,6 +32,55 @@ from profiles.services.schemas import DedupeBatch, DedupeDecision
 logger = logging.getLogger(__name__)
 
 
+def _recover_decisions_from_failed_generation(exc) -> list[dict] | None:
+    """Salvage DedupeBatch decisions from Groq's tool_use_failed body.
+
+    Groq's strict tool validator rejects the LLM response when it wraps the
+    output in a bare list  [{"decisions": [...]}]  instead of the flat
+    {"decisions": [...]}  our schema declares. The JSON is perfectly valid —
+    it's available in error.failed_generation. Parse it directly and return
+    a list of decision dicts, or None when the blob isn't usable.
+    """
+    body = getattr(exc, 'body', None) or {}
+    err = body.get('error', {}) if isinstance(body, dict) else {}
+    raw = err.get('failed_generation')
+    if not raw or not isinstance(raw, str):
+        return None
+    try:
+        parsed = json.loads(raw)
+    except Exception:
+        return None
+
+    # Unwrap a bare list wrapper: [{"decisions": [...]}] → {"decisions": [...]}
+    if isinstance(parsed, list) and parsed and isinstance(parsed[0], dict):
+        parsed = parsed[0]
+
+    # Expect {"decisions": [...]}
+    if isinstance(parsed, dict) and isinstance(parsed.get('decisions'), list):
+        raw_decisions = parsed['decisions']
+    else:
+        return None
+
+    out: list[dict] = []
+    for item in raw_decisions:
+        if not isinstance(item, dict):
+            continue
+        action = item.get('action', 'add_new')
+        if action not in {'merge', 'keep_existing', 'keep_new', 'add_new'}:
+            action = 'add_new'
+        enriched_index = item.get('enriched_index')
+        if enriched_index is None:
+            continue
+        out.append({
+            'enriched_index': int(enriched_index),
+            'typed_index': int(item.get('typed_index', -1)),
+            'action': action,
+            'confidence': float(item.get('confidence', 0.5)),
+            'reason': item.get('reason', ''),
+        })
+    return out if out else None
+
+
 def dedupe_projects(typed_projects: list[dict], enriched_projects: list[dict]) -> list[dict]:
     """Run the dedupe LLM call. Returns a list of DedupeDecision-shaped dicts.
 
@@ -131,55 +180,58 @@ typed project's index, or -1 for add_new.
             len(decisions), len(typed_projects), len(enriched_projects),
         )
         return decisions
-    except Exception:
+    except Exception as exc:
+        # Groq's tool validator rejects the call when the model wraps its
+        # response in a bare list [{"decisions": [...]}] rather than the
+        # flat {"decisions": [...]} the schema declares. The JSON itself is
+        # perfectly valid — it lives in error.failed_generation. Salvage it
+        # before falling back to the dumb URL-match path so we keep the
+        # model's semantic merge/add_new/keep_existing decisions.
+        recovered = _recover_decisions_from_failed_generation(exc)
+        if recovered is not None:
+            decisions = recovered
+            seen = {d['enriched_index'] for d in decisions}
+            for i in range(len(enriched_projects)):
+                if i not in seen:
+                    decisions.append({
+                        'enriched_index': i,
+                        'typed_index': -1,
+                        'action': 'add_new',
+                        'confidence': 0.5,
+                        'reason': 'No decision emitted by LLM; defaulting to add_new.',
+                    })
+            decisions.sort(key=lambda d: d['enriched_index'])
+            logger.info(
+                "project_dedupe: recovered %d decisions from failed_generation "
+                "(%d typed × %d enriched)",
+                len(decisions), len(typed_projects), len(enriched_projects),
+            )
+            return decisions
         logger.exception("project_dedupe: LLM call failed; falling back to URL match")
         return _url_match_fallback(typed_projects, enriched_projects)
 
 
 def auto_apply_enriched_projects(profile) -> dict:
-    """Run enrichment + dedupe + apply with no user overrides; persist.
+    """Deprecated — thin wrapper around ``rebuild_master_profile``.
 
-    Used in the (default) hands-off onboarding path: the user connects
-    external accounts and the system silently merges enriched projects
-    into the master profile without surfacing a confirm form. The LLM's
-    verdict per pair is treated as authoritative — merge / keep_existing
-    / keep_new / add_new all apply automatically.
+    All new code should call ``rebuild_master_profile`` directly. This wrapper
+    is kept so existing tests and any call sites that haven't been updated yet
+    continue to work without modification.
 
-    Idempotent across visits: enrich_profile uses a hash-based cache, so
-    re-running with unchanged signals is free; dedupe + apply are pure
-    functions over that cached input.
-
-    Returns a small summary dict suitable for surfacing as a status
-    banner: counts per action, plus the final project pool size.
+    The old implementation read from ``data_content['projects']`` as the typed
+    baseline, which caused duplicates when enriched entries were mixed back in
+    on re-runs. ``rebuild_master_profile`` fixes this by always reading
+    ``data_content['projects_typed']`` as the immutable typed baseline.
     """
-    from profiles.services.project_enricher import enrich_profile
-
-    enriched = enrich_profile(profile)
-    typed = (profile.data_content or {}).get('projects') or []
-    decisions = dedupe_projects(typed, enriched)
-    final = apply_decisions(typed, enriched, decisions)
-
-    counts = {'merge': 0, 'keep_existing': 0, 'keep_new': 0, 'add_new': 0}
-    for d in decisions:
-        action = d.get('action', '')
-        if action in counts:
-            counts[action] += 1
-
-    data = profile.data_content or {}
-    data['projects'] = final
-    data['dedupe_decisions'] = decisions
-    data['enriched_projects_cache'] = enriched
-    profile.data_content = data
-    profile.save(update_fields=['data_content', 'updated_at'])
-
-    return {
-        'enriched_count': len(enriched),
-        'final_count': len(final),
-        'merged': counts['merge'],
-        'kept_existing': counts['keep_existing'],
-        'kept_new': counts['keep_new'],
-        'added_new': counts['add_new'],
-    }
+    import warnings
+    warnings.warn(
+        "auto_apply_enriched_projects is deprecated; call "
+        "profiles.services.profile_rebuilder.rebuild_master_profile instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    from profiles.services.profile_rebuilder import rebuild_master_profile
+    return rebuild_master_profile(profile)
 
 
 def apply_decisions(
@@ -280,8 +332,12 @@ def _enriched_to_project(enriched: dict) -> dict:
 
 def _merge(typed: dict, enriched: dict) -> dict:
     """Union of a typed project and an enriched one. Typed name + URL win;
-    tech_stack is unioned (case-insensitive); bullets are concatenated, dedup'd
-    by lowercase prefix to avoid two near-duplicates."""
+    tech_stack is unioned (case-insensitive); bullets are concatenated with
+    a similarity-based dedupe so semantically-equivalent phrasings collapse
+    ("Built a Power BI dashboard for HR analytics…" vs "Developed an
+    interactive HR analytics dashboard in Power BI…")."""
+    from difflib import SequenceMatcher
+
     merged = dict(typed)
     # Name + URL: prefer typed if present, else enriched.
     if not merged.get('name'):
@@ -297,17 +353,29 @@ def _merge(typed: dict, enriched: dict) -> dict:
             typed_tech.append(t)
             seen_lower.add(t.lower())
     merged['technologies'] = typed_tech
-    # Bullets: concat, dedup by lowercase first 50 chars (catches near-dup
-    # phrasings without needing a real similarity metric).
+    # Bullets: concat, then drop enriched ones whose SequenceMatcher ratio
+    # against any already-kept bullet is ≥ 0.75. Same threshold + library
+    # the signal_merger uses for company-name fuzzy dedup. Catches near-
+    # duplicates like "Developed an HR analytics dashboard in Power BI"
+    # vs "Built a Power BI dashboard for HR analytics".
     typed_desc = list(merged.get('description') or [])
     if isinstance(typed_desc, str):
         typed_desc = [line.strip() for line in typed_desc.split('\n') if line.strip()]
     enriched_bullets = list(enriched.get('bullets') or [])
-    seen_prefixes = {b.lower()[:50] for b in typed_desc}
     for b in enriched_bullets:
-        if b.lower()[:50] not in seen_prefixes:
+        b_norm = b.lower().strip()
+        if not b_norm:
+            continue
+        is_dup = False
+        for kept in typed_desc:
+            kept_norm = kept.lower().strip() if isinstance(kept, str) else ''
+            if not kept_norm:
+                continue
+            if SequenceMatcher(None, b_norm, kept_norm).ratio() >= 0.75:
+                is_dup = True
+                break
+        if not is_dup:
             typed_desc.append(b)
-            seen_prefixes.add(b.lower()[:50])
     merged['description'] = typed_desc
     # Keep source provenance only if typed has none.
     if not merged.get('source'):

@@ -144,25 +144,50 @@ def _enrich_github(github: dict) -> list[EnrichedProject]:
     if not repos:
         return []
     languages = _format_language_breakdown(github.get('language_breakdown') or [])
-    prompt = f"""Turn each GitHub repo below into a project-shaped entry suitable
-for a resume's Projects section. Return one entry per repo, in the same order.
+    username = (github.get('username') or '').strip()
+    prompt = f"""Turn each GitHub repo below into a project-shaped resume entry.
+Return one entry per repo, in the same order.
+
+**Voice.** The candidate (`{username}`) OWNS every repo in this list — every
+`full_name` starts with their handle. Write bullets in resume voice with
+first-person active verbs (Built, Designed, Implemented, Trained, Shipped,
+Optimized). NEVER write "Contributed to" for these repos — they are the
+candidate's own work, not third-party contributions.
+
+**Grounding.** Each repo carries a `readme_excerpt` field with the first
+~3000 chars of the README when available. Prefer specifics from the README
+(real features, real datasets, real architectures, real metrics) over
+inferences from the name + language. If the README doesn't evidence a
+claim, don't make it — vague is better than invented.
+
+**Bullets — 2 or 3 per repo, hard cap at 3.** Each bullet must name a
+specific feature, dataset, model, technology, or measurable outcome.
+
+**Do NOT include any of these patterns:**
+  - GitHub metadata bragging: "with N star(s) on GitHub", "N stars / N forks",
+    "garnering N stars", "earning N stars". The only exception is repos with
+    ≥ 50 stars — those can mention the star count once. Otherwise skip it.
+  - Filler phrases: "showcasing expertise", "showcasing skills",
+    "enabling insights into", "for an interactive user experience",
+    "cutting-edge", "leveraging", "utilizing", "demonstrating proficiency",
+    "best-in-class".
+  - Passive voice for the candidate's own repos ("Contributed to a project
+    that…" — wrong; the candidate built it).
 
 Each entry needs:
   - `name`: the repo's display name (use `name`, NOT `full_name`).
-  - `summary`: one sentence describing what the repo does. Pull from the repo's
-    description; if blank, infer from the name + language.
-  - `tech_stack`: list of technologies. Always include the primary language.
-    Add frameworks/tools if obvious from the description.
-  - `bullets`: 2 concise resume bullets. Lead with action verbs (Built,
-    Implemented, Designed). Surface concrete proof — star count, fork count,
-    language used. Never invent users / metrics / outcomes the repo doesn't
-    evidence. If a repo has 50 stars say "50 stars on GitHub", don't say
-    "5K users" or "production-grade".
+  - `summary`: one sentence drawn from the README's opening or the `description`
+    field. If both are blank, infer cautiously from the name + language.
+  - `tech_stack`: list of technologies the README or `description` explicitly
+    mentions, plus the primary `language`. Never guess — if the README doesn't
+    name a framework, don't list it.
+  - `bullets`: 2-3 bullets per the rules above.
   - `source`: always "github".
   - `source_id`: the repo's `full_name`.
   - `source_url`: the repo's `html_url`.
 
 CANDIDATE'S OVERALL GITHUB CONTEXT:
+- Handle: {username or 'unknown'}
 - Public repos: {github.get('public_repos', 0)}
 - Total stars: {github.get('total_stars', 0)}
 - Top languages: {languages or 'unknown'}
@@ -451,7 +476,12 @@ LINKEDIN PROJECTS:
 
 def _github_fallback(repos: list[dict]) -> list[EnrichedProject]:
     """Deterministic, no-LLM enrichment for when the model is unavailable.
-    Produces grounded — if dry — entries straight from the API payload."""
+    Produces grounded — if dry — entries straight from the API payload.
+
+    Star/fork counts are intentionally NOT surfaced — they read as filler
+    on low-star repos and the old "N star on GitHub" template was the
+    single biggest source of bad bullets in the LLM output. If the user
+    wants stars cited, they can add it manually in the form."""
     out = []
     for r in repos:
         name = (r.get('name') or '').strip()
@@ -459,19 +489,16 @@ def _github_fallback(repos: list[dict]) -> list[EnrichedProject]:
             continue
         desc = (r.get('description') or '').strip()
         lang = (r.get('language') or '').strip()
-        stars = r.get('stargazers_count', 0) or 0
-        forks = r.get('forks_count', 0) or 0
         bullets = []
         if desc:
             bullets.append(desc)
-        bullets.append(
-            f"Built in {lang or 'multiple languages'}; {stars} star{'s' if stars != 1 else ''}"
-            + (f", {forks} fork{'s' if forks != 1 else ''}" if forks else '')
-            + " on GitHub."
-        )
+        if lang:
+            bullets.append(f"Built primarily in {lang}.")
+        if not bullets:
+            bullets.append(f"{name} — open-source project on GitHub.")
         out.append(EnrichedProject(
             name=name,
-            summary=desc or f"{name} — public repository.",
+            summary=desc or f"{name} — open-source project.",
             tech_stack=[lang] if lang else [],
             bullets=bullets,
             source='github',
