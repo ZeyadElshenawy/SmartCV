@@ -580,44 +580,62 @@ def _scroll_to_bottom(driver: webdriver.Chrome, page_wait: float, passes: int = 
 
 
 def _scroll_detail_page(driver: webdriver.Chrome, page_wait: float) -> None:
-    """Walk down a detail page in small chunks until it stops growing.
+    """Walk down a detail page until the item count stops growing.
 
-    LinkedIn's /details/* pages paginate via IntersectionObserver. The
-    observer is sensitive to scroll velocity — jumping or moving too fast
-    means the sentinel briefly enters view and the fetch never fires. We:
-      * advance in small 400px steps so the sentinel sits in the viewport
-        long enough for the observer callback to land,
-      * dispatch both `scroll` and `wheel` events explicitly (LinkedIn
-        listens on `wheel` in some builds),
-      * once we believe we're at the bottom, idle there for ~3s before
-        accepting "stable" — that's how long the XHR for the next batch
-        usually takes to complete and re-render.
+    LinkedIn's /details/* pages paginate via IntersectionObserver tied to
+    each section's last visible item. `window.scrollTo` alone doesn't
+    always trigger it because (1) on some builds the page uses an inner
+    scroll container, and (2) the observer requires the trigger element
+    to dwell in the viewport. We combine three strategies:
+
+      * Window scroll in small steps with wheel/scroll event dispatch so
+        observers listening on either event fire.
+      * After each pass, find the *last* child of the section container
+        (matched by SDUI componentkey) and call `scrollIntoView` on it —
+        this works whether the scroll container is window or an ancestor.
+      * Treat "stable" as a count-based check: the number of profile-card
+        componentkey divs (skills, certs, etc.) must stop growing for
+        several consecutive passes before we accept the page as done.
     """
-    increment = 400
     max_passes = 30
+    increment = 400
     stable_streak = 0
-    scroll_y = 0
+    last_count = -1
     for _ in range(max_passes):
         page_bottom = int(driver.execute_script("return document.body.scrollHeight"))
-        scroll_y = min(scroll_y + increment, page_bottom)
         driver.execute_script(
-            "window.scrollTo({top: arguments[0], behavior: 'instant'});"
-            "window.dispatchEvent(new WheelEvent('wheel', {deltaY: 400}));"
+            "window.scrollBy({top: arguments[0], behavior: 'instant'});"
+            "window.dispatchEvent(new WheelEvent('wheel', {deltaY: arguments[0]}));"
             "window.dispatchEvent(new Event('scroll'));",
-            scroll_y,
+            increment,
         )
-        sleep(max(page_wait * 0.4, 0.6))
+        sleep(max(page_wait * 0.35, 0.5))
+        # Drive the section's pagination sentinel into view explicitly.
+        # `componentkey` divs include both the section container and each
+        # per-item card; the last one is the freshest, so scrolling it
+        # into view tickles the observer regardless of scroll container.
+        try:
+            driver.execute_script(
+                "const els = document.querySelectorAll('div[componentkey]');"
+                "if (els.length) els[els.length - 1]"
+                ".scrollIntoView({block: 'end', inline: 'nearest'});"
+            )
+        except WebDriverException:
+            pass
+        sleep(max(page_wait * 0.35, 0.5))
+        item_count = int(driver.execute_script(
+            "return document.querySelectorAll('div[componentkey]').length"
+        ))
         new_bottom = int(driver.execute_script("return document.body.scrollHeight"))
-        at_bottom = scroll_y >= new_bottom - 50
-        if new_bottom == page_bottom and at_bottom:
+        if item_count == last_count and new_bottom == page_bottom:
             stable_streak += 1
             if stable_streak >= 4:
-                # We've been parked at the bottom across multiple cycles —
-                # one final long wait in case pagination is fetching now.
+                # Final settle for any in-flight pagination XHR.
                 sleep(max(page_wait * 0.8, 2.0))
                 return
         else:
             stable_streak = 0
+            last_count = item_count
 
 
 def _expand_show_more_buttons(
