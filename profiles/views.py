@@ -1022,6 +1022,7 @@ def _refresh_signal(request, *, signal_key: str, input_field: str, fetcher,
     """
     if request.method != 'POST':
         return JsonResponse({'error': 'POST only'}, status=405)
+    from django.db import close_old_connections
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
 
     raw = (request.POST.get(input_field) or '').strip()
@@ -1029,6 +1030,13 @@ def _refresh_signal(request, *, signal_key: str, input_field: str, fetcher,
         raw = getattr(profile, fallback_url_attr, '') or ''
 
     snapshot = fetcher(raw)
+
+    # LinkedIn scrape can hold the request open 60-180s while the DB
+    # connection sits idle. Supabase's PgBouncer kills idle connections in
+    # that window, so the next save() blows up with "server closed the
+    # connection unexpectedly". Force-recycle here so the save runs on a
+    # fresh connection — same pattern as the job-discovery scraper.
+    close_old_connections()
 
     data = profile.data_content or {}
     data[signal_key] = snapshot
