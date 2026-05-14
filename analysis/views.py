@@ -69,25 +69,37 @@ def gap_analysis_view(request, job_id):
                 for s in gap_analysis.partial_skills or []
             ]
         else:
-            # Tag each entry with its tier and sort missing by proximity desc
-            # so the "almost there" chips appear first.
+            # Tag each entry with its tier so the template can render must-have
+            # chevrons and the drag-drop endpoint can re-bucket on save.
             for m in matched_must: m['tier'] = 'must'
             for m in matched_nice: m['tier'] = 'nice'
             for m in missing_must: m['tier'] = 'must'
             for m in missing_nice: m['tier'] = 'nice'
-            def _p(m): return float(m.get('proximity') or 0.0)
-            missing_must.sort(key=_p, reverse=True)
-            missing_nice.sort(key=_p, reverse=True)
 
         score = float(gap_analysis.similarity_score or 0.0)
         match_percentage = int(round(score * 100))
         circumference = 364.4
 
-        # Drag-drop columns: MATCHED merges both tier lists; CRITICAL = missing_must;
-        # SOFT = missing_nice.
+        # 4-column display split (presentation-only, DB shape unchanged):
+        #   MATCHED            = matched_must + matched_nice  (★ on must-haves)
+        #   PARTIALLY MISSING  = any missing with proximity >= 0.5
+        #   CRITICAL MISSING   = missing must-haves with proximity < 0.5
+        #   SOFT GAPS          = missing nice-to-haves with proximity < 0.5
+        # Sort each missing column by proximity desc — closest to fixable first.
+        def _prox(m): return float(m.get('proximity') or 0.0)
+
+        partially_missing = (
+            [m for m in missing_must if _prox(m) >= 0.5]
+            + [m for m in missing_nice if _prox(m) >= 0.5]
+        )
+        critical_missing = [m for m in missing_must if _prox(m) < 0.5]
+        soft_gap_chips   = [m for m in missing_nice if _prox(m) < 0.5]
+
+        partially_missing.sort(key=_prox, reverse=True)
+        critical_missing.sort(key=_prox, reverse=True)
+        soft_gap_chips.sort(key=_prox, reverse=True)
+
         matched_chips_for_ui = list(matched_must) + list(matched_nice)
-        missing_chips_for_ui = list(missing_must)
-        soft_chips_for_ui    = list(missing_nice)
 
         if match_percentage >= 80:
             primary_action = 'generate_resume'
@@ -97,14 +109,17 @@ def gap_analysis_view(request, job_id):
             primary_action = 'learning_path'
 
         total_required = max(
-            len(matched_chips_for_ui) + len(missing_chips_for_ui) + len(soft_chips_for_ui),
+            len(matched_chips_for_ui)
+            + len(partially_missing)
+            + len(critical_missing)
+            + len(soft_gap_chips),
             1,
         )
 
         # Banner: "you're X% to closing your gaps" when proximity is high
         # AND the user has enough gaps for it to matter.
         avg_p = gap_analysis.avg_proximity
-        n_missing = len(missing_chips_for_ui) + len(soft_chips_for_ui)
+        n_missing = len(partially_missing) + len(critical_missing) + len(soft_gap_chips)
         show_proximity_banner = (
             avg_p is not None and avg_p > 0.5 and n_missing >= 3
         )
@@ -118,6 +133,13 @@ def gap_analysis_view(request, job_id):
             if isinstance(s, str) and ' ' in s
         ]
 
+        # Headline copy varies when partial gaps exist.
+        n_partial = len(partially_missing)
+        if n_partial > 0:
+            close_headline_count = n_partial
+        else:
+            close_headline_count = 0
+
         context = {
             'job': job,
             'profile': profile,
@@ -125,7 +147,7 @@ def gap_analysis_view(request, job_id):
             'match_percentage': match_percentage,
             'match_band': gap_analysis.match_band or '',
             'red_flags': [m.get('name') if isinstance(m, dict) else str(m)
-                          for m in missing_chips_for_ui[:5]],
+                          for m in critical_missing[:5]],
             'soft_gaps': soft_gaps_text,
             'primary_action': primary_action,
             'can_refresh': True,
@@ -133,21 +155,22 @@ def gap_analysis_view(request, job_id):
             'avg_proximity': avg_p,
             'avg_proximity_pct': int(round((avg_p or 0) * 100)) if avg_p is not None else None,
             'show_proximity_banner': show_proximity_banner,
+            'close_headline_count': close_headline_count,
 
             # Gauge
             'gauge_fill': round(score * circumference, 1),
             'gauge_color': "#639922" if score >= 0.8 else "#BA7517" if score >= 0.5 else "#E24B4A",
             'matched_pct': round(len(matched_chips_for_ui) / total_required * 100),
-            'missing_pct': round(len(missing_chips_for_ui) / total_required * 100),
-            'soft_pct':    round(len(soft_chips_for_ui)    / total_required * 100),
+            'partial_pct': round(len(partially_missing) / total_required * 100),
+            'missing_pct': round(len(critical_missing) / total_required * 100),
+            'soft_pct':    round(len(soft_gap_chips)    / total_required * 100),
 
             # JSON data for drag-and-drop Alpine component — chips are objects
-            # now (not strings). Each carries tier + proximity + reason + hint.
-            'matched_skills_json': json.dumps(matched_chips_for_ui, default=str),
-            'missing_skills_json': json.dumps(missing_chips_for_ui, default=str),
-            'soft_skills_json':    json.dumps(soft_chips_for_ui,    default=str),
-
-            'evidence': _compute_evidence_safe(profile),
+            # carrying name/tier/proximity/proximity_reason/bridge_hint.
+            'matched_skills_json':    json.dumps(matched_chips_for_ui, default=str),
+            'partially_missing_json': json.dumps(partially_missing,    default=str),
+            'critical_missing_json':  json.dumps(critical_missing,     default=str),
+            'soft_skills_json':       json.dumps(soft_gap_chips,       default=str),
         }
 
         return render(request, 'analysis/gap_analysis.html', context)
@@ -252,14 +275,18 @@ def update_gap_skills(request, job_id):
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
     matched = data.get('matched_skills')
-    missing = data.get('missing_skills')
+    partials = data.get('partially_missing', [])  # NEW column; empty for legacy clients
+    missing = data.get('critical_missing')
+    if missing is None:
+        # Legacy alias used by older clients before the 4-col split.
+        missing = data.get('missing_skills')
     soft = data.get('soft_skill_gaps')
 
     if matched is None or missing is None or soft is None:
-        return JsonResponse({'error': 'All three skill lists are required'}, status=400)
+        return JsonResponse({'error': 'All four skill lists are required (matched / partially_missing / critical_missing / soft_skill_gaps)'}, status=400)
 
     def _normalize_matched(chip, default_tier='must'):
-        """Coerce a chip to the matched_* shape."""
+        """Coerce a chip to the matched_* shape. Strips proximity fields."""
         if not isinstance(chip, dict):
             return {'name': str(chip), 'evidence_source': 'user', 'evidence_quote': '',
                     'tier': default_tier}
@@ -270,24 +297,36 @@ def update_gap_skills(request, job_id):
             'tier': str(chip.get('tier') or default_tier),
         }
 
-    def _normalize_missing(chip, default_tier='must'):
+    def _normalize_missing(chip, *, default_tier='must', default_prox=0.0,
+                          clamp_min=None, clamp_max=None,
+                          force_tier=None):
         """Coerce a chip to the missing_* shape.
 
-        If chip came from MATCHED (no proximity field), default to 0.8 — the
-        user is overriding the LLM, claiming it's missing despite a match.
-        If chip already has proximity (moving between missing columns), keep it.
+        - default_prox: used when the chip has no proximity yet (was matched
+          before this drag).
+        - clamp_min / clamp_max: enforce the column's proximity range. E.g.
+          PARTIALLY MISSING requires proximity >= 0.5 (clamp_min=0.5), and
+          CRITICAL MISSING requires proximity < 0.5 (clamp_max=0.49).
+        - force_tier: when set, overrides the chip's tier (CRITICAL forces
+          'must', SOFT GAPS forces 'nice'; PARTIALLY MISSING keeps the
+          chip's existing tier).
         """
         if not isinstance(chip, dict):
-            return {'name': str(chip), 'source_quote': '', 'proximity': 0.0,
+            return {'name': str(chip), 'source_quote': '',
+                    'proximity': default_prox,
                     'proximity_reason': 'User reclassified manually',
-                    'bridge_hint': None, 'tier': default_tier}
+                    'bridge_hint': None,
+                    'tier': force_tier or default_tier}
         raw_p = chip.get('proximity')
         was_matched = raw_p is None or chip.get('_legacy_was_matched')
         try:
-            prox = float(raw_p) if raw_p is not None else 0.8
+            prox = float(raw_p) if raw_p is not None else default_prox
         except (TypeError, ValueError):
-            prox = 0.8 if was_matched else 0.0
-        # Clamp to [0, 1)
+            prox = default_prox
+        if clamp_min is not None and prox < clamp_min:
+            prox = clamp_min
+        if clamp_max is not None and prox > clamp_max:
+            prox = clamp_max
         if prox >= 1.0: prox = 0.99
         if prox < 0.0:  prox = 0.0
         reason = chip.get('proximity_reason') or (
@@ -299,10 +338,11 @@ def update_gap_skills(request, job_id):
             'proximity': prox,
             'proximity_reason': str(reason)[:120],
             'bridge_hint': chip.get('bridge_hint'),
-            'tier': str(chip.get('tier') or default_tier),
+            'tier': force_tier or str(chip.get('tier') or default_tier),
         }
 
-    # Re-split into 4 tier-aware lists based on each chip's tier.
+    # Re-split into the 4 visible columns, applying per-column proximity/tier
+    # rules per the proximity-aware-gap spec (see prompts above the endpoint).
     matched_must, matched_nice = [], []
     for chip in matched:
         norm = _normalize_matched(chip)
@@ -311,15 +351,31 @@ def update_gap_skills(request, job_id):
         else:
             matched_must.append(norm)
 
-    # CRITICAL MISSING column → missing_must_have (tier overridden to 'must').
-    missing_must = [_normalize_missing(c, default_tier='must') for c in missing]
-    for m in missing_must:
-        m['tier'] = 'must'
+    # PARTIALLY MISSING: proximity clamped to >= 0.5 (default 0.6 when no prox),
+    # tier preserved (a partial can be either must or nice).
+    partial_chips = [
+        _normalize_missing(c, default_prox=0.6, clamp_min=0.5, clamp_max=0.99)
+        for c in partials
+    ]
 
-    # SOFT GAPS column → missing_nice_to_have (tier overridden to 'nice').
-    missing_nice = [_normalize_missing(c, default_tier='nice') for c in soft]
-    for m in missing_nice:
-        m['tier'] = 'nice'
+    # CRITICAL MISSING: proximity clamped to < 0.5 (default 0.2),
+    # tier forced to 'must'.
+    critical_chips = [
+        _normalize_missing(c, default_prox=0.2, clamp_max=0.49, force_tier='must')
+        for c in missing
+    ]
+
+    # SOFT GAPS: proximity clamped to < 0.5 (default 0.2),
+    # tier forced to 'nice'.
+    soft_chips = [
+        _normalize_missing(c, default_prox=0.2, clamp_max=0.49, force_tier='nice')
+        for c in soft
+    ]
+
+    # Collapse the 3 missing columns into 2 tier-aware DB lists for storage.
+    # Partials get split by their own tier; critical/soft already have forced tiers.
+    missing_must = critical_chips + [c for c in partial_chips if c['tier'] != 'nice']
+    missing_nice = soft_chips     + [c for c in partial_chips if c['tier'] == 'nice']
 
     # Recompute score / band / avg_proximity from the new buckets.
     from analysis.services.skill_score import (
@@ -352,9 +408,10 @@ def update_gap_skills(request, job_id):
 
     return JsonResponse({
         'success': True,
-        'matched_count': len(matched_must) + len(matched_nice),
-        'missing_count': len(missing_must),
-        'soft_count':    len(missing_nice),
+        'matched_count':  len(matched_must) + len(matched_nice),
+        'partial_count':  len(partial_chips),
+        'missing_count':  len(critical_chips),
+        'soft_count':     len(soft_chips),
         'similarity_score': new_score,
         'match_band': new_band,
         'avg_proximity': new_avg_p,
