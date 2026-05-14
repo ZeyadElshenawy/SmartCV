@@ -748,6 +748,129 @@ class LinkedinFallbackTests(SimpleTestCase):
         self.assertEqual(_linkedin_fallback([], 'https://example.com'), [])
 
 
+class ProjectPolishTests(SimpleTestCase):
+    """Final-pass cleanup of LLM-generated project descriptions."""
+
+    def test_strip_garnering_n_star_filler(self):
+        from profiles.services.project_polish import polish_bullet
+        out = polish_bullet(
+            "Built an AI-powered career assistant with CV parsing and "
+            "ATS-scored resume features, garnering 1 star on GitHub."
+        )
+        self.assertNotIn('star', out.lower())
+        self.assertNotIn('GitHub', out)
+        self.assertTrue(out.endswith('features') or out.endswith('features.'))
+
+    def test_strip_with_n_stars_zero_stars_variants(self):
+        from profiles.services.project_polish import polish_bullet
+        for raw in (
+            "Built a thing, with 1 star on GitHub.",
+            "Built a thing, with 0 stars on GitHub.",
+            "Built a thing with 13 stars on GitHub.",
+            "Built a thing earned 5 stars on GitHub.",
+        ):
+            out = polish_bullet(raw)
+            self.assertNotIn('GitHub', out, f"failed for: {raw!r} -> {out!r}")
+            self.assertNotIn('star', out.lower(), f"failed for: {raw!r} -> {out!r}")
+
+    def test_strip_filler_flourishes(self):
+        from profiles.services.project_polish import polish_bullet
+        for raw, banned in (
+            ("Implemented X showcasing expertise in Python and full-stack.",
+             'showcasing expertise'),
+            ("Built X enabling insights into HR decisions.",
+             'enabling insights'),
+            ("Implemented client-side cart for an interactive user experience.",
+             'interactive user experience'),
+        ):
+            out = polish_bullet(raw)
+            self.assertNotIn(banned, out.lower(), f"failed for: {raw!r} -> {out!r}")
+
+    def test_polish_caps_at_three_bullets(self):
+        from profiles.services.project_polish import polish_projects
+        bullets = [f"Bullet number {i}." for i in range(6)]
+        out = polish_projects([{'name': 'X', 'description': bullets}])
+        self.assertEqual(len(out[0]['description']), 3)
+
+    def test_polish_drops_null_and_empty_fields(self):
+        from profiles.services.project_polish import polish_projects
+        out = polish_projects([{
+            'name': 'X', 'description': ['Built X.'],
+            'role': None, 'highlights': None, 'url': '', 'technologies': [],
+        }])
+        self.assertNotIn('role', out[0])
+        self.assertNotIn('highlights', out[0])
+        self.assertNotIn('url', out[0])
+        self.assertNotIn('technologies', out[0])
+
+    def test_polish_dedupes_identical_bullets_within_project(self):
+        from profiles.services.project_polish import polish_projects
+        out = polish_projects([{
+            'name': 'X',
+            'description': [
+                'Built a dashboard.',
+                'Built a dashboard.',  # exact dup
+                'BUILT A DASHBOARD.',  # case-only dup
+                'Used Power BI.',
+            ],
+        }])
+        self.assertEqual(len(out[0]['description']), 2)
+
+    def test_polish_is_idempotent(self):
+        from profiles.services.project_polish import polish_projects
+        first = polish_projects([{
+            'name': 'X',
+            'description': ['Built a thing, with 1 star on GitHub.', 'Used Y.'],
+        }])
+        second = polish_projects(first)
+        self.assertEqual(first, second)
+
+
+class ProjectMergeDedupeTests(SimpleTestCase):
+    """SequenceMatcher-based near-duplicate dedupe inside _merge()."""
+
+    def test_near_duplicate_bullets_collapse_at_merge(self):
+        # SequenceMatcher@0.75 catches expansions / minor rewordings of the
+        # same bullet (the most common LLM-emits-already-typed case).
+        # Heavy paraphrases stating different facts survive — those aren't
+        # duplicates, they're additional content, and the final polish step
+        # caps the project at 3 bullets if there's still too much.
+        from profiles.services.project_dedupe import _merge
+        typed = {
+            'name': 'X',
+            'description': ['Built a Power BI dashboard for HR analytics.'],
+        }
+        enriched = {
+            'bullets': [
+                # Near-dup: same core claim with a trailing tail.
+                'Built a Power BI dashboard for HR analytics with KPI tracking.',
+                # Genuinely new content — should survive.
+                'Designed a star-schema model and DAX measures.',
+            ],
+        }
+        merged = _merge(typed, enriched)
+        self.assertEqual(len(merged['description']), 2)
+        self.assertTrue(any('star-schema' in b for b in merged['description']))
+
+
+class GithubFallbackNoStarBraggingTests(SimpleTestCase):
+    """The no-LLM fallback path no longer manufactures star/fork bullets."""
+
+    def test_fallback_emits_no_stars_on_github_string(self):
+        from profiles.services.project_enricher import _github_fallback
+        out = _github_fallback([{
+            'name': 'my-tool', 'full_name': 'me/my-tool',
+            'description': 'A small CLI tool.',
+            'html_url': 'https://github.com/me/my-tool',
+            'language': 'Python',
+            'stargazers_count': 1, 'forks_count': 0,
+        }])
+        self.assertEqual(len(out), 1)
+        for b in out[0].bullets:
+            self.assertNotIn('star', b.lower(), f"unexpected star mention: {b!r}")
+            self.assertNotIn('GitHub', b, f"unexpected GitHub mention: {b!r}")
+
+
 class UrlClassifierTests(SimpleTestCase):
     """Smart URL classification for `other_urls` promotion."""
 
@@ -2250,9 +2373,14 @@ class ProjectEnricherTests(TestCase):
         self.assertEqual(gh['name'], 'alpha')
         self.assertEqual(gh['source_url'], 'https://github.com/octocat/alpha')
         self.assertIn('Python', gh['tech_stack'])
-        # Should mention 30 stars (from the payload), nothing fabricated
+        # No fabricated metrics, and no star/fork bragging — the fallback
+        # was updated to stop manufacturing "N stars on GitHub" filler
+        # because it read as AI noise on low-star repos.
         joined = ' '.join(gh['bullets']).lower()
-        self.assertIn('30 stars', joined)
+        self.assertNotIn('stars on github', joined)
+        self.assertNotIn('30 stars', joined)
+        # But it does ground the bullet in the real description + language.
+        self.assertIn('python', joined)
         # Scholar fallback uses the title verbatim
         sc = next(p for p in out if p['source'] == 'scholar')
         self.assertEqual(sc['name'], 'Tabular Deep Learning Survey')

@@ -37,7 +37,7 @@ _LANGUAGE_BLOCKLIST = {"jupyter notebook", "html", "css", "scss", "shell",
                        "batchfile", "powershell"}
 
 
-class RepoSnapshot(TypedDict):
+class RepoSnapshot(TypedDict, total=False):
     name: str
     full_name: str
     description: Optional[str]
@@ -46,6 +46,11 @@ class RepoSnapshot(TypedDict):
     forks: int
     language: Optional[str]
     pushed_at: Optional[str]
+    # First N chars of the repo's README, base64-decoded from
+    # `/repos/{u}/{r}/readme`. Lets the enricher cite real features
+    # instead of inferring from name + language. Absent when the repo
+    # has no README or the fetch fails.
+    readme_excerpt: Optional[str]
 
 
 class ProfileReadme(TypedDict, total=False):
@@ -211,6 +216,7 @@ def fetch_github_snapshot(username_or_url: str, top_n: int = 6) -> GithubSnapsho
             forks=int(r.get('forks_count') or 0),
             language=r.get('language'),
             pushed_at=r.get('pushed_at'),
+            readme_excerpt=_fetch_repo_readme(session, r.get('full_name', '')),
         )
         for r in top
     ]
@@ -264,6 +270,38 @@ def fetch_github_snapshot(username_or_url: str, top_n: int = 6) -> GithubSnapsho
             snapshot['profile_readme'] = readme
 
     return snapshot
+
+
+_README_EXCERPT_CAP = 3000
+
+
+def _fetch_repo_readme(session: requests.Session, full_name: str) -> Optional[str]:
+    """Fetch a repo's README and return the first ~3000 chars of markdown.
+
+    `full_name` is the GitHub `{owner}/{repo}` slug. Returns None when the
+    repo has no README, the fetch fails, or the content can't be decoded.
+    Capping at 3000 chars keeps the enrichment prompt token-bounded —
+    enough to surface the introduction + feature list, which is what the
+    LLM needs to write specific bullets.
+    """
+    if not full_name or '/' not in full_name:
+        return None
+    data = _get(session, f"/repos/{full_name}/readme")
+    if not isinstance(data, dict):
+        return None
+    encoded = data.get('content') or ''
+    if not encoded or data.get('encoding') != 'base64':
+        return None
+    try:
+        text = base64.b64decode(encoded).decode('utf-8', errors='replace')
+    except (ValueError, TypeError):
+        return None
+    text = text.strip()
+    if not text:
+        return None
+    if len(text) > _README_EXCERPT_CAP:
+        text = text[:_README_EXCERPT_CAP].rstrip() + '…'
+    return text
 
 
 def _fetch_profile_readme(session: requests.Session, username: str) -> Optional[ProfileReadme]:

@@ -106,7 +106,12 @@ def rebuild_master_profile(
     from profiles.services.project_sort import (
         backfill_github_dates, sort_projects_newest_first,
     )
+    from profiles.services.project_polish import polish_projects
     backfill_github_dates(final, data)
+    # Final cleanup pass: strip GitHub-metadata filler ("with N stars on
+    # GitHub"), drop AI flourishes, cap at 3 bullets, remove null/empty
+    # fields. Idempotent. See profiles/services/project_polish.py.
+    final = polish_projects(final)
     final = sort_projects_newest_first(final)
     data['projects'] = final
 
