@@ -228,7 +228,8 @@ def profile_manual_form(request, job_id):
                 profile.education = json.loads(request.POST.get('education_json'))
 
             if request.POST.get('projects_json'):
-                profile.projects = json.loads(request.POST.get('projects_json'))
+                # Write to the typed bucket so rebuild reads clean user-authored data.
+                profile.projects_typed = json.loads(request.POST.get('projects_json'))
 
             if request.POST.get('certifications_json'):
                 profile.certifications = json.loads(request.POST.get('certifications_json'))
@@ -237,6 +238,12 @@ def profile_manual_form(request, job_id):
             logger.error("JSON Decode Error in form save: %s", e)
 
         profile.save()
+        # Re-derive data_content['projects'] from the updated typed bucket.
+        try:
+            from profiles.services.profile_rebuilder import rebuild_master_profile
+            rebuild_master_profile(profile)
+        except Exception:
+            logger.exception("profile_form_view: rebuild_master_profile failed (continuing)")
         return redirect('gap_analysis', job_id=job_id)
 
     context = _build_profile_form_context(profile)
@@ -391,6 +398,24 @@ def upload_master_profile(request):
 
             # 3. Validated Extraction (Gemini)
             validated_data = validate_and_map_cv_data(parsed_data, raw_cv_text)
+
+            # Re-upload guard: if the user already connected external accounts
+            # (GitHub, LinkedIn, Scholar, Kaggle) before re-uploading their CV,
+            # preserve those signal blobs so the connections aren't severed.
+            # We graft the new CV content ON TOP of the existing data_content
+            # rather than replacing it wholesale. The rebuild call below will
+            # then re-run the merge with the fresh CV data as the typed baseline.
+            _PRESERVE_ON_REUPLOAD = {
+                'github_signals', 'linkedin_signals', 'scholar_signals',
+                'kaggle_signals', 'projects_enriched', 'enriched_projects_cache',
+                'enriched_projects_hash', 'dedupe_decisions', 'project_overrides',
+                'onboarding_banner_dismissed', 'has_seen_tour',
+            }
+            existing_data = profile.data_content or {}
+            for key in _PRESERVE_ON_REUPLOAD:
+                if key in existing_data:
+                    validated_data[key] = existing_data[key]
+
             profile.data_content = validated_data
 
             # parse_cv + LLM extraction can hold the request open 30-60s while
@@ -411,10 +436,36 @@ def upload_master_profile(request):
             profile.skills = validated_data.get('skills', [])
             profile.experiences = validated_data.get('experiences', [])
             profile.education = validated_data.get('education', [])
+            # Keep profile.projects in sync for backward-compat readers, but the
+            # authoritative typed baseline is projects_typed — rebuild reads that.
             profile.projects = validated_data.get('projects', [])
+            profile.projects_typed = validated_data.get('projects', [])
             profile.certifications = validated_data.get('certifications', [])
 
             profile.save()
+
+            # 5. Re-merge: if signals were already pulled, re-run the full
+            # rebuild pipeline so the new CV data is deduplicated against the
+            # existing enriched projects and signal-merged sections are updated.
+            _has_signals = any(
+                existing_data.get(k) and not (existing_data.get(k) or {}).get('error')
+                for k in ('github_signals', 'linkedin_signals',
+                          'scholar_signals', 'kaggle_signals')
+            )
+            if _has_signals:
+                try:
+                    from profiles.services.profile_rebuilder import rebuild_master_profile
+                    rebuild_master_profile(profile, force_enrich=False)
+                    logger.info(
+                        "upload_master_profile: re-merged existing signals "
+                        "after CV re-upload for user=%s", request.user.id,
+                    )
+                except Exception:
+                    logger.exception(
+                        "upload_master_profile: rebuild_master_profile failed "
+                        "after re-upload (continuing)"
+                    )
+
             # Onboarding order: parsed CV → Connect accounts → Project review
             # → Master review (the user reviews ONCE, after external evidence
             # has been pulled and reconciled). Out-of-onboarding visits jump
@@ -422,6 +473,7 @@ def upload_master_profile(request):
             if request.session.get('in_onboarding'):
                 return redirect('connect_accounts')
             return redirect('review_master_profile')
+
 
         except Exception as e:
             logger.error("Master Profile Parsing Failed: %s", e)
@@ -485,13 +537,20 @@ def review_master_profile(request):
             if request.POST.get('education_json'):
                 profile.education = json.loads(request.POST.get('education_json'))
             if request.POST.get('projects_json'):
-                profile.projects = json.loads(request.POST.get('projects_json'))
+                # Write to the typed bucket; rebuild derives data_content['projects'].
+                profile.projects_typed = json.loads(request.POST.get('projects_json'))
             if request.POST.get('certifications_json'):
                 profile.certifications = json.loads(request.POST.get('certifications_json'))
         except json.JSONDecodeError as e:
             logger.error("JSON Error: %s", e)
 
         profile.save()
+        # Re-derive data_content['projects'] from the (now-updated) typed bucket.
+        try:
+            from profiles.services.profile_rebuilder import rebuild_master_profile
+            rebuild_master_profile(profile)
+        except Exception:
+            logger.exception("review_master_profile: rebuild_master_profile failed (continuing)")
         messages.success(request, "Profile saved successfully.")
         # Master review is now the FINAL step of onboarding (post-reorder).
         # The connect-accounts + project-review steps already ran before
@@ -575,22 +634,19 @@ def connect_accounts_view(request):
         )
         if has_signals:
             try:
-                from profiles.services.project_dedupe import auto_apply_enriched_projects
-                summary = auto_apply_enriched_projects(profile)
+                from profiles.services.profile_rebuilder import rebuild_master_profile
+                summary = rebuild_master_profile(profile)
                 logger.info(
-                    "connect_accounts: auto-merged enriched projects (added=%d, "
-                    "merged=%d, kept_existing=%d, kept_new=%d, final=%d)",
+                    "connect_accounts: rebuild complete — "
+                    "added=%d merged=%d kept_existing=%d kept_new=%d final=%d",
                     summary['added_new'], summary['merged'],
                     summary['kept_existing'], summary['kept_new'],
                     summary['final_count'],
                 )
-                # One-shot session flag so the master-review page can
-                # surface a small "we added X projects from your signals"
-                # banner without requiring a separate confirm step.
                 if summary['added_new'] or summary['merged']:
                     request.session['projects_auto_merged'] = summary
             except Exception:
-                logger.exception("Auto-apply of enriched projects failed; continuing without merge.")
+                logger.exception("connect_accounts: rebuild_master_profile failed; continuing.")
 
         if request.session.get('in_onboarding'):
             return redirect('review_master_profile')
@@ -1062,8 +1118,37 @@ def _refresh_signal(request, *, signal_key: str, input_field: str, fetcher,
         setattr(profile, fallback_url_attr, snapshot['profile_url'])
         update_fields.insert(0, fallback_url_attr)
 
+    # Run the full rebuild pipeline: enriches projects from the new signal,
+    # dedupes against projects_typed, merges skills/experiences/certs/edu.
+    # save=False so the caller's profile.save(update_fields=update_fields)
+    # below handles persisting the URL field in the same DB round-trip.
+    if not snapshot.get('error'):
+        try:
+            from profiles.services.profile_rebuilder import rebuild_master_profile
+            rebuild_master_profile(profile, save=False)
+        except Exception:
+            logger.exception("_refresh_signal: rebuild_master_profile failed (continuing)")
+
     profile.save(update_fields=update_fields)
-    return JsonResponse({'success': not snapshot.get('error'), 'snapshot': snapshot})
+
+    # Compute the updated profile strength so the dashboard ring can
+    # be patched live without a page reload.
+    try:
+        from profiles.services.profile_strength import compute_profile_strength
+        ps = compute_profile_strength(profile, request.user)
+        strength_payload = {
+            'score': ps.score,
+            'tier': ps.tier,
+            'hint': ps.top_actions[0].label if ps.top_actions else '',
+        }
+    except Exception:
+        strength_payload = None
+
+    return JsonResponse({
+        'success': not snapshot.get('error'),
+        'snapshot': snapshot,
+        'strength': strength_payload,
+    })
 
 
 @login_required
@@ -1152,8 +1237,7 @@ def projects_review_view(request):
     Kaggle entries got pulled in as projects; a user wants to force a
     re-merge after refreshing signals (?force=1).
     """
-    from profiles.services.project_enricher import enrich_profile
-    from profiles.services.project_dedupe import auto_apply_enriched_projects, dedupe_projects
+    # Imports are now deferred into the has_signals block below.
 
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
     force = request.GET.get('force') == '1'
@@ -1164,22 +1248,20 @@ def projects_review_view(request):
         or (profile.data_content or {}).get('kaggle_signals')
     )
     if has_signals:
-        # Force=1 bypasses the enrichment cache; without it, this is
-        # essentially a free re-render after the first auto-merge.
-        if force:
-            enrich_profile(profile, force=True)
         try:
-            summary = auto_apply_enriched_projects(profile)
+            from profiles.services.profile_rebuilder import rebuild_master_profile
+            summary = rebuild_master_profile(profile, force_enrich=force)
         except Exception:
-            logger.exception("projects_review: auto-apply failed")
+            logger.exception("projects_review: rebuild_master_profile failed")
             summary = None
     else:
         summary = None
 
     # Refresh local view of the now-merged state for rendering.
-    enriched = (profile.data_content or {}).get('enriched_projects_cache') or []
+    enriched = (profile.data_content or {}).get('projects_enriched') or []
     decisions = (profile.data_content or {}).get('dedupe_decisions') or []
     final_projects = (profile.data_content or {}).get('projects') or []
+
 
     # Build per-row view objects for the read-only summary.
     matched_rows = []
