@@ -199,28 +199,18 @@ document.addEventListener('DOMContentLoaded', function() {
                         <span class="text-4xl sm:text-5xl leading-none not-italic font-medium ml-1 opacity-70">%</span>
                     </div>
                     <p class="text-base text-neutral-600 dark:text-neutral-400 leading-relaxed max-w-md">
+                        {% if close_headline_count > 0 %}
+                        <span>You're close on <span class="font-medium text-neutral-900 dark:text-neutral-100 tabular-nums">{{ close_headline_count }}</span> skill{{ close_headline_count|pluralize }} — review partials below before generating.</span>
+                        {% else %}
                         <span x-show="scoreTier === 'high'" x-cloak>You're strongly aligned with this role. Generate a tailored résumé and apply.</span>
                         <span x-show="scoreTier === 'mid'"  x-cloak>Solid fit with fixable gaps. Use the chatbot to fill in the weak spots, then generate.</span>
                         <span x-show="scoreTier === 'low'"  x-cloak>Significant gaps — consider building the missing skills first, or reframe with the chatbot.</span>
+                        {% endif %}
                     </p>
 
-                    {# Evidence confidence — show how well external signals back this score #}
-                    {% if evidence %}
-                    <div class="pt-2 flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] font-medium text-neutral-500 dark:text-neutral-400">
-                        <span aria-label="Evidence confidence" class="inline-flex items-center gap-0.5 leading-none">
-                            {% for _ in "xxx"|make_list %}
-                                {% if forloop.counter <= evidence.score %}
-                                    <span class="text-brand-500" aria-hidden="true">★</span>
-                                {% else %}
-                                    <span class="text-neutral-300 dark:text-neutral-700" aria-hidden="true">★</span>
-                                {% endif %}
-                            {% endfor %}
-                        </span>
-                        <span>{{ evidence.label }} evidence</span>
-                        <span aria-hidden="true" class="text-neutral-300 dark:text-neutral-700">·</span>
-                        <span class="normal-case tracking-normal text-neutral-500 dark:text-neutral-400 lowercase">{{ evidence.detail }}</span>
-                    </div>
-                    {% endif %}
+                    <p class="pt-2 text-[11px] uppercase tracking-[0.16em] font-medium text-neutral-500 dark:text-neutral-400">
+                        Analyzed your resume, GitHub, and projects.
+                    </p>
                 </div>
 
                 {# Right: tier-dependent primary action + quiet alternates #}
@@ -313,10 +303,78 @@ document.addEventListener('DOMContentLoaded', function() {
                 </p>
             </div>
             {% endif %}
-            <div class="flex items-start justify-between gap-4 flex-wrap">
-                {% include "components/section_label.html" with text="Reclassify skills" %}
-                <div class="flex items-center gap-3 text-xs text-neutral-500 dark:text-neutral-400">
-                    <span class="hidden sm:inline">Drag chips between columns — saved automatically.</span>
+            {# Four read-only columns visible always. Drag-drop is hidden
+               behind the "Reorganize" disclosure below. #}
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <template x-for="col in columns" :key="col.key">
+                    <div class="relative overflow-hidden rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 transition-shadow duration-200"
+                         :class="dropTarget === col.key ? 'ring-2 ' + (col.ringClass || '') : ''"
+                         @dragover.prevent="onDragOver($event, col.key)"
+                         @dragleave.prevent="onDragLeave($event, col.key)"
+                         @drop.prevent="onDrop($event, col.key)">
+                        <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px]" :class="col.topRuleClass"></div>
+
+                        <div class="px-4 pt-5 pb-3 flex items-baseline justify-between gap-2">
+                            <div class="flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] font-medium" :class="col.labelColor">
+                                <span aria-hidden="true" class="h-px w-3 bg-current opacity-60"></span>
+                                <span x-text="col.label"></span>
+                            </div>
+                            <span class="font-display italic text-lg leading-none tabular-nums" :class="col.labelColor"
+                                  style="font-variation-settings: 'opsz' 36;"
+                                  x-text="skills[col.key].length"></span>
+                        </div>
+
+                        <div class="px-4 pb-5 min-h-[160px] transition-colors duration-200"
+                             :class="dropTarget === col.key ? col.dropBg : ''">
+                            <div class="flex flex-col gap-2">
+                                <template x-for="(chip, idx) in sortedChips(col.key)" :key="col.key + '-' + chipName(chip) + '-' + idx">
+                                    <div draggable="true"
+                                         class="group relative flex flex-col gap-0.5 px-2.5 py-1.5 text-[11px] font-medium rounded-md cursor-grab active:cursor-grabbing select-none transition-all duration-150"
+                                         :class="[draggedSkill === chip ? 'opacity-40 scale-95' : 'hover:scale-[1.01]', col.chipClass]"
+                                         :title="buildTooltip(chip, col.key)"
+                                         @dragstart="onDragStart($event, chip, col.key)"
+                                         @dragend="onDragEnd($event)">
+                                        <div class="inline-flex items-center gap-1.5 leading-[1.3]">
+                                            <span aria-hidden="true" class="h-1.5 w-1.5 rounded-full flex-shrink-0" :class="col.dotClass"></span>
+                                            <template x-if="col.key === 'matched' && chipTier(chip) === 'must'">
+                                                <span aria-hidden="true" class="text-amber-500 dark:text-amber-400 text-[10px] leading-none" title="Must-have">★</span>
+                                            </template>
+                                            <span x-text="chipName(chip)"></span>
+                                        </div>
+                                        <template x-if="col.key !== 'matched' && chipReason(chip)">
+                                            <span class="block text-[10px] font-normal text-neutral-500 dark:text-neutral-400 leading-snug" x-text="chipReason(chip)"></span>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                            <p x-show="skills[col.key].length === 0" class="text-xs text-neutral-400 italic mt-1 leading-snug" x-text="col.emptyText"></p>
+
+                            <div x-show="dropTarget === col.key && dragSource !== col.key"
+                                 x-transition
+                                 class="mt-3 border-2 border-dashed rounded-lg py-2 text-center text-[11px] uppercase tracking-[0.14em] font-medium"
+                                 :class="col.dropIndicatorClass">
+                                Drop here
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            {# Legend — only shown when any must-have chip is visible (★ appears) #}
+            <template x-if="hasMustHaveChip">
+                <p class="text-[11px] text-neutral-500 dark:text-neutral-400">
+                    <span aria-hidden="true" class="text-amber-500 dark:text-amber-400">★</span> marks required skills
+                </p>
+            </template>
+
+            {# Reorganize disclosure — most users never drag, hide the affordance. #}
+            <details class="group">
+                <summary class="cursor-pointer inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400 hover:text-brand-700 dark:hover:text-brand-400 transition-colors list-none">
+                    <span>Disagree with the classification? Reorganize</span>
+                    <svg class="w-3 h-3 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="mt-3 flex items-center gap-3 text-xs text-neutral-500 dark:text-neutral-400">
+                    <span>Drag chips between the four columns above — saved automatically.</span>
                     <span x-show="saveStatus === 'saving'" x-transition class="flex items-center gap-1.5">
                         <svg class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                         Saving
@@ -330,65 +388,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         Save failed
                     </span>
                 </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <template x-for="col in columns" :key="col.key">
-                    <div class="relative overflow-hidden rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 transition-shadow duration-200"
-                         :class="dropTarget === col.key ? 'ring-2' : ''"
-                         @dragover.prevent="onDragOver($event, col.key)"
-                         @dragleave.prevent="onDragLeave($event, col.key)"
-                         @drop.prevent="onDrop($event, col.key)">
-                        <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px]" :class="col.topRuleClass"></div>
-
-                        <div class="px-5 pt-5 pb-3 flex items-baseline justify-between gap-3">
-                            <div class="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] font-medium" :class="col.labelColor">
-                                <span aria-hidden="true" class="h-px w-4 bg-current opacity-60"></span>
-                                <span x-text="col.label"></span>
-                            </div>
-                            <span class="font-display italic text-xl leading-none tabular-nums" :class="col.labelColor"
-                                  style="font-variation-settings: 'opsz' 36;"
-                                  x-text="skills[col.key].length"></span>
-                        </div>
-
-                        <div class="px-5 pb-5 min-h-[140px] transition-colors duration-200"
-                             :class="dropTarget === col.key ? col.dropBg : ''">
-                            <div class="flex flex-wrap gap-1.5">
-                                <template x-for="(chip, idx) in sortedChips(col.key)" :key="col.key + '-' + chipName(chip) + '-' + idx">
-                                    <div draggable="true"
-                                         class="group relative flex flex-col gap-0 px-2 py-0.5 text-[11px] font-medium rounded-md cursor-grab active:cursor-grabbing select-none transition-all duration-150 min-w-0"
-                                         :class="[draggedSkill === chip ? 'opacity-40 scale-95' : 'hover:scale-[1.02]', col.chipClass]"
-                                         :title="buildTooltip(chip, col.key)"
-                                         @dragstart="onDragStart($event, chip, col.key)"
-                                         @dragend="onDragEnd($event)">
-                                        <div class="inline-flex items-center gap-1.5 leading-[1.4]">
-                                            <span aria-hidden="true" class="h-1.5 w-1.5 rounded-full flex-shrink-0" :class="col.dotClass"></span>
-                                            <template x-if="col.key === 'matched' && chipTier(chip) === 'must'">
-                                                <span aria-hidden="true" class="text-amber-500 dark:text-amber-400 text-[10px] leading-none" title="Must-have">★</span>
-                                            </template>
-                                            <span x-text="chipName(chip)"></span>
-                                        </div>
-                                        <template x-if="col.key !== 'matched' && hasRealProximity(chip)">
-                                            <div class="mt-0.5 h-[2px] w-full rounded-full bg-neutral-200/60 dark:bg-neutral-800/60 overflow-hidden">
-                                                <div class="h-full rounded-full transition-all duration-200"
-                                                     :style="proximityBarStyle(chip.proximity)"></div>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </template>
-                            </div>
-                            <p x-show="skills[col.key].length === 0" class="text-xs text-neutral-400 italic mt-1" x-text="col.emptyText"></p>
-
-                            <div x-show="dropTarget === col.key && dragSource !== col.key"
-                                 x-transition
-                                 class="mt-3 border-2 border-dashed rounded-lg py-2 text-center text-[11px] uppercase tracking-[0.14em] font-medium"
-                                 :class="col.dropIndicatorClass">
-                                Drop here
-                            </div>
-                        </div>
-                    </div>
-                </template>
-            </div>
+            </details>
         </section>
         </div>
 
@@ -397,8 +397,9 @@ document.addEventListener('DOMContentLoaded', function() {
             return {
                 skills: {
                     matched: {{ matched_skills_json|safe }},
-                    missing: {{ missing_skills_json|safe }},
-                    soft: {{ soft_skills_json|safe }},
+                    partial: {{ partially_missing_json|safe }},
+                    missing: {{ critical_missing_json|safe }},
+                    soft:    {{ soft_skills_json|safe }},
                 },
                 columns: [
                     {
@@ -410,7 +411,21 @@ document.addEventListener('DOMContentLoaded', function() {
                         dotClass: 'bg-emerald-500',
                         dropBg: 'bg-emerald-50/40 dark:bg-emerald-950/20',
                         dropIndicatorClass: 'border-emerald-300 text-emerald-500 dark:border-emerald-800',
+                        ringClass: 'ring-emerald-300 dark:ring-emerald-800',
                         emptyText: 'No exact matches yet.',
+                    },
+                    {
+                        // Proximity >= 0.5 — "you're close, just not all the way"
+                        key: 'partial',
+                        label: 'Partially missing',
+                        topRuleClass: 'bg-yellow-400',
+                        labelColor: 'text-yellow-700 dark:text-yellow-400',
+                        chipClass: 'bg-yellow-50 text-yellow-800 ring-1 ring-yellow-200/60 dark:bg-yellow-950/40 dark:text-yellow-300 dark:ring-yellow-900',
+                        dotClass: 'bg-yellow-400',
+                        dropBg: 'bg-yellow-50/40 dark:bg-yellow-950/20',
+                        dropIndicatorClass: 'border-yellow-300 text-yellow-600 dark:border-yellow-800',
+                        ringClass: 'ring-yellow-300 dark:ring-yellow-800',
+                        emptyText: 'No partial gaps — every required skill is either matched or genuinely missing.',
                     },
                     {
                         key: 'missing',
@@ -421,7 +436,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         dotClass: 'bg-red-500',
                         dropBg: 'bg-red-50/40 dark:bg-red-950/20',
                         dropIndicatorClass: 'border-red-300 text-red-500 dark:border-red-800',
-                        emptyText: 'No critical gaps — nice.',
+                        ringClass: 'ring-red-300 dark:ring-red-800',
+                        emptyText: 'No critical gaps — you meet all required skills.',
                     },
                     {
                         key: 'soft',
@@ -432,6 +448,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         dotClass: 'bg-amber-500',
                         dropBg: 'bg-amber-50/40 dark:bg-amber-950/20',
                         dropIndicatorClass: 'border-amber-300 text-amber-500 dark:border-amber-800',
+                        ringClass: 'ring-amber-300 dark:ring-amber-800',
                         emptyText: 'None identified.',
                     },
                 ],
@@ -451,23 +468,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 initialScore: {{ gap.similarity_score|default:0 }},
 
                 // ---- chip accessors (chips are objects {name, tier, proximity, ...}) ----
-                chipName(chip)  { return chip && typeof chip === 'object' ? (chip.name || '') : String(chip || ''); },
-                chipTier(chip)  { return chip && typeof chip === 'object' ? (chip.tier || 'must') : 'must'; },
-                hasRealProximity(chip) {
-                    if (!chip || typeof chip !== 'object') return false;
-                    const p = chip.proximity;
-                    return p !== null && p !== undefined && !isNaN(p) && Number(p) > 0;
+                _rawName(chip) {
+                    return chip && typeof chip === 'object' ? (chip.name || '') : String(chip || '');
                 },
-                proximityBarStyle(p) {
-                    const v = Math.max(0, Math.min(0.99, Number(p) || 0));
-                    const pct = Math.round(v * 100);
-                    // gradient red (0.0) → amber (0.5) → green (0.8+)
-                    let color;
-                    if (v >= 0.7)      color = '#22c55e';   // emerald-500
-                    else if (v >= 0.5) color = '#f59e0b';   // amber-500
-                    else if (v >= 0.3) color = '#fb923c';   // orange-400
-                    else               color = '#ef4444';   // red-500
-                    return `width: ${pct}%; background-color: ${color};`;
+                chipName(chip) {
+                    // Title-case the first character so 'mathematics' renders as 'Mathematics'.
+                    // Multi-word skills with mixed casing (e.g. 'PyTorch', 'AI/ML') are left alone.
+                    const raw = this._rawName(chip);
+                    if (!raw) return '';
+                    if (raw[0] === raw[0].toUpperCase()) return raw;
+                    return raw[0].toUpperCase() + raw.slice(1);
+                },
+                chipTier(chip)  { return chip && typeof chip === 'object' ? (chip.tier || 'must') : 'must'; },
+                chipReason(chip) {
+                    if (!chip || typeof chip !== 'object') return '';
+                    return (chip.proximity_reason || '').trim();
+                },
+                get hasMustHaveChip() {
+                    const all = (this.skills.matched || []).concat(
+                        this.skills.partial || [], this.skills.missing || [], this.skills.soft || []
+                    );
+                    return all.some(c => this.chipTier(c) === 'must');
                 },
                 buildTooltip(chip, colKey) {
                     if (!chip || typeof chip !== 'object') return chip;
@@ -483,20 +504,20 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                         if (chip.bridge_hint)   lines.push(`Bridge: ${chip.bridge_hint}`);
                     }
-                    return lines.join('\n') || chip.name;
+                    return lines.join('\n') || this._rawName(chip);
                 },
 
                 // ---- sorting: missing chips by proximity desc within their column ----
                 sortedChips(colKey) {
                     const list = this.skills[colKey] || [];
                     if (colKey === 'matched') {
-                        // Must-haves first in MATCHED — purely a visual nicety.
                         return [...list].sort((a, b) => {
                             const ta = this.chipTier(a) === 'must' ? 0 : 1;
                             const tb = this.chipTier(b) === 'must' ? 0 : 1;
                             return ta - tb;
                         });
                     }
+                    // partial / missing / soft all sort by proximity desc.
                     return [...list].sort((a, b) => {
                         const pa = Number(a.proximity || 0);
                         const pb = Number(b.proximity || 0);
@@ -505,14 +526,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
 
                 // ---- score formula — MUST stay a mirror of skill_score.compute_match_score ----
+                // The 4 visible columns collapse back into the 2 DB tier lists
+                // for the math: partial gets split by chip tier, critical is
+                // always must, soft is always nice.
                 get computedScore() {
-                    const all = (this.skills.matched || []).concat(this.skills.missing || [], this.skills.soft || []);
+                    const all = (this.skills.matched || []).concat(
+                        this.skills.partial || [], this.skills.missing || [], this.skills.soft || []
+                    );
                     if (all.length === 0) return Math.round(this.initialScore * 100);
 
+                    const partial = this.skills.partial || [];
                     const matchedMust = (this.skills.matched || []).filter(c => this.chipTier(c) === 'must');
                     const matchedNice = (this.skills.matched || []).filter(c => this.chipTier(c) === 'nice');
-                    const missingMust = this.skills.missing || [];   // CRITICAL column = must-tier missing
-                    const missingNice = this.skills.soft || [];      // SOFT column    = nice-tier missing
+                    const missingMust = (this.skills.missing || []).concat(partial.filter(c => this.chipTier(c) !== 'nice'));
+                    const missingNice = (this.skills.soft    || []).concat(partial.filter(c => this.chipTier(c) === 'nice'));
 
                     const proxCredit = arr => arr.reduce((s, c) => s + 0.5 * Math.max(0, Math.min(0.99, Number(c.proximity || 0))), 0);
 
@@ -564,34 +591,63 @@ document.addEventListener('DOMContentLoaded', function() {
                     const srcIdx = this.skills[sourceCol].indexOf(chip);
                     if (srcIdx > -1) this.skills[sourceCol].splice(srcIdx, 1);
 
-                    // Transform chip when crossing the matched/missing boundary.
-                    let newChip = chip;
-                    const wasMatched = sourceCol === 'matched';
-                    const goingToMissing = targetCol !== 'matched';
-                    if (wasMatched && goingToMissing) {
-                        // User is overriding the LLM match: drop evidence, default proximity 0.8.
+                    const base = typeof chip === 'object' ? { ...chip } : { name: String(chip) };
+                    const existingProx = Number(base.proximity || 0);
+                    let newChip;
+
+                    if (targetCol === 'matched') {
+                        // Strip proximity; preserve tier (must/nice).
                         newChip = {
-                            name: this.chipName(chip),
-                            tier: targetCol === 'soft' ? 'nice' : 'must',
-                            source_quote: '',
-                            proximity: 0.8,
-                            proximity_reason: 'User reclassified from matched',
-                            bridge_hint: null,
-                            _legacy_was_matched: true,
+                            name: this._rawName(base),
+                            tier: this.chipTier(base),
+                            evidence_source: base.evidence_source || 'user',
+                            evidence_quote: base.evidence_quote || '',
                         };
-                    } else if (!wasMatched && targetCol === 'matched') {
-                        // Moving INTO matched: strip proximity, stub evidence.
+                    } else if (targetCol === 'partial') {
+                        // Proximity must be >= 0.5; default 0.6 if currently lower / absent.
+                        // Tier preserved (a partial chip can be either must or nice).
+                        const prox = existingProx >= 0.5 ? existingProx : 0.6;
                         newChip = {
-                            name: this.chipName(chip),
-                            tier: this.chipTier(chip),
-                            evidence_source: 'user',
-                            evidence_quote: '',
+                            ...base,
+                            tier: this.chipTier(base),
+                            proximity: prox,
+                            proximity_reason: base.proximity_reason
+                                || (sourceCol === 'matched' ? 'User reclassified from matched' : ''),
+                            source_quote: base.source_quote || '',
+                            bridge_hint: base.bridge_hint || null,
                         };
-                    } else if (sourceCol === 'missing' && targetCol === 'soft') {
-                        // Cross-tier within missing: preserve proximity, flip tier.
-                        newChip = { ...(typeof chip === 'object' ? chip : {name: String(chip)}), tier: 'nice' };
-                    } else if (sourceCol === 'soft' && targetCol === 'missing') {
-                        newChip = { ...(typeof chip === 'object' ? chip : {name: String(chip)}), tier: 'must' };
+                        delete newChip.evidence_source;
+                        delete newChip.evidence_quote;
+                    } else if (targetCol === 'missing') {
+                        // CRITICAL: proximity < 0.5; default 0.2. Tier forced must.
+                        const prox = existingProx > 0 && existingProx < 0.5 ? existingProx : 0.2;
+                        newChip = {
+                            ...base,
+                            tier: 'must',
+                            proximity: prox,
+                            proximity_reason: base.proximity_reason
+                                || (sourceCol === 'matched' ? 'User reclassified from matched' : ''),
+                            source_quote: base.source_quote || '',
+                            bridge_hint: base.bridge_hint || null,
+                        };
+                        delete newChip.evidence_source;
+                        delete newChip.evidence_quote;
+                    } else if (targetCol === 'soft') {
+                        // SOFT: proximity < 0.5; default 0.2. Tier forced nice.
+                        const prox = existingProx > 0 && existingProx < 0.5 ? existingProx : 0.2;
+                        newChip = {
+                            ...base,
+                            tier: 'nice',
+                            proximity: prox,
+                            proximity_reason: base.proximity_reason
+                                || (sourceCol === 'matched' ? 'User reclassified from matched' : ''),
+                            source_quote: base.source_quote || '',
+                            bridge_hint: base.bridge_hint || null,
+                        };
+                        delete newChip.evidence_source;
+                        delete newChip.evidence_quote;
+                    } else {
+                        newChip = base;
                     }
 
                     this.skills[targetCol].push(newChip);
@@ -604,9 +660,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         method: 'POST',
                         headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json'},
                         body: JSON.stringify({
-                            matched_skills:  this.skills.matched,
-                            missing_skills:  this.skills.missing,
-                            soft_skill_gaps: this.skills.soft,
+                            matched_skills:    this.skills.matched,
+                            partially_missing: this.skills.partial,
+                            critical_missing:  this.skills.missing,
+                            soft_skill_gaps:   this.skills.soft,
                         }),
                     })
                     .then(r => { if (!r.ok) throw new Error('Save failed'); return r.json(); })
