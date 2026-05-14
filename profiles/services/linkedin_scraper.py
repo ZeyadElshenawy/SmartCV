@@ -248,10 +248,17 @@ def _common_chrome_args(headless: bool, user_data_dir: Path | None) -> list[str]
 
 
 def _construct_with_retry(builder) -> webdriver.Chrome:
-    """Call `builder()` to construct a Chrome driver. On a transient
+    """Call ``builder()`` to construct a Chrome driver. On a transient
     'cannot connect to chrome' / 'session not created' failure, wait 2s
-    and try once more. After the retry, the original exception
-    propagates so the caller's error handling fires."""
+    and try once more.
+
+    ``builder`` MUST construct a fresh ``ChromeOptions`` object on every
+    call — ``uc.Chrome`` mutates the options object during init and
+    raises ``"you cannot reuse the ChromeOptions object"`` on the second
+    pass otherwise. Pass a closure that calls
+    ``_make_undetected_options()`` / ``Options()`` inside, not a captured
+    one from outside.
+    """
     try:
         return builder()
     except WebDriverException as exc:
@@ -282,39 +289,45 @@ def _build_driver(
     Retries once on transient Chrome-launch failures ("session not
     created: cannot connect to chrome at 127.0.0.1:..."). The first
     launch occasionally loses the race between chromedriver and Chrome
-    itself — a fresh attempt with a small backoff usually wins.
+    itself — a fresh attempt with a small backoff usually wins. Each
+    retry attempt builds a fresh ChromeOptions instance — uc.Chrome
+    cannot reuse the same object across attempts.
     """
     if use_undetected and _HAS_UC:
-        opts = uc.ChromeOptions()
-        for arg in _common_chrome_args(headless, user_data_dir):
-            opts.add_argument(arg)
-        # ``use_subprocess=True`` keeps the patched chromedriver alive across
-        # ``driver.quit()`` and is required on Windows when reopening drivers
-        # back-to-back. ``version_main`` pins the patched driver to the
-        # locally installed Chrome major so UC's auto-detect can't grab a
-        # newer driver than the browser supports.
-        kwargs: dict[str, Any] = {
-            "options": opts,
-            "headless": headless,
-            "use_subprocess": True,
-        }
-        chrome_major = _detect_chrome_major()
-        if chrome_major is not None:
-            kwargs["version_main"] = chrome_major
-        return _construct_with_retry(lambda: uc.Chrome(**kwargs))
+        def build_uc():
+            opts = uc.ChromeOptions()
+            for arg in _common_chrome_args(headless, user_data_dir):
+                opts.add_argument(arg)
+            # ``use_subprocess=True`` keeps the patched chromedriver alive across
+            # ``driver.quit()`` and is required on Windows when reopening drivers
+            # back-to-back. ``version_main`` pins the patched driver to the
+            # locally installed Chrome major so UC's auto-detect can't grab a
+            # newer driver than the browser supports.
+            kwargs: dict[str, Any] = {
+                "options": opts,
+                "headless": headless,
+                "use_subprocess": True,
+            }
+            chrome_major = _detect_chrome_major()
+            if chrome_major is not None:
+                kwargs["version_main"] = chrome_major
+            return uc.Chrome(**kwargs)
+        return _construct_with_retry(build_uc)
 
-    options = Options()
-    for arg in _common_chrome_args(headless, user_data_dir):
-        options.add_argument(arg)
-    if headless:
-        options.add_argument(
-            "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/131.0.0.0 Safari/537.36"
-        )
-    options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    options.add_experimental_option("useAutomationExtension", False)
-    driver = _construct_with_retry(lambda: webdriver.Chrome(options=options))
+    def build_vanilla():
+        options = Options()
+        for arg in _common_chrome_args(headless, user_data_dir):
+            options.add_argument(arg)
+        if headless:
+            options.add_argument(
+                "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/131.0.0.0 Safari/537.36"
+            )
+        options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        options.add_experimental_option("useAutomationExtension", False)
+        return webdriver.Chrome(options=options)
+    driver = _construct_with_retry(build_vanilla)
     try:
         driver.execute_cdp_cmd(
             "Page.addScriptToEvaluateOnNewDocument",

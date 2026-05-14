@@ -886,6 +886,36 @@ class LinkedinScraperBuilderRetryTests(SimpleTestCase):
         # Only one attempt — non-transient errors don't get the retry.
         self.assertEqual(len(calls), 1)
 
+    def test_retry_invokes_builder_fresh_each_attempt(self):
+        # Regression: previously the retry passed `lambda: uc.Chrome(**kwargs)`
+        # with kwargs containing an already-built ChromeOptions instance. On
+        # the retry, uc.Chrome blew up with "you cannot reuse the
+        # ChromeOptions object" — a worse failure than the original error.
+        # The fix moved options-construction *inside* the builder, so each
+        # retry sees a fresh options object. This test verifies that
+        # _construct_with_retry calls its builder() callback again on
+        # transient failures rather than passing the same prebuilt args.
+        from profiles.services.linkedin_scraper import _construct_with_retry
+        from selenium.common.exceptions import WebDriverException
+
+        class OptsTracker:
+            instances = []
+            def __init__(self):
+                OptsTracker.instances.append(self)
+
+        def build():
+            tracker = OptsTracker()
+            if len(OptsTracker.instances) == 1:
+                raise WebDriverException(
+                    'session not created: cannot connect to chrome at 127.0.0.1:1234'
+                )
+            return tracker
+
+        _construct_with_retry(build)
+        ids = {id(o) for o in OptsTracker.instances}
+        self.assertEqual(len(OptsTracker.instances), 2)
+        self.assertEqual(len(ids), 2, "each retry must build fresh state")
+
 
 class GithubFallbackNoStarBraggingTests(SimpleTestCase):
     """The no-LLM fallback path no longer manufactures star/fork bullets."""
