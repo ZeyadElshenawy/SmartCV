@@ -174,15 +174,69 @@ def process_chat_turn(user_id: int, job_id: str, user_reply: str, conversation_h
     state['turn_count'] += 1
     
     # Removed manual string intercept code so the LLM manages flow state organically
-             
-    # Prepare skills to probe — CASE-INSENSITIVE filtering
-    comparison = compare_cv_with_job(profile.skills or [], job.extracted_skills or [])
+
+    # Prefer the persisted GapAnalysis (LLM-based fuzzy bucketing) over the
+    # naive `compare_cv_with_job` exact-string comparison. Otherwise the
+    # chatbot can probe skills the gap analyzer already classified as
+    # MATCHED — e.g. "Software Engineering" surfaced as missing here while
+    # the gap page (correctly) showed it green.
+    gap = None
+    try:
+        from analysis.models import GapAnalysis
+        gap = (
+            GapAnalysis.objects
+            .filter(job=job, user_id=user_id)
+            .order_by('-created_at')
+            .first()
+        )
+    except Exception:
+        gap = None
+
+    def _names(items):
+        out = []
+        for entry in items or []:
+            if isinstance(entry, dict):
+                n = (entry.get('name') or '').strip()
+            else:
+                n = str(entry or '').strip()
+            if n:
+                out.append(n)
+        return out
+
+    if gap is not None:
+        matched_names = (
+            _names(gap.matched_skills)
+            + _names(gap.matched_must_have)
+            + _names(gap.matched_nice_to_have)
+        )
+        # Must-have gaps first (these move the score the most), then
+        # partials (close-but-not-quite), then nice-to-haves.
+        missing_names = (
+            _names(gap.missing_must_have)
+            + _names(gap.missing_skills)
+            + _names(gap.partial_skills)
+            + _names(gap.missing_nice_to_have)
+        )
+        comparison = {'exact_matches': matched_names, 'missing': missing_names}
+    else:
+        comparison = compare_cv_with_job(profile.skills or [], job.extracted_skills or [])
+        matched_names = list(comparison['exact_matches'])
+        missing_names = list(comparison['missing'])
+
     covered_lower = {s.lower().strip() for s in state['covered_skills']}
     mentioned_lower = {s.lower().strip() for s in state['mentioned_skills']}
-    matched_lower = {s.lower().strip() for s in comparison['exact_matches']}
+    matched_lower = {s.lower().strip() for s in matched_names}
     all_excluded_lower = covered_lower | mentioned_lower | matched_lower
-    
-    skills_to_probe = [s for s in comparison['missing'] if s.lower().strip() not in all_excluded_lower]
+
+    # Dedupe while preserving order so must-have gaps stay at the front.
+    seen_lower = set()
+    skills_to_probe = []
+    for skill in missing_names:
+        sl = skill.lower().strip()
+        if not sl or sl in seen_lower or sl in all_excluded_lower:
+            continue
+        seen_lower.add(sl)
+        skills_to_probe.append(skill)
     
     max_turns = 10
     if state['turn_count'] > max_turns or not skills_to_probe:
