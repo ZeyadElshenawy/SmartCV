@@ -143,7 +143,13 @@ def profile_upload_cv(request, job_id):
             # Step 3: LLM validation and enhancement (extracts ALL sections)
             logger.info("Running LLM validation - extracting ALL CV sections...")
             validated_data = validate_and_map_cv_data(parsed_data, raw_cv_text)
-            
+
+            # The LLM call above takes 10-30s, during which the DB connection
+            # sits idle and Supabase's PgBouncer often kills it. Recycle so
+            # the upcoming save() runs on a fresh connection.
+            from django.db import close_old_connections
+            close_old_connections()
+
             # Step 4: Store COMPLETE CV data (no data loss!)
             profile.data_content = validated_data
             sections = list(validated_data.keys())
@@ -386,6 +392,14 @@ def upload_master_profile(request):
             # 3. Validated Extraction (Gemini)
             validated_data = validate_and_map_cv_data(parsed_data, raw_cv_text)
             profile.data_content = validated_data
+
+            # parse_cv + LLM extraction can hold the request open 30-60s while
+            # the DB connection sits idle. Supabase's PgBouncer kills idle
+            # connections in that window, so the next profile.save() raises
+            # "OperationalError: server closed the connection unexpectedly".
+            # Recycle so the save runs on a fresh connection.
+            from django.db import close_old_connections
+            close_old_connections()
 
             # 4. Map Fields
             profile.full_name = validated_data.get('full_name', '')
