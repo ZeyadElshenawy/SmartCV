@@ -54,6 +54,17 @@ _SOFT_SKILL_BLOCKLIST_CANON = {
     # has nothing to do with it. Block it.
     'managementinformationsystemsmis', 'managementinformationsystems',
     'mis',
+    # Round 1.5 — JDs frequently lift these from soft-skill paragraphs
+    # and the gap analyzer extracts them as "matched skills". They are
+    # NOT technical skills and don't belong in the Skills section.
+    'agile', 'agilemethodologies', 'agilemethodology', 'scrum', 'kanban',
+    'multitasking', 'taskmanagement',
+    'timemanagement',
+    # "Scripting" is a category, not a skill — when "Bash" or "Python"
+    # is already in the list it's redundant filler.
+    'scripting', 'shellscripting',
+    # Generic noise that DevOps JDs sometimes pull in.
+    'cicdtools', 'devopstools',
 }
 
 # Label-prefix leaks the CV parser bakes into skill names.

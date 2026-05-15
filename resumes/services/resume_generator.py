@@ -1407,6 +1407,32 @@ def _ensure_profile_data_preserved(resume_content: dict, profile_data: dict) -> 
         if isinstance(langs, list):
             resume_content['languages'] = [l if isinstance(l, str) else l.get('name', '') for l in langs]
 
+    # --- Awards / Honors (ICPC, scholarships, hackathon placements) ---
+    if not resume_content.get('awards'):
+        src_awards = (
+            profile_data.get('awards')
+            or profile_data.get('honors')
+            or profile_data.get('achievements')
+            or []
+        )
+        if isinstance(src_awards, list) and src_awards:
+            normalised: list[str] = []
+            for a in src_awards:
+                if isinstance(a, str) and a.strip():
+                    normalised.append(a.strip())
+                elif isinstance(a, dict):
+                    # Awards can come in as {name, issuer, date, description}
+                    bits = [
+                        a.get('name') or a.get('title') or '',
+                        a.get('issuer') or '',
+                        a.get('date') or '',
+                    ]
+                    label = ' — '.join(b for b in bits if b)
+                    if label:
+                        normalised.append(label)
+            if normalised:
+                resume_content['awards'] = normalised
+
     # --- Skills ---
     if not resume_content.get('skills') and profile_data.get('skills'):
         resume_content['skills'] = [

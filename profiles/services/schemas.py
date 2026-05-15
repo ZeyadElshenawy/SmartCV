@@ -1,3 +1,5 @@
+import re
+
 from pydantic import BaseModel, Field, EmailStr, field_validator, model_validator
 from typing import List, Optional, Any, Dict, Union
 from pydantic import ConfigDict
@@ -476,8 +478,27 @@ class ResumeProject(BaseModel):
             desc_list = []
         if not desc_list and hl_list:
             desc_list = hl_list
-        elif len(desc_list) == 1 and hl_list:
-            desc_list = desc_list + hl_list
+        elif desc_list and hl_list:
+            # Round 1.5: when BOTH have content, pick the richer one
+            # (more chars + more numeric tokens) — the audit caught the
+            # LLM putting vague rewrites in description while the
+            # source CV's quantified detail sat unused in highlights.
+            # The richness check runs BEFORE the single-line-merge
+            # branch so a one-line vague description gets replaced by
+            # the rich highlights, not concatenated with them.
+            def _richness(items: list) -> int:
+                total_chars = sum(len(s) for s in items if isinstance(s, str))
+                num_count = sum(
+                    len(re.findall(r'\d', s)) for s in items if isinstance(s, str)
+                )
+                return total_chars + (num_count * 20)  # weight numbers heavily
+            if _richness(hl_list) > _richness(desc_list) * 1.2:
+                desc_list = hl_list
+            elif len(desc_list) == 1:
+                # Description is a one-line summary AND highlights isn't
+                # meaningfully richer — keep both by concatenating
+                # (preserves the DEPI "summary line + bullets" pattern).
+                desc_list = desc_list + hl_list
         values['description'] = desc_list
         # Accept comma-separated technologies string from the editor form,
         # AND list-of-objects from a tool-call mode the LLM sometimes uses.
@@ -549,6 +570,11 @@ class ResumeContentResult(BaseModel):
     projects: List[ResumeProject] = Field(default_factory=list)
     certifications: List[ResumeCertification] = Field(default_factory=list)
     languages: List[str] = Field(default_factory=list)
+    # Round 1.5: surface honors / awards (ICPC, hackathons, scholarships)
+    # in their own section. The CV parser stores these under various
+    # keys (awards, honors, achievements) and the recruiter does scan
+    # for them on entry-level resumes.
+    awards: List[str] = Field(default_factory=list)
     model_config = {"extra": "allow"}
 
     @model_validator(mode='before')
@@ -569,6 +595,15 @@ class ResumeContentResult(BaseModel):
         lg = values.get('languages', [])
         if isinstance(lg, list):
             values['languages'] = _flatten_string_list(lg)
+        # Awards / honors — accept both keys and the same flattening
+        # the LLM tends to wrap (single-key objects, etc.).
+        aw = values.get('awards', None)
+        if aw is None:
+            aw = values.get('honors')
+        if isinstance(aw, list):
+            values['awards'] = _flatten_string_list(aw)
+        elif isinstance(aw, str) and aw.strip():
+            values['awards'] = [aw.strip()]
         return values
 
 class SectionFilterResult(BaseModel):

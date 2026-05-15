@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 # the docx exporter standalone-runnable from a Django shell or script.
 RESUME_SECTION_KEYS = (
     'summary', 'skills', 'experience', 'education',
-    'projects', 'certifications', 'languages',
+    'projects', 'certifications', 'awards', 'languages',
 )
 DEFAULT_SECTION_ORDER = list(RESUME_SECTION_KEYS)
 
@@ -363,32 +363,28 @@ def _write_projects(doc: Document, content: dict) -> None:
         head = doc.add_paragraph()
         head.paragraph_format.space_before = Pt(2)
         head.paragraph_format.space_after = Pt(2)
+        # Round 1.5: explicitly disable keep_with_next on project title
+        # paragraphs so Word never sticks them to the following bullets
+        # in a way that creates an empty band on the previous page when
+        # the project doesn't fit. The audit caught half-page gaps from
+        # this exact behaviour.
+        head.paragraph_format.keep_with_next = False
+        # Render the project NAME as a plain bold run (not wrapped in a
+        # hyperlink). The audit tool was reading paragraph.runs and
+        # finding bold=None/size=None because the hyperlink runs are
+        # nested inside <w:hyperlink>, hidden from paragraph.runs. A
+        # plain run is visible to every inspector and renders the same
+        # visual weight as the experience-title row.
+        name_run = head.add_run(name)
+        _set_run_font(name_run, size_pt=ITEM_TITLE_PT, bold=True)
+        # Tuck the URL behind a discreet " ↗" link suffix so the project
+        # name itself stays a normal bold word recruiters can scan, and
+        # the click-through is still one tap away. Same pattern as
+        # _write_certifications.
         if url:
-            _add_hyperlink(head, url, name or url, color=ACCENT_RGB)
-            # The hyperlink XML only sets color + underline; without
-            # explicit size + bold the project title inherits whatever
-            # default the theme picks (usually 11pt non-bold), and the
-            # audit caught it rendering as un-formatted.  Walk every
-            # <w:r> in the head paragraph and add size + bold so the
-            # project title matches the experience-title visual weight.
-            sz_halfpoints = str(int(ITEM_TITLE_PT * 2))
-            for r in head._p.iter(qn('w:r')):
-                rPr = r.find(qn('w:rPr'))
-                if rPr is None:
-                    rPr = OxmlElement('w:rPr')
-                    r.insert(0, rPr)
-                if rPr.find(qn('w:b')) is None:
-                    rPr.append(OxmlElement('w:b'))
-                # Strip any size already there (defensive — usually
-                # none from the hyperlink helper) then add ITEM_TITLE_PT.
-                for existing in rPr.findall(qn('w:sz')):
-                    rPr.remove(existing)
-                sz = OxmlElement('w:sz')
-                sz.set(qn('w:val'), sz_halfpoints)
-                rPr.append(sz)
-        else:
-            run = head.add_run(name)
-            _set_run_font(run, size_pt=ITEM_TITLE_PT, bold=True)
+            sep = head.add_run(' ')
+            _set_run_font(sep, size_pt=ITEM_TITLE_PT, bold=False)
+            _add_hyperlink(head, url, '↗', color=ACCENT_RGB)
         # Tech stack on its own italic line under the project name (ATS keywords)
         techs = proj.get('technologies') or []
         if isinstance(techs, str):
@@ -396,6 +392,9 @@ def _write_projects(doc: Document, content: dict) -> None:
         if techs:
             sub = doc.add_paragraph()
             sub.paragraph_format.space_after = Pt(2)
+            # No keep_with_next here either — let Word break the project
+            # block naturally between tech stack and bullets.
+            sub.paragraph_format.keep_with_next = False
             run = sub.add_run(' · '.join(techs))
             _set_run_font(run, size_pt=ITEM_SUB_PT, italic=True, color=ACCENT_RGB)
         for bullet in _ensure_list(proj.get('description')):
@@ -471,6 +470,39 @@ def _write_certifications(doc: Document, content: dict) -> None:
                     rPr.append(sz)
 
 
+def _write_awards(doc: Document, content: dict) -> None:
+    """Render the Honors & Awards section. Each entry is rendered as a
+    List Bullet so the visual weight matches the certifications
+    section. Bold the first segment up to the first em-dash / colon
+    (typically the award name) and leave the rest regular."""
+    items = (content or {}).get('awards') or []
+    if not items:
+        return
+    _add_section_heading(doc, 'Honors & Awards')
+    for item in items:
+        if not isinstance(item, str) or not item.strip():
+            continue
+        p = doc.add_paragraph(style='List Bullet')
+        p.paragraph_format.space_after = Pt(1)
+        # Split on the first em-dash / hyphen-spaces / colon to bold
+        # the name and leave the issuer / date in regular weight.
+        head, sep, tail = '', '', item.strip()
+        for delim in (' — ', ' – ', ' - ', ': '):
+            if delim in item:
+                head, sep, tail = item.partition(delim)
+                head = head.strip()
+                tail = tail.strip()
+                break
+        if head and tail:
+            name_run = p.add_run(head)
+            _set_run_font(name_run, size_pt=BODY_PT, bold=True)
+            rest = p.add_run(f"{sep}{tail}")
+            _set_run_font(rest, size_pt=BODY_PT, bold=False)
+        else:
+            run = p.add_run(item.strip())
+            _set_run_font(run, size_pt=BODY_PT, bold=True)
+
+
 def _write_languages(doc: Document, content: dict) -> None:
     langs = (content or {}).get('languages') or []
     if not langs:
@@ -488,6 +520,7 @@ _SECTION_WRITERS = {
     'education': _write_education,
     'projects': _write_projects,
     'certifications': _write_certifications,
+    'awards': _write_awards,
     'languages': _write_languages,
 }
 
