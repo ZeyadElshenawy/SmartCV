@@ -559,18 +559,13 @@ def backfill_summary(resume: dict, job=None) -> dict:
             skills_phrase = ' and '.join(top)
         else:
             skills_phrase = ', '.join(top[:-1]) + f", and {top[-1]}"
-        # Domain-neutral closer — the previous "across the data and ML
-        # lifecycle" was hardcoded for the DS use case and read as
-        # off-target for any non-DS JD (DevOps, frontend, sales …).
-        text = (
-            f"{lead_title} with hands-on {skills_phrase} experience, drawing on "
-            f"the {title} role and project work."
-        )
+        # Round 1.5: dropped the "drawing on the X role and project
+        # work" clause — the audit read it as the AI describing its
+        # own resume strategy ("meta-narration"). A human would never
+        # write that. Plain factual statement is better.
+        text = f"{lead_title} with hands-on {skills_phrase} experience."
     else:
-        text = (
-            f"{lead_title} with practical project experience, drawing on the "
-            f"{title} role."
-        )
+        text = f"{lead_title} with practical project experience."
     resume['professional_summary'] = text
     logger.info(
         "resume_normalizer: backfilled empty professional_summary (len=%d, "
@@ -580,57 +575,93 @@ def backfill_summary(resume: dict, job=None) -> dict:
     return resume
 
 
+def _is_near_duplicate_skill(existing_canon: set[str], new_canon: str) -> bool:
+    """Detect near-duplicate skills the canonical-key dedup misses
+    because of trailing tokens (e.g. "CI/CD" canon='cicd' vs "CI/CD
+    tools" canon='cicdtools'). If the new skill's canonical key is a
+    prefix or substring of something already in the set (or vice
+    versa), treat as duplicate."""
+    for ec in existing_canon:
+        if not ec or not new_canon:
+            continue
+        if ec == new_canon:
+            return True
+        # Prefix dedup: "cicd" matches "cicdtools".
+        if len(ec) >= 3 and new_canon.startswith(ec):
+            return True
+        if len(new_canon) >= 3 and ec.startswith(new_canon):
+            return True
+    return False
+
+
 def trim_skills_to_plan(resume: dict, plan) -> dict:
     """Replace the LLM's Skills list with the planner's
-    ``skills_to_list``. The planner builds that list in JD-must-have
-    order (then nice-to-have, then adjacent), so this forces a
-    JD-relevance-first skills section even when the LLM ignored the
-    inclusion plan and picked its own ordering from the raw CV skills.
+    ``skills_to_list``, re-filtered for soft skills and near-duplicates,
+    then top-up from any remaining LLM extras (also filtered) up to the
+    hard cap.
 
-    Two safety guards:
-      - Skip if the plan has no skills (we don't want to wipe the
-        section just because retrieval / gap analysis returned empty).
-      - Merge: any LLM-emitted skill the plan didn't pick but that's
-        on the soft-skill blocklist gets dropped; anything else gets
-        appended after the plan's list, up to the hard cap. Keeps
-        legitimate adjacent skills the LLM identified but the plan
-        missed (rare but possible).
+    The planner builds skills_to_list in JD-must-have order, but the
+    gap analyzer often categorises JD soft-skill phrases ("Agile",
+    "Multitasking", "Time management", "Communication") as matched
+    must-haves. Without re-filtering here, those leak straight into
+    the Skills section.
+
+    Near-duplicate dedup: the plan list often contains both "CI/CD"
+    and "CI/CD tools" because the JD parser pulled them as separate
+    tokens. The first-seen wins.
+
+    Skip if the plan has no skills (don't wipe just because gap
+    analysis returned empty).
     """
     if plan is None or not getattr(plan, 'skills_to_list', None):
         return resume
-    plan_skills = [s for s in plan.skills_to_list if s]
-    if not plan_skills:
+    raw_plan = [s for s in plan.skills_to_list if s]
+    if not raw_plan:
         return resume
-    plan_canon = {_canonical(s) for s in plan_skills}
-    llm_skills = resume.get('skills') or []
-    if not isinstance(llm_skills, list):
-        resume['skills'] = plan_skills[:_HARD_SKILL_CAP]
-        return resume
-    extras: list[str] = []
-    for entry in llm_skills:
-        name = entry.get('name') if isinstance(entry, dict) else str(entry or '')
-        name = (name or '').strip()
+
+    kept_canon: set[str] = set()
+    kept: list[str] = []
+    dropped_soft: list[str] = []
+    dropped_dup: list[str] = []
+
+    def _try_add(name: str) -> bool:
+        nonlocal kept, kept_canon
         if not name:
-            continue
+            return False
         c = _canonical(name)
-        if not c or c in plan_canon:
-            continue
+        if not c:
+            return False
         if c in _SOFT_SKILL_BLOCKLIST_CANON:
-            continue
-        extras.append(name)
-        plan_canon.add(c)
-    merged = plan_skills + extras
-    resume['skills'] = merged[:_HARD_SKILL_CAP]
-    if extras:
-        logger.info(
-            "resume_normalizer: skills reordered to plan + %d LLM extras "
-            "(final=%d)", len(extras), len(resume['skills']),
-        )
-    else:
-        logger.info(
-            "resume_normalizer: skills replaced with plan's skills_to_list "
-            "(final=%d)", len(resume['skills']),
-        )
+            dropped_soft.append(name)
+            return False
+        if _is_near_duplicate_skill(kept_canon, c):
+            dropped_dup.append(name)
+            return False
+        kept.append(name.strip())
+        kept_canon.add(c)
+        return True
+
+    # Plan's ordered list, filtered.
+    for s in raw_plan:
+        _try_add(s)
+
+    # Append LLM extras (also filtered for soft skills + dedup).
+    llm_skills = resume.get('skills') or []
+    if isinstance(llm_skills, list):
+        for entry in llm_skills:
+            if len(kept) >= _HARD_SKILL_CAP:
+                break
+            name = entry.get('name') if isinstance(entry, dict) else str(entry or '')
+            _try_add(name)
+
+    resume['skills'] = kept[:_HARD_SKILL_CAP]
+
+    log_bits = [f"final={len(resume['skills'])}"]
+    if dropped_soft:
+        log_bits.append(f"dropped_soft={dropped_soft}")
+    if dropped_dup:
+        log_bits.append(f"dropped_dup={dropped_dup}")
+    logger.info("resume_normalizer: skills via plan + filters (%s)", ", ".join(log_bits))
     return resume
 
 
@@ -669,74 +700,26 @@ def trim_projects_to_plan(resume: dict, plan) -> dict:
 
 
 def trim_certs_to_plan(resume: dict, plan) -> dict:
-    """Drop any certification whose name doesn't appear in
-    ``plan.certifications`` AND whose name doesn't contain a JD-keyword
-    that the plan's ``skills_to_list`` lists. Caps the result at
-    ``_CERT_CAP``. Skips when the plan has no certs (defensive — empty
-    plan ≠ wipe the section).
+    """Cap the certifications list at ``_CERT_CAP``. Does NOT filter by
+    plan membership any more.
 
-    The JD-keyword loosening is what catches "Introduction to Software
-    Testing" — the planner didn't add it to its certs list, but its
-    name contains "Testing", which is JD-relevant for a DevOps role
-    where the JD must-haves include test automation / CI testing.
-    Without this loosening, useful certs that the planner missed (or
-    de-duped against a similarly-named one) get dropped silently.
+    Round 1.5 (DevOps audit): the previous "drop certs not in plan"
+    filter was over-aggressive — it removed certs that the recruiter
+    would clearly want to see (e.g. "Introduction to Software
+    Testing" on a DevOps resume). The auditor's recommendation was
+    explicit: "Include ALL certifications from JSON". Just keep the
+    candidate's full cert list, capped at 8.
+
+    ``plan`` is still accepted for signature compatibility with
+    ``normalize_resume``'s call site but is unused here.
     """
-    if plan is None or not getattr(plan, 'certifications', None):
-        return resume
-    pool_pretty = [c for c in plan.certifications if c]
-    pool_canon = {_canonical(c) for c in pool_pretty}
-    if not pool_canon:
-        return resume
-    # JD-keyword pool: every token from the plan's skills list and the
-    # plan's matched_must_have/matched_nice_to_have, lowercased.
-    # Single-letter / two-letter tokens (e.g. "C") would create too many
-    # false positives ("Introduction" matches because it contains "C"),
-    # so require 3+ chars.
-    jd_keywords: set[str] = set()
-    for src in (
-        getattr(plan, 'skills_to_list', None) or [],
-        getattr(plan, 'matched_must_have', None) or [],
-        getattr(plan, 'matched_nice_to_have', None) or [],
-    ):
-        for s in src:
-            if not s:
-                continue
-            for tok in re.split(r"\W+", str(s).lower()):
-                if len(tok) >= 3:
-                    jd_keywords.add(tok)
     certs = resume.get('certifications') or []
-    kept: list[dict] = []
-    dropped_names: list[str] = []
-    kept_by_keyword: list[str] = []
-    for cert in certs:
-        if not isinstance(cert, dict):
-            continue
-        name = (cert.get('name') or '').strip()
-        if _fuzzy_in(name, pool_canon, pool_pretty):
-            kept.append(cert)
-            continue
-        # JD-keyword loosening — check the cert NAME and ISSUER text.
-        haystack = f"{name} {cert.get('issuer') or ''}".lower()
-        haystack_tokens = set(re.split(r"\W+", haystack))
-        if haystack_tokens & jd_keywords:
-            kept.append(cert)
-            kept_by_keyword.append(name)
-        else:
-            dropped_names.append(name)
+    if not isinstance(certs, list):
+        return resume
+    kept = [c for c in certs if isinstance(c, dict) and (c.get('name') or '').strip()]
     if len(kept) > _CERT_CAP:
         kept = kept[:_CERT_CAP]
     resume['certifications'] = kept
-    if dropped_names:
-        logger.info(
-            "resume_normalizer: dropped %d certification(s) not in plan: %s",
-            len(dropped_names), dropped_names,
-        )
-    if kept_by_keyword:
-        logger.info(
-            "resume_normalizer: kept %d certification(s) by JD-keyword match: %s",
-            len(kept_by_keyword), kept_by_keyword,
-        )
     return resume
 
 

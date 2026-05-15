@@ -314,6 +314,45 @@ def build_inclusion_plan(
             len(text_jd_skills), text_jd_skills,
         )
 
+    # Round 1.5: backfill from the candidate's FORMAL skills list (not
+    # just bullet text). Often the gap analyzer misses skills like
+    # "Kubernetes" or "Terraform" because the JD says "container
+    # orchestration tools" rather than the exact word — but the
+    # candidate has the skill listed and the recruiter is going to
+    # keyword-scan for the exact term. Pull any candidate skill whose
+    # name overlaps a JD must-have / nice-to-have token (3+ chars) and
+    # isn't already on the list.
+    jd_tokens: set[str] = set()
+    for s in (must_jd + nice_jd):
+        if not s:
+            continue
+        for tok in s.lower().split():
+            t = tok.strip(',.()/').strip()
+            if len(t) >= 3:
+                jd_tokens.add(t)
+    profile_skills_backfilled: list[str] = []
+    for entry in (data.get('skills') or []):
+        if len(skills_to_list) >= _MAX_SKILLS_LIST:
+            break
+        name = entry.get('name') if isinstance(entry, dict) else str(entry or '')
+        name = (name or '').strip()
+        if not name:
+            continue
+        c = _canonical(name)
+        if c in seen_canon:
+            continue
+        # Multi-word match: any token in the skill name overlaps a JD token.
+        skill_tokens = {t.strip(',.()/').strip()
+                        for t in name.lower().split() if t}
+        if skill_tokens & jd_tokens:
+            _add(name)
+            profile_skills_backfilled.append(name)
+    if profile_skills_backfilled:
+        logger.info(
+            "inclusion_planner: backfilled %d profile skill(s) by JD-token match: %s",
+            len(profile_skills_backfilled), profile_skills_backfilled,
+        )
+
     skills_to_list = skills_to_list[:_MAX_SKILLS_LIST]
 
     # ---- Bridge / drop decisions for missing must-haves ------------------

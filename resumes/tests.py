@@ -1917,26 +1917,168 @@ class NormalizeBulletPunctuationTests(SimpleTestCase):
                          ['Built X.', 'What is Y?', 'Achieved 10x growth!'])
 
 
-class TrimCertsKeepsJdKeywordMatchTests(SimpleTestCase):
-    """The audit caught 'Introduction to Software Testing' being dropped
-    even though 'Testing' is JD-relevant for DevOps. The cert filter
-    now keeps certs whose name/issuer share a token with plan
-    skills."""
+class TrimSkillsToPlanRound15Tests(SimpleTestCase):
+    """Round 1.5 strengthens trim_skills_to_plan: soft skills the plan
+    surfaced get re-filtered, near-duplicate skills get deduped, and
+    summary backfill uses just-the-facts phrasing."""
 
-    def test_keeps_software_testing_cert_via_jd_keyword(self):
+    def test_plan_supplied_soft_skills_are_dropped(self):
+        # Gap analyzer extracted "Agile, Communication, Multitasking,
+        # Time management" from the JD's soft-skill line and put them in
+        # plan.skills_to_list. The audit caught these leaking through.
+        resume = {'skills': ['Docker']}
+        plan = _FakePlan()
+        plan.skills_to_list = [
+            'Docker', 'Kubernetes', 'Linux',
+            'Agile', 'Communication', 'Multitasking', 'Time management',
+            'Bash',
+        ]
+        out = trim_skills_to_plan(resume, plan)
+        for soft in ('Agile', 'Communication', 'Multitasking', 'Time management'):
+            self.assertNotIn(soft, out['skills'],
+                             f"{soft!r} should be re-filtered out of skills")
+        self.assertIn('Docker', out['skills'])
+        self.assertIn('Kubernetes', out['skills'])
+        self.assertIn('Bash', out['skills'])
+
+    def test_near_duplicate_skills_dedup(self):
+        # "CI/CD tools" and "CI/CD" both appeared from JD parsing.
+        # First-seen wins. Same for "Scripting" + "Bash" + "Python".
+        resume = {'skills': []}
+        plan = _FakePlan()
+        plan.skills_to_list = ['CI/CD', 'CI/CD tools', 'Bash', 'Scripting']
+        out = trim_skills_to_plan(resume, plan)
+        # "CI/CD tools" dedups against "CI/CD"; "Scripting" is in the
+        # soft-skill blocklist (Round 1.5 added it because Bash/Python
+        # already cover it).
+        self.assertEqual(out['skills'], ['CI/CD', 'Bash'])
+
+
+class BackfillSummaryNoMetaNarrationTests(SimpleTestCase):
+    """The audit called out "drawing on the X role and project work"
+    as meta-narration. The phrase is gone now."""
+
+    def test_summary_has_no_meta_narration_clause(self):
+        resume = {
+            'professional_summary': '',
+            'skills': ['Docker', 'Kubernetes', 'Linux'],
+            'experience': [{'title': 'DevOps Engineering Trainee'}],
+        }
+        job = SimpleNamespace(title='Junior DevOps Engineer')
+        out = backfill_summary(resume, job=job)
+        self.assertNotIn('drawing on', out['professional_summary'].lower())
+        self.assertNotIn('role and project work', out['professional_summary'].lower())
+        # Still leads with the JD title (Round 1 behaviour preserved).
+        self.assertTrue(out['professional_summary'].startswith('Junior DevOps Engineer'))
+
+
+class ResumeProjectPrefersRicherHighlightsTests(SimpleTestCase):
+    """The audit caught the LLM putting weak rewrites in description
+    while the rich JSON content sat unused in highlights. When highlights
+    is meaningfully richer (more chars + more numeric tokens), the
+    schema now prefers it."""
+
+    def test_highlights_wins_when_richer(self):
+        from profiles.services.schemas import ResumeProject
+        p = ResumeProject(**{
+            'name': 'ACR-QA',
+            'description': ['Built a platform.'],  # vague rewrite
+            'highlights': [
+                'Built a language-agnostic static analysis platform running 7 tools in parallel with 97.1% precision.',
+                'Delivered a 273-test pytest suite passing in under 6 seconds; GitHub Actions + GitLab CI integration; SARIF v2.1.0 export; OWASP Top 10 compliance mapping with CWE IDs.',
+            ],
+        })
+        # Description should now be the rich highlights content.
+        self.assertEqual(len(p.description), 2)
+        self.assertIn('97.1%', p.description[0])
+        self.assertIn('SARIF', p.description[1])
+
+    def test_description_wins_when_already_rich(self):
+        from profiles.services.schemas import ResumeProject
+        p = ResumeProject(**{
+            'name': 'X',
+            'description': [
+                'Built a system with 99.9% uptime over 6 months.',
+                'Shipped 50 deployments per week.',
+                'Reduced cloud spend by 40%.',
+            ],
+            'highlights': ['One short fact.'],
+        })
+        # Highlights is much shorter — leave description alone.
+        self.assertEqual(len(p.description), 3)
+        self.assertIn('99.9%', p.description[0])
+
+
+class AwardsFieldEndToEndTests(SimpleTestCase):
+    """Round 1.5: Honors & Awards section is now first-class. Schema
+    accepts the field, _ensure_profile_data_preserved surfaces from
+    profile, _write_awards renders bold name + plain suffix."""
+
+    def test_schema_accepts_awards_list(self):
+        from profiles.services.schemas import ResumeContentResult
+        r = ResumeContentResult(awards=[
+            'ICPC ECPC 2024 — Honorable Mention, 2nd among KSIU teams',
+            'Dean\'s List — Fall 2024',
+        ])
+        self.assertEqual(len(r.awards), 2)
+        self.assertTrue(r.awards[0].startswith('ICPC'))
+
+    def test_schema_normalizes_honors_alias(self):
+        from profiles.services.schemas import ResumeContentResult
+        # Some pipelines may emit 'honors' instead of 'awards'.
+        r = ResumeContentResult(honors=['Award A', 'Award B'])
+        self.assertEqual(r.awards, ['Award A', 'Award B'])
+
+
+class WriteAwardsTests(SimpleTestCase):
+    """The Honors & Awards docx writer renders with bold name + plain
+    suffix and uses the same section-heading + List Bullet style as
+    certifications."""
+
+    def test_writes_awards_section_when_present(self):
+        from docx import Document
+        from resumes.services.docx_exporter import _write_awards
+        doc = Document()
+        _write_awards(doc, {'awards': [
+            'ICPC ECPC 2024 — Honorable Mention',
+            'Dean\'s List',
+        ]})
+        # Section heading + two bullets.
+        paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
+        self.assertEqual(paragraphs[0], 'HONORS & AWARDS')
+        self.assertEqual(paragraphs[1], 'ICPC ECPC 2024 — Honorable Mention')
+        self.assertEqual(paragraphs[2], 'Dean\'s List')
+
+    def test_no_op_when_no_awards(self):
+        from docx import Document
+        from resumes.services.docx_exporter import _write_awards
+        doc = Document()
+        before = len(doc.paragraphs)
+        _write_awards(doc, {})
+        # Writer adds no new paragraphs when awards is missing/empty.
+        self.assertEqual(len(doc.paragraphs), before)
+
+
+class TrimCertsKeepsAllCertsTests(SimpleTestCase):
+    """Round 1.5: the cert filter was simplified to keep ALL candidate
+    certs (capped at _CERT_CAP). The auditor's recommendation was
+    'Include ALL certifications from JSON'."""
+
+    def test_keeps_every_cert_regardless_of_plan(self):
         from resumes.services.resume_normalizer import trim_certs_to_plan
         resume = {'certifications': [
             {'name': 'Introduction to Software Testing', 'issuer': 'U of Minnesota'},
             {'name': 'Random Off-Topic Cert', 'issuer': 'Whatever'},
+            {'name': 'Applied ML in Python', 'issuer': 'Coursera'},
         ]}
         plan = _FakePlan(certifications=['IBM Data Scientist Track'])
-        plan.skills_to_list = ['Docker', 'Kubernetes', 'CI/CD', 'Testing']
-        plan.matched_must_have = ['Docker']
-        plan.matched_nice_to_have = []
+        plan.skills_to_list = ['Docker']
         out = trim_certs_to_plan(resume, plan)
         names = [c['name'] for c in out['certifications']]
+        # Every cert survives — plan membership no longer filters.
+        self.assertEqual(len(names), 3)
         self.assertIn('Introduction to Software Testing', names)
-        self.assertNotIn('Random Off-Topic Cert', names)
+        self.assertIn('Random Off-Topic Cert', names)
 
 
 class BackfillSummaryUsesJdTitleTests(SimpleTestCase):
@@ -2803,20 +2945,24 @@ class ResumeNormalizerTests(SimpleTestCase):
         out = trim_projects_to_plan(resume, plan)
         self.assertEqual(len(out['projects']), 2)
 
-    def test_trim_certs_to_plan_drops_off_plan_certs(self):
+    def test_trim_certs_to_plan_keeps_all_certs_now(self):
+        # Round 1.5: the previous "drop certs not in plan" filter was
+        # over-aggressive and removed Software Testing on a DevOps JD.
+        # The new policy is keep all of the candidate's certs (capped
+        # at _CERT_CAP). plan membership is irrelevant.
         resume = {'certifications': [
             {'name': 'IBM Data Scientist Professional Certificate'},
-            {'name': 'Project Management: The Basics for Success'},   # not in plan
+            {'name': 'Project Management: The Basics for Success'},
             {'name': 'Applied Machine Learning in Python'},
         ]}
         plan = _FakePlan(certifications=[
             'IBM Data Scientist Professional Certificate',
-            'Applied Machine Learning in Python',
         ])
         out = trim_certs_to_plan(resume, plan)
         names = [c['name'] for c in out['certifications']]
         self.assertEqual(names, [
             'IBM Data Scientist Professional Certificate',
+            'Project Management: The Basics for Success',
             'Applied Machine Learning in Python',
         ])
 
@@ -2865,11 +3011,13 @@ class ResumeNormalizerTests(SimpleTestCase):
         # Coursework collapsed.
         descs = out['experience'][0]['description']
         self.assertTrue(any('Coursework included:' in d for d in descs))
-        # Plan trims applied.
+        # Plan trims applied to projects (BookShop is dropped).
         self.assertEqual([p['name'] for p in out['projects']], ['SmartCV'])
+        # Round 1.5: certs are NOT filtered against the plan any more —
+        # both candidate certs survive (capped at 8).
         self.assertEqual(
             [c['name'] for c in out['certifications']],
-            ['IBM Data Scientist Professional Certificate'],
+            ['IBM Data Scientist Professional Certificate', 'Project Management 101'],
         )
 
     def test_normalize_resume_does_not_mutate_input(self):
@@ -3033,11 +3181,11 @@ class BackfillSummaryTests(SimpleTestCase):
         self.assertEqual(out['professional_summary'], '')
 
     def test_picks_jd_aligned_experience_not_most_recent(self):
-        # The real Banque Misr resume had the chronologically-newest
-        # role be "Digital Transformation Intern" — but for a Data
-        # Scientist JD the right lead is the "AI & Data Science
-        # Trainee" role. backfill_summary should pick by JD-title
-        # overlap, not list order.
+        # Round 1.5: the summary no longer mentions the experience
+        # title (the audit flagged that as "meta-narration"). The
+        # JD-aligned experience picker still matters for the no-JD
+        # fallback case — but here the JD title is the lead and the
+        # experience title isn't in the summary at all.
         resume = {
             'professional_summary': '',
             'skills': ['Python', 'Pandas', 'scikit-learn', 'TensorFlow'],
@@ -3049,10 +3197,15 @@ class BackfillSummaryTests(SimpleTestCase):
         }
         job = SimpleNamespace(title='Data Scientist')
         out = backfill_summary(resume, job=job)
-        self.assertIn('AI & Data Science Trainee', out['professional_summary'])
-        self.assertNotIn('Digital Transformation', out['professional_summary'])
+        self.assertTrue(out['professional_summary'].startswith('Data Scientist'))
+        self.assertIn('Python', out['professional_summary'])
+        # No meta-narration mentioning the candidate's role title.
+        self.assertNotIn('drawing on', out['professional_summary'].lower())
 
     def test_falls_back_to_first_when_no_jd_title_overlap(self):
+        # Round 1.5: when a JD title IS provided, summary leads with
+        # it regardless of experience-title overlap. The
+        # experience-picker fallback only matters when job=None.
         resume = {
             'professional_summary': '',
             'skills': ['Python'],
@@ -3061,9 +3214,8 @@ class BackfillSummaryTests(SimpleTestCase):
                 {'title': 'Cashier'},
             ],
         }
-        job = SimpleNamespace(title='Data Scientist')
-        out = backfill_summary(resume, job=job)
-        # Neither title overlaps with "Data Scientist" — default to first.
+        out = backfill_summary(resume, job=None)
+        # No JD → falls back to first experience title.
         self.assertIn('Sales Associate', out['professional_summary'])
 
 
