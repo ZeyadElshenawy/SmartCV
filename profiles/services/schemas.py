@@ -546,7 +546,13 @@ class ResumeEducation(BaseModel):
             'degree', 'institution', 'year', 'field', 'gpa', 'location',
         ))
         h = values.get('honors', [])
-        if isinstance(h, str):
+        # Groq emits null for empty list fields — handle it like
+        # ResumeExperience.description does, so the failed_generation
+        # recovery path can salvage the LLM's output instead of falling
+        # all the way through to the offline renderer.
+        if h is None:
+            values['honors'] = []
+        elif isinstance(h, str):
             values['honors'] = [line.strip() for line in h.split('\n') if line.strip()]
         elif isinstance(h, list):
             values['honors'] = _flatten_string_list(h)

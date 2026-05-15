@@ -1822,6 +1822,22 @@ class ResumeSchemaCoercionTests(SimpleTestCase):
         })
         self.assertEqual(exp.description, ['Built X.', 'Shipped Y.'])
 
+    def test_education_null_honors_coerces_to_empty_list(self):
+        # Round 1.5.1 — the DevOps regen log showed honors=null on the
+        # education entry blocking the entire recovery path. Null →
+        # empty list lets recovery salvage the LLM's content.
+        from profiles.services.schemas import ResumeEducation
+        edu = ResumeEducation(**{
+            'degree': 'BSc',
+            'institution': 'KSIU',
+            'year': '2026',
+            'field': '',
+            'gpa': '',
+            'location': '',
+            'honors': None,
+        })
+        self.assertEqual(edu.honors, [])
+
     def test_project_null_description_with_highlights_promotes(self):
         # Same promotion rule applies to projects.
         from profiles.services.schemas import ResumeProject
