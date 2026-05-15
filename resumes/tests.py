@@ -1763,6 +1763,76 @@ class ResumeSchemaCoercionTests(SimpleTestCase):
         self.assertEqual(result.professional_summary, '')
         self.assertEqual(result.objective, '')
 
+    # --- Pass G: null description + highlights merge regressions --------
+
+    def test_experience_null_description_coerces_to_empty_list(self):
+        """The exact failure from the regen log: description=null on a
+        Union[str, List[str]] field. v1 raised
+        ``Input should be a valid string [...] input_value=None``; v2
+        treats null as no-description."""
+        from profiles.services.schemas import ResumeExperience
+        exp = ResumeExperience(**{
+            'title': 'DT Intern', 'description': None,
+        })
+        self.assertEqual(exp.description, [])
+
+    def test_experience_null_desc_with_highlights_promotes(self):
+        # The Banque Misr regen had description=null and bullets in
+        # the (extra) highlights field. The docx exporter reads only
+        # description — without this promotion the rendered bullets
+        # would have vanished.
+        from profiles.services.schemas import ResumeExperience
+        exp = ResumeExperience(**{
+            'title': 'DT Intern',
+            'description': None,
+            'highlights': ['Rotated across departments.',
+                           'Built a Microsoft Fabric pipeline.'],
+        })
+        self.assertEqual(exp.description, [
+            'Rotated across departments.',
+            'Built a Microsoft Fabric pipeline.',
+        ])
+
+    def test_experience_string_desc_plus_highlights_merges(self):
+        # AI/DS Trainee case: LLM put a summary sentence in description
+        # and the actual bullets in highlights. Merge: summary stays
+        # first, then highlights bullets.
+        from profiles.services.schemas import ResumeExperience
+        exp = ResumeExperience(**{
+            'title': 'AI Trainee',
+            'description': 'Selected participant in DEPI.',
+            'highlights': ['Applied the full data-science lifecycle.',
+                           'Used MLOps tools (MLflow, Hugging Face).'],
+        })
+        self.assertEqual(exp.description, [
+            'Selected participant in DEPI.',
+            'Applied the full data-science lifecycle.',
+            'Used MLOps tools (MLflow, Hugging Face).',
+        ])
+
+    def test_experience_list_desc_drops_redundant_highlights(self):
+        # When description is already a multi-item list, highlights is
+        # almost always duplicate content from the LLM — drop it to
+        # avoid duplicate bullets in the rendered docx.
+        from profiles.services.schemas import ResumeExperience
+        exp = ResumeExperience(**{
+            'title': 'IT Intern',
+            'description': ['Built X.', 'Shipped Y.'],
+            'highlights': ['DROP ME: duplicate from LLM'],
+        })
+        self.assertEqual(exp.description, ['Built X.', 'Shipped Y.'])
+
+    def test_project_null_description_with_highlights_promotes(self):
+        # Same promotion rule applies to projects.
+        from profiles.services.schemas import ResumeProject
+        p = ResumeProject(**{
+            'name': 'Healthcare Prediction',
+            'description': None,
+            'highlights': ['End-to-end ML pipeline for stroke risk.'],
+            'technologies': ['Python', 'scikit-learn'],
+        })
+        self.assertEqual(p.description, ['End-to-end ML pipeline for stroke risk.'])
+
 
 class ResumeFailedGenerationRecoveryTests(SimpleTestCase):
     """Salvage Groq's tool_use_failed payload for resume generation.

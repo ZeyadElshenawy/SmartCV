@@ -416,10 +416,37 @@ class ResumeExperience(BaseModel):
             'start_date', 'end_date',
         ))
         desc = values.get('description', [])
-        if isinstance(desc, str):
-            values['description'] = [d.strip() for d in desc.split('\n') if d.strip()]
+        hl = values.get('highlights')
+        hl_list = _flatten_string_list(hl) if isinstance(hl, list) else []
+        # Groq's tool-call validator strict-rejects `null` on Union types,
+        # and the recovery path that re-parses failed_generation hits the
+        # same null. Treat null as "no description".
+        if desc is None:
+            desc_list = []
+        elif isinstance(desc, str):
+            desc_list = [d.strip() for d in desc.split('\n') if d.strip()]
         elif isinstance(desc, list):
-            values['description'] = _flatten_string_list(desc)
+            desc_list = _flatten_string_list(desc)
+        else:
+            desc_list = []
+        # The LLM sometimes splits content: description holds a summary
+        # sentence and highlights holds the actual bullets. Or it ignores
+        # the field-mapping rule entirely and puts ALL bullets in
+        # highlights with description=null. The docx exporter only reads
+        # `description`, so merge highlights in:
+        #   - description empty + highlights present  →  use highlights
+        #   - description has a single string         →  prepend it, then
+        #                                                append highlights
+        #     (treats description as prelude / summary line)
+        #   - description already has multiple list   →  trust the LLM,
+        #     entries                                    drop highlights
+        #                                                (it's likely dup
+        #                                                content)
+        if not desc_list and hl_list:
+            desc_list = hl_list
+        elif len(desc_list) == 1 and hl_list:
+            desc_list = desc_list + hl_list
+        values['description'] = desc_list
         return values
 
 class ResumeProject(BaseModel):
@@ -436,10 +463,22 @@ class ResumeProject(BaseModel):
             return values
         values = _coerce_null_strings(values, ('name', 'url'))
         desc = values.get('description', [])
-        if isinstance(desc, str):
-            values['description'] = [d.strip() for d in desc.split('\n') if d.strip()]
+        hl = values.get('highlights')
+        hl_list = _flatten_string_list(hl) if isinstance(hl, list) else []
+        # null → [] + same merge rules as ResumeExperience above.
+        if desc is None:
+            desc_list = []
+        elif isinstance(desc, str):
+            desc_list = [d.strip() for d in desc.split('\n') if d.strip()]
         elif isinstance(desc, list):
-            values['description'] = _flatten_string_list(desc)
+            desc_list = _flatten_string_list(desc)
+        else:
+            desc_list = []
+        if not desc_list and hl_list:
+            desc_list = hl_list
+        elif len(desc_list) == 1 and hl_list:
+            desc_list = desc_list + hl_list
+        values['description'] = desc_list
         # Accept comma-separated technologies string from the editor form,
         # AND list-of-objects from a tool-call mode the LLM sometimes uses.
         tech = values.get('technologies', [])
