@@ -49,6 +49,7 @@ def _build_profile_form_context(profile):
         # they have no business appearing as user-editable sections.
         'dedupe_decisions', 'enriched_projects_cache',
         'enriched_projects_hash', 'projects_confirmed_at',
+        'projects_typed', 'projects_enriched',
         # Onboarding + tour state.
         'has_seen_welcome', 'has_seen_tour', 'onboarding_banner_dismissed',
         # Cached external signal blobs (rendered via dedicated tiles).
@@ -1139,32 +1140,14 @@ def refresh_github_signals(request):
     profile.github_url already on file. Stores the snapshot in
     profile.data_content['github_signals'] and returns it as JSON.
     """
-    if request.method != 'POST':
-        return JsonResponse({'error': 'POST only'}, status=405)
-
-    profile, _ = UserProfile.objects.get_or_create(user=request.user)
-
-    raw = (request.POST.get('github_input') or '').strip()
-    if not raw and profile.github_url:
-        raw = profile.github_url
-
-    username = parse_github_username(raw)
-    if not username:
-        return JsonResponse({
-            'error': 'Could not parse a GitHub username from that input.',
-        }, status=400)
-
-    snapshot = fetch_github_snapshot(username)
-
-    # Persist the URL so subsequent refreshes don't need it re-pasted, and
-    # cache the snapshot in JSONB so the dashboard can render without a fetch.
-    profile.github_url = snapshot.get('profile_url') or profile.github_url
-    data = profile.data_content or {}
-    data['github_signals'] = snapshot
-    profile.data_content = data
-    profile.save(update_fields=['github_url', 'data_content', 'updated_at'])
-
-    return JsonResponse({'success': not snapshot.get('error'), 'snapshot': snapshot})
+    from profiles.services.github_aggregator import fetch_github_snapshot
+    return _refresh_signal(
+        request,
+        signal_key='github_signals',
+        input_field='github_input',
+        fetcher=fetch_github_snapshot,
+        fallback_url_attr='github_url',
+    )
 
 
 def _refresh_signal(request, *, signal_key: str, input_field: str, fetcher,
@@ -1173,6 +1156,24 @@ def _refresh_signal(request, *, signal_key: str, input_field: str, fetcher,
 
     `fetcher(value)` must return a snapshot dict. The result is cached on
     profile.data_content[signal_key] and returned as JSON.
+
+    Two-phase save (added after the connect-page "first pull doesn't
+    merge" bug):
+
+      1. **Save the snapshot first.** The fetcher already ran; we don't
+         want its result lost if the rebuild stage below hangs (Groq
+         429 retries can hold the request open 25s+) or the client
+         times out mid-rebuild.
+      2. **Then run rebuild_master_profile and save the merged state.**
+         If this stage fails partway through, the snapshot is still
+         persisted from step 1, so a subsequent refresh can complete
+         the merge without re-fetching.
+
+    Before this split, a single trailing save could persist a
+    half-merged ``data_content`` (or never fire at all if the rebuild
+    timed out), which is why users had to "pull again from the
+    dashboard" to actually see the projects merge into the master
+    profile.
     """
     if request.method != 'POST':
         return JsonResponse({'error': 'POST only'}, status=405)
@@ -1195,25 +1196,39 @@ def _refresh_signal(request, *, signal_key: str, input_field: str, fetcher,
     data = profile.data_content or {}
     data[signal_key] = snapshot
     profile.data_content = data
-    update_fields = ['data_content', 'updated_at']
+    snapshot_update_fields = ['data_content', 'updated_at']
 
     # Persist canonical URL on the model too, when available.
     if fallback_url_attr and snapshot.get('profile_url'):
         setattr(profile, fallback_url_attr, snapshot['profile_url'])
-        update_fields.insert(0, fallback_url_attr)
+        snapshot_update_fields.insert(0, fallback_url_attr)
 
-    # Run the full rebuild pipeline: enriches projects from the new signal,
-    # dedupes against projects_typed, merges skills/experiences/certs/edu.
-    # save=False so the caller's profile.save(update_fields=update_fields)
-    # below handles persisting the URL field in the same DB round-trip.
+    # Phase 1 — snapshot save. Always runs, regardless of what the
+    # rebuild does next. This is what ensures a future refresh has
+    # a starting point if Phase 2 dies.
+    profile.save(update_fields=snapshot_update_fields)
+
+    # Phase 2 — rebuild + merge save. rebuild_master_profile mutates
+    # profile.data_content and saves itself (save=True). If it raises
+    # mid-flight, Phase 1's state survives.
+    merge_summary = None
     if not snapshot.get('error'):
         try:
             from profiles.services.profile_rebuilder import rebuild_master_profile
-            rebuild_master_profile(profile, save=False)
+            merge_summary = rebuild_master_profile(profile, save=True)
+            logger.info(
+                "_refresh_signal: rebuild done for %s — added=%s merged=%s "
+                "kept_existing=%s kept_new=%s final=%s",
+                signal_key,
+                merge_summary.get('added_new'), merge_summary.get('merged'),
+                merge_summary.get('kept_existing'), merge_summary.get('kept_new'),
+                merge_summary.get('final_count'),
+            )
         except Exception:
-            logger.exception("_refresh_signal: rebuild_master_profile failed (continuing)")
-
-    profile.save(update_fields=update_fields)
+            logger.exception(
+                "_refresh_signal: rebuild_master_profile failed for %s "
+                "(snapshot already saved in Phase 1)", signal_key,
+            )
 
     # Compute the updated profile strength so the dashboard ring can
     # be patched live without a page reload.
@@ -1232,6 +1247,11 @@ def _refresh_signal(request, *, signal_key: str, input_field: str, fetcher,
         'success': not snapshot.get('error'),
         'snapshot': snapshot,
         'strength': strength_payload,
+        # When the rebuild ran, surface how many projects landed in the
+        # final view so the frontend (and audit logs) can confirm the
+        # merge actually happened on this request, not on a subsequent
+        # one. None when rebuild was skipped due to fetch error.
+        'merge_summary': merge_summary,
     })
 
 
