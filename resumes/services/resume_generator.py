@@ -721,6 +721,72 @@ Make it PROFESSIONAL and ATS-OPTIMIZED.
         return _build_offline_fallback(profile, job, sanitized_cv)
 
 
+def _extract_failed_generation(exc) -> Optional[str]:
+    """Pull the ``failed_generation`` payload from a Groq exception.
+
+    The groq SDK has stored the response body in different attributes
+    across versions:
+
+      - newer: ``exc.body`` is the parsed JSON dict
+      - sometimes: ``exc.body`` is None but ``exc.response`` carries
+        the raw httpx Response with ``.json()`` / ``.text``
+      - fallback: the dict is rendered into ``str(exc)`` as a Python
+        repr (single-quoted), parseable with ``ast.literal_eval``
+        (the safe literal-only parser — rejects function calls and
+        arbitrary code, only handles dict/list/str/int/float/bool/
+        None literals).
+
+    Without the last fallback the recovery silently returns None when
+    ``exc.body`` is None, which is what was masking the schema-envelope
+    payload on the regen attempt at 18:03.
+    """
+    # Path 1: exc.body is already a dict.
+    body = getattr(exc, 'body', None)
+    if isinstance(body, dict):
+        raw = (body.get('error') or {}).get('failed_generation')
+        if isinstance(raw, str) and raw:
+            return raw
+    # Path 2: exc.response with .json() — try parsing.
+    response = getattr(exc, 'response', None)
+    if response is not None:
+        for attempt in ('json', 'text'):
+            try:
+                if attempt == 'json':
+                    data = response.json()
+                else:
+                    data = json.loads(getattr(response, 'text', '') or '')
+            except Exception:
+                continue
+            if isinstance(data, dict):
+                raw = (data.get('error') or {}).get('failed_generation')
+                if isinstance(raw, str) and raw:
+                    return raw
+    # Path 3: parse the Python repr embedded in str(exc).
+    # Groq formats the message as "Error code: 400 - {'error': {...}}",
+    # and the dict portion is a valid Python literal. ast.literal_eval
+    # (the safe-by-design literal-only parser, not the dangerous
+    # built-in evaluator) handles single-quoted strings and embedded
+    # escapes that json.loads would reject. It refuses to run anything
+    # that isn't a literal data structure, so there's no code-exec
+    # risk even with attacker-controlled exception messages.
+    s = str(exc)
+    marker = s.find("{'error':")
+    if marker == -1:
+        marker = s.find('{"error":')
+    if marker != -1:
+        candidate = s[marker:]
+        try:
+            from ast import literal_eval as _safe_literal
+            data = _safe_literal(candidate)
+            if isinstance(data, dict):
+                raw = (data.get('error') or {}).get('failed_generation')
+                if isinstance(raw, str) and raw:
+                    return raw
+        except Exception:
+            pass
+    return None
+
+
 def _recover_resume_from_failed_generation(exc):
     """Recover a ResumeContentResult from Groq's tool_use_failed body.
 
@@ -748,14 +814,23 @@ def _recover_resume_from_failed_generation(exc):
     correctly-unwrapped dict reaches the same final shape the happy
     path produces.
     """
-    body = getattr(exc, 'body', None) or {}
-    err = body.get('error', {}) if isinstance(body, dict) else {}
-    raw = err.get('failed_generation')
-    if not raw or not isinstance(raw, str):
+    raw = _extract_failed_generation(exc)
+    if not raw:
+        logger.warning(
+            "Resume recovery: could not locate failed_generation payload on "
+            "%s exception (body_type=%s, has_response=%s) — falling back.",
+            type(exc).__name__,
+            type(getattr(exc, 'body', None)).__name__,
+            hasattr(exc, 'response'),
+        )
         return None
     try:
         parsed = json.loads(raw)
-    except Exception:
+    except Exception as je:
+        logger.warning(
+            "Resume recovery: failed_generation JSON parse failed (%s) — "
+            "first 200 chars: %r", je, raw[:200],
+        )
         return None
     # Tool-call wrapper: list of {name, parameters} entries.
     if isinstance(parsed, list) and parsed:
