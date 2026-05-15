@@ -287,6 +287,11 @@ def _write_experience(doc: Document, content: dict) -> None:
         head = doc.add_paragraph()
         head.paragraph_format.space_before = Pt(4)
         head.paragraph_format.space_after = Pt(0)
+        # Round 1.5.2: keep_with_next pins the job title to its
+        # sub-header (company line). The audit caught an orphan widow
+        # where "Information Technology Intern" sat alone at the bottom
+        # of page 1 and its bullets started page 2.
+        head.paragraph_format.keep_with_next = True
         # Set a right tab stop at the page width minus margins (~6.5 in).
         head.paragraph_format.tab_stops.add_tab_stop(Inches(6.5), WD_PARAGRAPH_ALIGNMENT.RIGHT)
         title_run = head.add_run(exp.get('title', '') or '')
@@ -300,6 +305,8 @@ def _write_experience(doc: Document, content: dict) -> None:
         if sub_bits:
             sub = doc.add_paragraph()
             sub.paragraph_format.space_after = Pt(2)
+            # Same pin: sub-header sticks to the first bullet that follows.
+            sub.paragraph_format.keep_with_next = True
             run = sub.add_run(' · '.join(sub_bits))
             _set_run_font(run, size_pt=ITEM_SUB_PT, italic=True, color=ACCENT_RGB)
         for bullet in _ensure_list(exp.get('description')):
@@ -385,6 +392,23 @@ def _write_projects(doc: Document, content: dict) -> None:
             sep = head.add_run(' ')
             _set_run_font(sep, size_pt=ITEM_TITLE_PT, bold=False)
             _add_hyperlink(head, url, '↗', color=ACCENT_RGB)
+            # Round 1.5.2: shrink the arrow ~2pt below the title size so
+            # it reads as a small affordance icon, not a glyph in the
+            # title. Walks the last hyperlink in the paragraph (the one
+            # we just added) and overrides w:sz on each run.
+            last_links = head._p.findall(qn('w:hyperlink'))
+            if last_links:
+                arrow_size = str(int((ITEM_TITLE_PT - 2) * 2))
+                for r in last_links[-1].iter(qn('w:r')):
+                    rPr = r.find(qn('w:rPr'))
+                    if rPr is None:
+                        rPr = OxmlElement('w:rPr')
+                        r.insert(0, rPr)
+                    for existing in rPr.findall(qn('w:sz')):
+                        rPr.remove(existing)
+                    sz = OxmlElement('w:sz')
+                    sz.set(qn('w:val'), arrow_size)
+                    rPr.append(sz)
         # Tech stack on its own italic line under the project name (ATS keywords)
         techs = proj.get('technologies') or []
         if isinstance(techs, str):

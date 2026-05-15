@@ -390,6 +390,21 @@ def sanitize_skills(skills: Any) -> list[dict]:
 # Experience sanitizer
 # ---------------------------------------------------------------------------
 
+_LOCATION_PREFIX_RE = re.compile(
+    r"^\s*(?:Qesm|Markaz|Madinat|City\s+of)\s+",
+    re.IGNORECASE,
+)
+
+
+def _clean_location(text: str) -> str:
+    """Strip Arabic-government-registry prefixes ("Qesm El Zamalek" →
+    "El Zamalek") that LinkedIn scrapers sometimes include in location
+    fields. These read as auto-translated to recruiters."""
+    if not text:
+        return text
+    return _LOCATION_PREFIX_RE.sub('', text).strip()
+
+
 def _sanitize_experience(exp: dict) -> dict:
     if not isinstance(exp, dict):
         return exp
@@ -406,6 +421,8 @@ def _sanitize_experience(exp: dict) -> dict:
         # pure title-caser missed because the input was already mixed
         # case.
         out['company'] = _fix_word_typos(_title_case_with_acronyms(out['company']))
+    if out.get('location'):
+        out['location'] = _clean_location(out['location'])
     desc = out.get('description')
     if isinstance(desc, str):
         out['description'] = _strip_first_person(desc)
