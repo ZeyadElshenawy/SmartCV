@@ -833,6 +833,133 @@ class CandidateEvidenceIndexerTests(_TestCase):
         self.assertIn('measurable', bullets[0]['text'])
 
 
+class ProfileSanitizerTests(SimpleTestCase):
+    """Profile-side cleanup before the resume LLM ever sees `data_content`."""
+
+    def test_label_leak_strip(self):
+        from profiles.services.profile_sanitizer import sanitize_skills
+        out = sanitize_skills([
+            {'name': 'Libraries: Pandas'},
+            {'name': 'Tools: DAX'},
+            {'name': 'Software: MySQL'},
+        ])
+        names = [s['name'] for s in out]
+        self.assertEqual(names, ['Pandas', 'DAX', 'MySQL'])
+
+    def test_unbalanced_paren_close(self):
+        from profiles.services.profile_sanitizer import sanitize_skills
+        out = sanitize_skills([
+            {'name': 'Transfer Learning (TensorFlow'},
+            {'name': 'Clustering)'},
+        ])
+        names = [s['name'] for s in out]
+        self.assertEqual(names, ['Transfer Learning', 'Clustering'])
+
+    def test_common_typos_and_case(self):
+        from profiles.services.profile_sanitizer import sanitize_skills
+        out = sanitize_skills([
+            {'name': 'Power Bi'},
+            {'name': 'nfrastructure As A Service (IaaS)'},
+        ])
+        names = [s['name'] for s in out]
+        self.assertIn('Power BI', names)
+        self.assertTrue(any('Infrastructure' in n for n in names))
+
+    def test_linkedin_verbose_strip(self):
+        from profiles.services.profile_sanitizer import sanitize_skills
+        out = sanitize_skills([
+            {'name': 'Python (Programming Language)'},
+            {'name': 'C (Programming Language)'},
+        ])
+        names = [s['name'] for s in out]
+        self.assertEqual(names, ['Python', 'C'])
+
+    def test_soft_skill_blocklist(self):
+        from profiles.services.profile_sanitizer import sanitize_skills
+        out = sanitize_skills([
+            {'name': 'Python'},
+            {'name': 'Communication'},
+            {'name': 'Leadership'},
+            {'name': 'Team Management'},
+            {'name': 'Communications Planning'},
+            {'name': 'Problem Solving'},
+            {'name': 'SQL'},
+        ])
+        names = {s['name'] for s in out}
+        self.assertEqual(names, {'Python', 'SQL'})
+
+    def test_canonical_dedupe(self):
+        from profiles.services.profile_sanitizer import sanitize_skills
+        # Same canonical key — should keep first occurrence.
+        out = sanitize_skills([
+            {'name': 'Python'},
+            {'name': 'python'},
+            {'name': 'PYTHON'},
+        ])
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]['name'], 'Python')
+
+    def test_experience_title_typo_fix(self):
+        from profiles.services.profile_sanitizer import sanitize_profile_data
+        clean = sanitize_profile_data({'experiences': [
+            {'title': 'DIGITAL TRANSFORMATION INTERN', 'company': 'Acme'},
+            {'title': 'INFROMATION TECHNOLOGY INTERN', 'company': 'AOI'},
+            {'title': 'AI & Data Science Trainee', 'company': 'DEPI'},
+        ]})
+        titles = [e['title'] for e in clean['experiences']]
+        self.assertEqual(titles, [
+            'Digital Transformation Intern',
+            'Information Technology Intern',  # typo fixed
+            'AI & Data Science Trainee',       # mixed case preserved
+        ])
+
+    def test_first_person_strip_in_descriptions(self):
+        from profiles.services.profile_sanitizer import sanitize_profile_data
+        clean = sanitize_profile_data({'experiences': [{
+            'title': 'Eng', 'company': 'X',
+            'description': 'I developed practical skills. I practised prompt engineering. I focused on data.',
+        }]})
+        desc = clean['experiences'][0]['description']
+        import re
+        self.assertFalse(re.search(r'\b(I|my|me)\b', desc), f'leak: {desc!r}')
+        self.assertIn('Developed', desc)  # capitalization-after-strip
+
+    def test_project_name_kebab_to_title(self):
+        from profiles.services.profile_sanitizer import sanitize_profile_data
+        clean = sanitize_profile_data({'projects': [
+            {'name': 'healthcare-prediction-depi'},
+            {'name': 'customer-segmentation-rfmt'},
+            {'name': 'apotheosis-traffic-sign-detection'},
+            {'name': 'SmartCV'},                 # mixed case preserved
+            {'name': 'BRAIN TUMOR CLASSIFICATION APP'},
+            {'name': 'END-TO-END DATA PIPELINE & MACHINE LEARNING PROJECT'},
+        ]})
+        names = [p['name'] for p in clean['projects']]
+        self.assertEqual(names[0], 'Healthcare Prediction (DEPI)')
+        self.assertEqual(names[1], 'Customer Segmentation (RFMT)')
+        self.assertEqual(names[2], 'Apotheosis Traffic Sign Detection')
+        self.assertEqual(names[3], 'SmartCV')
+        self.assertEqual(names[4], 'Brain Tumor Classification App')
+        self.assertEqual(names[5], 'End-to-End Data Pipeline & Machine Learning Project')
+
+    def test_idempotent(self):
+        from profiles.services.profile_sanitizer import sanitize_profile_data
+        input_data = {
+            'skills': [{'name': 'Python'}, {'name': 'Communication'}],
+            'experiences': [{'title': 'DIGITAL TRANSFORMATION INTERN', 'company': 'X'}],
+        }
+        pass_one = sanitize_profile_data(input_data)
+        pass_two = sanitize_profile_data(pass_one)
+        self.assertEqual(pass_one, pass_two)
+
+    def test_input_unmutated(self):
+        from profiles.services.profile_sanitizer import sanitize_profile_data
+        input_data = {'skills': [{'name': 'Libraries: Pandas'}]}
+        sanitize_profile_data(input_data)
+        # Original input must stay untouched — sanitizer is pure.
+        self.assertEqual(input_data['skills'][0]['name'], 'Libraries: Pandas')
+
+
 class ResumeSalvageSchemaEnvelopeTests(SimpleTestCase):
     """When Groq's tool validator rejects a call, the model sometimes
     emits the JSON-Schema definition INSTEAD OF a flat instance — list
