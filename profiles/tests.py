@@ -748,6 +748,91 @@ class LinkedinFallbackTests(SimpleTestCase):
         self.assertEqual(_linkedin_fallback([], 'https://example.com'), [])
 
 
+from django.test import TestCase as _TestCase  # local alias — see line 1685 for the main TestCase import lower in the file
+
+class CandidateEvidenceIndexerTests(_TestCase):
+    """Chunking + content-hash invalidation for the resume RAG index."""
+
+    def setUp(self):
+        from accounts.models import User
+        from profiles.models import UserProfile
+        self.user = User.objects.create_user(
+            username='ev@example.com', email='ev@example.com', password='x',
+        )
+        self.profile = UserProfile.objects.create(
+            user=self.user, full_name='E V', email='ev@example.com',
+            data_content={
+                'skills': [{'name': 'Python'}, {'name': 'PyTorch'}],
+                'experiences': [{
+                    'title': 'ML Engineer', 'company': 'Acme',
+                    'duration': '2024–Present',
+                    'highlights': [
+                        'Built a PyTorch model with 92% recall.',
+                        'Shipped a Django REST API serving 500 reqs/s.',
+                    ],
+                }],
+                'projects': [{
+                    'name': 'recommender', 'technologies': ['Python', 'PyTorch'],
+                    'description': ['Trained an LLM-backed RecSys.'],
+                }],
+                'certifications': [{'name': 'AWS SAA', 'issuer': 'AWS'}],
+                'normalized_summary': 'ML engineer with 3 years experience.',
+            },
+        )
+
+    def test_build_chunks_walks_every_section(self):
+        from profiles.services.candidate_evidence_indexer import build_chunks
+        chunks = build_chunks(self.profile)
+        kinds = {c['source_type'] for c in chunks}
+        # Each populated section contributes at least one chunk.
+        self.assertIn('experience', kinds)
+        self.assertIn('project', kinds)
+        self.assertIn('cert', kinds)
+        self.assertIn('summary', kinds)
+        # Bullets show up as their own chunks (the unit the retriever pins).
+        bullet_ids = {c['chunk_id'] for c in chunks
+                      if c['source_type'] == 'experience' and 'bullet' in c['chunk_id']}
+        self.assertEqual(len(bullet_ids), 2)
+
+    def test_skill_tags_detect_profile_skills_in_text(self):
+        from profiles.services.candidate_evidence_indexer import build_chunks
+        chunks = build_chunks(self.profile)
+        # The 92%-recall bullet mentions PyTorch — must surface.
+        bullet = next(
+            c for c in chunks
+            if c['source_type'] == 'experience' and '92%' in c['text']
+        )
+        self.assertIn('pytorch', bullet['skill_tags'])
+
+    def test_content_hash_stable_across_runs_and_busts_on_change(self):
+        from profiles.services.candidate_evidence_indexer import compute_evidence_hash
+        h1 = compute_evidence_hash(self.profile)
+        # Re-read same data — hash must be identical.
+        h2 = compute_evidence_hash(self.profile)
+        self.assertEqual(h1, h2)
+        # Mutate an indexed section — hash must change.
+        data = dict(self.profile.data_content)
+        data['skills'] = data['skills'] + [{'name': 'Rust'}]
+        self.profile.data_content = data
+        self.assertNotEqual(compute_evidence_hash(self.profile), h1)
+
+    def test_short_fragments_below_12_chars_are_skipped(self):
+        from profiles.services.candidate_evidence_indexer import build_chunks
+        data = dict(self.profile.data_content)
+        # An empty-ish bullet — must NOT emit a chunk.
+        data['experiences'] = [{
+            'title': 'ML Eng', 'company': 'Acme',
+            'highlights': ['short', 'Built a real thing with measurable impact.'],
+        }]
+        self.profile.data_content = data
+        chunks = build_chunks(self.profile)
+        bullets = [c for c in chunks
+                   if c['source_type'] == 'experience' and 'bullet' in c['chunk_id']]
+        # Only the substantive bullet — short was dropped.
+        self.assertEqual(len(bullets), 1)
+        self.assertIn('measurable', bullets[0]['text'])
+
+
 class ProjectPolishTests(SimpleTestCase):
     """Final-pass cleanup of LLM-generated project descriptions."""
 
