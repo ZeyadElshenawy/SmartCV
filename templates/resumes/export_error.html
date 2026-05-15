@@ -9,14 +9,33 @@
         </div>
         <h1 class="font-display text-3xl text-neutral-900 dark:text-neutral-50"
             style="font-variation-settings: 'opsz' 48;">
-            {{ format|upper }} export failed.
+            {% if backend_unavailable %}{{ format|upper }} export unavailable.{% else %}{{ format|upper }} export failed.{% endif %}
         </h1>
+        {% if backend_unavailable %}
+        <p class="text-neutral-600 dark:text-neutral-300 leading-relaxed">
+            The {{ format|upper }} renderer needs a system library that isn't installed on this server
+            (typically <code class="px-1.5 py-0.5 text-[12px] rounded bg-neutral-100 dark:bg-neutral-900">libcairo-2</code>
+            on Windows). The {{ alt_format|upper }} export works without it and produces an ATS-friendly file.
+        </p>
+        {% else %}
         <p class="text-neutral-600 dark:text-neutral-300 leading-relaxed">
             Something went sideways generating your {{ format|upper }}.
             This is usually a transient render issue — retrying often works.
             If it keeps failing, the other format ({{ alt_format|upper }}) is a good fallback.
         </p>
+        {% endif %}
         <div class="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+            {% if backend_unavailable %}
+            <a href="{{ alt_url }}"
+               class="inline-flex items-center justify-center h-11 px-5 text-sm font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors">
+                Download {{ alt_format|upper }} instead
+            </a>
+            <a href="{{ retry_url }}"
+               class="inline-flex items-center justify-center gap-2 h-11 px-5 text-sm font-medium rounded-lg ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-700 dark:text-neutral-200 bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                Retry {{ format|upper }} anyway
+            </a>
+            {% else %}
             <a href="{{ retry_url }}"
                class="inline-flex items-center justify-center gap-2 h-11 px-5 text-sm font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -26,6 +45,7 @@
                class="inline-flex items-center justify-center h-11 px-5 text-sm font-medium rounded-lg ring-1 ring-neutral-200 dark:ring-neutral-800 text-neutral-700 dark:text-neutral-200 bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
                 Try {{ alt_format|upper }} instead
             </a>
+            {% endif %}
             <a href="{{ back_url }}"
                class="inline-flex items-center justify-center h-11 px-5 text-sm font-medium text-neutral-600 dark:text-neutral-300 hover:text-brand-700 dark:hover:text-brand-400 transition-colors">
                 ← Back to résumé

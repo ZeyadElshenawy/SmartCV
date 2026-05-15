@@ -584,7 +584,19 @@ def _render_export_error(request, resume_id, *, format: str, alt_format: str, er
     cases, DOCX runtime issues) are usually transient, so giving the user a
     one-click retry plus a fallback-format link recovers them without a
     support ticket.
+
+    Backend-unavailable errors (e.g. missing libcairo-2.dll for PDF
+    rendering on Windows) get a more specific user-facing message that
+    points to the alt format as the primary CTA — retrying won't help
+    when the underlying system library is missing.
     """
+    error_text = str(error).lower()
+    # Detect the cases where "retry" is hopeless because something at
+    # the system / dependency layer is broken.
+    backend_unavailable = (
+        isinstance(error, OSError)
+        and any(tok in error_text for tok in ('cairo', 'libcairo', 'dll', 'shared library'))
+    )
     return render(
         request,
         'resumes/export_error.html',
@@ -595,6 +607,7 @@ def _render_export_error(request, resume_id, *, format: str, alt_format: str, er
             'alt_url': reverse(f'export_{alt_format}', args=[resume_id]),
             'back_url': reverse('resume_preview', args=[resume_id]),
             'error_detail': f"{error.__class__.__name__}: {error}" if request.user.is_staff else '',
+            'backend_unavailable': backend_unavailable,
         },
         status=500,
     )
