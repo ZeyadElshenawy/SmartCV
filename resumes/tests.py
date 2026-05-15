@@ -1834,6 +1834,90 @@ class ResumeSchemaCoercionTests(SimpleTestCase):
         self.assertEqual(p.description, ['End-to-end ML pipeline for stroke risk.'])
 
 
+# --- Pass H: failed_generation extraction robustness ----------------------
+
+class ExtractFailedGenerationTests(SimpleTestCase):
+    """Regression coverage for the three extraction paths. The 18:03 regen
+    hit the silent-return path because exc.body was None on this Groq SDK
+    version — _extract_failed_generation now falls back to exc.response
+    and finally to ast.literal_eval of str(exc)."""
+
+    def test_path1_body_dict(self):
+        from resumes.services.resume_generator import _extract_failed_generation
+        class E(Exception):
+            body = {'error': {'failed_generation': '{"a": 1}'}}
+        self.assertEqual(_extract_failed_generation(E('x')), '{"a": 1}')
+
+    def test_path2_response_json(self):
+        from resumes.services.resume_generator import _extract_failed_generation
+        class Resp:
+            def json(self):
+                return {'error': {'failed_generation': '{"b": 2}'}}
+        class E(Exception):
+            body = None
+            response = Resp()
+        self.assertEqual(_extract_failed_generation(E('x')), '{"b": 2}')
+
+    def test_path3_str_parse(self):
+        # This is the case that was failing silently — body is None,
+        # response is None, only str(exc) carries the payload.
+        from resumes.services.resume_generator import _extract_failed_generation
+        class E(Exception):
+            body = None
+            response = None
+        e = E()
+        e.args = ("Error code: 400 - {'error': {'message': 'foo', "
+                  "'failed_generation': '[{\"name\": \"X\"}]'}}",)
+        self.assertEqual(_extract_failed_generation(e),
+                         '[{"name": "X"}]')
+
+    def test_returns_none_when_payload_missing_everywhere(self):
+        from resumes.services.resume_generator import _extract_failed_generation
+        class E(Exception):
+            body = None
+            response = None
+        self.assertIsNone(_extract_failed_generation(E('nothing useful')))
+
+    def test_recovery_end_to_end_with_schema_envelope_in_str(self):
+        # The full failure mode from the 18:03 regen: schema-envelope
+        # payload reachable only via str(exc). Recovery should still
+        # surface the LLM's content (skills, summary, experience with
+        # highlights promoted to description).
+        import json as _json
+        from resumes.services.resume_generator import _recover_resume_from_failed_generation
+        envelope = _json.dumps([{
+            'name': 'ResumeContentResult',
+            'parameters': {
+                'additionalProperties': True,
+                'properties': {
+                    'professional_summary': {'type': 'string', 'value': 'DS with ML.'},
+                    'skills': {'type': 'array', 'value': ['Python', 'TensorFlow']},
+                    'experience': {'type': 'array', 'value': [
+                        {'title': 'AI Trainee', 'description': None,
+                         'highlights': ['Built model.', 'Used MLflow.']},
+                    ]},
+                    'projects': {'type': 'array', 'value': []},
+                    'certifications': {'type': 'array', 'value': []},
+                    'education': {'type': 'array', 'value': []},
+                    'objective': {'type': 'string', 'value': ''},
+                },
+            },
+        }])
+        class E(Exception):
+            body = None
+            response = None
+        e = E()
+        e.args = (f"Error code: 400 - {{'error': {{'failed_generation': {envelope!r}}}}}",)
+        result = _recover_resume_from_failed_generation(e)
+        self.assertIsNotNone(result, "recovery should not silently return None")
+        self.assertEqual(result.professional_summary, 'DS with ML.')
+        self.assertEqual(result.skills, ['Python', 'TensorFlow'])
+        # Highlights → description promotion still fires through the
+        # full pipeline.
+        self.assertEqual(result.experience[0].description,
+                         ['Built model.', 'Used MLflow.'])
+
+
 class ResumeFailedGenerationRecoveryTests(SimpleTestCase):
     """Salvage Groq's tool_use_failed payload for resume generation.
     Same pattern as outreach_generator + learning_path_generator."""
