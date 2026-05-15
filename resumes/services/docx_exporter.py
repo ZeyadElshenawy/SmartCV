@@ -97,14 +97,26 @@ def _set_run_font(run, *, size_pt: float = BODY_PT, bold: bool = False,
 
 def _add_section_heading(doc: Document, text: str) -> None:
     """An uppercase, bordered, brand-color heading. Restrained — DOCX
-    section headings get aggressively re-styled by ATS pipelines anyway."""
+    section headings get aggressively re-styled by ATS pipelines anyway.
+
+    Adds ``w:keepNext`` so Word never paginates the heading away from
+    its first child paragraph — fixes the "underlined heading floating
+    alone at the bottom of page 1 with the body on page 2" pattern that
+    looks like an empty block above the body content.
+    """
     p = doc.add_paragraph()
-    p.paragraph_format.space_before = Pt(10)
+    # Tighter top-space (was 10pt) so a heading that gets pushed to a
+    # new page doesn't leave a visible whitespace band above itself.
+    p.paragraph_format.space_before = Pt(6)
     p.paragraph_format.space_after = Pt(2)
     run = p.add_run(text.upper())
     _set_run_font(run, size_pt=SECTION_HEADING_PT, bold=True, color=ACCENT_RGB)
-    # Bottom border on the heading paragraph for the underlined look.
+    # Bottom border on the heading paragraph for the underlined look,
+    # plus keepNext so the heading and its first body paragraph stay
+    # on the same page.
     pPr = p._p.get_or_add_pPr()
+    keep = OxmlElement('w:keepNext')
+    pPr.append(keep)
     pBdr = OxmlElement('w:pBdr')
     bottom = OxmlElement('w:bottom')
     bottom.set(qn('w:val'), 'single')
@@ -118,7 +130,14 @@ def _add_section_heading(doc: Document, text: str) -> None:
 def _bullet(doc: Document, text: str) -> None:
     """Bulleted body paragraph. python-docx's built-in 'List Bullet' style
     is consistent across Word versions and doesn't depend on a numbering
-    definition we'd have to ship."""
+    definition we'd have to ship.
+
+    Empty / whitespace-only text is dropped — an empty bullet renders as
+    a stray "•" with nothing after it, which reads as a layout glitch.
+    """
+    text = (text or '').strip()
+    if not text:
+        return
     p = doc.add_paragraph(style='List Bullet')
     p.paragraph_format.space_after = Pt(2)
     run = p.runs[0] if p.runs else p.add_run()
@@ -370,6 +389,15 @@ def _write_projects(doc: Document, content: dict) -> None:
 
 
 def _write_certifications(doc: Document, content: dict) -> None:
+    """Render certifications with a softer visual weight than v1.
+
+    v1 rendered the cert NAME as a bold blue underlined hyperlink, which
+    turned an 8-cert section into a wall of heavy navy text that drowned
+    out the body of the resume. v2 puts the name in plain bold body
+    color (regular reading weight), and tucks the URL behind a small
+    subdued " · verify" affordance — recruiters can still click through,
+    but the section reads as supporting evidence, not a banner.
+    """
     rows = (content or {}).get('certifications') or []
     if not rows:
         return
@@ -377,28 +405,20 @@ def _write_certifications(doc: Document, content: dict) -> None:
     for cert in rows:
         if not isinstance(cert, dict):
             continue
-        name = cert.get('name', '')
-        issuer = cert.get('issuer', '')
-        date = cert.get('date', '')
-        url = cert.get('url', '')
+        name = (cert.get('name') or '').strip()
+        issuer = (cert.get('issuer') or '').strip()
+        date = (cert.get('date') or '').strip()
+        url = (cert.get('url') or '').strip()
+        duration = (cert.get('duration') or '').strip()
+        if not name:
+            continue
         p = doc.add_paragraph(style='List Bullet')
         p.paragraph_format.space_after = Pt(1)
-        if url and name:
-            _add_hyperlink(p, url, name, color=ACCENT_RGB)
-            # Bold the hyperlink to match the PDF
-            last_run = p._p.findall(qn('w:hyperlink'))[-1] if p._p.findall(qn('w:hyperlink')) else None
-            if last_run is not None:
-                for r in last_run.iter(qn('w:r')):
-                    rPr = r.find(qn('w:rPr'))
-                    if rPr is None:
-                        rPr = OxmlElement('w:rPr')
-                        r.insert(0, rPr)
-                    if rPr.find(qn('w:b')) is None:
-                        rPr.append(OxmlElement('w:b'))
-        else:
-            run = p.add_run(name)
-            _set_run_font(run, size_pt=BODY_PT, bold=True)
-        duration = cert.get('duration', '')
+        # Name: plain bold body color — same weight as a project name in
+        # the Projects section, no underline, no accent color.
+        name_run = p.add_run(name)
+        _set_run_font(name_run, size_pt=BODY_PT, bold=True)
+        # Issuer / duration / date suffix in regular body weight.
         suffix_bits = []
         if issuer:
             suffix_bits.append(f' - {issuer}')
@@ -409,6 +429,27 @@ def _write_certifications(doc: Document, content: dict) -> None:
         if suffix_bits:
             run = p.add_run(''.join(suffix_bits))
             _set_run_font(run, size_pt=BODY_PT)
+        # Verify link — discreet, smaller, no bold. Color is the accent
+        # so a recruiter scanning for "is this real?" can spot it, but
+        # the hyperlink no longer dominates the line.
+        if url:
+            p.add_run(' · ')
+            _add_hyperlink(p, url, 'verify', color=ACCENT_RGB)
+            # Shrink the verify link by a point so it reads as metadata.
+            last_link = p._p.findall(qn('w:hyperlink'))
+            if last_link:
+                for r in last_link[-1].iter(qn('w:r')):
+                    rPr = r.find(qn('w:rPr'))
+                    if rPr is None:
+                        rPr = OxmlElement('w:rPr')
+                        r.insert(0, rPr)
+                    sz = OxmlElement('w:sz')
+                    # w:sz is in half-points → (BODY_PT - 1) * 2.
+                    sz.set(qn('w:val'), str(int((BODY_PT - 1) * 2)))
+                    # Replace any prior size if present (defensive).
+                    for existing in rPr.findall(qn('w:sz')):
+                        rPr.remove(existing)
+                    rPr.append(sz)
 
 
 def _write_languages(doc: Document, content: dict) -> None:
