@@ -693,14 +693,29 @@ Make it PROFESSIONAL and ATS-OPTIMIZED.
 def _recover_resume_from_failed_generation(exc):
     """Recover a ResumeContentResult from Groq's tool_use_failed body.
 
-    Groq emits tool calls in two shapes when the validator rejects:
-      [{"name": "ResumeContentResult", "parameters": {...}}, ...]
-      {...top-level dict already in ResumeContentResult shape...}
+    Groq emits tool calls in several shapes when its validator rejects:
 
-    The Pydantic schema's `before` validators handle the field-level coercions
-    (null → "", `[{description: ...}]` → `["..."]`), so feeding the recovered
-    dict through the same validation pipeline gives us the same output the
-    happy path produces.
+      A) [{"name": "ResumeContentResult", "parameters": {<flat fields>}}]
+      B) {<flat fields already in ResumeContentResult shape>}
+      C) [{"name": "...", "parameters": {
+             "additionalProperties": true,
+             "properties": {
+                 "<field>": {"type": "array", "value": [...]},
+                 "<other_field>": "<direct value>",
+                 ...
+             }
+         }}]
+
+    Shape C is the model serializing the SCHEMA INSTEAD OF an instance —
+    it wraps each list field in `{"type": "array", "value": <actual list>}`
+    and nests everything under `properties`. We need to peel both layers
+    and unwrap any type-envelope wrappers per field before handing the
+    dict to Pydantic.
+
+    The Pydantic schema's `before` validators handle the field-level
+    coercions (null → "", `[{description: ...}]` → `["..."]`), so a
+    correctly-unwrapped dict reaches the same final shape the happy
+    path produces.
     """
     body = getattr(exc, 'body', None) or {}
     err = body.get('error', {}) if isinstance(body, dict) else {}
@@ -720,6 +735,35 @@ def _recover_resume_from_failed_generation(exc):
             parsed = first
     if not isinstance(parsed, dict):
         return None
+    # Schema-envelope unwrap: the model produced
+    #   {"additionalProperties": true, "properties": {<field>: ...}}
+    # instead of a flat instance. The `properties` payload IS the instance,
+    # so step into it.
+    if (
+        isinstance(parsed.get('properties'), dict)
+        and 'additionalProperties' in parsed
+    ):
+        logger.info(
+            "Recovered resume: schema-envelope detected, stepping into "
+            "`properties`."
+        )
+        parsed = parsed['properties']
+    # Per-field type-envelope unwrap: lists arrive as
+    #   {"type": "array", "value": [...]}
+    # instead of bare arrays. Same for "object"/"string" envelopes the
+    # model sometimes emits. Strip the wrapper, keep the value.
+    unwrapped: dict[str, Any] = {}
+    for key, val in parsed.items():
+        if (
+            isinstance(val, dict)
+            and 'value' in val
+            and 'type' in val
+            and set(val.keys()) <= {'type', 'value', 'description', 'items'}
+        ):
+            unwrapped[key] = val['value']
+        else:
+            unwrapped[key] = val
+    parsed = unwrapped
     try:
         return ResumeContentResult(**parsed)
     except Exception:
