@@ -137,10 +137,30 @@ class UserProfile(models.Model):
     @property
     def projects(self):
         return self.data_content.get('projects', [])
-        
+
     @projects.setter
     def projects(self, value):
         self.data_content['projects'] = value
+
+    @property
+    def projects_typed(self):
+        """User-authored projects (from CV parse or manual edits).
+
+        This is the immutable source-of-truth bucket that ``rebuild_master_profile``
+        reads as the typed baseline when running dedupe. It must NEVER contain
+        enriched projects so duplicate detection stays correct across re-runs.
+        Falls back to ``projects`` for profiles created before the bucket split
+        so old data isn't silently lost.
+        """
+        data = self.data_content or {}
+        if 'projects_typed' in data:
+            return data['projects_typed']
+        # Pre-migration fallback: return only projects with no external source.
+        return [p for p in (data.get('projects') or []) if not p.get('source')]
+
+    @projects_typed.setter
+    def projects_typed(self, value):
+        self.data_content['projects_typed'] = value
         
     @property
     def certifications(self):
@@ -422,4 +442,63 @@ class KnowledgeChunk(models.Model):
 
     def __str__(self):  # pragma: no cover — admin/debug only
         return f"{self.kb_id} ({self.type})"
+
+
+class CandidateEvidence(models.Model):
+    """One semantically-meaningful chunk of a single candidate's profile.
+
+    Built from CV bullets, project descriptions, README excerpts, certs,
+    chatbot turn answers, and the normalized summary. Embedded once per
+    `content_hash` and queried per JD-skill at resume-generation time so
+    we surface only the candidate's strongest evidence for each required
+    skill instead of dumping the whole profile into the prompt.
+
+    The `chunk_id` is a stable, source-derived path (e.g.
+    ``"experience:0:bullet:2"`` or ``"readme:octocat/my-repo"``) so a
+    rebuild over the same profile produces the same rows — making
+    upserts idempotent and giving the inclusion planner a way to
+    "pin" specific bullets that retrieved well for a JD skill.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='candidate_evidence',
+    )
+    chunk_id = models.CharField(max_length=200, db_index=True)
+    # Coarse bucket — used to make inclusion decisions (e.g. "include this
+    # project even though the LLM didn't reference it because the README
+    # surfaced for two JD skills"). One of:
+    #   experience | project | cert | readme | summary | objective |
+    #   volunteer | publication | award | chatbot | education
+    source_type = models.CharField(max_length=32, db_index=True)
+    # Stable identifier within the source — e.g. ``"octocat/my-repo"`` for a
+    # README, ``"experience:0"`` for the parent experience, the cert name
+    # for certifications. Empty when the chunk is global (summary/objective).
+    source_id = models.CharField(max_length=200, blank=True, default='')
+    text = models.TextField()
+    # Lowercased skill names that appear in `text`, scanned against the
+    # candidate's own skills list plus a core technology vocabulary. Not
+    # authoritative — the embedding does the heavy semantic lifting — but
+    # cheap to filter on for hard-keyword retrieval as a tie-breaker.
+    skill_tags = models.JSONField(default=list, blank=True)
+    embedding = VectorField(dimensions=384, null=True, blank=True)
+    # SHA-256 of the serialized profile slice this row was built from. The
+    # indexer's `refresh_if_stale` compares this against a freshly-computed
+    # hash on every retrieval and rebuilds the whole user's rows on
+    # mismatch. Cheap, no migrations, never stale.
+    content_hash = models.CharField(max_length=64, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'chunk_id')
+        indexes = [
+            models.Index(fields=['user', 'content_hash']),
+            models.Index(fields=['user', 'source_type']),
+        ]
+        ordering = ['user', 'chunk_id']
+
+    def __str__(self):  # pragma: no cover — admin/debug only
+        return f"{self.user_id}:{self.chunk_id}"
 
