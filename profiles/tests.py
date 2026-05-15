@@ -913,6 +913,26 @@ class ProfileSanitizerTests(SimpleTestCase):
             'AI & Data Science Trainee',       # mixed case preserved
         ])
 
+    def test_experience_company_typo_fix_in_mixed_case(self):
+        # "Almansour Automative" is already mixed-case so the title-caser
+        # short-circuits; the new _fix_word_typos pass still corrects
+        # "Automative" → "Automotive".
+        from profiles.services.profile_sanitizer import sanitize_profile_data
+        clean = sanitize_profile_data({'experiences': [
+            {'title': 'Digital Transformation Intern',
+             'company': 'Almansour Automative'},
+        ]})
+        self.assertEqual(clean['experiences'][0]['company'], 'Almansour Automotive')
+
+    def test_experience_company_typo_fix_in_all_caps(self):
+        # The ALL-CAPS variant goes through the title-caser, which
+        # already applies typo fixes — exercise that path too.
+        from profiles.services.profile_sanitizer import sanitize_profile_data
+        clean = sanitize_profile_data({'experiences': [
+            {'title': 'Intern', 'company': 'ALMANSOUR AUTOMATIVE'},
+        ]})
+        self.assertEqual(clean['experiences'][0]['company'], 'Almansour Automotive')
+
     def test_first_person_strip_in_descriptions(self):
         from profiles.services.profile_sanitizer import sanitize_profile_data
         clean = sanitize_profile_data({'experiences': [{

@@ -262,13 +262,14 @@ def _write_summary(doc: Document, content: dict) -> None:
 
 
 def _write_skills(doc: Document, content: dict) -> None:
+    """Render the skills line as plain comma-separated text under the
+    SKILLS heading. The previous "Core Competencies:" prefix was dead
+    weight — the section heading already says "SKILLS"."""
     skills = (content or {}).get('skills') or []
     if not skills:
         return
     _add_section_heading(doc, 'Skills')
     p = doc.add_paragraph()
-    label = p.add_run('Core Competencies: ')
-    _set_run_font(label, size_pt=BODY_PT, bold=True)
     body = p.add_run(', '.join(str(s) for s in skills))
     _set_run_font(body, size_pt=BODY_PT)
 
