@@ -833,6 +833,141 @@ class CandidateEvidenceIndexerTests(_TestCase):
         self.assertIn('measurable', bullets[0]['text'])
 
 
+class InclusionPlannerTests(SimpleTestCase):
+    """Deterministic resume-section inclusion rules.
+
+    Uses lightweight stand-in objects for profile/job/gap/evidence so
+    we don't need a real DB. The planner only reads attributes that
+    match the production shape — verified by the integration test
+    suite separately.
+    """
+
+    @staticmethod
+    def _ev(chunk_id, source_id, source_type='experience', text=''):
+        # Minimal CandidateEvidence-shaped object for per_skill_ev maps.
+        from types import SimpleNamespace
+        return SimpleNamespace(
+            chunk_id=chunk_id, source_id=source_id,
+            source_type=source_type, text=text or chunk_id,
+        )
+
+    def _profile(self, data):
+        from types import SimpleNamespace
+        return SimpleNamespace(data_content=data)
+
+    def _job(self, must, nice, extracted=None):
+        from types import SimpleNamespace
+        return SimpleNamespace(
+            extracted_skills_tiers={'must_have': must, 'nice_to_have': nice},
+            extracted_skills=list(extracted or (must + nice)),
+        )
+
+    def _gap(self, **kw):
+        from types import SimpleNamespace
+        defaults = {
+            'matched_must_have': [], 'matched_nice_to_have': [],
+            'missing_must_have': [], 'missing_nice_to_have': [],
+            'matched_skills': [], 'missing_skills': [], 'partial_skills': [],
+            'similarity_score': 0.5, 'match_band': 'partial',
+        }
+        defaults.update(kw)
+        return SimpleNamespace(**defaults)
+
+    def test_skills_list_orders_jd_must_then_nice_then_adjacent(self):
+        from resumes.services.inclusion_planner import build_inclusion_plan
+        profile = self._profile({'skills': [{'name': 'Python'}, {'name': 'Go'}]})
+        job = self._job(must=['Python', 'Kubernetes'], nice=['Docker'])
+        gap = self._gap(
+            matched_must_have=[{'name': 'Python'}],
+            matched_nice_to_have=[{'name': 'Docker'}],
+            matched_skills=['Python', 'Docker', 'Go', 'Bash'],  # Go/Bash are adjacent
+        )
+        plan = build_inclusion_plan(profile, job, gap, {})
+        # JD-must first, then JD-nice, then adjacent. Kubernetes was on
+        # the JD but NOT matched → not in the list (no fabrication).
+        self.assertEqual(plan.skills_to_list[:2], ['Python', 'Docker'])
+        self.assertNotIn('Kubernetes', plan.skills_to_list)
+        self.assertIn('Go', plan.skills_to_list)
+
+    def test_bridge_and_drop_rules_split_missing_must_have(self):
+        from resumes.services.inclusion_planner import build_inclusion_plan
+        profile = self._profile({})
+        job = self._job(must=['Rust', 'AssemblyScript'], nice=[])
+        gap = self._gap(missing_must_have=[
+            # high proximity + bridge → bridge bullet allowed
+            {'name': 'Rust', 'proximity': 0.7, 'bridge_hint': 'You shipped C++ — Rust is adjacent.'},
+            # low proximity + no bridge → hard drop
+            {'name': 'AssemblyScript', 'proximity': 0.1, 'bridge_hint': ''},
+            # mid proximity → neither bridge nor drop (LLM decides in voice)
+            {'name': 'Erlang', 'proximity': 0.45, 'bridge_hint': ''},
+        ])
+        plan = build_inclusion_plan(profile, job, gap, {})
+        bridge_names = [b['name'] for b in plan.bridge_bullet_skills]
+        self.assertEqual(bridge_names, ['Rust'])
+        self.assertEqual(plan.drop_skills, ['AssemblyScript'])
+        # 'Erlang' is in neither bucket — the LLM can choose.
+        self.assertNotIn('Erlang', bridge_names + plan.drop_skills)
+
+    def test_projects_ranked_by_retrieval_hit_count(self):
+        from resumes.services.inclusion_planner import build_inclusion_plan
+        profile = self._profile({
+            'projects': [
+                {'name': 'cv-poll', 'description': ['x']},   # idx 0 — no hits
+                {'name': 'k8s-controller', 'description': ['y']},  # idx 1 — 2 hits
+                {'name': 'rag-rec',  'description': ['z']},  # idx 2 — 1 hit
+            ],
+        })
+        job = self._job(must=['Kubernetes', 'RAG'], nice=[])
+        gap = self._gap()
+        per_skill = {
+            'Kubernetes': [
+                self._ev('project:1:bullet:0', 'project:1', 'project'),
+                self._ev('project:1:bullet:1', 'project:1', 'project'),
+            ],
+            'RAG': [
+                self._ev('project:2:bullet:0', 'project:2', 'project'),
+            ],
+        }
+        plan = build_inclusion_plan(profile, job, gap, per_skill)
+        # k8s (2 hits) > rag (1 hit) > cv-poll (0 hits, but _MIN_PROJECTS
+        # keeps it for at-least-3 floor).
+        self.assertEqual(plan.projects[0].name, 'k8s-controller')
+        self.assertEqual(plan.projects[1].name, 'rag-rec')
+
+    def test_volunteer_publication_award_only_included_when_evidence_surfaced(self):
+        from resumes.services.inclusion_planner import build_inclusion_plan
+        profile = self._profile({})
+        job = self._job(must=['Python'], nice=[])
+        gap = self._gap()
+        per_skill = {
+            'Python': [
+                self._ev('volunteer:0', 'cop27', source_type='volunteer'),
+                # No publication / award chunks — those sections drop.
+            ],
+        }
+        plan = build_inclusion_plan(profile, job, gap, per_skill)
+        self.assertTrue(plan.include_volunteer)
+        self.assertFalse(plan.include_publications)
+        self.assertFalse(plan.include_awards)
+
+    def test_certifications_kept_only_when_matched_or_surfaced(self):
+        from resumes.services.inclusion_planner import build_inclusion_plan
+        profile = self._profile({'certifications': [
+            {'name': 'AWS SAA'},          # matched
+            {'name': 'Random Coursera'},  # not matched, no retrieval
+            {'name': 'PMP'},              # not matched but surfaced via retrieval
+        ]})
+        job = self._job(must=['AWS'], nice=[])
+        gap = self._gap(matched_skills=['AWS SAA'])
+        per_skill = {
+            'AWS': [self._ev('cert:2', 'PMP', source_type='cert')],
+        }
+        plan = build_inclusion_plan(profile, job, gap, per_skill)
+        self.assertIn('AWS SAA', plan.certifications)
+        self.assertIn('PMP', plan.certifications)
+        self.assertNotIn('Random Coursera', plan.certifications)
+
+
 class ProjectPolishTests(SimpleTestCase):
     """Final-pass cleanup of LLM-generated project descriptions."""
 
