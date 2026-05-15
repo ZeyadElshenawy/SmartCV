@@ -2255,3 +2255,260 @@ class ResumeListThumbnailTests(TestCase):
         body = resp.content.decode('utf-8')
         # The name div uses the local-part, not the full email.
         self.assertIn('<div class="p-name">listthumb</div>', body)
+
+
+# ---------------------------------------------------------------------------
+# Resume normalizer — Pass B safety net
+# ---------------------------------------------------------------------------
+
+import copy
+
+from resumes.services.resume_normalizer import (
+    normalize_resume,
+    normalize_titles,
+    filter_soft_skills,
+    enforce_skill_hard_cap,
+    strip_first_person_from_resume,
+    consolidate_coursework,
+    trim_projects_to_plan,
+    trim_certs_to_plan,
+)
+
+
+class _FakeProjectPlan:
+    """Stand-in for inclusion_planner.ProjectPlan (kept here to avoid the
+    settings/db cost of importing the real dataclass for SimpleTestCase
+    consumers)."""
+    def __init__(self, name: str):
+        self.name = name
+
+
+class _FakePlan:
+    def __init__(self, projects: list[str] | None = None, certifications: list[str] | None = None):
+        self.projects = [_FakeProjectPlan(n) for n in (projects or [])]
+        self.certifications = list(certifications or [])
+
+
+class ResumeNormalizerTests(SimpleTestCase):
+    """Pass-B post-LLM safety net.
+
+    Each test pins one defect we have actually seen in the LLM's output
+    so a regression that re-introduces the leak fails loudly.
+    """
+
+    def test_normalize_titles_fixes_all_caps_experience(self):
+        resume = {'experience': [{'title': 'DIGITAL TRANSFORMATION INTERN'}]}
+        out = normalize_titles(resume)
+        self.assertEqual(out['experience'][0]['title'], 'Digital Transformation Intern')
+
+    def test_normalize_titles_preserves_mixed_case(self):
+        resume = {'experience': [{'title': 'AI & Data Science Trainee'}]}
+        out = normalize_titles(resume)
+        self.assertEqual(out['experience'][0]['title'], 'AI & Data Science Trainee')
+
+    def test_normalize_titles_fixes_parser_typo(self):
+        resume = {'experience': [{'title': 'INFROMATION TECHNOLOGY INTERN'}]}
+        out = normalize_titles(resume)
+        self.assertEqual(out['experience'][0]['title'], 'Information Technology Intern')
+
+    def test_filter_soft_skills_drops_communication_and_presentation(self):
+        resume = {'skills': ['Python', 'Communication', 'SQL', 'Presentation skills', 'TensorFlow']}
+        out = filter_soft_skills(resume)
+        self.assertEqual(out['skills'], ['Python', 'SQL', 'TensorFlow'])
+
+    def test_filter_soft_skills_accepts_dict_entries(self):
+        resume = {'skills': [{'name': 'Python'}, {'name': 'Teamwork'}, {'name': 'Pandas'}]}
+        out = filter_soft_skills(resume)
+        self.assertEqual(out['skills'], ['Python', 'Pandas'])
+
+    def test_enforce_skill_hard_cap_truncates_at_cap(self):
+        resume = {'skills': [f'S{i}' for i in range(20)]}
+        out = enforce_skill_hard_cap(resume, cap=14)
+        self.assertEqual(len(out['skills']), 14)
+        # Order preserved.
+        self.assertEqual(out['skills'][0], 'S0')
+        self.assertEqual(out['skills'][-1], 'S13')
+
+    def test_strip_first_person_cleans_summary_and_descriptions(self):
+        resume = {
+            'professional_summary': 'I am a data scientist. My focus is on ML.',
+            'experience': [{
+                'description': ['I built a churn model.', 'I deployed it to prod.'],
+            }],
+        }
+        out = strip_first_person_from_resume(resume)
+        # Summary: no "I" / "my", sentences re-capped.
+        self.assertNotIn(' I ', ' ' + out['professional_summary'] + ' ')
+        self.assertNotIn(' my ', ' ' + out['professional_summary'].lower() + ' ')
+        self.assertTrue(out['professional_summary'][0].isupper())
+        # Bullets: same.
+        for b in out['experience'][0]['description']:
+            self.assertNotRegex(b, r"\b[Ii]\b")
+            self.assertNotRegex(b, r"\b[Mm]y\b")
+            self.assertTrue(b[0].isupper())
+
+    def test_consolidate_coursework_collapses_short_course_bullets(self):
+        resume = {'experience': [{
+            'description': [
+                'Developed practical skills across the AI lifecycle.',
+                'Prompt Engineering',
+                'Data Science Methodology',
+                'Tools for Data Science',
+                'Databases & SQL',
+                'Practised prompt engineering on real prompts.',
+            ],
+        }]}
+        out = consolidate_coursework(resume)
+        bullets = out['experience'][0]['description']
+        # The four short course-names collapsed into one line.
+        self.assertEqual(len(bullets), 3)
+        self.assertEqual(bullets[0], 'Developed practical skills across the AI lifecycle.')
+        self.assertTrue(bullets[1].startswith('Coursework included:'))
+        self.assertIn('Prompt Engineering', bullets[1])
+        self.assertIn('Databases & SQL', bullets[1])
+        self.assertEqual(bullets[2], 'Practised prompt engineering on real prompts.')
+
+    def test_consolidate_coursework_splits_embedded_bullets_in_single_string(self):
+        # The LLM frequently emits one bullet with embedded \n• markers.
+        # A list-introducer prelude ending with ":" is dropped (redundant
+        # once the items are folded into "Coursework included: ...").
+        resume = {'experience': [{
+            'description': 'Coursework consisted of:\n• Prompt Engineering\n• Data Science Methodology\n• Tools for Data Science',
+        }]}
+        out = consolidate_coursework(resume)
+        bullets = out['experience'][0]['description']
+        self.assertIsInstance(bullets, list)
+        self.assertEqual(len(bullets), 1)
+        self.assertTrue(bullets[0].startswith('Coursework included:'))
+        self.assertIn('Prompt Engineering', bullets[0])
+        self.assertIn('Tools for Data Science', bullets[0])
+
+    def test_consolidate_coursework_keeps_non_header_prelude(self):
+        # A meaningful prelude (no trailing colon) is preserved as a bullet.
+        resume = {'experience': [{
+            'description': 'Built models throughout the program\n• Prompt Engineering\n• Data Science Methodology',
+        }]}
+        out = consolidate_coursework(resume)
+        bullets = out['experience'][0]['description']
+        self.assertEqual(bullets[0], 'Built models throughout the program')
+        self.assertTrue(bullets[1].startswith('Coursework included:'))
+
+    def test_consolidate_coursework_leaves_real_bullets_alone(self):
+        resume = {'experience': [{
+            'description': [
+                'Built a churn model that improved retention by 12 percent.',
+                'Deployed the model to production via MLflow.',
+            ],
+        }]}
+        out = consolidate_coursework(resume)
+        self.assertEqual(out['experience'][0]['description'], [
+            'Built a churn model that improved retention by 12 percent.',
+            'Deployed the model to production via MLflow.',
+        ])
+
+    def test_trim_projects_to_plan_drops_off_plan_projects(self):
+        resume = {'projects': [
+            {'name': 'SmartCV'},
+            {'name': 'BookShop'},                 # not in plan → drop
+            {'name': 'Healthcare Prediction (DEPI)'},
+            {'name': 'apotheosis-traffic-sign-detection'},  # not in plan → drop
+        ]}
+        plan = _FakePlan(projects=['SmartCV', 'Healthcare Prediction (DEPI)'])
+        out = trim_projects_to_plan(resume, plan)
+        names = [p['name'] for p in out['projects']]
+        self.assertEqual(names, ['SmartCV', 'Healthcare Prediction (DEPI)'])
+
+    def test_trim_projects_to_plan_fuzzy_matches_lightly_renamed_project(self):
+        # The LLM rewrote "Healthcare Prediction (DEPI)" → "Healthcare Prediction - DEPI".
+        # Should still match by SequenceMatcher.
+        resume = {'projects': [
+            {'name': 'Healthcare Prediction - DEPI'},
+        ]}
+        plan = _FakePlan(projects=['Healthcare Prediction (DEPI)'])
+        out = trim_projects_to_plan(resume, plan)
+        self.assertEqual(len(out['projects']), 1)
+
+    def test_trim_projects_to_plan_skips_when_plan_has_no_projects(self):
+        # Defensive — never wipe projects just because the planner returned [].
+        resume = {'projects': [{'name': 'SmartCV'}, {'name': 'BookShop'}]}
+        plan = _FakePlan(projects=[])
+        out = trim_projects_to_plan(resume, plan)
+        self.assertEqual(len(out['projects']), 2)
+
+    def test_trim_certs_to_plan_drops_off_plan_certs(self):
+        resume = {'certifications': [
+            {'name': 'IBM Data Scientist Professional Certificate'},
+            {'name': 'Project Management: The Basics for Success'},   # not in plan
+            {'name': 'Applied Machine Learning in Python'},
+        ]}
+        plan = _FakePlan(certifications=[
+            'IBM Data Scientist Professional Certificate',
+            'Applied Machine Learning in Python',
+        ])
+        out = trim_certs_to_plan(resume, plan)
+        names = [c['name'] for c in out['certifications']]
+        self.assertEqual(names, [
+            'IBM Data Scientist Professional Certificate',
+            'Applied Machine Learning in Python',
+        ])
+
+    def test_normalize_resume_end_to_end_combines_every_rule(self):
+        resume = {
+            'professional_summary': 'I am a data scientist with strong ML chops.',
+            'skills': [
+                'Python', 'SQL', 'Communication', 'TensorFlow', 'PyTorch',
+                'Pandas', 'Presentation skills', 'NumPy', 'scikit-learn',
+                'Machine Learning', 'Deep Learning', 'MLflow', 'Power BI',
+                'Statistical Modeling', 'Teamwork', 'A', 'B', 'C', 'D', 'E',
+            ],
+            'experience': [{
+                'title': 'AI & DATA SCIENCE TRAINEE',
+                'description': [
+                    'I built models throughout the program.',
+                    'Prompt Engineering',
+                    'Data Science Methodology',
+                    'Tools for Data Science',
+                ],
+            }],
+            'projects': [
+                {'name': 'SmartCV'},
+                {'name': 'BookShop'},
+            ],
+            'certifications': [
+                {'name': 'IBM Data Scientist Professional Certificate'},
+                {'name': 'Project Management 101'},
+            ],
+        }
+        plan = _FakePlan(
+            projects=['SmartCV'],
+            certifications=['IBM Data Scientist Professional Certificate'],
+        )
+        out = normalize_resume(resume, plan=plan)
+
+        # Title-cased.
+        self.assertEqual(out['experience'][0]['title'], 'AI & Data Science Trainee')
+        # Soft skills gone, hard-capped at 14.
+        self.assertNotIn('Communication', out['skills'])
+        self.assertNotIn('Presentation skills', out['skills'])
+        self.assertNotIn('Teamwork', out['skills'])
+        self.assertLessEqual(len(out['skills']), 14)
+        # First-person stripped from summary.
+        self.assertNotRegex(out['professional_summary'], r"\bI\b")
+        # Coursework collapsed.
+        descs = out['experience'][0]['description']
+        self.assertTrue(any('Coursework included:' in d for d in descs))
+        # Plan trims applied.
+        self.assertEqual([p['name'] for p in out['projects']], ['SmartCV'])
+        self.assertEqual(
+            [c['name'] for c in out['certifications']],
+            ['IBM Data Scientist Professional Certificate'],
+        )
+
+    def test_normalize_resume_does_not_mutate_input(self):
+        resume = {
+            'skills': ['Python', 'Communication'],
+            'experience': [{'title': 'INTERN', 'description': ['I worked.']}],
+        }
+        before = copy.deepcopy(resume)
+        normalize_resume(resume)
+        self.assertEqual(resume, before)
