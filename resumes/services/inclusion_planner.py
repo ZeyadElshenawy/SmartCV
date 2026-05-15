@@ -262,12 +262,28 @@ def build_inclusion_plan(
             evidence_anchored_chunk_ids=anchor_chunks,
         ))
     project_candidates.sort(key=lambda p: (-p.relevance_score, p.profile_index))
-    # Always keep at least _MIN_PROJECTS even if relevance is uniformly 0
-    # (e.g. when per_skill_ev returned nothing useful) — better to surface
-    # something than emit a resume with no projects.
-    projects_plan = project_candidates[:_MAX_PROJECTS]
+    # JD-relevance threshold: prefer projects whose retrieval surfaced ANY
+    # JD-skill chunk. Filters BookShop / classical-CV traffic-sign projects
+    # out of a Data-Scientist resume automatically. Fall back to filling
+    # the _MIN_PROJECTS floor with irrelevant candidates (in profile
+    # order) so we never emit a resume with zero projects when per_skill_ev
+    # returned nothing useful — better to surface something than to ship
+    # an empty Projects section.
+    relevant = [p for p in project_candidates if p.relevance_score > 0]
+    projects_plan = relevant[:_MAX_PROJECTS]
     if len(projects_plan) < _MIN_PROJECTS:
-        projects_plan = project_candidates[:_MIN_PROJECTS]
+        irrelevant = [p for p in project_candidates if p.relevance_score == 0]
+        # Skip ones already kept (none can be — they'd have score>0 — but
+        # being explicit makes the intent obvious).
+        kept_ids = {p.profile_index for p in projects_plan}
+        needed = _MIN_PROJECTS - len(projects_plan)
+        for p in irrelevant:
+            if needed <= 0:
+                break
+            if p.profile_index in kept_ids:
+                continue
+            projects_plan.append(p)
+            needed -= 1
 
     # ---- Certifications: keep only matched ones --------------------------
     matched_cert_canon = {

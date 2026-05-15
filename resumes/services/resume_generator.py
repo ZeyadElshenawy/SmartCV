@@ -5,9 +5,11 @@ from typing import Dict, Any, Optional
 from profiles.services.llm_engine import get_structured_llm, get_llm
 from profiles.services.schemas import ResumeContentResult, ResumeExperience, ResumeProject
 from profiles.services.prompt_guards import HUMAN_VOICE_RULE
+from profiles.services.profile_sanitizer import sanitize_profile_data
 from resumes.services.inclusion_planner import (
     InclusionPlan, build_inclusion_plan,
 )
+from resumes.services.resume_normalizer import normalize_resume
 
 logger = logging.getLogger(__name__)
 
@@ -506,7 +508,14 @@ def generate_resume_content(profile, job, gap_analysis):
             'certifications': profile.certifications or []
         }
 
-    filtered_cv = raw_cv_data
+    # Pass A: deterministic upstream cleanup. The CV parser + LinkedIn merger
+    # land plenty of garbage in data_content (label-leaked skills, ALL-CAPS
+    # titles, kebab-case GitHub project names, first-person voice). Sanitizer
+    # returns a deep-copied, cleaned dict — the original profile is never
+    # mutated. The LLM prompt + every downstream preserve/fallback step use
+    # this cleaned view so the dirty source can't re-enter the resume.
+    sanitized_cv = sanitize_profile_data(raw_cv_data)
+    filtered_cv = sanitized_cv
 
     # Build a slim version of CV data to save tokens — drop raw_text, empty
     # fields, the cached signal blobs (we surface those separately, source-
@@ -610,6 +619,13 @@ This is the difference between a tailored resume and a hallucinated one. Restruc
 - See the HUMAN VOICE block at the end of this prompt for the full banned-word list and sentence-structure rules.
 - Replace these words: Spearheaded -> Led, Leveraged -> Used/Applied, Utilized -> Used, Synergized -> Collaborated, Streamlined -> Simplified/Improved, Robust -> Strong, Demonstrated -> Showed/Proved, Facilitated -> Helped/Enabled.
 
+=== CV CLEANUP RULES (CRITICAL — the source CV has parser / LinkedIn artefacts) ===
+1. TITLE CASING: convert every ALL-CAPS title to standard Title Case. "DIGITAL TRANSFORMATION INTERN" -> "Digital Transformation Intern". "INFROMATION TECHNOLOGY INTERN" -> "Information Technology Intern" (fix the parser typo "INFROMATION" -> "Information"). Preserve well-known acronyms uppercase (AI, ML, IT, HR, SAP, ERP, SQL, AWS, GCP, NLP, MLOps, DevOps, API, UI, UX, iOS).
+2. HARD-SKILL ENFORCEMENT: the Skills section MUST contain ONLY hard / technical skills (programming languages, libraries, frameworks, tools, methods, platforms). NEVER include "Communication", "Communications Planning", "Presentation skills", "Leadership", "Teamwork", "Team Management", "People Development", "Project Management", "Problem-solving", "Critical Thinking", "Adaptability", "Time Management", "Collaboration", or any other soft skill. Soft skills can appear in bullet text contextually as a side effect — never in the Skills array.
+3. COURSEWORK CONSOLIDATION: if an experience description contains a coursework / topic list (lines that start with `•`, `-`, or `*` and name short noun phrases like "Prompt Engineering", "Data Science Methodology", "Tools for Data Science"), CONSOLIDATE them into ONE sentence inside ONE bullet: "Coursework included: Prompt Engineering, Data Science Methodology, Tools for Data Science." Never preserve the bullet-per-course shape — it renders as visual noise and ATS scanners read it as filler.
+4. PROJECT NAME CANONICALIZATION: project names use the readable display form, not the GitHub slug or the verbose CV name. "healthcare-prediction-depi" -> "Healthcare Prediction (DEPI)". "customer-segmentation-rfmt" -> "Customer Segmentation (RFMT)". "BRAIN TUMOR CLASSIFICATION APP" -> "Brain Tumor Classification App". Preserve well-known mixed-case names ("SmartCV", "BookShop") as-is.
+5. CERTIFICATION SCOPE: include ONLY certifications listed in the INCLUSION PLAN above (when one is provided) — drop everything else. Without a plan, include only certifications whose name or issuer is JD-relevant.
+
 === BULLET POINT STANDARDS (CRITICAL for resume quality) ===
 - Each experience role: 3-5 bullets. Never more, never fewer if data exists.
 - Each project: 2-3 bullets max.
@@ -662,8 +678,16 @@ Make it PROFESSIONAL and ATS-OPTIMIZED.
         # Guarantee data integrity — fill in anything the LLM left empty or
         # mis-mapped from the profile. The LLM is good at rewriting but often
         # drops sections or uses wrong field names (e.g. graduation_year vs year).
-        resume_content = _ensure_profile_data_preserved(resume_content, raw_cv_data)
+        # Use the SANITIZED profile so the preserve step can't re-inject the
+        # parser garbage the sanitizer just removed.
+        resume_content = _ensure_profile_data_preserved(resume_content, sanitized_cv)
         resume_content = _apply_bullet_validator(resume_content)
+        # Pass B: post-LLM safety net. Even with the prompt rules, the smaller
+        # Groq model still leaks soft skills into the Skills array, leaves
+        # ALL-CAPS titles untouched, and emits coursework as separate bullets.
+        # normalize_resume runs the deterministic last-mile cleanup AND enforces
+        # the inclusion plan (drops projects/certs the planner didn't pick).
+        resume_content = normalize_resume(resume_content, plan=inclusion_plan)
         resume_content = _apply_v2_grounding_check(resume_content, inclusion_plan, profile, job, gap_analysis)
         logger.info(f"✓ Generated tailored resume with sections: {list(resume_content.keys())}")
         return resume_content
@@ -679,15 +703,20 @@ Make it PROFESSIONAL and ATS-OPTIMIZED.
         recovered = _recover_resume_from_failed_generation(e)
         if recovered is not None:
             resume_content = recovered.model_dump()
-            resume_content = _ensure_profile_data_preserved(resume_content, raw_cv_data)
+            resume_content = _ensure_profile_data_preserved(resume_content, sanitized_cv)
             resume_content = _apply_bullet_validator(resume_content)
+            # Same Pass-B safety net on the recovery path so a tool_use_failed
+            # round-trip doesn't bypass normalization.
+            resume_content = normalize_resume(resume_content, plan=inclusion_plan)
             logger.info(
                 "Resume recovered from failed_generation; sections=%s",
                 list(resume_content.keys()),
             )
             return resume_content
         logger.exception(f"Resume generation error: {e}")
-        return _build_offline_fallback(profile, job, raw_cv_data)
+        # Offline fallback uses the sanitized CV so a hard failure renders
+        # cleaned data, not the parser artefacts.
+        return _build_offline_fallback(profile, job, sanitized_cv)
 
 
 def _recover_resume_from_failed_generation(exc):
