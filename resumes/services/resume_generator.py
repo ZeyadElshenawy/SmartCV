@@ -330,6 +330,43 @@ def _build_standards_section(profile, job) -> str:
         return ""
 
 
+def _apply_v2_grounding_check(
+    resume_content: dict, plan, profile, job, gap_analysis,
+) -> dict:
+    """Run the Stage 7 grounding validator and merge its findings into
+    ``resume_content['validation_report']``. Strips any trailing
+    `[chunk_id]` citations the LLM emitted before persistence (the
+    prompt's GROUNDING RULE asks for them as self-grounding markers —
+    they should never reach the user)."""
+    if plan is None:
+        return resume_content
+    try:
+        from resumes.services.resume_validator import (
+            run_grounding_check, strip_citations_from_resume, findings_to_report,
+        )
+        from profiles.services.candidate_evidence_retriever import retrieve_for_skills
+        # Re-retrieve so the validator sees the same evidence pool the
+        # prompt saw. Cheap — retrieve_for_skills only hits the embedding
+        # service for skill names not already cached this request.
+        tiers = (job.extracted_skills_tiers or {}) if job else {}
+        skills_of_interest = list((tiers.get('must_have') or [])) + list((tiers.get('nice_to_have') or []))
+        if not skills_of_interest and job:
+            skills_of_interest = list(job.extracted_skills or [])
+        per_skill_ev = retrieve_for_skills(profile, skills_of_interest, k_per_skill=3)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("v2 grounding-check: skipped (%s).", exc)
+        return resume_content
+
+    resume_content = strip_citations_from_resume(resume_content)
+    findings = run_grounding_check(resume_content, plan, per_skill_ev)
+    existing_report = resume_content.get('validation_report') or {}
+    if not isinstance(existing_report, dict):
+        existing_report = {}
+    existing_report['grounding_findings'] = findings_to_report(findings)
+    resume_content['validation_report'] = existing_report
+    return resume_content
+
+
 def _build_v2_grounding(profile, job, gap_analysis) -> tuple[str, Optional[InclusionPlan]]:
     """Pull per-skill candidate evidence + build the inclusion plan, then
     render them as a single prompt block.
@@ -627,6 +664,7 @@ Make it PROFESSIONAL and ATS-OPTIMIZED.
         # drops sections or uses wrong field names (e.g. graduation_year vs year).
         resume_content = _ensure_profile_data_preserved(resume_content, raw_cv_data)
         resume_content = _apply_bullet_validator(resume_content)
+        resume_content = _apply_v2_grounding_check(resume_content, inclusion_plan, profile, job, gap_analysis)
         logger.info(f"✓ Generated tailored resume with sections: {list(resume_content.keys())}")
         return resume_content
 

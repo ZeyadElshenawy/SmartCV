@@ -283,7 +283,7 @@ JOB_SCRAPER_DEBUG_DUMPS_DIR = BASE_DIR / config(
 # RAG_ENABLED gates the entire retrieval flow in resume_generator.py. When
 # False, the resume prompt is identical to pre-RAG behavior (baseline for the
 # §5 A/B eval). Default False until benchmarks confirm a lift.
-RAG_ENABLED = config('RAG_ENABLED', default=False, cast=bool)
+RAG_ENABLED = config('RAG_ENABLED', default=True, cast=bool)
 # Total number of KB chunks injected into the resume prompt as the
 # `STANDARDS, EXAMPLES & CONVENTIONS` block.
 RAG_TOP_K = config('RAG_TOP_K', default=6, cast=int)
