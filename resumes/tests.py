@@ -1834,6 +1834,220 @@ class ResumeSchemaCoercionTests(SimpleTestCase):
         self.assertEqual(p.description, ['End-to-end ML pipeline for stroke risk.'])
 
 
+# --- Round 1 (DevOps audit): regression coverage -------------------------
+
+from resumes.services.resume_normalizer import (
+    trim_skills_to_plan,
+    normalize_bullet_punctuation,
+)
+
+
+class TrimSkillsToPlanTests(SimpleTestCase):
+    """The audit caught that the resume's Skills section was 'Rust, C++,
+    Python, Java, TypeScript, ...' for a DevOps JD — the LLM had its
+    own picks while the plan's JD-must-have-ordered skills_to_list
+    sat unused. trim_skills_to_plan now forces the section to the
+    plan's ordering."""
+
+    def test_replaces_llm_skills_with_plan_ordering(self):
+        resume = {'skills': ['Rust', 'C++', 'Python', 'Java']}
+        plan = _FakePlan()
+        plan.skills_to_list = ['Docker', 'Kubernetes', 'Linux', 'CI/CD']
+        out = trim_skills_to_plan(resume, plan)
+        self.assertEqual(out['skills'][:4], ['Docker', 'Kubernetes', 'Linux', 'CI/CD'])
+
+    def test_appends_llm_extras_not_in_plan(self):
+        resume = {'skills': ['Docker', 'Terraform', 'Ansible']}
+        plan = _FakePlan()
+        plan.skills_to_list = ['Docker', 'Kubernetes']
+        out = trim_skills_to_plan(resume, plan)
+        # Plan's order first, then LLM extras (Terraform, Ansible).
+        self.assertEqual(out['skills'][0], 'Docker')
+        self.assertEqual(out['skills'][1], 'Kubernetes')
+        self.assertIn('Terraform', out['skills'])
+        self.assertIn('Ansible', out['skills'])
+
+    def test_drops_llm_soft_skill_extras(self):
+        # LLM extras that happen to be soft skills (Communication, ...)
+        # should NOT survive the merge.
+        resume = {'skills': ['Communication', 'Teamwork', 'Terraform']}
+        plan = _FakePlan()
+        plan.skills_to_list = ['Docker', 'Kubernetes']
+        out = trim_skills_to_plan(resume, plan)
+        self.assertNotIn('Communication', out['skills'])
+        self.assertNotIn('Teamwork', out['skills'])
+        self.assertIn('Terraform', out['skills'])
+
+    def test_skips_when_plan_has_no_skills(self):
+        # Defensive: empty plan ≠ wipe.
+        resume = {'skills': ['Python', 'Rust']}
+        plan = _FakePlan()
+        plan.skills_to_list = []
+        out = trim_skills_to_plan(resume, plan)
+        self.assertEqual(out['skills'], ['Python', 'Rust'])
+
+
+class NormalizeBulletPunctuationTests(SimpleTestCase):
+    def test_adds_period_when_at_least_one_bullet_has_one(self):
+        resume = {'experience': [{'description': [
+            'Built X.',
+            'Shipped Y',
+            'Reduced Z',
+        ]}]}
+        out = normalize_bullet_punctuation(resume)
+        self.assertEqual(out['experience'][0]['description'],
+                         ['Built X.', 'Shipped Y.', 'Reduced Z.'])
+
+    def test_leaves_period_less_lists_alone(self):
+        resume = {'experience': [{'description': [
+            'Built X', 'Shipped Y', 'Reduced Z',
+        ]}]}
+        out = normalize_bullet_punctuation(resume)
+        # No bullet had terminal punctuation — leave the list unchanged.
+        self.assertEqual(out['experience'][0]['description'],
+                         ['Built X', 'Shipped Y', 'Reduced Z'])
+
+    def test_respects_existing_terminal_punctuation(self):
+        # Bullets that end with ! or ? don't get an extra period.
+        resume = {'experience': [{'description': [
+            'Built X.', 'What is Y?', 'Achieved 10x growth!',
+        ]}]}
+        out = normalize_bullet_punctuation(resume)
+        self.assertEqual(out['experience'][0]['description'],
+                         ['Built X.', 'What is Y?', 'Achieved 10x growth!'])
+
+
+class TrimCertsKeepsJdKeywordMatchTests(SimpleTestCase):
+    """The audit caught 'Introduction to Software Testing' being dropped
+    even though 'Testing' is JD-relevant for DevOps. The cert filter
+    now keeps certs whose name/issuer share a token with plan
+    skills."""
+
+    def test_keeps_software_testing_cert_via_jd_keyword(self):
+        from resumes.services.resume_normalizer import trim_certs_to_plan
+        resume = {'certifications': [
+            {'name': 'Introduction to Software Testing', 'issuer': 'U of Minnesota'},
+            {'name': 'Random Off-Topic Cert', 'issuer': 'Whatever'},
+        ]}
+        plan = _FakePlan(certifications=['IBM Data Scientist Track'])
+        plan.skills_to_list = ['Docker', 'Kubernetes', 'CI/CD', 'Testing']
+        plan.matched_must_have = ['Docker']
+        plan.matched_nice_to_have = []
+        out = trim_certs_to_plan(resume, plan)
+        names = [c['name'] for c in out['certifications']]
+        self.assertIn('Introduction to Software Testing', names)
+        self.assertNotIn('Random Off-Topic Cert', names)
+
+
+class BackfillSummaryUsesJdTitleTests(SimpleTestCase):
+    """The audit caught the backfill leading with 'DevOps Engineering
+    Trainee' for a 'Junior DevOps Engineer' JD. The summary now
+    leads with the JD title when available."""
+
+    def test_leads_with_jd_title_not_experience_title(self):
+        resume = {
+            'professional_summary': '',
+            'skills': ['Docker', 'Kubernetes', 'Linux', 'Bash'],
+            'experience': [{'title': 'DevOps Engineering Trainee'}],
+        }
+        job = SimpleNamespace(title='Junior DevOps Engineer')
+        out = backfill_summary(resume, job=job)
+        self.assertTrue(out['professional_summary'].startswith('Junior DevOps Engineer'))
+        self.assertNotIn('data and ML lifecycle', out['professional_summary'])
+
+    def test_falls_back_to_experience_title_when_no_jd_title(self):
+        resume = {
+            'professional_summary': '',
+            'skills': ['Python'],
+            'experience': [{'title': 'Data Engineer'}],
+        }
+        out = backfill_summary(resume, job=None)
+        self.assertTrue(out['professional_summary'].startswith('Data Engineer'))
+
+
+class ZeroWidthCharStripTests(SimpleTestCase):
+    """The audit caught project names ending with U+2060 word joiner,
+    e.g. 'ACR-QA — Automated Code Review Platform⁠'. The CV parser
+    leaves these in skills, project names, and bullets. The sanitizer
+    now strips them recursively."""
+
+    def test_strips_word_joiner_from_project_name(self):
+        from profiles.services.profile_sanitizer import sanitize_profile_data
+        clean = sanitize_profile_data({
+            'projects': [
+                {'name': 'ACR-QA — Automated Code Review Platform⁠',
+                 'description': ['Built CI/​CD pipeline.']},
+            ],
+        })
+        self.assertEqual(clean['projects'][0]['name'],
+                         'ACR-QA — Automated Code Review Platform')
+        self.assertEqual(clean['projects'][0]['description'],
+                         ['Built CI/CD pipeline.'])
+
+    def test_strips_from_skills_and_experiences(self):
+        from profiles.services.profile_sanitizer import sanitize_profile_data
+        clean = sanitize_profile_data({
+            'skills': ['Docker​', 'Python⁠'],
+            'experiences': [{'title': 'DevOps Trainee﻿',
+                              'description': ['Used CI/​CD.']}],
+        })
+        skill_names = [s.get('name') if isinstance(s, dict) else s
+                       for s in clean['skills']]
+        self.assertIn('Docker', skill_names)
+        self.assertIn('Python', skill_names)
+        self.assertEqual(clean['experiences'][0]['title'], 'DevOps Trainee')
+        self.assertEqual(clean['experiences'][0]['description'],
+                         ['Used CI/CD.'])
+
+
+class StripSchemaEnvelopeLeaksTests(SimpleTestCase):
+    """The DevOps regen log showed `additionalProperties`, `properties`,
+    `type` keys in the final resume sections list — the LLM emitted
+    the schema-envelope shape on a 200 (happy path), not via
+    failed_generation. The recovery unwrap didn't fire because there
+    was no exception. _strip_schema_envelope_leaks handles this."""
+
+    def test_strips_top_level_envelope_keys(self):
+        from resumes.services.resume_generator import _strip_schema_envelope_leaks
+        resume = {
+            'professional_summary': 'hello',
+            'skills': ['A'],
+            'additionalProperties': True,
+            'properties': {'leftover': 'whatever'},
+            'type': 'object',
+        }
+        out = _strip_schema_envelope_leaks(resume)
+        self.assertNotIn('additionalProperties', out)
+        self.assertNotIn('properties', out)
+        self.assertNotIn('type', out)
+        self.assertEqual(out['skills'], ['A'])
+
+    def test_steps_into_properties_when_full_envelope(self):
+        from resumes.services.resume_generator import _strip_schema_envelope_leaks
+        resume = {
+            'additionalProperties': True,
+            'properties': {
+                'professional_summary': 'inside',
+                'skills': ['X', 'Y'],
+            },
+            'type': 'object',
+        }
+        out = _strip_schema_envelope_leaks(resume)
+        self.assertEqual(out['professional_summary'], 'inside')
+        self.assertEqual(out['skills'], ['X', 'Y'])
+        self.assertNotIn('additionalProperties', out)
+
+    def test_unwraps_per_field_type_value_wrappers(self):
+        from resumes.services.resume_generator import _strip_schema_envelope_leaks
+        resume = {
+            'skills': {'type': 'array', 'value': ['Docker', 'K8s']},
+            'professional_summary': {'type': 'string', 'value': 'hi'},
+        }
+        out = _strip_schema_envelope_leaks(resume)
+        self.assertEqual(out['skills'], ['Docker', 'K8s'])
+        self.assertEqual(out['professional_summary'], 'hi')
+
+
 # --- Pass H: failed_generation extraction robustness ----------------------
 
 class ExtractFailedGenerationTests(SimpleTestCase):

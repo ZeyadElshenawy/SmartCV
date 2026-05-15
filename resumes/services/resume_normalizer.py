@@ -418,6 +418,53 @@ def consolidate_coursework(resume: dict) -> dict:
     return resume
 
 
+def normalize_bullet_punctuation(resume: dict) -> dict:
+    """Make every bullet in a description list end the same way.
+
+    The LLM mixes terminal-period and no-terminal styles within a single
+    role (e.g. "Built X." then "Shipped Y" then "Reduced Z."). The
+    audit flagged this as visually inconsistent. Policy: if ANY bullet
+    in a given description ends with sentence-terminating punctuation,
+    every bullet in that description gets a trailing period (unless it
+    already ends with ! or ?). Otherwise leave the list alone (no
+    forced periods on lists that are uniformly period-less).
+    """
+    def _normalize(bullets: list) -> list:
+        if not bullets:
+            return bullets
+        # Check if any bullet ends with terminal punctuation.
+        any_terminal = False
+        for b in bullets:
+            if isinstance(b, str) and b.rstrip().endswith(('.', '!', '?')):
+                any_terminal = True
+                break
+        if not any_terminal:
+            return bullets
+        out = []
+        for b in bullets:
+            if not isinstance(b, str):
+                out.append(b)
+                continue
+            s = b.rstrip()
+            if not s:
+                out.append(s)
+                continue
+            if not s.endswith(('.', '!', '?')):
+                s = s + '.'
+            out.append(s)
+        return out
+
+    for section_key in ('experience', 'projects'):
+        for item in resume.get(section_key) or []:
+            if not isinstance(item, dict):
+                continue
+            for key in ('description', 'highlights'):
+                value = item.get(key)
+                if isinstance(value, list):
+                    item[key] = _normalize(value)
+    return resume
+
+
 def filter_soft_skill_bullets(resume: dict) -> dict:
     """Drop bullets whose content is dominated by soft skills from every
     experience and project description. The LLM emits these despite the
@@ -496,6 +543,13 @@ def backfill_summary(resume: dict, job=None) -> dict:
     title = (chosen.get('title') or '').strip()
     if not title:
         return resume
+    # Use the JD title (when known) to lead the summary instead of the
+    # candidate's role title — recruiter scan reads the role first, and
+    # "Junior DevOps Engineer with hands-on Docker..." beats "DevOps
+    # Engineering Trainee with hands-on..." for ATS alignment.
+    jd_title_clean = (getattr(job, 'title', '') or '').strip() if job else ''
+    lead_title = jd_title_clean or title
+
     skills = [s for s in (resume.get('skills') or []) if s]
     top = skills[:4]
     if top:
@@ -505,14 +559,78 @@ def backfill_summary(resume: dict, job=None) -> dict:
             skills_phrase = ' and '.join(top)
         else:
             skills_phrase = ', '.join(top[:-1]) + f", and {top[-1]}"
-        text = f"{title} with hands-on {skills_phrase} experience across the data and ML lifecycle."
+        # Domain-neutral closer — the previous "across the data and ML
+        # lifecycle" was hardcoded for the DS use case and read as
+        # off-target for any non-DS JD (DevOps, frontend, sales …).
+        text = (
+            f"{lead_title} with hands-on {skills_phrase} experience, drawing on "
+            f"the {title} role and project work."
+        )
     else:
-        text = f"{title} with practical project experience across the data and ML lifecycle."
+        text = (
+            f"{lead_title} with practical project experience, drawing on the "
+            f"{title} role."
+        )
     resume['professional_summary'] = text
     logger.info(
         "resume_normalizer: backfilled empty professional_summary (len=%d, "
-        "experience='%s', jd_overlap=%d)", len(text), title, max(best_score, 0),
+        "lead='%s', experience='%s', jd_overlap=%d)",
+        len(text), lead_title, title, max(best_score, 0),
     )
+    return resume
+
+
+def trim_skills_to_plan(resume: dict, plan) -> dict:
+    """Replace the LLM's Skills list with the planner's
+    ``skills_to_list``. The planner builds that list in JD-must-have
+    order (then nice-to-have, then adjacent), so this forces a
+    JD-relevance-first skills section even when the LLM ignored the
+    inclusion plan and picked its own ordering from the raw CV skills.
+
+    Two safety guards:
+      - Skip if the plan has no skills (we don't want to wipe the
+        section just because retrieval / gap analysis returned empty).
+      - Merge: any LLM-emitted skill the plan didn't pick but that's
+        on the soft-skill blocklist gets dropped; anything else gets
+        appended after the plan's list, up to the hard cap. Keeps
+        legitimate adjacent skills the LLM identified but the plan
+        missed (rare but possible).
+    """
+    if plan is None or not getattr(plan, 'skills_to_list', None):
+        return resume
+    plan_skills = [s for s in plan.skills_to_list if s]
+    if not plan_skills:
+        return resume
+    plan_canon = {_canonical(s) for s in plan_skills}
+    llm_skills = resume.get('skills') or []
+    if not isinstance(llm_skills, list):
+        resume['skills'] = plan_skills[:_HARD_SKILL_CAP]
+        return resume
+    extras: list[str] = []
+    for entry in llm_skills:
+        name = entry.get('name') if isinstance(entry, dict) else str(entry or '')
+        name = (name or '').strip()
+        if not name:
+            continue
+        c = _canonical(name)
+        if not c or c in plan_canon:
+            continue
+        if c in _SOFT_SKILL_BLOCKLIST_CANON:
+            continue
+        extras.append(name)
+        plan_canon.add(c)
+    merged = plan_skills + extras
+    resume['skills'] = merged[:_HARD_SKILL_CAP]
+    if extras:
+        logger.info(
+            "resume_normalizer: skills reordered to plan + %d LLM extras "
+            "(final=%d)", len(extras), len(resume['skills']),
+        )
+    else:
+        logger.info(
+            "resume_normalizer: skills replaced with plan's skills_to_list "
+            "(final=%d)", len(resume['skills']),
+        )
     return resume
 
 
@@ -552,24 +670,58 @@ def trim_projects_to_plan(resume: dict, plan) -> dict:
 
 def trim_certs_to_plan(resume: dict, plan) -> dict:
     """Drop any certification whose name doesn't appear in
-    ``plan.certifications``. Caps the result at ``_CERT_CAP``. Skips
-    when the plan has no certs (defensive — empty plan ≠ wipe the
-    section)."""
+    ``plan.certifications`` AND whose name doesn't contain a JD-keyword
+    that the plan's ``skills_to_list`` lists. Caps the result at
+    ``_CERT_CAP``. Skips when the plan has no certs (defensive — empty
+    plan ≠ wipe the section).
+
+    The JD-keyword loosening is what catches "Introduction to Software
+    Testing" — the planner didn't add it to its certs list, but its
+    name contains "Testing", which is JD-relevant for a DevOps role
+    where the JD must-haves include test automation / CI testing.
+    Without this loosening, useful certs that the planner missed (or
+    de-duped against a similarly-named one) get dropped silently.
+    """
     if plan is None or not getattr(plan, 'certifications', None):
         return resume
     pool_pretty = [c for c in plan.certifications if c]
     pool_canon = {_canonical(c) for c in pool_pretty}
     if not pool_canon:
         return resume
+    # JD-keyword pool: every token from the plan's skills list and the
+    # plan's matched_must_have/matched_nice_to_have, lowercased.
+    # Single-letter / two-letter tokens (e.g. "C") would create too many
+    # false positives ("Introduction" matches because it contains "C"),
+    # so require 3+ chars.
+    jd_keywords: set[str] = set()
+    for src in (
+        getattr(plan, 'skills_to_list', None) or [],
+        getattr(plan, 'matched_must_have', None) or [],
+        getattr(plan, 'matched_nice_to_have', None) or [],
+    ):
+        for s in src:
+            if not s:
+                continue
+            for tok in re.split(r"\W+", str(s).lower()):
+                if len(tok) >= 3:
+                    jd_keywords.add(tok)
     certs = resume.get('certifications') or []
     kept: list[dict] = []
     dropped_names: list[str] = []
+    kept_by_keyword: list[str] = []
     for cert in certs:
         if not isinstance(cert, dict):
             continue
         name = (cert.get('name') or '').strip()
         if _fuzzy_in(name, pool_canon, pool_pretty):
             kept.append(cert)
+            continue
+        # JD-keyword loosening — check the cert NAME and ISSUER text.
+        haystack = f"{name} {cert.get('issuer') or ''}".lower()
+        haystack_tokens = set(re.split(r"\W+", haystack))
+        if haystack_tokens & jd_keywords:
+            kept.append(cert)
+            kept_by_keyword.append(name)
         else:
             dropped_names.append(name)
     if len(kept) > _CERT_CAP:
@@ -579,6 +731,11 @@ def trim_certs_to_plan(resume: dict, plan) -> dict:
         logger.info(
             "resume_normalizer: dropped %d certification(s) not in plan: %s",
             len(dropped_names), dropped_names,
+        )
+    if kept_by_keyword:
+        logger.info(
+            "resume_normalizer: kept %d certification(s) by JD-keyword match: %s",
+            len(kept_by_keyword), kept_by_keyword,
         )
     return resume
 
@@ -617,7 +774,9 @@ def normalize_resume(resume_content: Any, plan: Optional[Any] = None, job=None) 
     resume = strip_first_person_from_resume(resume)
     resume = filter_soft_skill_bullets(resume)
     resume = consolidate_coursework(resume)
+    resume = normalize_bullet_punctuation(resume)
     if plan is not None:
+        resume = trim_skills_to_plan(resume, plan)
         resume = trim_projects_to_plan(resume, plan)
         resume = trim_certs_to_plan(resume, plan)
     resume = backfill_summary(resume, job=job)
