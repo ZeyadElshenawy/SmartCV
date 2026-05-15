@@ -2549,6 +2549,55 @@ class StripSchemaEnvelopeLeaksTests(SimpleTestCase):
 
 # --- Pass H: failed_generation extraction robustness ----------------------
 
+class IsTokenLimitErrorTests(SimpleTestCase):
+    """The 22:22 regen hit Groq's 30k TPM ceiling with a 32,423-token
+    prompt. The generator now detects that specific failure and retries
+    with the v2 grounding block + RAG standards stripped. The detector
+    must distinguish 'token-limit' from other Groq errors so we don't
+    pointlessly retry tool_use_failed / 5xx / etc."""
+
+    def test_matches_body_dict_with_tokens_type(self):
+        from resumes.services.resume_generator import _is_token_limit_error
+        class E(Exception):
+            body = {
+                'error': {
+                    'message': 'Request too large for model... TPM Limit 30000',
+                    'type': 'tokens',
+                    'code': 'rate_limit_exceeded',
+                },
+            }
+        self.assertTrue(_is_token_limit_error(E('x')))
+
+    def test_matches_str_fallback_when_body_missing(self):
+        from resumes.services.resume_generator import _is_token_limit_error
+        class E(Exception):
+            body = None
+        e = E()
+        e.args = ("Error code: 413 - {'error': {'message': "
+                  "'Request too large for model X on tokens per minute (TPM)', "
+                  "'type': 'tokens', 'code': 'rate_limit_exceeded'}}",)
+        self.assertTrue(_is_token_limit_error(e))
+
+    def test_rejects_tool_use_failed(self):
+        # tool_use_failed is recoverable via _recover_resume_from_failed_generation,
+        # NOT by retrying with a smaller prompt.
+        from resumes.services.resume_generator import _is_token_limit_error
+        class E(Exception):
+            body = {
+                'error': {
+                    'message': 'tool call validation failed',
+                    'type': 'invalid_request_error',
+                    'code': 'tool_use_failed',
+                },
+            }
+        self.assertFalse(_is_token_limit_error(E('x')))
+
+    def test_rejects_generic_exceptions(self):
+        from resumes.services.resume_generator import _is_token_limit_error
+        self.assertFalse(_is_token_limit_error(ValueError('something else')))
+        self.assertFalse(_is_token_limit_error(RuntimeError('connection reset')))
+
+
 class ExtractFailedGenerationTests(SimpleTestCase):
     """Regression coverage for the three extraction paths. The 18:03 regen
     hit the silent-return path because exc.body was None on this Groq SDK

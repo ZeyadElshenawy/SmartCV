@@ -672,37 +672,72 @@ Make it PROFESSIONAL and ATS-OPTIMIZED.
 
 {HUMAN_VOICE_RULE}"""
 
+    def _post_process(resume_content: dict) -> dict:
+        """Shared post-LLM pipeline. Extracted so the slim-prompt retry
+        path applies the exact same cleanup as the happy path."""
+        resume_content = _strip_schema_envelope_leaks(resume_content)
+        resume_content = _ensure_profile_data_preserved(resume_content, sanitized_cv)
+        resume_content = _apply_bullet_validator(resume_content)
+        resume_content = normalize_resume(
+            resume_content, plan=inclusion_plan, job=job, profile_data=sanitized_cv,
+        )
+        resume_content = _apply_v2_grounding_check(
+            resume_content, inclusion_plan, profile, job, gap_analysis,
+        )
+        return resume_content
+
     try:
         structured_llm = get_structured_llm(ResumeContentResult, temperature=0.7, max_tokens=8192, task="resume_gen")
         result = structured_llm.invoke(prompt)
 
-        resume_content = result.model_dump()
-        # Schema-envelope happy-path unwrap: the LLM sometimes returns the
-        # envelope shape (additionalProperties/properties/type wrappers)
-        # in a successful 200 response, not just via failed_generation.
-        # Pydantic's extra=allow lets those keys through as undeclared
-        # extras — which then leak into `sections` and downstream
-        # writers. Detect and strip them here so the recovery path
-        # behaviour also applies to the happy path.
-        resume_content = _strip_schema_envelope_leaks(resume_content)
-        # Guarantee data integrity — fill in anything the LLM left empty or
-        # mis-mapped from the profile. The LLM is good at rewriting but often
-        # drops sections or uses wrong field names (e.g. graduation_year vs year).
-        # Use the SANITIZED profile so the preserve step can't re-inject the
-        # parser garbage the sanitizer just removed.
-        resume_content = _ensure_profile_data_preserved(resume_content, sanitized_cv)
-        resume_content = _apply_bullet_validator(resume_content)
-        # Pass B: post-LLM safety net. Even with the prompt rules, the smaller
-        # Groq model still leaks soft skills into the Skills array, leaves
-        # ALL-CAPS titles untouched, and emits coursework as separate bullets.
-        # normalize_resume runs the deterministic last-mile cleanup AND enforces
-        # the inclusion plan (drops projects/certs the planner didn't pick).
-        resume_content = normalize_resume(resume_content, plan=inclusion_plan, job=job, profile_data=sanitized_cv)
-        resume_content = _apply_v2_grounding_check(resume_content, inclusion_plan, profile, job, gap_analysis)
+        resume_content = _post_process(result.model_dump())
         logger.info(f"✓ Generated tailored resume with sections: {list(resume_content.keys())}")
         return resume_content
 
     except Exception as e:
+        # ── Token-limit retry ─────────────────────────────────────────
+        # If Groq rejected the call because the prompt exceeded the
+        # tokens-per-minute ceiling (413 / rate_limit_exceeded with
+        # `type: tokens`), retry ONCE with the biggest two dynamic
+        # blocks stripped: the v2 grounding evidence (10-15k chars on
+        # a rich profile) and the RAG standards block (~3k chars).
+        # The inclusion plan is still enforced post-LLM via
+        # normalize_resume, so dropping the v2 block from the prompt
+        # doesn't lose the selection rules — the LLM just rewrites
+        # bullets without the per-skill evidence snippets to lean on.
+        if _is_token_limit_error(e) and (v2_block or standards_section):
+            slim_prompt = prompt
+            if v2_block:
+                slim_prompt = slim_prompt.replace(v2_block, '')
+            if standards_section:
+                slim_prompt = slim_prompt.replace(standards_section, '')
+            logger.warning(
+                "Resume gen: token-limit hit (full=%d chars). Retrying with "
+                "v2_block + standards trimmed (slim=%d chars, saved=%d).",
+                len(prompt), len(slim_prompt), len(prompt) - len(slim_prompt),
+            )
+            try:
+                slim_llm = get_structured_llm(
+                    ResumeContentResult, temperature=0.7,
+                    max_tokens=8192, task="resume_gen",
+                )
+                slim_result = slim_llm.invoke(slim_prompt)
+                resume_content = _post_process(slim_result.model_dump())
+                logger.info(
+                    "✓ Resume gen recovered via slim-prompt retry; sections=%s",
+                    list(resume_content.keys()),
+                )
+                return resume_content
+            except Exception as slim_exc:
+                # Slim retry also failed — flow into the regular
+                # failed_generation salvage / offline-fallback path with
+                # the slim exception (its failed_generation, if any, is
+                # what we'd want to recover).
+                logger.warning(
+                    "Resume gen: slim-prompt retry also failed (%s) — "
+                    "falling through to recovery.", slim_exc,
+                )
+                e = slim_exc
         # Try to salvage from Groq's tool_use_failed before giving up. The
         # model often produces well-formed content but fails the strict
         # tool-call validator (null in string field, list-of-objects where
@@ -796,6 +831,31 @@ def _strip_schema_envelope_leaks(resume_content: dict) -> dict:
         else:
             unwrapped[key] = val
     return unwrapped
+
+
+def _is_token_limit_error(exc) -> bool:
+    """Return True iff the exception is Groq's 413/rate_limit token
+    ceiling rejection (prompt-too-large), not a generic 4xx/5xx.
+
+    Distinguishing the token-limit case from other failures matters
+    because the only useful recovery is to retry with a smaller prompt
+    — other failures benefit from the failed_generation salvage path
+    or just need to fall through to the offline renderer.
+    """
+    # exc.body dict (newer groq SDK) is the cleanest discriminator.
+    body = getattr(exc, 'body', None)
+    if isinstance(body, dict):
+        err = body.get('error') or {}
+        err_type = (err.get('type') or '').lower()
+        err_code = (err.get('code') or '').lower()
+        if err_type == 'tokens' or err_code == 'rate_limit_exceeded':
+            return True
+    # str(exc) fallback — match the message Groq formats.
+    s = str(exc).lower()
+    return (
+        ('request too large' in s or 'rate_limit_exceeded' in s)
+        and ('token' in s or 'tpm' in s)
+    )
 
 
 def _extract_failed_generation(exc) -> Optional[str]:
