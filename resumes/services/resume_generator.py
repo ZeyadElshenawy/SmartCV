@@ -5,6 +5,9 @@ from typing import Dict, Any, Optional
 from profiles.services.llm_engine import get_structured_llm, get_llm
 from profiles.services.schemas import ResumeContentResult, ResumeExperience, ResumeProject
 from profiles.services.prompt_guards import HUMAN_VOICE_RULE
+from resumes.services.inclusion_planner import (
+    InclusionPlan, build_inclusion_plan,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -327,6 +330,121 @@ def _build_standards_section(profile, job) -> str:
         return ""
 
 
+def _build_v2_grounding(profile, job, gap_analysis) -> tuple[str, Optional[InclusionPlan]]:
+    """Pull per-skill candidate evidence + build the inclusion plan, then
+    render them as a single prompt block.
+
+    Returns ``("", None)`` on any failure — the v1 path still runs with
+    the rest of the prompt, so a missing index or retriever bug never
+    breaks resume generation. The inclusion plan is also returned so the
+    grounding validator (Stage 7) can re-use the same skills_to_list,
+    bridge_bullet_skills, and drop_skills decisions without recomputing.
+    """
+    try:
+        from profiles.services.candidate_evidence_retriever import retrieve_for_skills
+    except Exception as exc:  # noqa: BLE001 — keep resume gen alive even if the new modules fail to import
+        logger.warning("v2 grounding: imports failed (%s) — skipping.", exc)
+        return "", None
+
+    try:
+        tiers = (job.extracted_skills_tiers or {}) if job else {}
+        must = list(tiers.get('must_have') or [])
+        nice = list(tiers.get('nice_to_have') or [])
+        if not must and not nice and job:
+            must = list(job.extracted_skills or [])
+        skills_of_interest = [s for s in (must + nice) if s]
+
+        per_skill_ev = retrieve_for_skills(profile, skills_of_interest, k_per_skill=3)
+        plan = build_inclusion_plan(profile, job, gap_analysis, per_skill_ev)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("v2 grounding: build failed (%s) — falling back to v1.", exc)
+        return "", None
+
+    block_parts: list[str] = ["=== V2 GROUNDING BLOCK ==="]
+
+    # --- Gap analysis v2 fields ---
+    block_parts.append("")
+    block_parts.append("GAP ANALYSIS (tier-aware — must-haves move hiring decisions the most):")
+    block_parts.append(
+        f"- MATCHED must-have ({len(plan.matched_must_have)}): {', '.join(plan.matched_must_have) or '(none)'}"
+    )
+    block_parts.append(
+        f"- MATCHED nice-to-have ({len(plan.matched_nice_to_have)}): {', '.join(plan.matched_nice_to_have) or '(none)'}"
+    )
+    if plan.bridge_bullet_skills:
+        block_parts.append(
+            "- BRIDGE OPPORTUNITIES (high-proximity missing — write ONE bullet "
+            "each that honestly connects existing evidence to the skill, do NOT fabricate experience):"
+        )
+        for entry in plan.bridge_bullet_skills:
+            hint = entry.get('bridge_hint') or ''
+            block_parts.append(
+                f"  - {entry['name']} (proximity {entry['proximity']:.2f}): {hint}"
+            )
+    if plan.drop_skills:
+        block_parts.append(
+            f"- DO-NOT-CLAIM ({len(plan.drop_skills)}): {', '.join(plan.drop_skills)} "
+            "— these are missing must-haves with NO bridging evidence. NEVER include them "
+            "in the Skills section, summary, or any bullet."
+        )
+
+    # --- Inclusion plan (authoritative spec) ---
+    block_parts.append("")
+    block_parts.append("INCLUSION PLAN (treat this as authoritative — write to it, don't second-guess it):")
+    block_parts.append(
+        f"- Skills section list ({len(plan.skills_to_list)} items, in this order): "
+        f"{', '.join(plan.skills_to_list) or '(none)'}"
+    )
+    if plan.projects:
+        kept = [
+            f"#{p.profile_index} {p.name or '(unnamed)'} (relevance={p.relevance_score})"
+            for p in plan.projects
+        ]
+        block_parts.append(
+            f"- Projects to include ({len(plan.projects)}, ranked by JD relevance): {', '.join(kept)}"
+        )
+    if plan.certifications:
+        block_parts.append(
+            f"- Certifications to include ({len(plan.certifications)}): "
+            f"{', '.join(plan.certifications)}. DROP all other certifications."
+        )
+    block_parts.append(
+        f"- Volunteer section: {'INCLUDE' if plan.include_volunteer else 'OMIT'}; "
+        f"Publications: {'INCLUDE' if plan.include_publications else 'OMIT'}; "
+        f"Awards: {'INCLUDE' if plan.include_awards else 'OMIT'}."
+    )
+    if plan.summary_hints:
+        block_parts.append("- Summary draft hints (pull phrasing from these retrieved chunks):")
+        for hint in plan.summary_hints:
+            block_parts.append(f"  - {hint}")
+
+    # --- Per-skill evidence map (the LLM's grounding source) ---
+    if per_skill_ev:
+        block_parts.append("")
+        block_parts.append(
+            "PER-SKILL EVIDENCE (cite a chunk_id in [brackets] when you write a bullet that "
+            "uses one of these; the validator strips citations before persistence):"
+        )
+        for skill, chunks in per_skill_ev.items():
+            if not chunks:
+                continue
+            block_parts.append(f"  • {skill}:")
+            for c in chunks:
+                snippet = ' '.join(c.text.split())[:220]
+                block_parts.append(f"    [{c.chunk_id}] {snippet}")
+
+    block_parts.append("")
+    block_parts.append(
+        "GROUNDING RULE: every concrete claim in your output must trace to either "
+        "(a) a chunk_id in the PER-SKILL EVIDENCE block, (b) the CV / signal data in the "
+        "blocks above, or (c) a BRIDGE OPPORTUNITY (one bridge bullet per listed skill). "
+        "When in doubt, keep the bullet qualitative — DO NOT invent numbers, dates, teams, "
+        "tools, or outcomes."
+    )
+
+    return "\n".join(block_parts), plan
+
+
 def generate_resume_content(profile, job, gap_analysis):
     """
     Generate a PROFESSIONAL, ATS-optimized tailored resume using LangChain
@@ -374,9 +492,17 @@ def generate_resume_content(profile, job, gap_analysis):
     # RAG: retrieve KB chunks + format as STANDARDS block (empty when disabled
     # or when retrieval errors out — failure must not break resume generation).
     standards_section = _build_standards_section(profile, job)
+
+    # v2 grounding: pull per-skill candidate-evidence chunks + build the
+    # inclusion plan. Both are no-ops + return empty blocks if anything
+    # downstream blows up — the v1 path still runs.
+    v2_block, inclusion_plan = _build_v2_grounding(profile, job, gap_analysis)
+
     logger.info(
-        "Resume generation: domain='%s' for job '%s'; evidence_block_len=%d standards_block_len=%d",
+        "Resume generation: domain='%s' for job '%s'; evidence_block_len=%d "
+        "standards_block_len=%d v2_block_len=%d",
         domain, job.title, len(evidence_context), len(standards_section),
+        len(v2_block),
     )
 
     prompt = f"""You are an EXPERT resume optimization strategist. Create a PROFESSIONAL, ATS-optimized resume tailored for this specific job using EVERY source provided.
@@ -392,6 +518,8 @@ COMPLETE CV DATA (the candidate's authoritative resume):
 {json.dumps(slim_cv, indent=2)}
 
 {evidence_context}
+
+{v2_block}
 
 === FIELD MAPPING (CRITICAL — the CV data uses different field names than the output schema) ===
 - CV `experiences[].highlights` array → output `experience[].description` array (rewrite each bullet)
