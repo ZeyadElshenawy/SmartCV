@@ -149,12 +149,29 @@ _EMBEDDED_BULLET_RUN_RE = re.compile(
 def _fuzzy_in(name: str, pool_canon: set[str], pool_pretty: list[str]) -> bool:
     """Return True if ``name`` matches anything in the plan pool — exact
     canonical match OR SequenceMatcher ≥ ``_FUZZY_MATCH_CUTOFF`` against
-    any pool entry. Pool is the plan's project / cert names."""
+    any pool entry OR canonical-substring containment.
+
+    The substring rule (Round 1.5.3) catches the case where the LLM
+    truncated a project name: it emitted ``"ACR-QA"`` while the plan
+    has ``"ACR-QA — Automated Code Review Platform"``. SequenceMatcher
+    on those two strings scores under 0.85 because the lengths differ
+    so much; canonical-substring containment is the right test (both
+    canonicalise so 'acrqa' is a prefix of
+    'acrqaautomatedcodereviewplatform').
+    """
     c = _canonical(name)
     if not c:
         return False
     if c in pool_canon:
         return True
+    # Substring containment in either direction. Cap the short side at
+    # ≥ 4 chars so single tokens don't match every long name.
+    if len(c) >= 4:
+        for pc in pool_canon:
+            if not pc:
+                continue
+            if c in pc or pc in c:
+                return True
     low = name.lower()
     for candidate in pool_pretty:
         score = SequenceMatcher(None, low, candidate.lower()).ratio()
@@ -716,41 +733,81 @@ def backfill_summary(resume: dict, job=None) -> dict:
     return resume
 
 
-def _is_near_duplicate_skill(existing_canon: set[str], new_canon: str) -> bool:
-    """Detect near-duplicate skills the canonical-key dedup misses.
+# Generic "category" suffixes that follow a real skill name without
+# meaningfully changing what the skill is. "CI/CD tools" is the same
+# concept as "CI/CD"; "AWS platform" is the same as "AWS". Used by the
+# prefix dedup rule to avoid the false-positive where "Docker Compose"
+# (a distinct product) gets deduped against "Docker".
+_GENERIC_SKILL_SUFFIXES = (
+    'tools', 'platform', 'platforms', 'framework', 'frameworks',
+    'library', 'libraries', 'service', 'services',
+    'tooling', 'technology', 'technologies',
+)
+# Match a trailing parenthesised acronym, e.g.
+# "Continuous Integration and Continuous Delivery (CI/CD)" → "CI/CD".
+_PARENS_ACRONYM_RE = re.compile(r"\(([A-Za-z][A-Za-z0-9/&._-]{1,15})\)\s*$")
 
-    Catches three patterns:
-      1. Trailing tokens: "CI/CD" (canon='cicd') vs "CI/CD tools"
-         (canon='cicdtools') — prefix match.
-      2. Acronym-with-expansion: "CI/CD" (canon='cicd') vs
+
+def _parens_acronym(name: str) -> str:
+    """Return the trailing parenthesised acronym from a skill name, or
+    '' if none. Stripped to canonical form for comparison."""
+    if not name:
+        return ''
+    m = _PARENS_ACRONYM_RE.search(name)
+    return _canonical(m.group(1)) if m else ''
+
+
+def _is_near_duplicate_skill(
+    existing: list[tuple[str, str]],
+    new_name: str,
+    new_canon: str,
+) -> bool:
+    """Detect near-duplicate skills the bare canonical-key dedup misses.
+
+    Catches two patterns ONLY (the v1 blind-suffix rule was over-firing
+    — SQL got deduped against PostgreSQL, Docker Compose against Docker):
+
+      1. Acronym-in-parentheses match: "CI/CD" (canon='cicd') vs
          "Continuous Integration and Continuous Delivery (CI/CD)"
-         (canon='continuousintegrationandcontinuousdeliverycicd') —
-         the short acronym appears as a suffix of the verbose form.
-      3. Acronym-in-parentheses: ditto, where the parenthesized
-         acronym is the canonical name.
+         (canon='continuousintegration...cicd'). The verbose form
+         has the acronym in trailing parens; if that acronym's
+         canonical matches an existing skill (or vice versa), dedup.
+
+      2. Whitelisted-suffix prefix match: "CI/CD" vs "CI/CD tools".
+         The longer canonical starts with the shorter AND the
+         remainder is in _GENERIC_SKILL_SUFFIXES. Stops "Docker"
+         vs "Docker Compose" from being a false positive.
 
     First-seen wins.
+
+    ``existing`` is a list of (name, canon) pairs because the parens-
+    acronym rule needs the original name (canonical loses the parens).
     """
-    for ec in existing_canon:
-        if not ec or not new_canon:
+    if not new_canon:
+        return False
+    new_parens_acro = _parens_acronym(new_name)
+    for ec_name, ec_canon in existing:
+        if not ec_canon:
             continue
-        if ec == new_canon:
+        if ec_canon == new_canon:
             return True
-        # Prefix dedup: "cicd" matches "cicdtools".
-        if len(ec) >= 3 and new_canon.startswith(ec):
+        # (1) Acronym-in-parens — either direction.
+        ec_parens_acro = _parens_acronym(ec_name)
+        if new_parens_acro and new_parens_acro == ec_canon:
             return True
-        if len(new_canon) >= 3 and ec.startswith(new_canon):
+        if ec_parens_acro and ec_parens_acro == new_canon:
             return True
-        # Acronym-suffix dedup: a short canonical (≤ 8 chars, the
-        # typical max acronym length even with slashes stripped) that
-        # appears as the SUFFIX of a longer canonical is the
-        # verbose-vs-acronym pattern. Cap the short side so we don't
-        # false-positive on common substrings (e.g. "ml" inside
-        # "machinelearning").
-        if 3 <= len(ec) <= 8 and len(new_canon) > len(ec) + 4 and new_canon.endswith(ec):
+        if new_parens_acro and ec_parens_acro and new_parens_acro == ec_parens_acro:
             return True
-        if 3 <= len(new_canon) <= 8 and len(ec) > len(new_canon) + 4 and ec.endswith(new_canon):
-            return True
+        # (2) Whitelisted-suffix prefix match — either direction.
+        for short, long in ((ec_canon, new_canon), (new_canon, ec_canon)):
+            if len(short) < 3 or len(long) <= len(short):
+                continue
+            if not long.startswith(short):
+                continue
+            remainder = long[len(short):]
+            if any(remainder == suf for suf in _GENERIC_SKILL_SUFFIXES):
+                return True
     return False
 
 
@@ -779,13 +836,13 @@ def trim_skills_to_plan(resume: dict, plan) -> dict:
     if not raw_plan:
         return resume
 
-    kept_canon: set[str] = set()
+    kept_pairs: list[tuple[str, str]] = []  # (name, canon) for dedup context
     kept: list[str] = []
     dropped_soft: list[str] = []
     dropped_dup: list[str] = []
 
     def _try_add(name: str) -> bool:
-        nonlocal kept, kept_canon
+        nonlocal kept, kept_pairs
         if not name:
             return False
         c = _canonical(name)
@@ -794,11 +851,11 @@ def trim_skills_to_plan(resume: dict, plan) -> dict:
         if c in _SOFT_SKILL_BLOCKLIST_CANON:
             dropped_soft.append(name)
             return False
-        if _is_near_duplicate_skill(kept_canon, c):
+        if _is_near_duplicate_skill(kept_pairs, name, c):
             dropped_dup.append(name)
             return False
         kept.append(name.strip())
-        kept_canon.add(c)
+        kept_pairs.append((name.strip(), c))
         return True
 
     # Plan's ordered list, filtered.

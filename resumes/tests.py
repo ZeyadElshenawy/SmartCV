@@ -2012,13 +2012,34 @@ class AcronymSuffixSkillDedupTests(SimpleTestCase):
         self.assertEqual(out['skills'],
                          ['Continuous Integration and Continuous Delivery (CI/CD)'])
 
-    def test_short_acronyms_dont_false_positive(self):
+    def test_sql_is_not_a_duplicate_of_postgresql(self):
+        # Round 1.5.3 regression — the v1 blind-suffix rule was deduping
+        # SQL against PostgreSQL because 'postgresql' ends with 'sql'.
+        # New rule requires parens-acronym or whitelisted-suffix, so
+        # SQL stays distinct.
         from resumes.services.resume_normalizer import _is_near_duplicate_skill
-        # "ML" inside "Machine Learning" — too short an acronym to safely
-        # auto-dedup, and the names mean the same thing anyway. Bigger
-        # risk: "AI" inside "Pasadena". The new rule requires the short
-        # canonical to be ≥ 3 chars, so "ml" / "ai" don't trigger.
-        self.assertFalse(_is_near_duplicate_skill({'machinelearning'}, 'ml'))
+        self.assertFalse(_is_near_duplicate_skill(
+            [('PostgreSQL', 'postgresql')], 'SQL', 'sql',
+        ))
+
+    def test_docker_compose_is_not_a_duplicate_of_docker(self):
+        # Round 1.5.3 regression — the v1 prefix rule deduped
+        # "Docker Compose" against "Docker" (different products).
+        # New rule requires the remainder to be a whitelisted generic
+        # suffix; "compose" is not in the list.
+        from resumes.services.resume_normalizer import _is_near_duplicate_skill
+        self.assertFalse(_is_near_duplicate_skill(
+            [('Docker', 'docker')], 'Docker Compose', 'dockercompose',
+        ))
+
+    def test_cicd_tools_is_a_duplicate_of_cicd(self):
+        # Whitelisted-suffix rule kicks in: "tools" is in
+        # _GENERIC_SKILL_SUFFIXES so "CI/CD tools" dedups against
+        # "CI/CD". Preserved from Round 1.5.
+        from resumes.services.resume_normalizer import _is_near_duplicate_skill
+        self.assertTrue(_is_near_duplicate_skill(
+            [('CI/CD', 'cicd')], 'CI/CD tools', 'cicdtools',
+        ))
 
 
 class CleanSummaryPhrasingTests(SimpleTestCase):
@@ -2155,6 +2176,65 @@ class TrimSkillsToPlanRound15Tests(SimpleTestCase):
         # soft-skill blocklist (Round 1.5 added it because Bash/Python
         # already cover it).
         self.assertEqual(out['skills'], ['CI/CD', 'Bash'])
+
+    def test_round_153_devops_skills_dont_falsely_dedup(self):
+        # Regression for the Round 1.5.3 catastrophe — the v1
+        # blind-suffix rule was dropping Docker Compose, SQL, and
+        # any other plain skill that happened to share a substring
+        # with another. With the new parens-acronym + whitelisted
+        # prefix rule, all of these stay.
+        resume = {'skills': []}
+        plan = _FakePlan()
+        plan.skills_to_list = [
+            'Linux', 'virtualization', 'Docker', 'CI/CD', 'PostgreSQL',
+            'Bash', 'Python', 'Nginx', 'Docker Compose',
+            'Continuous Integration and Continuous Delivery (CI/CD)', 'SQL',
+        ]
+        out = trim_skills_to_plan(resume, plan)
+        # CI/CD is canonical; the verbose "Continuous Integration..."
+        # form gets deduped via the parens-acronym rule.
+        # Docker Compose stays (not a generic suffix of Docker).
+        # SQL stays (PostgreSQL is not a parens-acronym alias).
+        self.assertIn('SQL', out['skills'])
+        self.assertIn('Docker Compose', out['skills'])
+        self.assertIn('PostgreSQL', out['skills'])
+        self.assertNotIn(
+            'Continuous Integration and Continuous Delivery (CI/CD)',
+            out['skills'],
+        )
+
+
+class TrimProjectsSubstringMatchTests(SimpleTestCase):
+    """Round 1.5.3 — the LLM truncates project names. trim_projects_to_plan
+    must accept canonical-substring containment so 'ACR-QA' matches
+    'ACR-QA — Automated Code Review Platform'."""
+
+    def test_truncated_llm_name_matches_full_plan_name(self):
+        from resumes.services.resume_normalizer import trim_projects_to_plan
+        resume = {'projects': [
+            {'name': 'ACR-QA'},
+            {'name': 'Containerized URL Shortener'},
+        ]}
+        plan = _FakePlan(projects=[
+            'ACR-QA — Automated Code Review Platform',
+            'Containerized URL Shortener — Production Monitoring Stack',
+        ])
+        out = trim_projects_to_plan(resume, plan)
+        # Both should survive via substring containment.
+        self.assertEqual(len(out['projects']), 2)
+        names = [p['name'] for p in out['projects']]
+        self.assertIn('ACR-QA', names)
+        self.assertIn('Containerized URL Shortener', names)
+
+    def test_truncation_in_other_direction_works_too(self):
+        # Plan has short name, LLM emits longer — also valid match.
+        from resumes.services.resume_normalizer import trim_projects_to_plan
+        resume = {'projects': [
+            {'name': 'Healthcare Prediction (DEPI) — Stroke Risk'},
+        ]}
+        plan = _FakePlan(projects=['Healthcare Prediction (DEPI)'])
+        out = trim_projects_to_plan(resume, plan)
+        self.assertEqual(len(out['projects']), 1)
 
 
 class BackfillSummaryNoMetaNarrationTests(SimpleTestCase):
