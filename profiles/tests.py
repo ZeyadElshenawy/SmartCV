@@ -3409,3 +3409,86 @@ class ProjectsReviewViewTests(TestCase):
         self.client.logout()
         resp = self.client.get('/profiles/projects/review/')
         self.assertIn(resp.status_code, (302, 401, 403))
+
+
+class RefreshSignalTwoPhaseSaveTests(TestCase):
+    """The connect-page Pull was sometimes producing a saved snapshot
+    but unmerged projects, because the LLM dedupe stage of
+    rebuild_master_profile can hang on Groq 429 retries (25s+) or
+    raise mid-way. The view now does a two-phase save: snapshot first
+    (always persists), then rebuild as a separate transaction. This
+    test class pins that behavior."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from profiles.models import UserProfile
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            email='split@example.com', username='splituser', password='x',
+        )
+        UserProfile.objects.get_or_create(user=self.user)
+        self.client.force_login(self.user)
+
+    def test_snapshot_persists_when_rebuild_raises(self):
+        # Force the fetcher to return a valid snapshot, but make
+        # rebuild_master_profile blow up. The snapshot MUST still be
+        # saved on the profile (Phase 1) so a subsequent refresh
+        # doesn't have to refetch.
+        from unittest.mock import patch
+        from profiles.models import UserProfile
+        good_snapshot = {
+            'username': 'someone', 'public_repos': 5,
+            'profile_url': 'https://github.com/someone',
+            'top_repos': [], 'language_breakdown': [],
+        }
+        with patch(
+            'profiles.services.github_aggregator.fetch_github_snapshot',
+            return_value=good_snapshot,
+        ), patch(
+            'profiles.services.profile_rebuilder.rebuild_master_profile',
+            side_effect=RuntimeError('LLM blew up mid-rebuild'),
+        ):
+            resp = self.client.post(
+                '/profiles/refresh-github/',
+                data={'github_input': 'https://github.com/someone'},
+            )
+        # Endpoint still returns 200 (rebuild failure is swallowed).
+        self.assertEqual(resp.status_code, 200)
+        payload = resp.json()
+        self.assertEqual(payload['snapshot']['username'], 'someone')
+        # Snapshot IS on the profile despite the rebuild blowup.
+        profile = UserProfile.objects.get(user=self.user)
+        self.assertEqual(
+            (profile.data_content or {}).get('github_signals', {}).get('username'),
+            'someone',
+        )
+        # github_url was also persisted (Phase 1 update_fields).
+        self.assertEqual(profile.github_url, 'https://github.com/someone')
+
+    def test_merge_summary_included_in_response_on_happy_path(self):
+        # When rebuild succeeds, the response carries the merge summary
+        # so the frontend can confirm the merge happened on THIS request.
+        from unittest.mock import patch
+        good_snapshot = {
+            'username': 'someone', 'public_repos': 5,
+            'profile_url': 'https://github.com/someone',
+            'top_repos': [], 'language_breakdown': [],
+        }
+        fake_summary = {
+            'added_new': 2, 'merged': 1, 'kept_existing': 0,
+            'kept_new': 0, 'final_count': 3,
+        }
+        with patch(
+            'profiles.services.github_aggregator.fetch_github_snapshot',
+            return_value=good_snapshot,
+        ), patch(
+            'profiles.services.profile_rebuilder.rebuild_master_profile',
+            return_value=fake_summary,
+        ):
+            resp = self.client.post(
+                '/profiles/refresh-github/',
+                data={'github_input': 'https://github.com/someone'},
+            )
+        self.assertEqual(resp.status_code, 200)
+        payload = resp.json()
+        self.assertEqual(payload['merge_summary'], fake_summary)
