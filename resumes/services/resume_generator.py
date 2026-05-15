@@ -697,7 +697,7 @@ Make it PROFESSIONAL and ATS-OPTIMIZED.
         # ALL-CAPS titles untouched, and emits coursework as separate bullets.
         # normalize_resume runs the deterministic last-mile cleanup AND enforces
         # the inclusion plan (drops projects/certs the planner didn't pick).
-        resume_content = normalize_resume(resume_content, plan=inclusion_plan, job=job)
+        resume_content = normalize_resume(resume_content, plan=inclusion_plan, job=job, profile_data=sanitized_cv)
         resume_content = _apply_v2_grounding_check(resume_content, inclusion_plan, profile, job, gap_analysis)
         logger.info(f"✓ Generated tailored resume with sections: {list(resume_content.keys())}")
         return resume_content
@@ -717,7 +717,7 @@ Make it PROFESSIONAL and ATS-OPTIMIZED.
             resume_content = _apply_bullet_validator(resume_content)
             # Same Pass-B safety net on the recovery path so a tool_use_failed
             # round-trip doesn't bypass normalization.
-            resume_content = normalize_resume(resume_content, plan=inclusion_plan, job=job)
+            resume_content = normalize_resume(resume_content, plan=inclusion_plan, job=job, profile_data=sanitized_cv)
             logger.info(
                 "Resume recovered from failed_generation; sections=%s",
                 list(resume_content.keys()),

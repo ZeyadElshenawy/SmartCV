@@ -1933,6 +1933,193 @@ class NormalizeBulletPunctuationTests(SimpleTestCase):
                          ['Built X.', 'What is Y?', 'Achieved 10x growth!'])
 
 
+class NormalizeBulletPunctuationRound152Tests(SimpleTestCase):
+    """Round 1.5.2 — drop orphan list-introducer stubs ending in ':'
+    that v1's policy was appending '.' to, producing the 'foo:.' bug
+    the audit flagged as broken template scaffolding."""
+
+    def test_drops_orphan_colon_header_bullets(self):
+        resume = {'experience': [{'description': [
+            'Built the platform.',
+            'Capstone project highlights:',          # ← stub, drop
+            'Delivered 4 prototypes:',               # ← stub, drop
+            'Shipped to production.',
+        ]}]}
+        out = normalize_bullet_punctuation(resume)
+        bullets = out['experience'][0]['description']
+        self.assertEqual(len(bullets), 2)
+        for b in bullets:
+            self.assertFalse(b.endswith(':.'))
+            self.assertFalse(b.endswith(':'))
+
+
+class CourseworkBulletRejectsAchievementsTests(SimpleTestCase):
+    """Round 1.5.2 — tighten coursework detection so capstone-metric
+    bullets ("3 Grafana dashboards (19 panels)") never get folded into
+    a fake "Coursework included: ..." line."""
+
+    def test_digit_in_bullet_rejects_as_coursework(self):
+        from resumes.services.resume_normalizer import _is_coursework_bullet
+        # DevOps capstone deliverables — these were getting mis-classified.
+        self.assertFalse(_is_coursework_bullet('3 Grafana dashboards'))
+        self.assertFalse(_is_coursework_bullet('Multi-channel alerting Slack Email Discord 4 channels'))
+        # Real course title without digits still passes.
+        self.assertTrue(_is_coursework_bullet('Prompt Engineering'))
+
+    def test_colon_midbullet_rejects_as_coursework(self):
+        from resumes.services.resume_normalizer import _is_coursework_bullet
+        # "Section: detail" pattern from capstone notes.
+        self.assertFalse(_is_coursework_bullet('Systems Administration: Active Directory'))
+        # Pure course title still passes.
+        self.assertTrue(_is_coursework_bullet('Tools for Data Science'))
+
+
+class AcronymSuffixSkillDedupTests(SimpleTestCase):
+    """Round 1.5.2 — dedup 'CI/CD' against
+    'Continuous Integration and Continuous Delivery (CI/CD)' via the
+    acronym-suffix rule."""
+
+    def test_dedups_verbose_form_against_acronym(self):
+        from resumes.services.resume_normalizer import (
+            trim_skills_to_plan,
+        )
+        resume = {'skills': []}
+        plan = _FakePlan()
+        plan.skills_to_list = [
+            'CI/CD',
+            'Continuous Integration and Continuous Delivery (CI/CD)',
+            'Python',
+        ]
+        out = trim_skills_to_plan(resume, plan)
+        # First-seen wins — 'CI/CD' kept, verbose form deduped.
+        self.assertIn('CI/CD', out['skills'])
+        self.assertNotIn(
+            'Continuous Integration and Continuous Delivery (CI/CD)',
+            out['skills'],
+        )
+        self.assertIn('Python', out['skills'])
+
+    def test_dedups_acronym_against_verbose_form_when_verbose_first(self):
+        from resumes.services.resume_normalizer import trim_skills_to_plan
+        resume = {'skills': []}
+        plan = _FakePlan()
+        plan.skills_to_list = [
+            'Continuous Integration and Continuous Delivery (CI/CD)',
+            'CI/CD',
+        ]
+        out = trim_skills_to_plan(resume, plan)
+        # Verbose form wins (first-seen) — acronym deduped against it.
+        self.assertEqual(out['skills'],
+                         ['Continuous Integration and Continuous Delivery (CI/CD)'])
+
+    def test_short_acronyms_dont_false_positive(self):
+        from resumes.services.resume_normalizer import _is_near_duplicate_skill
+        # "ML" inside "Machine Learning" — too short an acronym to safely
+        # auto-dedup, and the names mean the same thing anyway. Bigger
+        # risk: "AI" inside "Pasadena". The new rule requires the short
+        # canonical to be ≥ 3 chars, so "ml" / "ai" don't trigger.
+        self.assertFalse(_is_near_duplicate_skill({'machinelearning'}, 'ml'))
+
+
+class CleanSummaryPhrasingTests(SimpleTestCase):
+    """Round 1.5.2 — strip recruiter-jargon openers and unsupported YoE
+    claims from the LLM's generated summary."""
+
+    def setUp(self):
+        from resumes.services.resume_normalizer import clean_summary_phrasing
+        self.clean = clean_summary_phrasing
+
+    def test_strips_highly_motivated_opener(self):
+        resume = {'professional_summary': 'Highly motivated Junior DevOps Engineer with Docker.'}
+        out = self.clean(resume)
+        self.assertFalse(out['professional_summary'].lower().startswith('highly motivated'))
+        self.assertTrue(out['professional_summary'].startswith('Junior DevOps Engineer'))
+
+    def test_strips_yoe_claim(self):
+        resume = {'professional_summary':
+                  'Junior DevOps Engineer with 1 year of experience in CI/CD pipelines. Strong DevOps practitioner.'}
+        out = self.clean(resume)
+        self.assertNotIn('1 year of experience', out['professional_summary'])
+        self.assertIn('Strong DevOps practitioner', out['professional_summary'])
+
+    def test_strips_compound_recruiter_jargon(self):
+        resume = {'professional_summary':
+                  'Results-driven backend developer with up to 2 years of experience in microservices.'}
+        out = self.clean(resume)
+        self.assertNotIn('Results-driven', out['professional_summary'])
+        self.assertNotIn('years of experience', out['professional_summary'])
+
+    def test_no_op_when_summary_is_clean(self):
+        resume = {'professional_summary':
+                  'Junior DevOps Engineer with hands-on Docker, Kubernetes, and Linux experience.'}
+        out = self.clean(resume)
+        self.assertEqual(out['professional_summary'],
+                         'Junior DevOps Engineer with hands-on Docker, Kubernetes, and Linux experience.')
+
+
+class EnforceVerbatimTitlesTests(SimpleTestCase):
+    """Round 1.5.2 — snap paraphrased experience titles back to the CV's
+    verbatim form (audit caught "DevOps Engineering Trainee" → "DevOps
+    Engineer Trainee")."""
+
+    def setUp(self):
+        from resumes.services.resume_normalizer import enforce_verbatim_titles
+        self.enforce = enforce_verbatim_titles
+
+    def test_snaps_paraphrased_title_back_to_cv(self):
+        resume = {'experience': [
+            {'title': 'DevOps Engineer Trainee'},  # LLM paraphrase
+        ]}
+        profile = {'experiences': [
+            {'title': 'DevOps Engineering Trainee'},  # CV verbatim
+        ]}
+        out = self.enforce(resume, profile)
+        self.assertEqual(out['experience'][0]['title'], 'DevOps Engineering Trainee')
+
+    def test_leaves_unrelated_titles_alone(self):
+        resume = {'experience': [
+            {'title': 'Marketing Manager'},  # very different from CV
+        ]}
+        profile = {'experiences': [
+            {'title': 'DevOps Engineering Trainee'},
+        ]}
+        out = self.enforce(resume, profile)
+        # Below the 0.75 similarity threshold — leave it alone.
+        self.assertEqual(out['experience'][0]['title'], 'Marketing Manager')
+
+    def test_no_op_without_profile_data(self):
+        resume = {'experience': [{'title': 'X'}]}
+        out = self.enforce(resume, None)
+        self.assertEqual(out['experience'][0]['title'], 'X')
+
+
+class CleanLocationTests(SimpleTestCase):
+    """Round 1.5.2 — strip Arabic-government-registry prefixes from
+    LinkedIn-scraped location fields."""
+
+    def test_strips_qesm_prefix(self):
+        from profiles.services.profile_sanitizer import sanitize_profile_data
+        clean = sanitize_profile_data({'experiences': [
+            {'title': 'X', 'company': 'Y',
+             'location': 'Qesm El Zamalek, Cairo, Egypt'},
+        ]})
+        self.assertEqual(
+            clean['experiences'][0]['location'],
+            'El Zamalek, Cairo, Egypt',
+        )
+
+    def test_strips_markaz_prefix(self):
+        from profiles.services.profile_sanitizer import sanitize_profile_data
+        clean = sanitize_profile_data({'experiences': [
+            {'title': 'X', 'company': 'Y',
+             'location': 'Markaz Tanta, Gharbia, Egypt'},
+        ]})
+        self.assertEqual(
+            clean['experiences'][0]['location'],
+            'Tanta, Gharbia, Egypt',
+        )
+
+
 class TrimSkillsToPlanRound15Tests(SimpleTestCase):
     """Round 1.5 strengthens trim_skills_to_plan: soft skills the plan
     surfaced get re-filtered, near-duplicate skills get deduped, and

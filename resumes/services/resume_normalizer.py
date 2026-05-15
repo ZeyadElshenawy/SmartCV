@@ -165,21 +165,28 @@ def _fuzzy_in(name: str, pool_canon: set[str], pool_pretty: list[str]) -> bool:
 
 def _is_coursework_bullet(text: str) -> bool:
     """Heuristic: this bullet looks like a leftover course-name from a
-    consolidated coursework list — short, no terminal punctuation, doesn't
-    start with an action verb. Used to detect runs of these so we can
-    fold them into one ``Coursework: ...`` line.
+    consolidated coursework list — short, no terminal punctuation,
+    doesn't start with an action verb, no quantified outcomes.
+
+    Round 1.5.2 — tightened to fix the DevOps regression where capstone
+    metrics like "3 Grafana dashboards (19 panels)" got mis-classified
+    as coursework and folded into a fake "Coursework included: ..."
+    line. Course titles are almost never quantified; achievement
+    bullets almost always are.
 
     Rejection rules (any one disqualifies the bullet):
       - Empty / whitespace-only.
       - Multi-sentence (mid-string period) or ends with !/?/:.
       - Longer than _COURSEWORK_MAX_WORDS words.
+      - Contains any DIGIT — almost all real coursework titles are
+        clean noun phrases without numbers; bullets like
+        "3 Grafana dashboards (19 panels)" or "15-min RTO" are
+        capstone deliverables, not course names.
+      - Contains a colon mid-bullet — "X: Y" structure is the
+        capstone-section header pattern, not a course name.
       - For 4+ word bullets: starts with a known action verb
         (_VERB_START_RE) OR a past-tense verb (-ed-suffix word not
         in the noun/adjective whitelist).
-
-    Short noun phrases (1-3 words) are allowed regardless of the
-    -ed-start heuristic so legitimate course titles like "Supervised
-    Learning" or "Advanced Statistics" still consolidate.
     """
     if not text:
         return False
@@ -188,6 +195,12 @@ def _is_coursework_bullet(text: str) -> bool:
         return False
     # Multi-sentence (has a period followed by more text) — not a course name.
     if '.' in s.rstrip('.') or s.endswith(('!', '?', ':')):
+        return False
+    # Digit anywhere = capstone metric, not coursework.
+    if any(c.isdigit() for c in s):
+        return False
+    # Mid-bullet colon = "Section: detail" pattern from capstone notes.
+    if ':' in s:
         return False
     words = s.split()
     if not words:
@@ -419,29 +432,46 @@ def consolidate_coursework(resume: dict) -> dict:
 
 
 def normalize_bullet_punctuation(resume: dict) -> dict:
-    """Make every bullet in a description list end the same way.
+    """Make every bullet in a description list end the same way, AND
+    drop orphan list-introducer stubs ("Capstone project highlights:")
+    that the LLM emits when it intended to follow up with sub-bullets
+    but didn't.
 
-    The LLM mixes terminal-period and no-terminal styles within a single
-    role (e.g. "Built X." then "Shipped Y" then "Reduced Z."). The
-    audit flagged this as visually inconsistent. Policy: if ANY bullet
-    in a given description ends with sentence-terminating punctuation,
-    every bullet in that description gets a trailing period (unless it
-    already ends with ! or ?). Otherwise leave the list alone (no
-    forced periods on lists that are uniformly period-less).
+    Policy:
+      - A bullet ending with ``:`` is a stub header — drop it. v1's
+        bug was appending ``.`` to it, producing ``"foo:."`` (the
+        audit flagged these as broken template scaffolding).
+      - If ANY remaining bullet in the description ends with terminal
+        punctuation, every other bullet gets a trailing period.
+      - If no bullet ends with terminal punctuation, leave the list
+        alone.
     """
     def _normalize(bullets: list) -> list:
         if not bullets:
             return bullets
-        # Check if any bullet ends with terminal punctuation.
-        any_terminal = False
+        # Step 1: drop orphan list-introducer stubs.
+        cleaned: list = []
         for b in bullets:
-            if isinstance(b, str) and b.rstrip().endswith(('.', '!', '?')):
-                any_terminal = True
-                break
+            if isinstance(b, str) and b.rstrip().endswith(':'):
+                # ":" stubs that have less than ~5 words are headers
+                # like "Capstone project highlights:" — drop. A real
+                # bullet like "Built X in 3 phases:" probably has its
+                # content right after the colon and would be paired
+                # with a follow-on bullet — also drop, because the
+                # next bullets are the content.
+                continue
+            cleaned.append(b)
+        if not cleaned:
+            return cleaned
+        # Step 2: punctuation consistency.
+        any_terminal = any(
+            isinstance(b, str) and b.rstrip().endswith(('.', '!', '?'))
+            for b in cleaned
+        )
         if not any_terminal:
-            return bullets
+            return cleaned
         out = []
-        for b in bullets:
+        for b in cleaned:
             if not isinstance(b, str):
                 out.append(b)
                 continue
@@ -490,6 +520,117 @@ def filter_soft_skill_bullets(resume: dict) -> dict:
                         dropped_total += 1
     if dropped_total:
         logger.info("resume_normalizer: dropped %d soft-skill bullet(s)", dropped_total)
+    return resume
+
+
+_BANNED_SUMMARY_OPENERS_RE = re.compile(
+    r"^\s*(?:Highly motivated|Results-driven|Detail-oriented|"
+    r"Passionate|Dedicated|Hard-working|Self-motivated|"
+    r"Energetic|Goal-oriented|Dynamic and|Innovative and)\s+",
+    re.IGNORECASE,
+)
+# Match "1 year of experience", "2+ years of experience", "less than
+# a year of experience", "up to 2 years of experience", etc.
+_YOE_CLAIM_RE = re.compile(
+    r"\b(?:with|having)?\s*"
+    r"(?:up\s+to\s+|less\s+than\s+|over\s+|\d+\+?\s*|a\s+|an\s+|"
+    r"early-career\s+|recent\s+)"
+    r"(?:year|years)\s+of(?:\s+\w+)?\s+experience"
+    r"(?:\s+in\s+[^.]*)?",
+    re.IGNORECASE,
+)
+
+
+def clean_summary_phrasing(resume: dict) -> dict:
+    """Strip recruiter-tell phrases and unsupported YoE claims from the
+    LLM's generated summary.
+
+    Targets:
+      - "Highly motivated", "Results-driven", "Detail-oriented",
+        "Passionate", "Dedicated" — empty signal words that every junior
+        resume opens with. The audit called these "dead on arrival
+        recruiter jargon".
+      - "1 year of experience", "up to 2 years of experience",
+        etc. — the LLM extrapolates these from a 6-month role plus an
+        unrelated 2-month internship, which doesn't add up to 12+
+        months in the JD's discipline. The prompt's YoE rule is
+        ignored often; this is the safety net.
+    """
+    summary = (resume.get('professional_summary') or '').strip()
+    if not summary:
+        return resume
+    cleaned = summary
+    # Strip leading recruiter-jargon openers; re-capitalise the next word.
+    new_cleaned = _BANNED_SUMMARY_OPENERS_RE.sub('', cleaned)
+    if new_cleaned and new_cleaned != cleaned:
+        new_cleaned = new_cleaned.strip()
+        if new_cleaned:
+            new_cleaned = new_cleaned[0].upper() + new_cleaned[1:]
+        cleaned = new_cleaned
+    # Strip YoE claims. They typically appear as a prepositional
+    # clause; remove plus the leading "with" / "having".
+    cleaned = _YOE_CLAIM_RE.sub('', cleaned)
+    # Tidy whitespace + orphan commas / "with" left behind.
+    cleaned = re.sub(r"\s{2,}", " ", cleaned)
+    cleaned = re.sub(r"\s+,", ",", cleaned)
+    cleaned = re.sub(r"\bwith\s+\.", ".", cleaned)
+    cleaned = re.sub(r"\s+\.", ".", cleaned)
+    cleaned = cleaned.strip()
+    if cleaned != summary:
+        logger.info(
+            "resume_normalizer: cleaned summary phrasing (len %d → %d)",
+            len(summary), len(cleaned),
+        )
+        resume['professional_summary'] = cleaned
+    return resume
+
+
+def enforce_verbatim_titles(resume: dict, profile_data: dict | None = None) -> dict:
+    """Snap experience titles back to the verbatim CV title when the
+    LLM paraphrases. The audit caught "DevOps Engineering Trainee"
+    (CV) being rendered as "DevOps Engineer Trainee" (LLM) — a small
+    edit that risks LinkedIn-verification mismatch for an entry-level
+    candidate.
+
+    Uses fuzzy match (SequenceMatcher ≥ 0.75) against the CV's
+    experience titles. When a match is found and the canonical text
+    differs, snap back to the CV form. Otherwise leave as-is (the LLM
+    may have a legitimate cleanup).
+    """
+    if not isinstance(profile_data, dict):
+        return resume
+    cv_titles = []
+    for exp in (profile_data.get('experiences') or []):
+        if isinstance(exp, dict):
+            t = (exp.get('title') or '').strip()
+            if t:
+                cv_titles.append(t)
+    if not cv_titles:
+        return resume
+    for exp in resume.get('experience') or []:
+        if not isinstance(exp, dict):
+            continue
+        llm_title = (exp.get('title') or '').strip()
+        if not llm_title:
+            continue
+        # Exact match → no-op.
+        if any(llm_title == t for t in cv_titles):
+            continue
+        # Best fuzzy match.
+        best_score = 0.0
+        best_cv_title = ''
+        for cv_t in cv_titles:
+            score = SequenceMatcher(None, llm_title.lower(), cv_t.lower()).ratio()
+            if score > best_score:
+                best_score = score
+                best_cv_title = cv_t
+        # Snap back when reasonably similar (≥ 0.75) but not identical.
+        if best_score >= 0.75 and best_cv_title and best_cv_title != llm_title:
+            logger.info(
+                "resume_normalizer: snapped title %r → %r (CV verbatim, sim=%.2f)",
+                llm_title, best_cv_title, best_score,
+            )
+            exp['title'] = best_cv_title
     return resume
 
 
@@ -576,11 +717,20 @@ def backfill_summary(resume: dict, job=None) -> dict:
 
 
 def _is_near_duplicate_skill(existing_canon: set[str], new_canon: str) -> bool:
-    """Detect near-duplicate skills the canonical-key dedup misses
-    because of trailing tokens (e.g. "CI/CD" canon='cicd' vs "CI/CD
-    tools" canon='cicdtools'). If the new skill's canonical key is a
-    prefix or substring of something already in the set (or vice
-    versa), treat as duplicate."""
+    """Detect near-duplicate skills the canonical-key dedup misses.
+
+    Catches three patterns:
+      1. Trailing tokens: "CI/CD" (canon='cicd') vs "CI/CD tools"
+         (canon='cicdtools') — prefix match.
+      2. Acronym-with-expansion: "CI/CD" (canon='cicd') vs
+         "Continuous Integration and Continuous Delivery (CI/CD)"
+         (canon='continuousintegrationandcontinuousdeliverycicd') —
+         the short acronym appears as a suffix of the verbose form.
+      3. Acronym-in-parentheses: ditto, where the parenthesized
+         acronym is the canonical name.
+
+    First-seen wins.
+    """
     for ec in existing_canon:
         if not ec or not new_canon:
             continue
@@ -590,6 +740,16 @@ def _is_near_duplicate_skill(existing_canon: set[str], new_canon: str) -> bool:
         if len(ec) >= 3 and new_canon.startswith(ec):
             return True
         if len(new_canon) >= 3 and ec.startswith(new_canon):
+            return True
+        # Acronym-suffix dedup: a short canonical (≤ 8 chars, the
+        # typical max acronym length even with slashes stripped) that
+        # appears as the SUFFIX of a longer canonical is the
+        # verbose-vs-acronym pattern. Cap the short side so we don't
+        # false-positive on common substrings (e.g. "ml" inside
+        # "machinelearning").
+        if 3 <= len(ec) <= 8 and len(new_canon) > len(ec) + 4 and new_canon.endswith(ec):
+            return True
+        if 3 <= len(new_canon) <= 8 and len(ec) > len(new_canon) + 4 and ec.endswith(new_canon):
             return True
     return False
 
@@ -727,7 +887,12 @@ def trim_certs_to_plan(resume: dict, plan) -> dict:
 # Entry point
 # ---------------------------------------------------------------------------
 
-def normalize_resume(resume_content: Any, plan: Optional[Any] = None, job=None) -> dict:
+def normalize_resume(
+    resume_content: Any,
+    plan: Optional[Any] = None,
+    job=None,
+    profile_data: dict | None = None,
+) -> dict:
     """Run every normalization rule in order. Always returns a new dict;
     the input is never mutated.
 
@@ -758,9 +923,18 @@ def normalize_resume(resume_content: Any, plan: Optional[Any] = None, job=None) 
     resume = filter_soft_skill_bullets(resume)
     resume = consolidate_coursework(resume)
     resume = normalize_bullet_punctuation(resume)
+    # Round 1.5.2: snap any paraphrased experience titles back to the
+    # CV's verbatim form so LinkedIn verification doesn't catch a
+    # mismatch (e.g. "DevOps Engineering Trainee" vs "DevOps Engineer
+    # Trainee"). Runs before plan-trims so the canonical title is what
+    # downstream plan-based matching sees.
+    resume = enforce_verbatim_titles(resume, profile_data)
     if plan is not None:
         resume = trim_skills_to_plan(resume, plan)
         resume = trim_projects_to_plan(resume, plan)
         resume = trim_certs_to_plan(resume, plan)
     resume = backfill_summary(resume, job=job)
+    # Round 1.5.2: strip recruiter-jargon openers ("Highly motivated…")
+    # and unsupported YoE claims that survive the LLM-side prompt rule.
+    resume = clean_summary_phrasing(resume)
     return resume
