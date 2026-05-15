@@ -359,6 +359,13 @@ def resume_edit_view(request, resume_id):
     for section in ['experience', 'projects', 'volunteer_experience', 'awards', 'publications', 'patents']:
         if section in form_content:
             for item in form_content[section]:
+                # Skip non-dict entries — `awards` is now a List[str]
+                # (Round 1.5), and the LLM occasionally emits a bare
+                # string inside a section that used to be all-dicts.
+                # We don't want the textarea-conversion step to crash
+                # the whole edit page over a typing variance.
+                if not isinstance(item, dict):
+                    continue
                 item['description'] = _description_list_to_text(item.get('description'))
 
     # Overlay the modified content back onto the resume object specifically for the template
