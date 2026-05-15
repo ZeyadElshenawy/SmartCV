@@ -833,6 +833,101 @@ class CandidateEvidenceIndexerTests(_TestCase):
         self.assertIn('measurable', bullets[0]['text'])
 
 
+class ResumeSalvageSchemaEnvelopeTests(SimpleTestCase):
+    """When Groq's tool validator rejects a call, the model sometimes
+    emits the JSON-Schema definition INSTEAD OF a flat instance — list
+    fields arrive as ``{"type": "array", "value": [...]}`` and the whole
+    payload is nested under ``additionalProperties + properties``. The
+    salvage path must unwrap both layers so the resume isn't lost."""
+
+    def _exc(self, raw_str):
+        class _E:
+            body = {'error': {'failed_generation': raw_str}}
+        return _E()
+
+    def test_schema_envelope_with_type_array_wrappers_is_unwrapped(self):
+        import json as _json
+        from resumes.services.resume_generator import _recover_resume_from_failed_generation
+        payload = _json.dumps([{
+            'name': 'ResumeContentResult',
+            'parameters': {
+                'additionalProperties': True,
+                'properties': {
+                    'certifications': {'type': 'array', 'value': [
+                        {'name': 'AWS SAA', 'issuer': 'AWS'},
+                    ]},
+                    'experience': {'type': 'array', 'value': [
+                        {'title': 'Intern', 'company': 'Acme',
+                         'highlights': ['Built a thing.']},
+                    ]},
+                    'projects': {'type': 'array', 'value': [
+                        {'name': 'SmartCV', 'description': ['Built it.']},
+                    ]},
+                    'professional_summary': 'Data scientist.',
+                    'skills': ['Python', 'SQL'],
+                },
+            },
+        }])
+        result = _recover_resume_from_failed_generation(self._exc(payload))
+        self.assertIsNotNone(result, 'salvage must recover the schema-envelope payload')
+        d = result.model_dump()
+        self.assertEqual(len(d['certifications']), 1)
+        self.assertEqual(d['certifications'][0]['name'], 'AWS SAA')
+        self.assertEqual(len(d['experience']), 1)
+        self.assertEqual(d['experience'][0]['title'], 'Intern')
+        self.assertEqual(d['skills'], ['Python', 'SQL'])
+        self.assertIn('Data scientist', d['professional_summary'])
+
+    def test_flat_shape_still_recovers(self):
+        # Backwards-compat: the older flat shape (no schema envelope) must
+        # keep recovering. This is the path most failed_generation bodies
+        # take when the validator rejected for a different reason.
+        import json as _json
+        from resumes.services.resume_generator import _recover_resume_from_failed_generation
+        payload = _json.dumps({
+            'professional_summary': 'Flat shape.',
+            'skills': ['Python'],
+            'experience': [{'title': 'Dev', 'company': 'X',
+                            'highlights': ['Did it.']}],
+            'projects': [], 'certifications': [], 'education': [],
+        })
+        result = _recover_resume_from_failed_generation(self._exc(payload))
+        self.assertIsNotNone(result)
+        self.assertEqual(result.professional_summary, 'Flat shape.')
+
+
+class AtsKeywordCountSafetyTests(SimpleTestCase):
+    """Single-character / punctuation-bearing skills must not false-positive
+    on substring matches inside ordinary resume text."""
+
+    def test_single_letter_skill_R_uses_word_boundaries(self):
+        from resumes.services.scoring import _count_skill_occurrences
+        # 'R' appears 11 times as a letter, but only 3 times as a standalone token.
+        text = (
+            'r is a statistics language. built a role-based model. used r-squared. '
+            'python and r. refactored ferry router. '
+        )
+        self.assertEqual(_count_skill_occurrences(text, 'r'), 3)
+
+    def test_punctuation_bearing_skills_match_correctly(self):
+        from resumes.services.scoring import _count_skill_occurrences
+        self.assertEqual(_count_skill_occurrences('c++ devs use c++.', 'c++'), 2)
+        self.assertEqual(_count_skill_occurrences('built with node.js framework.', 'node.js'), 1)
+        self.assertEqual(_count_skill_occurrences('used .net core every day .net rocks', '.net'), 2)
+
+    def test_multi_word_skill_matches_intact(self):
+        from resumes.services.scoring import _count_skill_occurrences
+        self.assertEqual(
+            _count_skill_occurrences('built power bi dashboards in power bi desktop', 'power bi'),
+            2,
+        )
+
+    def test_empty_inputs_return_zero(self):
+        from resumes.services.scoring import _count_skill_occurrences
+        self.assertEqual(_count_skill_occurrences('', 'python'), 0)
+        self.assertEqual(_count_skill_occurrences('python', ''), 0)
+
+
 class ResumeGroundingValidatorTests(SimpleTestCase):
     """Pass-2 grounding validator — checks that every LLM bullet traces
     back to either an allowed skill or a candidate-evidence chunk."""

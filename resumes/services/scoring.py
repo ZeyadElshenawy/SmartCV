@@ -20,7 +20,37 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import TypedDict
+
+
+def _count_skill_occurrences(text: str, skill: str) -> int:
+    """Word-boundary-aware substring count.
+
+    Plain ``text.count(skill)`` is unsafe for short / single-character
+    skills: counting the literal letter "r" inside a JSON dump of a
+    resume produces ~600 false positives ("role", "ferry", "JavaScript",
+    every URL with 'r' in it, etc.) and the stuffing detector then
+    erroneously knocks 5 points off the score for "R".
+
+    We anchor with lookbehind/lookahead that exclude an adjacent word
+    character — this works for:
+      - single-letter languages: ``R``, ``C``, ``D`` (won't match inside
+        ``role``, ``data``)
+      - punctuation-bearing names: ``C++``, ``C#``, ``Node.js``, ``.NET``
+        (re.escape preserves the punctuation; the `\\w` lookarounds only
+        care about the very first / last character)
+      - multi-word skills: ``Power BI``, ``Machine Learning`` (still
+        single regex; spaces inside are matched literally).
+    """
+    if not text or not skill:
+        return 0
+    pattern = rf"(?<!\w){re.escape(skill)}(?!\w)"
+    try:
+        return len(re.findall(pattern, text, flags=re.IGNORECASE))
+    except re.error:
+        # Defensive — re.escape should make this unreachable.
+        return text.lower().count(skill.lower())
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +124,7 @@ def compute_ats_breakdown(resume_content: dict, job_skills: list[str]) -> AtsBre
         skill_lower = skill.lower().strip()
         if not skill_lower:
             continue
-        count = full_text.count(skill_lower)
+        count = _count_skill_occurrences(full_text, skill_lower)
         keyword_counts[skill] = count
         if count > 0:
             matched_count += 1
