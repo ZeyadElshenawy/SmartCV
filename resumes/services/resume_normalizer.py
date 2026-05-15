@@ -62,7 +62,13 @@ _FUZZY_MATCH_CUTOFF = 0.85
 # start. We collapse a run of 2+ consecutive such bullets into one
 # "Coursework: A, B, C." line so the resume doesn't render eight
 # tiny one-line bullets.
-_COURSEWORK_MAX_WORDS = 7
+#
+# Cap was 7 in v1 — bumped to 12 after the real-resume audit showed the
+# LLM emitting legitimate course titles like "Python for Data Science,
+# AI & Development + Python Project" (9 words) that the 7-word cap was
+# rejecting. 12 is still tight enough to exclude full achievement
+# sentences (which are typically 15+ words).
+_COURSEWORK_MAX_WORDS = 12
 _VERB_START_RE = re.compile(
     r"^\s*(?:i\s+|my\s+|"  # first-person leftovers (defence-in-depth)
     r"developed|built|designed|implemented|shipped|launched|"
@@ -75,6 +81,58 @@ _VERB_START_RE = re.compile(
     r"researched|optimi[sz]ed|refactored|migrated|integrated|"
     r"used|leveraged|utili[sz]ed|spearheaded|enabled|facilitated"
     r")\b",
+    re.IGNORECASE,
+)
+
+# Words ending in -ed that are nouns / adjectives in resume context,
+# NOT past-tense verbs. Used to whitelist short noun phrases like
+# "Supervised Learning" against the "starts with -ed → action bullet"
+# heuristic below.
+_PAST_TENSE_NON_VERB = frozenset({
+    'advanced', 'distributed', 'embedded', 'supervised', 'unsupervised',
+    'guided', 'mixed', 'related', 'limited', 'closed', 'red', 'tied',
+    'extended', 'shared', 'untrained', 'pretrained', 'integrated',
+    'detailed', 'experienced', 'qualified', 'skilled', 'fine-tuned',
+    'pre-trained', 'self-paced',
+})
+
+
+def _starts_with_past_tense_verb(text: str) -> bool:
+    """Heuristic: a bullet that starts with a past-tense verb (a word
+    ending in -ed, longer than 3 characters) is almost certainly an
+    action / achievement bullet, not a course-name leftover. The
+    _PAST_TENSE_NON_VERB whitelist exempts -ed words that act as
+    adjectives or nouns ("Supervised Learning")."""
+    parts = text.split()
+    if not parts:
+        return False
+    first = parts[0].lower().rstrip(',.:;()')
+    if not first.endswith('ed') or len(first) <= 3:
+        return False
+    return first not in _PAST_TENSE_NON_VERB
+
+
+# A bullet whose content is dominated by soft skills (Communication,
+# Teamwork, Leadership, ...) — the kind the LLM still emits in spite of
+# the prompt's "no soft skills" rule. Drop these from descriptions
+# entirely; they're filler and dilute the JD-relevant signal.
+_SOFT_SKILL_TOKENS = (
+    'communication', 'communications', 'communicating',
+    'teamwork', 'team work', 'collaboration', 'collaborated',
+    'leadership', 'lead by example',
+    'adaptability', 'adapting', 'flexibility',
+    'problem-solving', 'problem solving',
+    'critical thinking',
+    'time management', 'time-management',
+    'interpersonal', 'people skills',
+    'cross-team', 'cross team', 'cross-functional',
+)
+_SOFT_SKILL_BULLET_OPENER_RE = re.compile(
+    r"^\s*(?:developed|built|gained|cultivated|honed|"
+    r"strengthened|enhanced|improved|grew|expanded|practi[sc]ed|"
+    r"showed|demonstrated)\s+"
+    r"(?:my\s+|the\s+|strong\s+|effective\s+|professional\s+)?"
+    r"(?:soft|interpersonal|personal|people)\s+skills\b",
     re.IGNORECASE,
 )
 # Inline bullet markers an LLM sometimes embeds inside a single string
@@ -109,7 +167,20 @@ def _is_coursework_bullet(text: str) -> bool:
     """Heuristic: this bullet looks like a leftover course-name from a
     consolidated coursework list — short, no terminal punctuation, doesn't
     start with an action verb. Used to detect runs of these so we can
-    fold them into one ``Coursework: ...`` line."""
+    fold them into one ``Coursework: ...`` line.
+
+    Rejection rules (any one disqualifies the bullet):
+      - Empty / whitespace-only.
+      - Multi-sentence (mid-string period) or ends with !/?/:.
+      - Longer than _COURSEWORK_MAX_WORDS words.
+      - For 4+ word bullets: starts with a known action verb
+        (_VERB_START_RE) OR a past-tense verb (-ed-suffix word not
+        in the noun/adjective whitelist).
+
+    Short noun phrases (1-3 words) are allowed regardless of the
+    -ed-start heuristic so legitimate course titles like "Supervised
+    Learning" or "Advanced Statistics" still consolidate.
+    """
     if not text:
         return False
     s = text.strip()
@@ -118,13 +189,44 @@ def _is_coursework_bullet(text: str) -> bool:
     # Multi-sentence (has a period followed by more text) — not a course name.
     if '.' in s.rstrip('.') or s.endswith(('!', '?', ':')):
         return False
-    # Too long — not a course name.
-    if len(s.split()) > _COURSEWORK_MAX_WORDS:
+    words = s.split()
+    if not words:
         return False
-    # Starts with an action verb — it's a real achievement bullet.
-    if _VERB_START_RE.match(s):
+    if len(words) > _COURSEWORK_MAX_WORDS:
         return False
+    # Action-verb rejection only kicks in for 4+-word bullets so we
+    # don't lose short course titles that happen to start with an -ed
+    # word ("Supervised Learning", "Advanced Statistics").
+    if len(words) >= 4:
+        if _VERB_START_RE.match(s):
+            return False
+        if _starts_with_past_tense_verb(s):
+            return False
     return True
+
+
+def _is_soft_skill_bullet(text: str) -> bool:
+    """A bullet whose content is dominated by soft-skill nouns. Used by
+    ``filter_soft_skill_bullets`` to drop them from descriptions — the
+    JD-tailored resume should never claim "Developed cross-team
+    communication, problem-solving, and adaptability" because that's
+    filler that crowds out actual evidence."""
+    if not text:
+        return False
+    s = text.strip()
+    if not s:
+        return False
+    # Pattern 1: explicit "Developed soft skills..." opener.
+    if _SOFT_SKILL_BULLET_OPENER_RE.search(s):
+        return True
+    # Pattern 2: bullet content is mostly soft-skill nouns. Count token
+    # hits — 2+ in a short bullet (< 25 words) means filler. Longer
+    # bullets that incidentally mention "communication" once stay.
+    low = s.lower()
+    hits = sum(1 for token in _SOFT_SKILL_TOKENS if token in low)
+    if hits >= 2 and len(s.split()) < 25:
+        return True
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -316,6 +418,73 @@ def consolidate_coursework(resume: dict) -> dict:
     return resume
 
 
+def filter_soft_skill_bullets(resume: dict) -> dict:
+    """Drop bullets whose content is dominated by soft skills from every
+    experience and project description. The LLM emits these despite the
+    prompt's "no soft skills" rule (e.g. "Developed soft skills
+    including cross-team communication, problem-solving, and
+    adaptability...") — they're filler and crowd out JD-relevant
+    evidence."""
+    dropped_total = 0
+    for section_key in ('experience', 'projects'):
+        for item in resume.get(section_key) or []:
+            if not isinstance(item, dict):
+                continue
+            for key in ('description', 'highlights'):
+                value = item.get(key)
+                if isinstance(value, list):
+                    cleaned = [b for b in value
+                               if not (isinstance(b, str) and _is_soft_skill_bullet(b))]
+                    dropped_total += len(value) - len(cleaned)
+                    item[key] = cleaned
+                elif isinstance(value, str):
+                    if _is_soft_skill_bullet(value):
+                        item[key] = ''
+                        dropped_total += 1
+    if dropped_total:
+        logger.info("resume_normalizer: dropped %d soft-skill bullet(s)", dropped_total)
+    return resume
+
+
+def backfill_summary(resume: dict) -> dict:
+    """If professional_summary is empty / whitespace, synthesize a
+    minimal one from the candidate's first experience + top skills.
+
+    The LLM sometimes returns "" for the summary (especially when the
+    prompt's "no first-person, no third-person-by-name" constraint
+    conflicts with the model's instinct) — that leaves the rendered
+    docx with no summary section, which reads as missing-data to a
+    recruiter. A short, deterministic backfill is better than nothing.
+
+    Format: "<Title> with hands-on <skill1>, <skill2>, <skill3> work."
+    Falls back to no-op if there's not enough data to synthesize.
+    """
+    summary = (resume.get('professional_summary') or '').strip()
+    if summary:
+        return resume
+    exps = resume.get('experience') or []
+    if not exps or not isinstance(exps[0], dict):
+        return resume
+    title = (exps[0].get('title') or '').strip()
+    if not title:
+        return resume
+    skills = [s for s in (resume.get('skills') or []) if s]
+    top = skills[:4]
+    if top:
+        if len(top) == 1:
+            skills_phrase = top[0]
+        elif len(top) == 2:
+            skills_phrase = ' and '.join(top)
+        else:
+            skills_phrase = ', '.join(top[:-1]) + f", and {top[-1]}"
+        text = f"{title} with hands-on {skills_phrase} experience across the data and ML lifecycle."
+    else:
+        text = f"{title} with practical project experience across the data and ML lifecycle."
+    resume['professional_summary'] = text
+    logger.info("resume_normalizer: backfilled empty professional_summary (len=%d)", len(text))
+    return resume
+
+
 def trim_projects_to_plan(resume: dict, plan) -> dict:
     """Drop any project whose name doesn't appear in ``plan.projects``.
     Caps the result at ``_PROJECT_CAP``. Skips if the plan has no
@@ -410,8 +579,15 @@ def normalize_resume(resume_content: Any, plan: Optional[Any] = None) -> dict:
     resume = filter_soft_skills(resume)
     resume = enforce_skill_hard_cap(resume)
     resume = strip_first_person_from_resume(resume)
+    # Drop soft-skill filler bullets BEFORE coursework consolidation —
+    # they're noise that would survive consolidation otherwise.
+    resume = filter_soft_skill_bullets(resume)
     resume = consolidate_coursework(resume)
     if plan is not None:
         resume = trim_projects_to_plan(resume, plan)
         resume = trim_certs_to_plan(resume, plan)
+    # Last step: synthesize a summary if the LLM left one blank. Done
+    # AFTER all other normalization so the backfill sees the cleaned
+    # title/skills, not the raw LLM ones.
+    resume = backfill_summary(resume)
     return resume

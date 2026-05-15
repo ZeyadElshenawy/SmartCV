@@ -221,6 +221,38 @@ def _kebab_to_title(slug: str) -> str:
     return head
 
 
+def _fix_word_typos(text: str) -> str:
+    """Substitute known word-level typos in ANY text, regardless of
+    casing. The CV parser surfaces clear typos ("INFROMATION",
+    "Almansour Automative") that get title-cased properly by
+    `_title_case_with_acronyms` for ALL-CAPS strings, but mixed-case
+    strings short-circuit that code path. This helper does the same
+    typo lookup for any input — preserves the original casing for the
+    surrounding letters of words it doesn't touch."""
+    if not text:
+        return text
+    parts = re.split(r"(\W+)", text)
+    out: list[str] = []
+    for p in parts:
+        if not p or not p.isalnum():
+            out.append(p)
+            continue
+        fixed = _TITLE_TYPO_FIXES.get(p.lower())
+        if fixed is None:
+            out.append(p)
+            continue
+        # Preserve the original casing pattern when possible — if the
+        # source was ALL CAPS use the corrected word in caps; if it
+        # was Title Case, keep Title Case; otherwise plain.
+        if p.isupper():
+            out.append(fixed.upper())
+        elif p[0].isupper():
+            out.append(fixed[:1].upper() + fixed[1:])
+        else:
+            out.append(fixed.lower())
+    return ''.join(out)
+
+
 def _strip_first_person(text: str) -> str:
     if not text:
         return text
@@ -311,9 +343,17 @@ def _sanitize_experience(exp: dict) -> dict:
         return exp
     out = dict(exp)
     if out.get('title'):
-        out['title'] = _title_case_with_acronyms(out['title'])
+        # Title-case ALL-CAPS titles, then run a typo pass that also
+        # cleans mixed-case strings (the title-caser short-circuits
+        # on already-mixed-case input).
+        out['title'] = _fix_word_typos(_title_case_with_acronyms(out['title']))
     if out.get('company'):
-        out['company'] = _title_case_with_acronyms(out['company'])
+        # Same two-step: ALL-CAPS company names get Title-Cased, then
+        # known typos get fixed regardless of casing — covers the
+        # "Almansour Automative" → "Almansour Automotive" case that the
+        # pure title-caser missed because the input was already mixed
+        # case.
+        out['company'] = _fix_word_typos(_title_case_with_acronyms(out['company']))
     desc = out.get('description')
     if isinstance(desc, str):
         out['description'] = _strip_first_person(desc)

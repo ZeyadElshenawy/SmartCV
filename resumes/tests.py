@@ -2512,3 +2512,154 @@ class ResumeNormalizerTests(SimpleTestCase):
         before = copy.deepcopy(resume)
         normalize_resume(resume)
         self.assertEqual(resume, before)
+
+    # --- Pass E regression coverage --------------------------------------
+
+    def test_consolidate_coursework_handles_long_course_titles(self):
+        # The real Banque Misr resume had DEPI coursework bullets like
+        # "Python for Data Science, AI & Development + Python Project"
+        # (9 words) and "Data Analysis, Visualization & Machine Learning
+        # with Python" (8 words). The v1 7-word cap rejected them so
+        # consolidation never fired. v2 cap is 12.
+        resume = {'experience': [{
+            'description': [
+                'Selected participant in the DEPI program.',
+                'Prompt Engineering',
+                'What is Data Science / Data Science Methodology',
+                'Tools for Data Science',
+                'Python for Data Science, AI & Development + Python Project',
+                'Databases & SQL for Data Science with Python',
+                'Data Analysis, Visualization & Machine Learning with Python',
+                'MLOps tools (MLflow, Hugging Face)',
+                'Capstone project end-to-end AI demonstrating preprocessing, feature engineering, model selection, evaluation and deployment.',
+            ],
+        }]}
+        out = consolidate_coursework(resume)
+        bullets = out['experience'][0]['description']
+        # Prelude + consolidated course-line + capstone = 3 bullets.
+        self.assertEqual(len(bullets), 3)
+        self.assertEqual(bullets[0], 'Selected participant in the DEPI program.')
+        self.assertTrue(bullets[1].startswith('Coursework included:'))
+        # Every original course title is in the consolidated line.
+        self.assertIn('Prompt Engineering', bullets[1])
+        self.assertIn('Python for Data Science, AI & Development + Python Project', bullets[1])
+        self.assertIn('Databases & SQL for Data Science with Python', bullets[1])
+        self.assertIn('Hugging Face', bullets[1])
+        # Capstone (long, multi-sentence) survives as its own bullet.
+        self.assertTrue(bullets[2].startswith('Capstone project'))
+
+    def test_consolidate_coursework_does_not_merge_real_action_bullets(self):
+        # The real Apotheosis Traffic Sign project had two action bullets
+        # ("Classified signs using visual characteristics", "Tuned
+        # thresholds via external JSON configuration") that v1 wrongly
+        # merged into a fake "Coursework included: Classified signs,
+        # Tuned thresholds..." line because the verb list didn't include
+        # "classified" / "tuned". v2 -ed-past-tense heuristic catches
+        # them as action bullets.
+        resume = {'projects': [{
+            'description': [
+                'Preprocessed traffic sign images with color filtering and contour detection.',
+                'Classified signs using visual characteristics',
+                'Tuned thresholds via external JSON configuration',
+            ],
+        }]}
+        out = consolidate_coursework(resume)
+        bullets = out['projects'][0]['description']
+        # All three bullets survive verbatim — no coursework consolidation.
+        self.assertEqual(len(bullets), 3)
+        for b in bullets:
+            self.assertFalse(b.startswith('Coursework included:'),
+                             f"action bullet wrongly consolidated: {b!r}")
+
+    def test_consolidate_coursework_preserves_short_ed_course_titles(self):
+        # "Supervised Learning" / "Advanced Statistics" are short noun
+        # phrases that happen to start with -ed words. The 4+-word
+        # threshold for the -ed rejection keeps them as courses.
+        resume = {'experience': [{
+            'description': [
+                'Trained on classical ML methods.',
+                'Supervised Learning',
+                'Unsupervised Learning',
+                'Advanced Statistics',
+                'Deployed a final project to production.',
+            ],
+        }]}
+        out = consolidate_coursework(resume)
+        bullets = out['experience'][0]['description']
+        # Prelude + consolidated 3-course line + final = 3 bullets.
+        self.assertEqual(len(bullets), 3)
+        self.assertTrue(bullets[1].startswith('Coursework included:'))
+        self.assertIn('Supervised Learning', bullets[1])
+        self.assertIn('Unsupervised Learning', bullets[1])
+        self.assertIn('Advanced Statistics', bullets[1])
+
+
+from resumes.services.resume_normalizer import (
+    filter_soft_skill_bullets,
+    backfill_summary,
+)
+
+
+class FilterSoftSkillBulletsTests(SimpleTestCase):
+    def test_drops_explicit_developed_soft_skills_bullet(self):
+        resume = {'experience': [{'description': [
+            'Built a procurement dashboard in Power BI.',
+            'Developed soft skills including cross-team communication, problem-solving, and adaptability in a corporate environment.',
+            'Shipped the dashboard to 4 stakeholders.',
+        ]}]}
+        out = filter_soft_skill_bullets(resume)
+        bullets = out['experience'][0]['description']
+        self.assertEqual(len(bullets), 2)
+        for b in bullets:
+            self.assertNotIn('soft skills', b.lower())
+
+    def test_drops_dense_soft_skill_bullet_without_explicit_opener(self):
+        # "Collaborated closely on cross-team initiatives, leadership, and adaptability."
+        # 2+ soft-skill nouns inside a short bullet → drop.
+        resume = {'experience': [{'description': [
+            'Wrote ETL jobs in PySpark over 12 ERP tables.',
+            'Showed communication, teamwork, leadership across the engineering org.',
+        ]}]}
+        out = filter_soft_skill_bullets(resume)
+        bullets = out['experience'][0]['description']
+        self.assertEqual(len(bullets), 1)
+        self.assertIn('PySpark', bullets[0])
+
+    def test_keeps_long_bullet_that_mentions_one_soft_skill_in_passing(self):
+        # A bullet that incidentally says "communication" once but is
+        # otherwise a real achievement should survive.
+        resume = {'experience': [{'description': [
+            'Led the rollout of the analytics platform across 4 business units, partnering with Product, Engineering, and Operations to align on KPIs and communication cadence.',
+        ]}]}
+        out = filter_soft_skill_bullets(resume)
+        bullets = out['experience'][0]['description']
+        self.assertEqual(len(bullets), 1)
+
+
+class BackfillSummaryTests(SimpleTestCase):
+    def test_backfills_when_summary_is_empty(self):
+        resume = {
+            'professional_summary': '',
+            'skills': ['Python', 'SQL', 'PySpark', 'Power BI', 'MLflow'],
+            'experience': [{'title': 'AI & Data Science Trainee'}],
+        }
+        out = backfill_summary(resume)
+        self.assertTrue(out['professional_summary'])
+        self.assertIn('AI & Data Science Trainee', out['professional_summary'])
+        # Top 4 skills appear in the synthesized summary.
+        self.assertIn('Python', out['professional_summary'])
+        self.assertIn('Power BI', out['professional_summary'])
+
+    def test_no_op_when_summary_already_present(self):
+        resume = {
+            'professional_summary': 'Data scientist focused on banking risk.',
+            'experience': [{'title': 'X'}],
+        }
+        out = backfill_summary(resume)
+        self.assertEqual(out['professional_summary'],
+                         'Data scientist focused on banking risk.')
+
+    def test_no_op_when_no_experience(self):
+        resume = {'professional_summary': '', 'experience': []}
+        out = backfill_summary(resume)
+        self.assertEqual(out['professional_summary'], '')
