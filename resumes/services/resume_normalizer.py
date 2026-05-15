@@ -446,15 +446,22 @@ def filter_soft_skill_bullets(resume: dict) -> dict:
     return resume
 
 
-def backfill_summary(resume: dict) -> dict:
+def backfill_summary(resume: dict, job=None) -> dict:
     """If professional_summary is empty / whitespace, synthesize a
-    minimal one from the candidate's first experience + top skills.
+    minimal one from the candidate's experience + top skills.
 
     The LLM sometimes returns "" for the summary (especially when the
     prompt's "no first-person, no third-person-by-name" constraint
     conflicts with the model's instinct) — that leaves the rendered
     docx with no summary section, which reads as missing-data to a
     recruiter. A short, deterministic backfill is better than nothing.
+
+    Picks the experience whose title best matches the JD title (when a
+    job is provided) instead of always defaulting to the most-recent
+    role. For a "Data Scientist" JD against a candidate with [Digital
+    Transformation Intern, IT Intern, AI & Data Science Trainee], the
+    AI/DS Trainee is the right summary lead, not the DT Intern that
+    happens to be chronologically newest.
 
     Format: "<Title> with hands-on <skill1>, <skill2>, <skill3> work."
     Falls back to no-op if there's not enough data to synthesize.
@@ -463,9 +470,30 @@ def backfill_summary(resume: dict) -> dict:
     if summary:
         return resume
     exps = resume.get('experience') or []
-    if not exps or not isinstance(exps[0], dict):
+    if not exps:
         return resume
-    title = (exps[0].get('title') or '').strip()
+    # Pick the experience whose title shares the most word tokens with
+    # the JD title. Falls back to the first experience when no JD or
+    # when nothing matches.
+    jd_title = ''
+    if job is not None:
+        jd_title = (getattr(job, 'title', '') or '').lower()
+    jd_tokens = set(re.findall(r'\w+', jd_title)) - {
+        'a', 'an', 'the', 'of', 'for', 'and', 'or', 'to', 'with',
+        'at', 'in', 'on', 'by', 'as', 'engineer', 'developer',
+    }
+    best_idx = 0
+    best_score = -1
+    for i, exp in enumerate(exps):
+        if not isinstance(exp, dict):
+            continue
+        title_tokens = set(re.findall(r'\w+', (exp.get('title') or '').lower()))
+        overlap = len(title_tokens & jd_tokens) if jd_tokens else 0
+        if overlap > best_score:
+            best_score = overlap
+            best_idx = i
+    chosen = exps[best_idx] if isinstance(exps[best_idx], dict) else {}
+    title = (chosen.get('title') or '').strip()
     if not title:
         return resume
     skills = [s for s in (resume.get('skills') or []) if s]
@@ -481,7 +509,10 @@ def backfill_summary(resume: dict) -> dict:
     else:
         text = f"{title} with practical project experience across the data and ML lifecycle."
     resume['professional_summary'] = text
-    logger.info("resume_normalizer: backfilled empty professional_summary (len=%d)", len(text))
+    logger.info(
+        "resume_normalizer: backfilled empty professional_summary (len=%d, "
+        "experience='%s', jd_overlap=%d)", len(text), title, max(best_score, 0),
+    )
     return resume
 
 
@@ -556,7 +587,7 @@ def trim_certs_to_plan(resume: dict, plan) -> dict:
 # Entry point
 # ---------------------------------------------------------------------------
 
-def normalize_resume(resume_content: Any, plan: Optional[Any] = None) -> dict:
+def normalize_resume(resume_content: Any, plan: Optional[Any] = None, job=None) -> dict:
     """Run every normalization rule in order. Always returns a new dict;
     the input is never mutated.
 
@@ -566,10 +597,15 @@ def normalize_resume(resume_content: Any, plan: Optional[Any] = None) -> dict:
          doesn't count blocked entries.
       3. Hard cap — final size guard.
       4. Strip first-person — applied to descriptions and summary.
-      5. Consolidate coursework — operates on (possibly first-person-
-         stripped) bullet lists.
-      6. Plan-driven trims — last, so the smaller / cleaner output is
+      5. Soft-skill bullet filter — drops "Developed soft skills…"
+         fillers BEFORE consolidation so they don't survive as one
+         consolidated noise line.
+      6. Consolidate coursework — operates on the cleaned bullet lists.
+      7. Plan-driven trims — last so the smaller / cleaner output is
          what ships.
+      8. backfill_summary — synthesize when LLM left it empty; takes
+         ``job`` so it can lead with the JD-aligned experience instead
+         of always picking the most-recent role.
     """
     if not isinstance(resume_content, dict):
         return resume_content
@@ -579,15 +615,10 @@ def normalize_resume(resume_content: Any, plan: Optional[Any] = None) -> dict:
     resume = filter_soft_skills(resume)
     resume = enforce_skill_hard_cap(resume)
     resume = strip_first_person_from_resume(resume)
-    # Drop soft-skill filler bullets BEFORE coursework consolidation —
-    # they're noise that would survive consolidation otherwise.
     resume = filter_soft_skill_bullets(resume)
     resume = consolidate_coursework(resume)
     if plan is not None:
         resume = trim_projects_to_plan(resume, plan)
         resume = trim_certs_to_plan(resume, plan)
-    # Last step: synthesize a summary if the LLM left one blank. Done
-    # AFTER all other normalization so the backfill sees the cleaned
-    # title/skills, not the raw LLM ones.
-    resume = backfill_summary(resume)
+    resume = backfill_summary(resume, job=job)
     return resume

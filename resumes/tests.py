@@ -2663,3 +2663,130 @@ class BackfillSummaryTests(SimpleTestCase):
         resume = {'professional_summary': '', 'experience': []}
         out = backfill_summary(resume)
         self.assertEqual(out['professional_summary'], '')
+
+    def test_picks_jd_aligned_experience_not_most_recent(self):
+        # The real Banque Misr resume had the chronologically-newest
+        # role be "Digital Transformation Intern" — but for a Data
+        # Scientist JD the right lead is the "AI & Data Science
+        # Trainee" role. backfill_summary should pick by JD-title
+        # overlap, not list order.
+        resume = {
+            'professional_summary': '',
+            'skills': ['Python', 'Pandas', 'scikit-learn', 'TensorFlow'],
+            'experience': [
+                {'title': 'Digital Transformation Intern'},
+                {'title': 'Information Technology Intern'},
+                {'title': 'AI & Data Science Trainee'},
+            ],
+        }
+        job = SimpleNamespace(title='Data Scientist')
+        out = backfill_summary(resume, job=job)
+        self.assertIn('AI & Data Science Trainee', out['professional_summary'])
+        self.assertNotIn('Digital Transformation', out['professional_summary'])
+
+    def test_falls_back_to_first_when_no_jd_title_overlap(self):
+        resume = {
+            'professional_summary': '',
+            'skills': ['Python'],
+            'experience': [
+                {'title': 'Sales Associate'},
+                {'title': 'Cashier'},
+            ],
+        }
+        job = SimpleNamespace(title='Data Scientist')
+        out = backfill_summary(resume, job=job)
+        # Neither title overlaps with "Data Scientist" — default to first.
+        self.assertIn('Sales Associate', out['professional_summary'])
+
+
+# Inclusion planner tech-overlap + skill backfill tests
+from resumes.services.inclusion_planner import (
+    _discriminating_tech_overlap,
+    _scan_for_jd_skills_in_profile_text,
+    _BASE_TECH_CANON,
+)
+
+
+class DiscriminatingTechOverlapTests(SimpleTestCase):
+    def test_python_only_project_has_zero_overlap(self):
+        # Apotheosis Traffic Sign Detection — Python + OpenCV + Jupyter
+        # Notebook on a Data Scientist JD. Python is base; OpenCV /
+        # Jupyter aren't on the JD. Zero discriminating overlap.
+        jd = {'python', 'pandas', 'numpy', 'scikitlearn', 'tensorflow', 'mlflow'}
+        self.assertEqual(
+            _discriminating_tech_overlap(
+                ['Python', 'OpenCV', 'Jupyter Notebook'], jd,
+            ),
+            0,
+        )
+
+    def test_webdev_project_has_zero_overlap(self):
+        # Brain Tumor Classification App — HTML/CSS/JavaScript/Swiper
+        # tech list against a DS JD.
+        jd = {'python', 'pandas', 'tensorflow', 'pytorch'}
+        self.assertEqual(
+            _discriminating_tech_overlap(
+                ['HTML', 'CSS', 'JavaScript', 'Swiper'], jd,
+            ),
+            0,
+        )
+
+    def test_ml_project_has_strong_overlap(self):
+        # Healthcare Prediction — counts Pandas + scikit-learn + MLflow.
+        jd = {'python', 'pandas', 'scikitlearn', 'mlflow', 'tensorflow'}
+        self.assertEqual(
+            _discriminating_tech_overlap(
+                ['Python', 'Jupyter Notebook', 'Pandas', 'scikit-learn',
+                 'Flask', 'MLflow'],
+                jd,
+            ),
+            3,
+        )
+
+    def test_handles_non_list_input(self):
+        self.assertEqual(_discriminating_tech_overlap(None, {'python'}), 0)
+        self.assertEqual(_discriminating_tech_overlap('Python', {'python'}), 0)
+
+
+class ScanForJdSkillsInProfileTextTests(SimpleTestCase):
+    def test_finds_skill_mentioned_in_experience_bullet(self):
+        # TensorFlow / MLflow / Hugging Face mentioned in DEPI
+        # experience description should be surfaced even when they're
+        # not in the user's formal skills list.
+        data = {
+            'experiences': [{
+                'title': 'AI & Data Science Trainee',
+                'description': 'Used MLOps tools (MLflow, Hugging Face) to build pipelines. Trained models with TensorFlow.',
+            }],
+            'projects': [],
+            'certifications': [],
+        }
+        found = _scan_for_jd_skills_in_profile_text(
+            data,
+            ['TensorFlow', 'MLflow', 'Hugging Face', 'Kafka'],
+            already_in_list_canon=set(),
+        )
+        self.assertIn('TensorFlow', found)
+        self.assertIn('MLflow', found)
+        self.assertIn('Hugging Face', found)
+        self.assertNotIn('Kafka', found)  # not mentioned anywhere
+
+    def test_skips_skills_already_in_list(self):
+        data = {'experiences': [{'description': 'Used MLflow.'}],
+                'projects': [], 'certifications': []}
+        already = {'mlflow'}  # canonical form
+        found = _scan_for_jd_skills_in_profile_text(
+            data, ['MLflow'], already_in_list_canon=already,
+        )
+        self.assertEqual(found, [])
+
+    def test_requires_word_boundary_match(self):
+        # "tensor" inside "TensorFlow" should NOT match the JD skill
+        # "tensor" alone — and vice versa shouldn't false-positive
+        # against partial matches.
+        data = {'experiences': [{'description': 'Used PyTorch.'}],
+                'projects': [], 'certifications': []}
+        found = _scan_for_jd_skills_in_profile_text(
+            data, ['Torch'], already_in_list_canon=set(),
+        )
+        self.assertEqual(found, [])  # "PyTorch" doesn't word-match "Torch"
