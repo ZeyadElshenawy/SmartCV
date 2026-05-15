@@ -365,7 +365,13 @@ def _write_projects(doc: Document, content: dict) -> None:
         head.paragraph_format.space_after = Pt(2)
         if url:
             _add_hyperlink(head, url, name or url, color=ACCENT_RGB)
-            # Make the hyperlink bold to mirror the PDF's project-name weight
+            # The hyperlink XML only sets color + underline; without
+            # explicit size + bold the project title inherits whatever
+            # default the theme picks (usually 11pt non-bold), and the
+            # audit caught it rendering as un-formatted.  Walk every
+            # <w:r> in the head paragraph and add size + bold so the
+            # project title matches the experience-title visual weight.
+            sz_halfpoints = str(int(ITEM_TITLE_PT * 2))
             for r in head._p.iter(qn('w:r')):
                 rPr = r.find(qn('w:rPr'))
                 if rPr is None:
@@ -373,6 +379,13 @@ def _write_projects(doc: Document, content: dict) -> None:
                     r.insert(0, rPr)
                 if rPr.find(qn('w:b')) is None:
                     rPr.append(OxmlElement('w:b'))
+                # Strip any size already there (defensive — usually
+                # none from the hyperlink helper) then add ITEM_TITLE_PT.
+                for existing in rPr.findall(qn('w:sz')):
+                    rPr.remove(existing)
+                sz = OxmlElement('w:sz')
+                sz.set(qn('w:val'), sz_halfpoints)
+                rPr.append(sz)
         else:
             run = head.add_run(name)
             _set_run_font(run, size_pt=ITEM_TITLE_PT, bold=True)
@@ -429,12 +442,17 @@ def _write_certifications(doc: Document, content: dict) -> None:
             suffix_bits.append(f' ({date})')
         if suffix_bits:
             run = p.add_run(''.join(suffix_bits))
-            _set_run_font(run, size_pt=BODY_PT)
+            # Explicit bold=False so the run doesn't inherit the
+            # preceding name run's bold attribute (Word does inherit
+            # in some style chains; the audit caught the whole cert
+            # line rendering bold).
+            _set_run_font(run, size_pt=BODY_PT, bold=False)
         # Verify link — discreet, smaller, no bold. Color is the accent
         # so a recruiter scanning for "is this real?" can spot it, but
         # the hyperlink no longer dominates the line.
         if url:
-            p.add_run(' · ')
+            sep = p.add_run(' · ')
+            _set_run_font(sep, size_pt=BODY_PT, bold=False)
             _add_hyperlink(p, url, 'verify', color=ACCENT_RGB)
             # Shrink the verify link by a point so it reads as metadata.
             last_link = p._p.findall(qn('w:hyperlink'))

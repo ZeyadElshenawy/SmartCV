@@ -221,6 +221,47 @@ def _kebab_to_title(slug: str) -> str:
     return head
 
 
+# Invisible Unicode characters that the CV parser / copy-paste from web
+# CVs leaves in skill names, project names, and bullets. They render
+# fine visually but break ATS keyword matching ("ACR-QA⁠" is not
+# the same string as "ACR-QA"). Strip globally.
+#
+# Includes (the most common offenders we've seen):
+#   U+2060 WORD JOINER
+#   U+200B ZERO WIDTH SPACE
+#   U+200C ZERO WIDTH NON-JOINER
+#   U+200D ZERO WIDTH JOINER
+#   U+FEFF BYTE ORDER MARK / ZERO WIDTH NO-BREAK SPACE
+_ZERO_WIDTH_CHARS = '⁠​‌‍﻿'
+_ZERO_WIDTH_RE = re.compile(f'[{_ZERO_WIDTH_CHARS}]')
+
+
+def _strip_zero_width(text: str) -> str:
+    """Remove every zero-width / word-joiner character from a string.
+
+    Cheap to call (no-op when text has none). Runs on every textual
+    field touched by the sanitizer so the LLM never sees the invisible
+    characters and the docx renderer never emits them.
+    """
+    if not isinstance(text, str) or not text:
+        return text
+    return _ZERO_WIDTH_RE.sub('', text)
+
+
+def _scrub_zero_width_deep(value: Any) -> Any:
+    """Recursively strip zero-width chars from any string anywhere in
+    a nested dict/list structure. Used at the END of
+    ``sanitize_profile_data`` so we don't have to thread the rule
+    through every sub-sanitizer."""
+    if isinstance(value, str):
+        return _strip_zero_width(value)
+    if isinstance(value, list):
+        return [_scrub_zero_width_deep(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _scrub_zero_width_deep(v) for k, v in value.items()}
+    return value
+
+
 def _fix_word_typos(text: str) -> str:
     """Substitute known word-level typos in ANY text, regardless of
     casing. The CV parser surfaces clear typos ("INFROMATION",
@@ -437,4 +478,10 @@ def sanitize_profile_data(data_content: Any) -> dict:
         out['projects'] = [_sanitize_project(p) for p in out['projects']]
     if isinstance(out.get('certifications'), list):
         out['certifications'] = [_sanitize_certification(c) for c in out['certifications']]
+    # Final pass: scrub invisible Unicode (word joiners, zero-width
+    # spaces) from every string anywhere in the tree. The CV parser /
+    # web-paste path leaves these in skill names, project names, and
+    # bullets — they break ATS keyword matching even though they look
+    # invisible.
+    out = _scrub_zero_width_deep(out)
     return out

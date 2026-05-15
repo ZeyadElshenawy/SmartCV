@@ -677,6 +677,14 @@ Make it PROFESSIONAL and ATS-OPTIMIZED.
         result = structured_llm.invoke(prompt)
 
         resume_content = result.model_dump()
+        # Schema-envelope happy-path unwrap: the LLM sometimes returns the
+        # envelope shape (additionalProperties/properties/type wrappers)
+        # in a successful 200 response, not just via failed_generation.
+        # Pydantic's extra=allow lets those keys through as undeclared
+        # extras — which then leak into `sections` and downstream
+        # writers. Detect and strip them here so the recovery path
+        # behaviour also applies to the happy path.
+        resume_content = _strip_schema_envelope_leaks(resume_content)
         # Guarantee data integrity — fill in anything the LLM left empty or
         # mis-mapped from the profile. The LLM is good at rewriting but often
         # drops sections or uses wrong field names (e.g. graduation_year vs year).
@@ -719,6 +727,75 @@ Make it PROFESSIONAL and ATS-OPTIMIZED.
         # Offline fallback uses the sanitized CV so a hard failure renders
         # cleaned data, not the parser artefacts.
         return _build_offline_fallback(profile, job, sanitized_cv)
+
+
+_SCHEMA_ENVELOPE_KEYS = frozenset(('additionalProperties', 'properties', 'type', 'items'))
+
+
+def _strip_schema_envelope_leaks(resume_content: dict) -> dict:
+    """Strip schema-envelope leftover keys from a happy-path generation.
+
+    The structured-output LLM sometimes returns
+
+        {"additionalProperties": true,
+         "properties": {<actual fields>},
+         "type": "object"}
+
+    on a successful 200, instead of the flat instance shape the
+    Pydantic schema declares. ``model_config = {"extra": "allow"}`` on
+    ResumeContentResult lets the envelope keys through as undeclared
+    extras, which then leak into the section ordering and downstream
+    writers. The recovery path already handles this for failed
+    generations; this helper applies the same unwrap to a happy-path
+    dict.
+
+    Logic:
+      1. If the dict has BOTH ``properties`` (dict) AND
+         ``additionalProperties``, replace the dict with its
+         ``properties`` payload (the actual instance lives there).
+      2. Strip any remaining envelope keys at the top level.
+      3. For any value that still looks like a ``{type, value}``
+         wrapper, replace it with the inner ``value``.
+    """
+    if not isinstance(resume_content, dict):
+        return resume_content
+    # Step 1: full envelope shape (top level is ONLY envelope keys) —
+    # step into `properties`. Detection: every top-level key is in the
+    # envelope set. In the mixed shape (real fields + leaked envelope
+    # keys side by side, which is the production case), don't step in —
+    # just strip the envelope keys in Step 2 and keep the real fields.
+    has_full_envelope = (
+        isinstance(resume_content.get('properties'), dict)
+        and 'additionalProperties' in resume_content
+        and all(k in _SCHEMA_ENVELOPE_KEYS for k in resume_content.keys())
+    )
+    if has_full_envelope:
+        logger.info(
+            "Happy-path schema-envelope detected; stepping into `properties`."
+        )
+        resume_content = dict(resume_content['properties'])
+    # Step 2: leftover envelope keys at the top level (sometimes the
+    # envelope wraps the real fields AND adds extras alongside them).
+    leaked = [k for k in _SCHEMA_ENVELOPE_KEYS if k in resume_content]
+    if leaked:
+        logger.info(
+            "Stripping leftover schema-envelope keys: %s", leaked,
+        )
+        for k in leaked:
+            resume_content.pop(k, None)
+    # Step 3: per-field `{type, value}` wrappers.
+    unwrapped: dict = {}
+    for key, val in resume_content.items():
+        if (
+            isinstance(val, dict)
+            and 'value' in val
+            and 'type' in val
+            and set(val.keys()) <= {'type', 'value', 'description', 'items'}
+        ):
+            unwrapped[key] = val['value']
+        else:
+            unwrapped[key] = val
+    return unwrapped
 
 
 def _extract_failed_generation(exc) -> Optional[str]:
