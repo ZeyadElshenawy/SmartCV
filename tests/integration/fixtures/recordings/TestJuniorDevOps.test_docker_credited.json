@@ -1,0 +1,235 @@
+{
+  "_recording_version": 2,
+  "_recording_complete": true,
+  "_call_count": 4,
+  "_test_name": "TestJuniorDevOps.test_docker_credited",
+  "_recorded_at": "2026-05-18T00:45:00.398579+00:00",
+  "calls": [
+    {
+      "call_index": 0,
+      "result": {
+        "_type": "TieredGapAnalysisResult",
+        "_data": {
+          "matched_must_have": [
+            {
+              "name": "Linux",
+              "evidence_source": "certifications",
+              "evidence_quote": "Linux Foundation Certified Kubernetes Administrator (CKA)"
+            },
+            {
+              "name": "Docker",
+              "evidence_source": "experience",
+              "evidence_quote": "Containerized 3 microservices with Docker"
+            },
+            {
+              "name": "Kubernetes",
+              "evidence_source": "certifications",
+              "evidence_quote": "Linux Foundation Certified Kubernetes Administrator (CKA)"
+            },
+            {
+              "name": "CI/CD",
+              "evidence_source": "experience",
+              "evidence_quote": "Built GitHub Actions CI/CD pipeline"
+            },
+            {
+              "name": "GitHub Actions",
+              "evidence_source": "experience",
+              "evidence_quote": "Built GitHub Actions CI/CD pipeline"
+            },
+            {
+              "name": "AWS",
+              "evidence_source": "certifications",
+              "evidence_quote": "AWS Certified Cloud Practitioner"
+            },
+            {
+              "name": "Bash",
+              "evidence_source": "experience",
+              "evidence_quote": "Wrote autoscaling Lambda that adjusts pool size based on GitHub queue depth."
+            },
+            {
+              "name": "Python",
+              "evidence_source": "skills",
+              "evidence_quote": "CANDIDATE SKILLS"
+            }
+          ],
+          "matched_nice_to_have": [
+            {
+              "name": "Jenkins",
+              "evidence_source": "skills",
+              "evidence_quote": "CANDIDATE SKILLS"
+            },
+            {
+              "name": "Prometheus",
+              "evidence_source": "projects",
+              "evidence_quote": "Deployed URL shortener to AWS EKS with k6 load testing"
+            },
+            {
+              "name": "Grafana",
+              "evidence_source": "projects",
+              "evidence_quote": "Built 19-panel Grafana dashboard"
+            }
+          ],
+          "missing_must_have": [],
+          "missing_nice_to_have": [],
+          "soft_skill_gaps": []
+        }
+      }
+    },
+    {
+      "call_index": 1,
+      "result": {
+        "_type": "RoleClassification",
+        "_data": {
+          "primary_role": "DevOps Engineer",
+          "seniority": "junior",
+          "tech_stack_signals": [
+            "Docker",
+            "Kubernetes",
+            "CI/CD",
+            "Terraform",
+            "AWS"
+          ],
+          "region": "global"
+        }
+      }
+    },
+    {
+      "call_index": 2,
+      "result": {
+        "_type": "RoleClassification",
+        "_data": {
+          "primary_role": "DevOps Engineer",
+          "seniority": "junior",
+          "tech_stack_signals": [
+            "Linux",
+            "Docker",
+            "Kubernetes",
+            "GitHub Actions",
+            "Jenkins",
+            "AWS",
+            "GCP",
+            "Prometheus",
+            "Grafana",
+            "Bash",
+            "Python"
+          ],
+          "region": "global"
+        }
+      }
+    },
+    {
+      "call_index": 3,
+      "result": {
+        "_type": "ResumeContentResult",
+        "_data": {
+          "professional_title": "Junior DevOps Engineer",
+          "professional_summary": "Junior DevOps Engineer with hands-on experience in designing, implementing, and managing CI/CD pipelines, and automating infrastructure deployments using best DevOps practices.",
+          "objective": "",
+          "skills": [
+            "Linux",
+            "Docker",
+            "Kubernetes",
+            "CI/CD",
+            "GitHub Actions",
+            "Jenkins",
+            "AWS",
+            "Bash",
+            "Python",
+            "Prometheus",
+            "Grafana"
+          ],
+          "experience": [
+            {
+              "title": "DevOps Intern",
+              "company": "Example Corp",
+              "duration": "Jun 2025 - Sep 2025",
+              "location": "Remote",
+              "industry": "",
+              "start_date": "2025-06",
+              "end_date": "2025-09",
+              "description": [
+                "Cloud infrastructure and deployment automation intern on the platform team. Owned CI/CD pipelines and Kubernetes deployment manifests for a 3-microservice fintech product.",
+                "Containerized 3 microservices with Docker; deployed to a 5-node Kubernetes cluster on AWS EKS.",
+                "Built GitHub Actions CI/CD pipeline reducing deploy time from 25 min to 4 min.",
+                "Wrote Terraform modules provisioning AWS VPC + EKS for the staging environment (4 modules, ~600 LoC)."
+              ]
+            }
+          ],
+          "education": [
+            {
+              "degree": "Bachelor",
+              "institution": "Example University",
+              "year": "2026",
+              "field": "Computer Science",
+              "gpa": "3.6",
+              "location": "Remote",
+              "honors": []
+            }
+          ],
+          "projects": [
+            {
+              "name": "Containerized URL Shortener",
+              "description": [
+                "Deployed URL shortener to AWS EKS with k6 load testing: 225 req/sec sustained, 99.93% uptime over 7 days, p95=62ms.",
+                "Built 19-panel Grafana dashboard across 3 monitoring views (cluster health, request latency, error budget).",
+                "Implemented blue/green deployment via Argo Rollouts; reduced rollback time from 12 min to 90 sec."
+              ],
+              "url": "https://github.com/test-devops-candidate/url-shortener",
+              "technologies": [
+                "Docker",
+                "Kubernetes",
+                "Prometheus",
+                "Grafana",
+                "Terraform",
+                "AWS"
+              ],
+              "highlights": [
+                "Deployed URL shortener to AWS EKS with k6 load testing: 225 req/sec sustained, 99.93% uptime over 7 days, p95=62ms.",
+                "Built 19-panel Grafana dashboard across 3 monitoring views (cluster health, request latency, error budget).",
+                "Implemented blue/green deployment via Argo Rollouts; reduced rollback time from 12 min to 90 sec."
+              ]
+            },
+            {
+              "name": "Self-Hosted CI Runner Pool",
+              "description": [
+                "Provisioned 8-instance Spot fleet with Terraform; CI minute spend dropped from $340/mo to $48/mo.",
+                "Wrote autoscaling Lambda that adjusts pool size based on GitHub queue depth.",
+                "Documented runbook for capacity tuning; adopted by 2 sister teams."
+              ],
+              "url": "https://github.com/test-devops-candidate/ci-runner-pool",
+              "technologies": [
+                "Terraform",
+                "AWS",
+                "GitHub Actions",
+                "Bash"
+              ],
+              "highlights": [
+                "Provisioned 8-instance Spot fleet with Terraform; CI minute spend dropped from $340/mo to $48/mo.",
+                "Wrote autoscaling Lambda that adjusts pool size based on GitHub queue depth.",
+                "Documented runbook for capacity tuning; adopted by 2 sister teams."
+              ]
+            }
+          ],
+          "certifications": [
+            {
+              "name": "AWS Certified Cloud Practitioner",
+              "issuer": "AWS",
+              "date": "Aug 2025",
+              "duration": "",
+              "url": ""
+            },
+            {
+              "name": "Linux Foundation Certified Kubernetes Administrator (CKA)",
+              "issuer": "The Linux Foundation",
+              "date": "Mar 2026",
+              "duration": "",
+              "url": ""
+            }
+          ],
+          "languages": [],
+          "awards": []
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,1815 @@
+{
+  "email": "zeyadelshenawy1@gmail.com",
+  "phone": "+201028697404",
+  "awards": null,
+  "skills": [
+    {
+      "name": "Python",
+      "years": null,
+      "proficiency": null
+    },
+    {
+      "name": "Pandas",
+      "years": null,
+      "proficiency": null
+    },
+    {
+      "name": "NumPy",
+      "years": null,
+      "proficiency": null
+    },
+    {
+      "name": "scikit-learn",
+      "years": null,
+      "proficiency": null
+    },
+    {
+      "name": "Matplotlib",
+      "years": null,
+      "proficiency": null
+    },
+    {
+      "name": "Seaborn",
+      "years": null,
+      "proficiency": null
+    },
+    {
+      "name": "Plotly",
+      "years": null,
+      "proficiency": null
+    },
+    {
+      "name": "Power Bi",
+      "years": null,
+      "proficiency": null
+    },
+    {
+      "name": "DAX",
+      "years": null,
+      "proficiency": null
+    },
+    {
+      "name": "API",
+      "years": null,
+      "proficiency": null
+    },
+    {
+      "name": "Power Query",
+      "years": null,
+      "proficiency": null
+    },
+    {
+      "name": "Machine Learning",
+      "years": null,
+      "proficiency": null
+    },
+    {
+      "name": "Supervised & Unsupervised Learning",
+      "years": null,
+      "proficiency": null
+    },
+    {
+      "name": "Deep Learning",
+      "years": null,
+      "proficiency": null
+    },
+    {
+      "name": "Neural Networks",
+      "years": null,
+      "proficiency": null
+    },
+    {
+      "name": "CNNs",
+      "years": null,
+      "proficiency": null
+    },
+    {
+      "name": "RNNs",
+      "years": null,
+      "proficiency": null
+    },
+    {
+      "name": "Transfer Learning",
+      "years": null,
+      "proficiency": null
+    },
+    {
+      "name": "TensorFlow",
+      "years": null,
+      "proficiency": null
+    },
+    {
+      "name": "Keras",
+      "years": null,
+      "proficiency": null
+    },
+    {
+      "name": "PyTorch",
+      "years": null,
+      "proficiency": null
+    },
+    {
+      "name": "Databases & SQL",
+      "years": null,
+      "proficiency": null
+    },
+    {
+      "name": "MySQL",
+      "years": null,
+      "proficiency": null
+    },
+    {
+      "name": "PostgreSQL",
+      "years": null,
+      "proficiency": null
+    },
+    {
+      "name": "Team Management",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Communications Planning",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Leadership",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Project Performance",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Project Management",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Team Building",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Management Information Systems (MIS)",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "People Development",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Project Control",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Performance Reporting",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Team Performance Management",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Project Planning",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Correlation Analysis",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Supervised Learning",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Classification Algorithms",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Data Mining",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Unsupervised Learning",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Model Evaluation",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Cloud Deployment",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "DevOps",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Cloud Computing",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Virtual Machines",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "nfrastructure As A Service (IaaS)",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "IBM Cloud",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Cloud Infrastructure",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Embedded Software",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "C (Programming Language)",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Debugging",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Digital Communication",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Arduino IDE",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Electronic Engineering",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Spatial Data Analysis",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Image Segmentation",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Image Analysis",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "MATLAB",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Geospatial Information and Technology",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Recurrent Neural Networks (RNN)",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Gated Recurrent Units (GRU)",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Long Short-term Memory (LSTM)",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Text Processing",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Word Embeddings",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Data Science",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "PySpark",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Pipelines",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Microsoft Power BI",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Data Analysis",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    },
+    {
+      "name": "Computer Information Systems",
+      "years": null,
+      "source": "linkedin",
+      "proficiency": null
+    }
+  ],
+  "courses": null,
+  "hobbies": null,
+  "patents": null,
+  "location": "Egypt, Cairo",
+  "projects": [
+    {
+      "url": "https://github.com/ZeyadElshenawy/SmartCV",
+      "name": "SmartCV",
+      "source": "github",
+      "pushed_at": "2026-05-15T19:17:11Z",
+      "source_id": "ZeyadElshenawy/SmartCV",
+      "highlights": [
+        "Built deterministic ATS scoring with stuffing detection and in-context bonus",
+        "Implemented two-phase gap analysis \u2014 LLM categorization + programmatic reconciliation guarantees every JD skill lands in matched / missing / partial",
+        "Designed CV parsing with structured Pydantic output and personal-info extraction"
+      ],
+      "technologies": [
+        "Python",
+        "Django 5.2",
+        "PostgreSQL",
+        "Supabase",
+        "pgvector",
+        "Groq",
+        "meta-llama/llama-4-scout-17b-16e-instruct"
+      ]
+    },
+    {
+      "url": "https://github.com/ZeyadElshenawy/hr-analytics-dashboard",
+      "name": "HR ANALYTICS DASHBOARD (CASE STUDY \u2013 DATACAMP)",
+      "source": "github",
+      "pushed_at": "2026-04-24T01:17:29Z",
+      "source_id": "ZeyadElshenawy/hr-analytics-dashboard",
+      "highlights": [
+        "Developed an interactive HR analytics dashboard in Power BI as part of a Datacamp case study.",
+        "Cleaned and transformed HR data using Power Query to prepare for visualization and reporting.",
+        "Created KPIs and visualizations to track employee attrition, hiring trends, and workforce demographics."
+      ],
+      "technologies": [
+        "Power BI",
+        "Power Query",
+        "DAX"
+      ]
+    },
+    {
+      "url": "https://github.com/ZeyadElshenawy/healthcare-prediction-depi",
+      "name": "healthcare-prediction-depi",
+      "source": "github",
+      "pushed_at": "2026-04-24T04:04:17Z",
+      "source_id": "ZeyadElshenawy/healthcare-prediction-depi",
+      "highlights": [
+        "Cleaned and analyzed data with EDA",
+        "Engineered features for imbalanced classification modeling",
+        "Deployed model as a Flask REST API for predictions"
+      ],
+      "technologies": [
+        "Python",
+        "Jupyter Notebook",
+        "Pandas",
+        "scikit-learn",
+        "Flask",
+        "MLflow"
+      ]
+    },
+    {
+      "url": "https://github.com/ZeyadElshenawy/customer-segmentation-rfmt",
+      "name": "customer-segmentation-rfmt",
+      "source": "github",
+      "pushed_at": "2026-04-24T03:52:50Z",
+      "source_id": "ZeyadElshenawy/customer-segmentation-rfmt",
+      "highlights": [
+        "Validated k=3 clusters \u2014 silhouette peaks at 0.351",
+        "Extended classical RFM with Tenure (RFMT) for richer lifecycle signals",
+        "Drove 84% of revenue with the Promising segment"
+      ],
+      "technologies": [
+        "Python",
+        "Jupyter Notebook",
+        "scikit-learn",
+        "Pandas",
+        "Plotly",
+        "Streamlit",
+        "Power BI"
+      ]
+    },
+    {
+      "url": "https://github.com/ZeyadElshenawy/BookShop",
+      "name": "BookShop",
+      "source": "github",
+      "pushed_at": "2026-04-24T03:25:42Z",
+      "source_id": "ZeyadElshenawy/BookShop",
+      "highlights": [
+        "Designed responsive layout with Swiper-based book carousel",
+        "Implemented client-side cart and demo login/signup page",
+        "Normalized filenames and fixed broken references"
+      ],
+      "technologies": [
+        "HTML",
+        "CSS",
+        "JavaScript",
+        "Swiper"
+      ]
+    },
+    {
+      "url": "https://github.com/ZeyadElshenawy/apotheosis-traffic-sign-detection",
+      "name": "apotheosis-traffic-sign-detection",
+      "source": "github",
+      "pushed_at": "2026-04-24T03:04:33Z",
+      "source_id": "ZeyadElshenawy/apotheosis-traffic-sign-detection",
+      "highlights": [
+        "Preprocessed traffic sign images with color filtering and contour detection",
+        "Classified signs using visual characteristics",
+        "Tuned detection thresholds via external JSON configuration"
+      ],
+      "technologies": [
+        "Python",
+        "Jupyter Notebook",
+        "OpenCV",
+        "Numpy"
+      ]
+    },
+    {
+      "name": "END-TO-END DATA PIPELINE & MACHINE LEARNING PROJECT",
+      "highlights": [
+        "Built a data pipeline in Microsoft Fabric with PySpark to automate ingestion, cleaning, and transformation of raw data.",
+        "Applied data preprocessing techniques (handling missing values, feature engineering, normalization) to prepare data for modeling.",
+        "Developed and evaluated machine learning algorithms to extract insights and support business decision-making."
+      ],
+      "technologies": [
+        "PySpark",
+        "Machine Learning"
+      ]
+    },
+    {
+      "name": "BRAIN TUMOR CLASSIFICATION APP",
+      "highlights": [
+        "Built a medical imaging application that processes MRI scans and predicts tumor presence using a Convolutional Neural Network (CNN).",
+        "Developed and trained the CNN model with TensorFlow/Keras on a labeled brain MRI dataset, achieving high accuracy in classification.",
+        "Integrated the trained model into an application pipeline to allow real-time MRI image uploads and predictions."
+      ],
+      "technologies": [
+        "TensorFlow",
+        "Keras",
+        "CNN"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "gpa": "3.8",
+      "field": "Computer Science",
+      "degree": "Bachelor",
+      "honors": null,
+      "location": "Egypt",
+      "institution": "King Salman International University",
+      "graduation_year": "June 2026"
+    }
+  ],
+  "full_name": "Zeyad Elshenawy",
+  "languages": null,
+  "objective": "",
+  "github_url": "https://github.com/ZeyadElshenawy",
+  "kaggle_url": "https://kaggle.com/zeyadelshenawy",
+  "other_urls": [],
+  "references": null,
+  "experiences": [
+    {
+      "title": "DIGITAL TRANSFORMATION INTERN",
+      "company": "Almansour Automative",
+      "end_date": "Sep 2025",
+      "industry": null,
+      "location": "Giza, EG",
+      "highlights": [
+        "Rotated across four departments (IT, SAP, Digital Transformation, and Network Security) to gain holistic exposure to technical and managerial practices.",
+        "Contributed to a digital transformation project by building a data pipeline in Microsoft Fabric with PySpark, cleaning data, and applying machine learning models for insights.",
+        "Analyzed ERP workflows in SAP to understand how digital tools streamline procurement, finance, and HR operations.",
+        "Collaborated with the IT and network security teams to explore infrastructure management, data security, and risk assessment practices.",
+        "Developed soft skills including cross-team communication, problem-solving, and adaptability in a corporate environment."
+      ],
+      "start_date": "August 2025",
+      "description": null,
+      "achievements": []
+    },
+    {
+      "title": "INFROMATION TECHNOLOGY INTERN",
+      "company": "Arab Organization for Industrialization",
+      "end_date": null,
+      "industry": null,
+      "location": "Cairo, EG",
+      "highlights": [
+        "Completed a 7-day training covering sensors, microcontrollers, and IoT systems with practical applications.",
+        "Completed a 5-day course focused on cloud infrastructure, deployment models, and hands-on experience with cloud services."
+      ],
+      "start_date": "July 2024",
+      "description": null,
+      "achievements": []
+    },
+    {
+      "title": "AI & Data Science Trainee",
+      "source": "linkedin",
+      "company": "Digital Egypt Pioneers Initiative - DEPI",
+      "end_date": "Dec 2025",
+      "location": "Remote",
+      "highlights": [],
+      "start_date": "Jun 2025",
+      "description": "Selected participant in the national Digital Egypt Pioneers Initiative (DEPI) \u2014 AI & Data Science track designed by IBM in partnership with Egypt\u2019s Ministry of Communications & Information Technology (MCIT). Applied the full data-science lifecycle to real problems: data collection and cleaning, exploratory data analysis, feature engineering, model development and evaluation, and production-oriented deployment.\n\nI developed practical skills in the Python data-science ecosystem and SQL, and used MLOps tools (MLflow, Hugging Face) to build reproducible pipelines. I practised prompt engineering and integrated AI tools for automation and model augmentation. Throughout the program I focused on translating data into actionable business insights to improve performance, increase efficiency, and enhance customer experience.\n\nCore coursework and hands-on modules included:\n\u2022 Prompt Engineering\n\u2022 What is Data Science? / Data Science Methodology\n\u2022 Tools for Data Science\n\u2022 Python for Data Science, AI & Development + Python Project\n\u2022 Databases & SQL for Data Science with Python\n\u2022 Data Analysis, Visualization & Machine Learning with Python\n\u2022 MLOps tools (MLflow, Hugging Face)\n\u2022 Capstone project: end-to-end AI project demonstrating preprocessing, feature engineering, model selection, evaluation and deployment.\n\nForward-looking emphasis: reproducible, ethical, and scalable ML/AI solutions that bridge technical results and business impact.",
+      "employment_type": "Internship"
+    }
+  ],
+  "linkedin_url": "https://www.linkedin.com/in/zeyad-elshenawy-629b69252",
+  "publications": null,
+  "has_seen_tour": true,
+  "portfolio_url": "https://my-portfolio-weld-eta-67.vercel.app/",
+  "certifications": [
+    {
+      "url": null,
+      "date": null,
+      "name": "AI Professional Level | Deep Learning & Computer Vision",
+      "issuer": "WE TELECOM EGYPT \u2013 Training Academy",
+      "duration": null
+    },
+    {
+      "url": null,
+      "date": null,
+      "name": "AI Associate Level | Machine Learning",
+      "issuer": "WE TELECOM EGYPT \u2013 Training Academy",
+      "duration": null
+    },
+    {
+      "url": "https://www.datacamp.com/completed/statement-of-accomplishment/track/bd301feefedc66ab6876c15ab3f3d66ce79e117c",
+      "date": null,
+      "name": "Associate Data Scientist in Python | 90 HR",
+      "issuer": "DATACAMP",
+      "duration": null
+    },
+    {
+      "url": "https://www.datacamp.com/completed/statement-of-accomplishment/track/26b4480674edb968a8379c47bcc45dd5195d20b9",
+      "date": null,
+      "name": "Associate Data Analyst in SQL | 39 HR",
+      "issuer": "DATACAMP",
+      "duration": null
+    },
+    {
+      "url": "https://www.datacamp.com/completed/statement-of-accomplishment/track/c31053fa1a6c9fecb35fe28a23cee76c6db0adc1",
+      "date": null,
+      "name": "Data Analyst in Python | 36 HR",
+      "issuer": "DATACAMP",
+      "duration": null
+    },
+    {
+      "url": "https://www.datacamp.com/completed/statement-of-accomplishment/track/4d171476a4eb91f2241dd4818c45ca9cc649d1ae",
+      "date": null,
+      "name": "Power BI Fundamentals | 19 HR",
+      "issuer": "DATACAMP",
+      "duration": null
+    },
+    {
+      "url": "https://www.datacamp.com/completed/statement-of-accomplishment/track/c60605375c21950ad26a0032f58df1c5146d8bc9",
+      "date": null,
+      "name": "Python Data Fundamentals | 28 HR",
+      "issuer": "DATACAMP",
+      "duration": null
+    },
+    {
+      "url": "https://www.datacamp.com/completed/statement-of-accomplishment/track/12f478da2938b14d1af1e1fd3a6d4d40a51847e3",
+      "date": null,
+      "name": "Python Programming Fundamentals | 13 HR",
+      "issuer": "DATACAMP",
+      "duration": null
+    },
+    {
+      "url": "https://coursera.org/verify/3P34H669GT2I",
+      "date": null,
+      "name": "Database Management with Java and SQL",
+      "issuer": "COURSERA",
+      "duration": null
+    },
+    {
+      "url": "https://coursera.org/verify/BUYFU9ADFMIQ",
+      "date": null,
+      "name": "Applied Machine Learning in Python",
+      "issuer": "COURSERA",
+      "duration": null
+    },
+    {
+      "url": "https://coursera.org/verify/HYT51PF7WQGV",
+      "date": null,
+      "name": "Neural Networks and Deep Learning",
+      "issuer": "COURSERA",
+      "duration": null
+    },
+    {
+      "url": "https://depi.gov.eg/assets/Files/DEPI-CATALOG-2024-Round2-V7.pdf",
+      "date": "June 2025",
+      "name": "IBM Data Scientist Track",
+      "issuer": "DIGITAL EGYPT PIONEERS INITIATIVE",
+      "duration": null
+    },
+    {
+      "url": "https://www.coursera.org/account/accomplishments/records/PW0LL8UOHR1D",
+      "date": "Oct 2025",
+      "name": "Project Management: The Basics for Success",
+      "issuer": "University of California, Irvine",
+      "source": "linkedin"
+    },
+    {
+      "url": "https://www.coursera.org/account/accomplishments/records/W39MIS4381Y2",
+      "date": "Dec 2025",
+      "name": "Data Mining Methods",
+      "issuer": "University of Colorado Boulder",
+      "source": "linkedin"
+    },
+    {
+      "url": "https://www.coursera.org/account/accomplishments/records/QLSR8E4GCRWO",
+      "date": "Oct 2025",
+      "name": "Introduction to Cloud Computing",
+      "issuer": "IBM",
+      "source": "linkedin"
+    },
+    {
+      "url": "https://www.coursera.org/account/accomplishments/records/37V3TWZBUADF",
+      "date": "Nov 2025",
+      "name": "The Arduino Platform and C Programming",
+      "issuer": "University of California, Irvine",
+      "source": "linkedin"
+    },
+    {
+      "url": "https://www.coursera.org/account/accomplishments/verify/A223656LQBEA",
+      "date": "May 2025",
+      "name": "Introduction to Image Processing",
+      "issuer": "MathWorks",
+      "source": "linkedin"
+    },
+    {
+      "url": "https://www.coursera.org/account/accomplishments/records/T0IZEIVPV2UY",
+      "date": "May 2026",
+      "name": "Natural Language Processing in TensorFlow",
+      "issuer": "DeepLearning.AI",
+      "source": "linkedin"
+    },
+    {
+      "url": "https://www.coursera.org/account/accomplishments/verify/IM30L7LE05WX",
+      "date": "Dec 2025",
+      "name": "Advanced Topics and Future Trends in Database Technologies",
+      "issuer": "University of Colorado Boulder",
+      "source": "linkedin"
+    },
+    {
+      "url": "https://www.coursera.org/account/accomplishments/verify/1OZF8NH9Q4EA",
+      "date": "Apr 2025",
+      "name": "Introduction to Software Testing",
+      "issuer": "University of Minnesota",
+      "source": "linkedin"
+    },
+    {
+      "url": "https://www.coursera.org/account/accomplishments/verify/P5NLPKSWVJ3N",
+      "date": "Apr 2025",
+      "name": "Critical Thinking Skills for the Professional",
+      "issuer": "University of California, Davis",
+      "source": "linkedin"
+    }
+  ],
+  "github_signals": {
+    "bio": null,
+    "name": "Zeyad Ahmed Elshenawy",
+    "error": null,
+    "username": "ZeyadElshenawy",
+    "followers": 5,
+    "following": 6,
+    "top_repos": [
+      {
+        "url": "https://github.com/ZeyadElshenawy/SmartCV",
+        "name": "SmartCV",
+        "forks": 0,
+        "stars": 1,
+        "language": "Python",
+        "full_name": "ZeyadElshenawy/SmartCV",
+        "pushed_at": "2026-05-15T19:17:11Z",
+        "description": "AI-powered career assistant \u2014 CV parsing, gap analysis, ATS-scored tailored resumes, and outreach automation. Built with Django 5.2, PostgreSQL (Supabase + pgvector), and Groq.",
+        "readme_excerpt": "# SmartCV\n\n[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)\n[![Django 5.2](https://img.shields.io/badge/django-5.2-092e20.svg)](https://www.djangoproject.com/)\n[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)\n[![Tests: 337 passing](https://img.shields.io/badge/tests-337%20passing-brightgreen.svg)](#benchmarks--test-results)\n[![Coverage: 53%](https://img.shields.io/badge/coverage-53%25-yellow.svg)](#benchmarks--test-results)\n\nAI-powered career assistant for job seekers. Upload a CV, paste a job\ndescription, and get a gap analysis, an ATS-scored tailored resume, and\nan outreach campaign plan \u2014 backed by an LLM pipeline that reuses the\nsame services everywhere instead of one-off scripts.\n\nBuilt with Django 5.2, PostgreSQL (Supabase + pgvector), Tailwind CSS v4,\nand Groq (`meta-llama/llama-4-scout-17b-16e-instruct`).\n\n\n![SmartCV dashboard \u2014 master profile, profile-strength score, and quick links to job tailoring](docs/images/dashboard.png)\n\n## Highlights\n\n- **Deterministic ATS scoring** with stuffing detection and in-context\n  bonus (`resumes/services/scoring.py`).\n- **Two-phase gap analysis** \u2014 LLM categorization + programmatic\n  reconciliation guarantees every JD skill lands in matched / missing /\n  partial (`analysis/services/gap_analyzer.py`).\n- **CV parsing** with structured Pydantic output and personal-info\n  extraction (`profiles/services/cv_parser.py`).\n- **Outreach automation** via a Chrome extension that auto-discovers\n  LinkedIn targets and drafts personalised messages\n  (`extension-outreach/`).\n- **Built-in observability** \u2014 per-route latency middleware,\n  `/healthz/metrics` endpoint, structured request logging.\n\n## Screenshots\n\n### Resume editor with live preview and ATS score\n\n\n![Resume editor with live preview and ATS score](docs/images/resume-editor.png)\n\nEdit a tailored resume on the left, watch the print-ready preview update on\nthe right, and see the ATS score recompute as you type.\n\n### Gap analysis\n\n\n![Gap analysis output \u2014 Matched / Critical missing / Soft gaps, with action plan](docs/images/gap-analysis.png)\n\nTwo-phase pipeline: an LLM categorises every JD skill, then programmatic\nfuzzy reconciliation guarantees every skill lands in `matched`, `partial`,\nor `missing` \u2014 no silent drops.\n\n### Outreach campaign builder\n\n\n![Outreach campaign builder \u2014 Run a campaign at <Company>, paired with the Chrome extension](docs/images/outreach-campaign.png)\n\nPer-job campaign page that pairs with a Chrome extension. The extension\ndiscovers reachable people from inside your own LinkedIn tab and queues\npersonalised connect-with-note drafts for review \u2014 never automated sending.\n\n## Benchmarks & Test Results\n\n398 Django tests passing. Coverage 53% overall (76.9% in `core/`).\n\nThe repo ships a small, real evaluation suite under `benchmarks/` \u2014 every\nmetric has a sample size, a re-run command, and a JSON artifact. No\nfabricated numbers. Latest run (2026-04-27, af\u2026"
+      },
+      {
+        "url": "https://github.com/ZeyadElshenawy/healthcare-prediction-depi",
+        "name": "healthcare-prediction-depi",
+        "forks": 0,
+        "stars": 1,
+        "language": "Jupyter Notebook",
+        "full_name": "ZeyadElshenawy/healthcare-prediction-depi",
+        "pushed_at": "2026-04-24T04:04:17Z",
+        "description": "DEPI team capstone \u2014 stroke risk prediction on Kaggle Stroke dataset (5,110 patients, 4.9% stroke rate). Class-weighted Logistic Regression with 84% recall on stroke cases, Flask REST API. My contribution: data cleaning and EDA.",
+        "readme_excerpt": "# Stroke Prediction \u2014 End-to-End ML Pipeline\n\n> DEPI (Digital Egypt Pioneers Initiative) team capstone. Predicts stroke risk from clinical + lifestyle features on the Kaggle Stroke Prediction dataset (5,110 patients, 4.9% positive class). Full pipeline: data cleaning, EDA, feature engineering, imbalanced classification modeling, and a Flask REST API for predictions.\n\n![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)\n![Pandas](https://img.shields.io/badge/Pandas-150458?logo=pandas&logoColor=white)\n![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white)\n![Flask](https://img.shields.io/badge/Flask-000000?logo=flask&logoColor=white)\n![MLflow](https://img.shields.io/badge/MLflow-0194E2?logo=mlflow&logoColor=white)\n![License: MIT](https://img.shields.io/badge/License-MIT-green)\n\n---\n\n## \ud83d\udc65 Team\n\nThis is a **team project**. My contribution: **data cleaning & EDA** (`notebooks/eda.ipynb`).\n\n| Contributor | GitHub | Role |\n|---|---|---|\n| Zeyad Elshenawy | [@ZeyadElshenawy](https://github.com/ZeyadElshenawy) | Data cleaning & EDA |\n| Forge | [@forge34](https://github.com/forge34) | Preprocessing pipeline, modeling, API, visualization |\n| Mahmoud Ebrahim | [@Mahmoudebrahim156](https://github.com/Mahmoudebrahim156) | Project setup |\n| Mohamed Ashraf | [@MohamedAchraf22](https://github.com/MohamedAchraf22) | PR contributions |\n\n**Original team repo:** [Mahmoudebrahim156/healthcare-prediction-depi](https://github.com/Mahmoudebrahim156/healthcare-prediction-depi). This is a polished mirror with expanded documentation and extracted EDA plots.\n\n---\n\n## \ud83c\udfaf Key results\n\n| Metric | No stroke (n=969) | Stroke (n=50) |\n|---|---:|---:|\n| Precision | 98.9% | 16.5% |\n| Recall | 78.0% | **84.0%** |\n| F1 | 87.3% | 27.5% |\n\n**Model:** Logistic Regression (L1 regularization, C=0.3, `class_weight='balanced'`, saga solver). Decision threshold tuned to **0.6027** via precision\u2013recall curve analysis.\n\n**Why this is strong:** for stroke *screening*, recall (catching actual positives) matters far more than precision (avoiding false alarms). **84% recall** means the model catches 84 of every 100 stroke cases \u2014 an appropriate operating point for a triage tool that would route high-risk patients to further clinical assessment.\n\n---\n\n## \ud83d\udcca Dataset\n\n**Kaggle Stroke Prediction Dataset** (fedesoriano) \u2014 5,110 patients \u00d7 12 features: `age`, `gender`, `hypertension`, `heart_disease`, `ever_married`, `work_type`, `Residence_type`, `avg_glucose_level`, `bmi`, `smoking_status`, `stroke`.\n\n**Heavy class imbalance:** 4,861 no-stroke (95.1%) vs 249 stroke (4.9%). This shapes every downstream modeling decision \u2014 stratified splits, class weighting, threshold tuning, and recall as the headline metric.\n\n---\n\n## \ud83d\udd0d EDA findings\n\n> All plots below are regenerated from `datasets/raw/dataset.csv` \u2014 run `python generate_figures.py` to reproduce them.\n\n### Class imbalance\n![Class imbalance](figures/class-imbalance.png)\n\nOnly **4.9%**\u2026"
+      },
+      {
+        "url": "https://github.com/ZeyadElshenawy/customer-segmentation-rfmt",
+        "name": "customer-segmentation-rfmt",
+        "forks": 0,
+        "stars": 1,
+        "language": "Jupyter Notebook",
+        "full_name": "ZeyadElshenawy/customer-segmentation-rfmt",
+        "pushed_at": "2026-04-24T03:52:50Z",
+        "description": "Customer segmentation on UCI Online Retail \u2014 RFMT metrics + K-Means (3 segments: Champions / Promising / At Risk). Jupyter notebook, Streamlit live predictor, and Power BI dashboard.",
+        "readme_excerpt": "# Customer Segmentation \u2014 RFMT + K-Means Clustering\n\n> End-to-end customer segmentation on the **UCI Online Retail** dataset (~541K transactions from a UK online retailer, Dec 2010 \u2013 Dec 2011). Extends classical RFM analysis with **Tenure** (RFMT), applies **K-Means clustering**, and delivers a **Jupyter analysis**, an **interactive Power BI dashboard**, and a **Streamlit live predictor**.\n\n![Python](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white)\n![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white)\n![Pandas](https://img.shields.io/badge/Pandas-150458?logo=pandas&logoColor=white)\n![Plotly](https://img.shields.io/badge/Plotly-3F4F75?logo=plotly&logoColor=white)\n![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white)\n![Power BI](https://img.shields.io/badge/Power_BI-F2C811?logo=powerbi&logoColor=black)\n![License: MIT](https://img.shields.io/badge/License-MIT-green)\n\n---\n\n## \ud83c\udfaf Highlights\n\n- **k=3 validated** \u2014 silhouette peaks at **0.351** (vs 0.298 for k=4), confirming three as the right cluster count\n- **RFMT methodology** \u2014 extends classical RFM with **Tenure** (days as customer) for richer lifecycle signals\n- **Three deliverables** \u2014 notebook analysis, Power BI dashboard, live Streamlit predictor\n- **One segment drives 84% of revenue** \u2014 the **Promising** cluster (38% of customers) concentrates the bulk of spend (classic Pareto)\n- **76% of At Risk customers at Critical churn risk** \u2014 immediate re-engagement needed\n- **Cohort analysis** with retention heatmaps to frame the clustering work\n\n## \ud83e\udde9 Segment profiles\n\nValues below are **means** computed from `customer_segments_analysis.csv` (4,269 customers total).\n\n| Segment | Customers | Recency | Frequency | Monetary | Tenure | Key marketing play |\n|---|---:|---:|---:|---:|---:|---|\n| \u2b50 **Promising** | 1,634 (38%) | 30 d | 188 | $4,412 | 274 d | **Drives 84% of revenue.** Protect with VIP program, early access, retention offers |\n| \ud83d\udc51 **Champions** | 948 (22%) | 34 d | 34 | $481 | 50 d | Active newer customers \u2014 onboarding, welcome offers, nurture toward Promising |\n| \u26a0\ufe0f **At Risk** | 1,687 (40%) | 174 d | 27 | $564 | 241 d | **76% at Critical churn risk.** Win-back campaigns, reactivation offers |\n\n## \ud83e\uddea Methodology\n\n1. **Load & clean** \u2014 UCI Online Retail (~541K rows); drop returns, invalid IDs, zero-price rows\n2. **Cohort analysis** \u2014 monthly cohorts, retention heatmap, average-revenue-per-cohort evolution\n3. **Compute RFMT** per customer \u2014 Recency, Frequency, Monetary, Tenure\n4. **Traditional RFM baseline** \u2014 quartile scoring \u2192 Gold / Silver / Bronze (for comparison)\n5. **Preprocess for K-Means** \u2014 `log(x + 1)` to handle right skew, then `StandardScaler`\n6. **Elbow method** \u2014 evaluate k \u2208 [2, 10]\n7. **Cluster** with k=3 (compared against k=4 via silhouette)\n8. **Profile** \u2014 snake plots, relative-importance heatmaps, 3D scatter, sunburst\n9. **Business interpretation** \u2014 name segments, comp\u2026"
+      },
+      {
+        "url": "https://github.com/ZeyadElshenawy/BookShop",
+        "name": "BookShop",
+        "forks": 0,
+        "stars": 1,
+        "language": "HTML",
+        "full_name": "ZeyadElshenawy/BookShop",
+        "pushed_at": "2026-04-24T03:25:42Z",
+        "description": "Static bookstore landing page \u2014 HTML/CSS/JS, Swiper carousels, client-side cart, demo signup UI.",
+        "readme_excerpt": "# BookShop\n\nA static bookstore landing page \u2014 HTML/CSS/JavaScript front-end with a Swiper-based book carousel, responsive layout, a client-side cart, and a demo login/signup page.\n\nCoCreated with And Forked from [mohaaHeiba/BookShop](https://github.com/mohaaHeiba/BookShop) and cleaned up: filenames normalized (no spaces, no weird casing), broken references fixed, `showMore()` toggle fixed, duplicate `window.onload` removed, and the third-party signup endpoint that was exposing names/emails/plaintext passwords to a public Google Sheet was removed.\n\n## \ud83d\udcf8 Screenshots\n\n### Home\n<img src=\"screenshots/home.png\" alt=\"Home page\" width=\"900\"/>\n\n### Deal of the day\n<img src=\"screenshots/deal-of-the-day.png\" alt=\"Deal of the day\" width=\"900\"/>\n\n### Client reviews\n<img src=\"screenshots/client-reviews.png\" alt=\"Client reviews carousel\" width=\"900\"/>\n\n### Contact us\n<img src=\"screenshots/contact-us.png\" alt=\"Contact us\" width=\"900\"/>\n\n### Login &amp; Sign up\n<img src=\"screenshots/login.png\" alt=\"Login\" width=\"440\"/> <img src=\"screenshots/signup.png\" alt=\"Sign up\" width=\"440\"/>\n\n## Pages\n\n- `index.html` \u2014 home (header, book slider, collection, newsletter, deal, reviews, contact, footer)\n- `product-details.html` \u2014 book details view with a thumbnail carousel\n- `login.html` \u2014 login / signup UI (demo only; no backend wired up)\n\n## Project structure\n\n```\nBookShop/\n\u251c\u2500\u2500 index.html\n\u251c\u2500\u2500 product-details.html\n\u251c\u2500\u2500 login.html\n\u251c\u2500\u2500 css/\n\u2502   \u251c\u2500\u2500 style.css              # home + shared\n\u2502   \u251c\u2500\u2500 product-details.css\n\u2502   \u2514\u2500\u2500 login.css\n\u251c\u2500\u2500 js/\n\u2502   \u2514\u2500\u2500 script.js              # search toggle, cart, loader, Swiper init\n\u251c\u2500\u2500 images/\n\u2502   \u251c\u2500\u2500 books/                 # book covers + interstellar/OIP\n\u2502   \u251c\u2500\u2500 reviews/               # review avatars\n\u2502   \u251c\u2500\u2500 bg/                    # section backgrounds\n\u2502   \u2514\u2500\u2500 ui/                    # loader, decorative GIFs\n\u2514\u2500\u2500 screenshots/               # UI screenshots (referenced in README)\n```\n\n## Stack\n\n- HTML, CSS, vanilla JavaScript (no build step)\n- [Swiper](https://swiperjs.com/) for carousels\n- [Font Awesome](https://fontawesome.com/) for icons\n- Google Fonts (Poppins)\n\n## Run locally\n\nOpen `index.html` in a browser, or serve the folder:\n\n```bash\npython -m http.server 8000\n# then visit http://localhost:8000\n```\n\n## Notes\n\n- The signup form in `login.html` is UI-only. It previously POSTed to a public SheetDB endpoint that recorded usernames, emails, and plaintext passwords to a Google Sheet; that endpoint has been removed. Wire up your own backend before re-enabling.\n- Cart state is in-memory; refreshing the page clears it."
+      },
+      {
+        "url": "https://github.com/ZeyadElshenawy/hr-analytics-dashboard",
+        "name": "hr-analytics-dashboard",
+        "forks": 0,
+        "stars": 1,
+        "language": null,
+        "full_name": "ZeyadElshenawy/hr-analytics-dashboard",
+        "pushed_at": "2026-04-24T01:17:29Z",
+        "description": "Power BI dashboard on the Atlas Labs HR dataset (1,470 employees). Star-schema model + DAX measures for attrition, compensation, and performance.",
+        "readme_excerpt": "# HR Analytics Dashboard \u2014 Atlas Labs\n\nAn end-to-end Power BI dashboard analyzing employee attrition, demographics, and performance for **Atlas Labs**, a fictional tech company with 1,470 employees across Technology, Sales, and Human Resources. Built on the Atlas Labs HR dataset (commonly used in DataCamp's *Data Analyst in Power BI* track and Maven Analytics courses).\n\nThe dashboard surfaces four executive views \u2014 Overview, Demographics, Performance Tracker, and Attrition \u2014 driven by a star-schema data model and DAX measures for time-intelligence and rate calculations.\n\n---\n\n## Dashboard Preview\n\n### Overview\nHigh-level headcount KPIs, hiring trends since 2012, and active-employee distribution by department and role.\n\n![Overview](screenshots/Overview.png)\n\n### Demographics\nAge, gender, marital status, and ethnicity breakdowns \u2014 including average salary by ethnicity.\n\n![Demographics](screenshots/Demographics.png)\n\n### Performance Tracker\nPer-employee deep-dive with satisfaction scores and rating history over time. Drill into any employee via the slicer in the top-left.\n\n![Performance Tracker](screenshots/Performance%20Tracker.png)\n\n### Attrition\nAttrition rates sliced by department, job role, business travel, overtime requirement, hire date, and tenure.\n\n![Attrition](screenshots/Attrition.png)\n\n---\n\n## Headline Metrics\n\n| Metric | Value |\n|---|---|\n| Total Employees | 1,470 |\n| Active Employees | 1,233 |\n| Inactive (Left) | 237 |\n| Attrition Rate | 16.1% |\n| Departments | Technology, Sales, Human Resources |\n| Hire Date Range | 2012 \u2013 2022 |\n\n---\n\n## Business Questions Answered\n\n- What is our overall attrition rate, and how is it trending?\n- Which departments and job roles are losing the most people?\n- Do employees who travel frequently or work overtime leave at higher rates?\n- Is attrition concentrated in early-tenure employees, or evenly distributed?\n- How does pay vary across ethnic groups?\n- Which employees are due for performance reviews next, and how have their satisfaction scores changed over time?\n\n---\n\n## Data Model\n\nA classic **star schema** with one fact table and four dimensions:\n\n```\n                \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n                \u2502   DimEmployee     \u2502\n                \u2502  (1,470 rows)     \u2502\n                \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n                          \u2502\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510          \u2502          \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502  DimDate     \u2502\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2502  DimRatingLevel  \u2502\n\u2502 (calculated) \u2502          \u2502          \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518          \u2502\n                          \u2502          \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n                \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510 \u2502 DimSatisfiedLevel   \u2502\n                \u2502FactPerformanceRate\u2502\u2500\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n                \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n                          \u2502\n                \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n                \u2502 DimEducationLevel \u2502\n                \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n```\n\n### Tables\n\n| Table | Type | Source | Notes |\n|---|---|---|---|\n| `DimEmployee` | Dimension | `Employee.csv` | 1\u2026"
+      },
+      {
+        "url": "https://github.com/ZeyadElshenawy/apotheosis-traffic-sign-detection",
+        "name": "apotheosis-traffic-sign-detection",
+        "forks": 0,
+        "stars": 0,
+        "language": "Jupyter Notebook",
+        "full_name": "ZeyadElshenawy/apotheosis-traffic-sign-detection",
+        "pushed_at": "2026-04-24T03:04:33Z",
+        "description": "Traffic-sign detection with classical computer vision (OpenCV preprocessing + contour detection). Course project.",
+        "readme_excerpt": "# \ud83d\udee3\ufe0f Apotheosis: Traffic Sign Detection Project\n\n**Apotheosis** is an image processing project designed to detect and classify traffic signs using computer vision techniques. It uses Python, OpenCV, and Jupyter Notebooks to build and demonstrate a modular detection pipeline.\n\n---\n\n## \ud83d\udcc1 Project Structure\n```\napotheosis/\n\u251c\u2500\u2500 assets/\n\u2502   \u2514\u2500\u2500 traffic_sign.png            # Sample image\n\u251c\u2500\u2500 output/                         # Output images or result files\n\u251c\u2500\u2500 TEAM.txt                        # Team members information\n\u251c\u2500\u2500 test.ipynb                      # Notebook for testing code or parameters\n\u251c\u2500\u2500 thresholds.json                 # Config file with detection/classification thresholds\n\u251c\u2500\u2500 traffic_sign_detection.ipynb    # Main notebook for traffic sign detection\n\u2514\u2500\u2500 Traffic_Sign_Detection_Report.pdf  # Final report summarizing methodology and results\n```\n\n---\n\n## \ud83d\ude80 Features\n\n- Preprocessing of traffic sign images (color filtering, contour detection, etc.)\n- Sign classification using visual characteristics\n- Threshold tuning via external JSON configuration\n- Clear visualization of results using Jupyter notebooks\n- Project documentation and methodology in PDF format\n\n---\n\n## \ud83d\udee0\ufe0f Technologies Used\n\n- Python 3.x\n- OpenCV\n- Numpy\n- Jupyter Notebook\n\n---\n\n## \ud83d\udce6 Installation\n\nClone this repository:\n\n```bash\ngit clone https://github.com/ZeyadElshenawy/apotheosis-traffic-sign-detection.git\ncd apotheosis-traffic-sign-detection\npip install -r requirements.txt\n```\n\n## \ud83d\ude80 Quick Start\n\n### Basic Usage\n\n```python\n# Load and process an image\nimage_path = 'assets/traffic_sign.png'\nimage = cv2.imread(image_path)\n\n# Convert to HSV\nhsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)\n\n# Apply preprocessing\npreprocessed = preprocess_image(image)\n\n# Detect traffic signs\ndetected_signs = detect_traffic_signs(preprocessed, thresholds)\n```\n\n### Interactive Parameter Tuning\n\nThe notebook provides interactive sliders for real-time parameter adjustment:\n\n```python\n# HSV threshold sliders\nh_min_slider = widgets.IntSlider(min=0, max=180, step=1, value=h_min_default)\ns_min_slider = widgets.IntSlider(min=0, max=255, step=1, value=s_min_default)\nv_min_slider = widgets.IntSlider(min=0, max=255, step=1, value=v_min_default)\n\n# Interactive processing\ninteract(process_image,\n         image=fixed(normalized_image),\n         h_min=h_min_slider,\n         s_min=s_min_slider,\n         # ... other parameters\n        )\n```\n\n## \u2699\ufe0f Configuration\n\n### HSV Threshold Ranges\n\n| Parameter | Range | Description |\n|-----------|-------|-------------|\n| Hue | 0-180 | Color tone (OpenCV uses 0-180 for Hue) |\n| Saturation | 0-255 | Color intensity |\n| Value | 0-255 | Brightness |\n\n### Color Classification\n\n| Color | BGR Ranges | Common Signs |\n|-------|------------|--------------|\n| Red | R>200, G<80, B<80 | Stop signs, prohibitory signs |\n| Yellow | R>200, G>200, B<80 | Warning signs |\n| Blue | B>200, R<100, G<100 | Information signs |\n| White | R>200, G>200, B>200 | Regulatory signs |\n\n### Shape Classification\n\n| S\u2026"
+      }
+    ],
+    "fetched_at": "2026-05-15T19:18:31+00:00",
+    "profile_url": "https://github.com/ZeyadElshenawy",
+    "total_stars": 6,
+    "public_repos": 8,
+    "profile_readme": {
+      "content": "# \ud83d\udc4b Hello World! I'm Zeyad Elshenawy\n\n<div align=\"center\">\n  \n[![Portfolio](https://img.shields.io/badge/Portfolio-FF5722?style=for-the-badge&logo=todoist&logoColor=white)](https://my-portfolio-weld-eta-67.vercel.app/)\n[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/zeyad-elshenawy)\n[![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/ZeyadElshenawy)\n[![Kaggle](https://img.shields.io/badge/Kaggle-20BEFF?style=for-the-badge&logo=kaggle&logoColor=white)](https://kaggle.com/zeyadelshenawy)\n[![Email](https://img.shields.io/badge/Email-D14836?style=for-the-badge&logo=gmail&logoColor=white)](mailto:zeyadelshenawy1@gmail.com)\n\n</div>\n\n> [!TIP]\n> ### \ud83c\udf10 [Visit my live portfolio \u2192](https://my-portfolio-weld-eta-67.vercel.app/)\n> **Glassmorphism** in light mode \u00b7 **terminal/matrix** in dark mode \u2014 toggle between them. Built with Astro + compiled Tailwind, deployed on Vercel.\n\n---\n\n## \ud83d\udcca About Me\n\n**Data Scientist / ML Engineer** building end-to-end data and AI pipelines \u2014 classical ML on tabular data, dashboards on top of star-schema models, and now LLM-driven applications with real evaluation suites behind every claim. Currently pursuing a B.Sc. in Computer Science (Software Engineering) at King Salman International University, GPA 3.8. Hands-on with Python, SQL, Power BI, scikit-learn, and the LangChain / Groq / Pydantic stack. Two internships in digital transformation and IT.\n\n\ud83c\udf93 **Education:** B.Sc. Computer Science \u2014 King Salman International University (GPA 3.8)  \n\ud83d\udccd **Location:** Cairo, Egypt  \n\ud83d\udd0d **Seeking:** Entry-level Data Scientist or Machine Learning Engineer opportunities\n\n---\n\n## \ud83d\udee0\ufe0f Skills & Technologies\n\n### Data Analysis & Visualization\n![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)\n![Pandas](https://img.shields.io/badge/Pandas-150458?style=for-the-badge&logo=pandas&logoColor=white)\n![NumPy](https://img.shields.io/badge/NumPy-013243?style=for-the-badge&logo=numpy&logoColor=white)\n![Power BI](https://img.shields.io/badge/Power_BI-F2C811?style=for-the-badge&logo=powerbi&logoColor=black)\n![Matplotlib](https://img.shields.io/badge/Matplotlib-11557c?style=for-the-badge&logo=python&logoColor=white)\n![Seaborn](https://img.shields.io/badge/Seaborn-3776AB?style=for-the-badge&logo=python&logoColor=white)\n![Plotly](https://img.shields.io/badge/Plotly-3F4F75?style=for-the-badge&logo=plotly&logoColor=white)\n\n### Machine Learning & Deep Learning\n![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?style=for-the-badge&logo=scikit-learn&logoColor=white)\n![TensorFlow](https://img.shields.io/badge/TensorFlow-FF6F00?style=for-the-badge&logo=tensorflow&logoColor=white)\n![Keras](https://img.shields.io/badge/Keras-D00000?style=for-the-badge&logo=keras&logoColor=white)\n![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)\n![MLflow](https://img.shields.io/badge/MLflow-0194E2?style=for-the-badge&logo=mlflow&logoColor=white)\n\n### Databases & Big Data\n![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white)\n![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)\n![PySpark](https://img.shields.io/badge/PySpark-E25A1C?style=for-the-badge&logo=apache-spark&logoColor=white)\n![Microsoft Fabric](https://img.shields.io/badge/Microsoft_Fabric-00A4EF?style=for-the-badge&logo=microsoft&logoColor=white)\n\n### LLM & GenAI\n![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white)\n![Groq](https://img.shields.io/badge/Groq-F55036?style=for-the-badge&logo=groq&logoColor=white)\n![Pydantic](https://img.shields.io/badge/Pydantic-E92063?style=for-the-badge&logo=pydantic&logoColor=white)\n![pgvector](https://img.shields.io/badge/pgvector-336791?style=for-the-badge&logo=postgresql&logoColor=white)\n\n### Tools & Technologies\n![SAP](https://img.shields.io/badge/SAP-0FAAFF?style=for-the-badge&logo=sap&logoColor=white)\n![Git](https://img.shields.io/badge/Git-F05032?style=for-the-badge&logo=git&logoColor=white)\n![Django](https://img.shields.io/badge/Django-092E20?style=for-the-badge&logo=django&logoColor=white)\n![Flask](https://img.shields.io/badge/Flask-000000?style=for-the-badge&logo=flask&logoColor=white)\n![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)\n![DAX](https://img.shields.io/badge/DAX-F2C811?style=for-the-badge&logo=powerbi&logoColor=black)\n![IoT](https://img.shields.io/badge/IoT-00979D?style=for-the-badge&logo=internetofthings&logoColor=white)\n\n---\n\n## \ud83d\udcc8 GitHub Stats\n\n<div align=\"center\">\n  \n![Zeyad's GitHub stats](https://github-readme-stats.vercel.app/api?username=ZeyadElshenawy&show_icons=true&theme=radical&hide_border=true&bg_color=0D1117)\n\n![Top Langs](https://github-readme-stats.vercel.app/api/top-langs/?username=ZeyadElshenawy&layout=compact&theme=radical&hide_border=true&bg_color=0D1117)\n\n![GitHub Streak](https://github-readme-streak-stats.herokuapp.com/?user=ZeyadElshenawy&theme=radical&hide_border=true&background=0D1117)\n\n</div>\n\n---\n\n## \ud83d\ude80 Featured Projects\n\n### \ud83e\udd16 SmartCV \u2014 AI-powered Career Assistant\n[![Repo](https://img.shields.io/badge/GitHub-View_Repository-blue?style=flat-square&logo=github)](https://github.com/ZeyadElshenawy/SmartCV)\n[![Tests](https://img.shields.io/badge/tests-337%20passing-brightgreen?style=flat-square)](https://github.com/ZeyadElshenawy/SmartCV#benchmarks--test-results)\n[![Coverage](https://img.shields.io/badge/coverage-53%25-yellow?style=flat-square)](https://github.com/ZeyadElshenawy/SmartCV#benchmarks--test-results)\n\nFull Django app \u2014 upload a CV, paste a JD, and get a gap analysis, an ATS-scored tailored resume, and an outreach-campaign plan paired with a Chrome extension. Backed by Groq llama-4-scout via LangChain through a centralized Pydantic-structured-output gateway. **Ships a real evaluation suite \u2014 every public number has a sample size and a re-run command.** Headline benchmarks (2026-04-25):\n\n- ATS scoring deterministic, matched-vs-mismatched **Cohen's d 6.27**\n- Gap analyzer coverage **0.999** (49/50 pairs at 100%)\n- Skill-extractor F1 **0.81** (hallucination_rate 0.24, after a prompt + JD-anchoring filter pass)\n- CV parser skills F1 **0.43** on CVs with explicit skills sections (after a PDF-noise sanitizer pass)\n- Endpoint warm p95 **\u2264 13 ms**\n\n**Tech Stack:** Django 5.2, Python 3.12, Groq llama-4-scout, LangChain, Pydantic, PostgreSQL (Supabase + pgvector), Tailwind CSS v4, xhtml2pdf, Chrome Extension (manifest v3)\n\n---\n\n### \ud83c\udfaf Customer Segmentation \u2014 RFMT + K-Means Clustering\n[![Repo](https://img.shields.io/badge/GitHub-View_Repository-blue?style=flat-square&logo=github)](https://github.com/ZeyadElshenawy/customer-segmentation-rfmt)\n\nEnd-to-end customer segmentation on the UCI Online Retail dataset (~541K transactions). Extends classical RFM with **Tenure** (RFMT), applies K-Means clustering (k=3 validated against k=4 via silhouette scores), and delivers three artifacts: a 13-section Jupyter analysis with cohort retention heatmaps, an interactive Power BI dashboard, and a Streamlit live predictor. Identified three actionable segments \u2014 **Champions**, **Promising**, **At Risk** \u2014 with a concrete marketing playbook per segment.\n\n**Tech Stack:** Python, scikit-learn, pandas, Plotly, Streamlit, Power BI\n\n---\n\n### \ud83e\udde0 Stroke Prediction \u2014 Healthcare ML Pipeline\n[![Repo](https://img.shields.io/badge/GitHub-View_Repository-blue?style=flat-square&logo=github)](https://github.com/ZeyadElshenawy/healthcare-prediction-depi)\n\nDEPI team capstone predicting stroke risk from clinical and lifestyle features on the Kaggle Stroke Prediction dataset (5,110 patients, 4.9% positive class). **My contribution: data cleaning & EDA**. The team's final class-weighted Logistic Regression reaches **84% recall on stroke cases** \u2014 the clinically important metric for a screening tool \u2014 via L1-regularized logistic regression with tuned decision threshold and a Flask REST API for serving.\n\n**Tech Stack:** Python, pandas, scikit-learn, Flask, MLflow, Jupyter\n\n---\n\n### \ud83d\udd2c Brain Tumor Classification \u2014 The Magnificent Three\n[![Repo](https://img.shields.io/badge/GitHub-View_Repository-blue?style=flat-square&logo=github)](https://github.com/ZeyadElshenawy/the-magnificent-three)\n\nCross-platform application for brain tumor classification from MRI scans (Meningioma, Glioma, Pituitary). Team project \u2014 I owned the ML pipeline, training and tuning six classical models (SVC, Random Forest, Logistic Regression, KNN, Decision Tree, Naive Bayes) and exposing them via a Flask inference API consumed by a Flutter desktop app and Streamlit dashboard.\n\n**Tech Stack:** Python, scikit-learn, Flask, Flutter, Streamlit\n\n---\n\n### \ud83d\udcc9 HR Analytics Dashboard (Atlas Labs)\n[![Repo](https://img.shields.io/badge/GitHub-View_Repository-blue?style=flat-square&logo=github)](https://github.com/ZeyadElshenawy/hr-analytics-dashboard)\n\nPower BI dashboard on the Atlas Labs HR dataset (1,470 employees) across four executive views \u2014 Overview, Demographics, Performance Tracker, and Attrition. Built on a star-schema data model with DAX measures for attrition rate, tenure cohorts, and rating time-intelligence.\n\n**Tech Stack:** Power BI, DAX, Power Query, Data Modeling\n\n---\n\n## \ud83d\udcbc Professional Experience\n\n### \ud83d\udd04 Digital Transformation Intern | Almansour Automotive\n*August 2025 \u00b7 Giza, Egypt* \u2014 [Certificate \u2197](https://drive.google.com/file/d/1r9tqi6OWlP2_XQrcC5Roxa3Fraq0A6BC/view?usp=sharing)\n\n- Rotated across IT, SAP, Digital Transformation, and Network Security departments\n- Built data pipeline in Microsoft Fabric with PySpark for ML-driven insights\n- Analyzed ERP workflows in SAP for digital process optimization\n- Collaborated on infrastructure management and data security initiatives\n\n### \ud83d\udcbb Information Technology Intern | Arab Organization for Industrialization\n*July 2024 \u00b7 Cairo, Egypt*\n\n- Completed [Internet of Things training (7 days)](https://drive.google.com/file/d/1ZE03YaHaeHq7BTm4o4JEWdvxuFJys7rx/view?usp=sharing) \u2014 sensors, microcontrollers, practical applications\n- Completed [Cloud Computing training (5 days)](https://drive.google.com/drive/folders/1aKzwmLgJAEgvrWwyC10t6Dd-IJuXMdJQ?usp=sharing) \u2014 infrastructure and deployment models\n\n---\n\n## \ud83c\udf93 Certifications & Training\n\n**19 verified certificates** across DataCamp, WE Telecom, MCIT/DEPI, and Coursera. Full list with verification links is on the [portfolio site](https://my-portfolio-weld-eta-67.vercel.app/#certifications).\n\n### DataCamp \u2014 14 tracks\n\n**Career tracks:**\n- \ud83d\udcca [Associate Data Scientist](https://www.datacamp.com/completed/statement-of-accomplishment/track/bd301feefedc66ab6876c15ab3f3d66ce79e117c) (90 hrs)\n- \ud83e\uddec [Machine Learning Scientist](https://www.datacamp.com/completed/statement-of-accomplishment/track/0e0322e5c975f9732a4743154ff0a4ea0d5abba7) (85 hrs)\n- \ud83e\udd16 [Associate AI Engineer for Data Scientists](https://www.datacamp.com/completed/statement-of-accomplishment/track/9aa442f8f784f6cdc26542338f6a192c611445a9) (40 hrs)\n- \ud83d\udcc8 [Associate Data Analyst](https://www.datacamp.com/completed/statement-of-accomplishment/track/26b4480674edb968a8379c47bcc45dd5195d20b9) (39 hrs)\n- \ud83d\udcc9 [Data Analyst](https://www.datacamp.com/completed/statement-of-accomplishment/track/c31053fa1a6c9fecb35fe28a23cee76c6db0adc1) (36 hrs)\n- \ud83d\udc0d [Associate Python Developer](https://www.datacamp.com/completed/statement-of-accomplishment/track/ab21d3bd8187ef037093d9b6a550481457bad13c) (32 hrs)\n- \ud83d\udc0d [Python Developer](https://www.datacamp.com/completed/statement-of-accomplishment/track/5f6dcd54740393e9c14d92b9390380f797052853) (28 hrs)\n- \ud83d\udd2c [Data Scientist](https://www.datacamp.com/completed/statement-of-accomplishment/track/367ca626806cd0f749cd1626e2f3c20157692d9b) (26 hrs)\n\n**Skill tracks:**\n- \ud83d\udc0d [Python Data Fundamentals](https://www.datacamp.com/completed/statement-of-accomplishment/track/c60605375c21950ad26a0032f58df1c5146d8bc9) (28 hrs)\n- \ud83d\uddc3\ufe0f [SQL Fundamentals](https://www.datacamp.com/completed/statement-of-accomplishment/track/ca59bc7cb63cf42d02f99b53bae02805bf33f5bb) (26 hrs)\n- \ud83d\udcc9 [Power BI Fundamentals](https://www.datacamp.com/completed/statement-of-accomplishment/track/4d171476a4eb91f2241dd4818c45ca9cc649d1ae) (17 hrs)\n- \ud83d\uddc3\ufe0f [SQL for Database Administrators](https://www.datacamp.com/completed/statement-of-accomplishment/track/cff96f6a9f95a3c27e714a54aae70efaa22c8170) (16 hrs)\n- \ud83e\udd16 [Machine Learning Fundamentals](https://www.datacamp.com/completed/statement-of-accomplishment/track/2adc84a3cc82ce6bc01239cadc45e1b2bc49096e) (16 hrs)\n- \ud83d\udc0d [Python Programming Fundamentals](https://www.datacamp.com/completed/statement-of-accomplishment/track/12f478da2938b14d1af1e1fd3a6d4d40a51847e3) (16 hrs)\n\n### WE Telecom Egypt \u2014 Training Academy\n- \ud83e\udd16 [AI Professional Level \u2014 Deep Learning & Computer Vision](https://drive.google.com/file/d/1eqkde1X3q17eUBFuMCKfgGzt4wdGJ4QZ/view?usp=sharing) (40 hrs)\n\n### MCIT \u00b7 Digital Egypt Pioneers Initiative (DEPI)\n- \ud83d\udcca [AI & Data Science \u2014 Data Scientist Track](https://drive.google.com/file/d/1j7RXsZiYr8MfCafV9_MLUK_lY2rc5VD7/view?usp=sharing) (4 months)\n\n### Coursera\n- \ud83e\udde0 [Neural Networks and Deep Learning](https://coursera.org/verify/HYT51PF7WQGV) \u2014 *DeepLearning.AI*\n- \ud83e\udd16 [Applied Machine Learning in Python](https://coursera.org/verify/BUYFU9ADFMIQ) \u2014 *University of Michigan*\n- \u2615 [Database Management with Java and SQL](https://coursera.org/verify/3P34H669GT2I) \u2014 *Amazon*\n\n---\n\n## \ud83c\udf1f Achievements & Activities\n\n- \ud83c\udfc6 GPA: 3.8/4.0 in Computer Science (Software Engineering)\n- \ud83c\udf0d COP27 Youth Volunteer (via KSIU)\n- \ud83d\udcbb Active participant in IEEE, GDSC, and ICPC student communities\n- \ud83c\udf93 Huawei ICT Academy participant\n\n---\n\n## \ud83d\udceb Let's Connect!\n\nI'm always open to collaborating on interesting data science and machine learning projects, or discussing opportunities in AI and analytics!\n\n<div align=\"center\">\n\n\ud83c\udf10 **Portfolio:** [my-portfolio-weld-eta-67.vercel.app](https://my-portfolio-weld-eta-67.vercel.app/)  \n\ud83d\udce7 **Email:** zeyadelshenawy1@gmail.com  \n\ud83d\udcbc **LinkedIn:** [zeyad-elshenawy](https://www.linkedin.com/in/zeyad-elshenawy)  \n\ud83d\udcc5 **Book a call:** [calendly.com/zeyadelshenawy1](https://calendly.com/zeyadelshenawy1)\n\n**\"Transforming data into insights, one algorithm at a time\"** \ud83d\ude80\n\n</div>\n\n---\n\n<div align=\"center\">\n  \n![Profile Views](https://komarev.com/ghpvc/?username=ZeyadElshenawy&color=blueviolet&style=flat-square)\n\n</div>\n",
+      "raw_url": "https://raw.githubusercontent.com/ZeyadElshenawy/ZeyadElshenawy/main/README.md",
+      "repo_url": "https://github.com/ZeyadElshenawy/ZeyadElshenawy",
+      "fetched_at": "2026-05-15T19:18:36+00:00"
+    },
+    "account_created": "2022-10-14",
+    "language_breakdown": [
+      [
+        "Python",
+        1
+      ]
+    ],
+    "recent_commit_count": 0
+  },
+  "projects_typed": [
+    {
+      "url": "https://github.com/ZeyadElshenawy/SmartCV",
+      "name": "SmartCV",
+      "source": "github",
+      "pushed_at": "2026-05-15T19:17:11Z",
+      "source_id": "ZeyadElshenawy/SmartCV",
+      "highlights": [
+        "Built deterministic ATS scoring with stuffing detection and in-context bonus",
+        "Implemented two-phase gap analysis \u2014 LLM categorization + programmatic reconciliation guarantees every JD skill lands in matched / missing / partial",
+        "Designed CV parsing with structured Pydantic output and personal-info extraction"
+      ],
+      "description": "",
+      "technologies": [
+        "Python",
+        "Django 5.2",
+        "PostgreSQL",
+        "Supabase",
+        "pgvector",
+        "Groq",
+        "meta-llama/llama-4-scout-17b-16e-instruct"
+      ]
+    },
+    {
+      "url": "https://github.com/ZeyadElshenawy/hr-analytics-dashboard",
+      "name": "HR ANALYTICS DASHBOARD (CASE STUDY \u2013 DATACAMP)",
+      "source": "github",
+      "pushed_at": "2026-04-24T01:17:29Z",
+      "source_id": "ZeyadElshenawy/hr-analytics-dashboard",
+      "highlights": [
+        "Developed an interactive HR analytics dashboard in Power BI as part of a Datacamp case study.",
+        "Cleaned and transformed HR data using Power Query to prepare for visualization and reporting.",
+        "Created KPIs and visualizations to track employee attrition, hiring trends, and workforce demographics."
+      ],
+      "description": "",
+      "technologies": [
+        "Power BI",
+        "Power Query",
+        "DAX"
+      ]
+    },
+    {
+      "url": "https://github.com/ZeyadElshenawy/healthcare-prediction-depi",
+      "name": "healthcare-prediction-depi",
+      "source": "github",
+      "pushed_at": "2026-04-24T04:04:17Z",
+      "source_id": "ZeyadElshenawy/healthcare-prediction-depi",
+      "highlights": [
+        "Cleaned and analyzed data with EDA",
+        "Engineered features for imbalanced classification modeling",
+        "Deployed model as a Flask REST API for predictions"
+      ],
+      "description": "",
+      "technologies": [
+        "Python",
+        "Jupyter Notebook",
+        "Pandas",
+        "scikit-learn",
+        "Flask",
+        "MLflow"
+      ]
+    },
+    {
+      "url": "https://github.com/ZeyadElshenawy/customer-segmentation-rfmt",
+      "name": "customer-segmentation-rfmt",
+      "source": "github",
+      "pushed_at": "2026-04-24T03:52:50Z",
+      "source_id": "ZeyadElshenawy/customer-segmentation-rfmt",
+      "highlights": [
+        "Validated k=3 clusters \u2014 silhouette peaks at 0.351",
+        "Extended classical RFM with Tenure (RFMT) for richer lifecycle signals",
+        "Drove 84% of revenue with the Promising segment"
+      ],
+      "description": "",
+      "technologies": [
+        "Python",
+        "Jupyter Notebook",
+        "scikit-learn",
+        "Pandas",
+        "Plotly",
+        "Streamlit",
+        "Power BI"
+      ]
+    },
+    {
+      "url": "https://github.com/ZeyadElshenawy/BookShop",
+      "name": "BookShop",
+      "source": "github",
+      "pushed_at": "2026-04-24T03:25:42Z",
+      "source_id": "ZeyadElshenawy/BookShop",
+      "highlights": [
+        "Designed responsive layout with Swiper-based book carousel",
+        "Implemented client-side cart and demo login/signup page",
+        "Normalized filenames and fixed broken references"
+      ],
+      "description": "",
+      "technologies": [
+        "HTML",
+        "CSS",
+        "JavaScript",
+        "Swiper"
+      ]
+    },
+    {
+      "url": "https://github.com/ZeyadElshenawy/apotheosis-traffic-sign-detection",
+      "name": "apotheosis-traffic-sign-detection",
+      "source": "github",
+      "pushed_at": "2026-04-24T03:04:33Z",
+      "source_id": "ZeyadElshenawy/apotheosis-traffic-sign-detection",
+      "highlights": [
+        "Preprocessed traffic sign images with color filtering and contour detection",
+        "Classified signs using visual characteristics",
+        "Tuned detection thresholds via external JSON configuration"
+      ],
+      "description": "",
+      "technologies": [
+        "Python",
+        "Jupyter Notebook",
+        "OpenCV",
+        "Numpy"
+      ]
+    },
+    {
+      "name": "END-TO-END DATA PIPELINE & MACHINE LEARNING PROJECT",
+      "highlights": [
+        "Built a data pipeline in Microsoft Fabric with PySpark to automate ingestion, cleaning, and transformation of raw data.",
+        "Applied data preprocessing techniques (handling missing values, feature engineering, normalization) to prepare data for modeling.",
+        "Developed and evaluated machine learning algorithms to extract insights and support business decision-making."
+      ],
+      "description": "",
+      "technologies": [
+        "PySpark",
+        "Machine Learning"
+      ]
+    },
+    {
+      "name": "BRAIN TUMOR CLASSIFICATION APP",
+      "highlights": [
+        "Built a medical imaging application that processes MRI scans and predicts tumor presence using a Convolutional Neural Network (CNN).",
+        "Developed and trained the CNN model with TensorFlow/Keras on a labeled brain MRI dataset, achieving high accuracy in classification.",
+        "Integrated the trained model into an application pipeline to allow real-time MRI image uploads and predictions."
+      ],
+      "description": "",
+      "technologies": [
+        "TensorFlow",
+        "Keras",
+        "CNN"
+      ]
+    }
+  ],
+  "dedupe_decisions": [
+    {
+      "action": "keep_existing",
+      "reason": "URL match",
+      "confidence": 0.95,
+      "typed_index": 0,
+      "enriched_index": 0
+    },
+    {
+      "action": "keep_existing",
+      "reason": "URL match",
+      "confidence": 0.95,
+      "typed_index": 2,
+      "enriched_index": 1
+    },
+    {
+      "action": "keep_existing",
+      "reason": "URL match",
+      "confidence": 0.95,
+      "typed_index": 3,
+      "enriched_index": 2
+    },
+    {
+      "action": "keep_existing",
+      "reason": "URL match",
+      "confidence": 0.95,
+      "typed_index": 4,
+      "enriched_index": 3
+    },
+    {
+      "action": "keep_existing",
+      "reason": "URL match",
+      "confidence": 0.95,
+      "typed_index": 1,
+      "enriched_index": 4
+    },
+    {
+      "action": "keep_existing",
+      "reason": "URL match",
+      "confidence": 0.95,
+      "typed_index": 5,
+      "enriched_index": 5
+    }
+  ],
+  "linkedin_signals": {
+    "name": "Zeyad Ahmed Elshenawy",
+    "about": "I\u2019m passionate about leveraging Artificial Intelligence and Data Science to transform raw data into meaningful insights and real-world impact. My focus areas include machine learning, deep learning, natural language processing, and data analytics, with growing interest in how these technologies can drive innovation across finance, education, and intelligent systems.\n\nI enjoy the entire process of building intelligent solutions \u2014 from data collection and engineering to model design, training, and deployment. I approach problems like a scientist, exploring and experimenting, yet think like an engineer, ensuring every solution is scalable, efficient, and explainable.\n\nCurrently, I\u2019m developing AI-driven prediction and sentiment analysis models that analyze market behavior and enhance decision-making. These experiences have strengthened my technical foundation in Python, SQL, and modern ML frameworks, as well as my ability to turn complex data into clear, actionable insights.\n\nMy goal is to keep building impactful, data-driven systems, contributing to teams that value innovation, and advancing the role of AI in shaping smarter, more adaptive technologies. \u2026 more",
+    "error": null,
+    "skills": [
+      {
+        "name": "Team Management",
+        "sources": [
+          "Project Management: The Basics for Success"
+        ]
+      },
+      {
+        "name": "Communications Planning",
+        "sources": [
+          "Project Management: The Basics for Success"
+        ]
+      },
+      {
+        "name": "Leadership",
+        "sources": [
+          "Project Management: The Basics for Success"
+        ]
+      },
+      {
+        "name": "Project Performance",
+        "sources": [
+          "Project Management: The Basics for Success"
+        ]
+      },
+      {
+        "name": "Project Management",
+        "sources": [
+          "Project Management: The Basics for Success"
+        ]
+      },
+      {
+        "name": "Team Building",
+        "sources": [
+          "Project Management: The Basics for Success"
+        ]
+      },
+      {
+        "name": "Management Information Systems (MIS)",
+        "sources": [
+          "Project Management: The Basics for Success"
+        ]
+      },
+      {
+        "name": "People Development",
+        "sources": [
+          "Project Management: The Basics for Success"
+        ]
+      },
+      {
+        "name": "Project Control",
+        "sources": [
+          "Project Management: The Basics for Success"
+        ]
+      },
+      {
+        "name": "Performance Reporting",
+        "sources": [
+          "Project Management: The Basics for Success"
+        ]
+      },
+      {
+        "name": "Team Performance Management",
+        "sources": [
+          "Project Management: The Basics for Success"
+        ]
+      },
+      {
+        "name": "Project Planning",
+        "sources": [
+          "Project Management: The Basics for Success"
+        ]
+      },
+      {
+        "name": "Correlation Analysis",
+        "sources": [
+          "Data Mining Methods"
+        ]
+      },
+      {
+        "name": "Supervised Learning",
+        "sources": [
+          "Data Mining Methods"
+        ]
+      },
+      {
+        "name": "Classification Algorithms",
+        "sources": [
+          "Data Mining Methods"
+        ]
+      },
+      {
+        "name": "Data Mining",
+        "sources": [
+          "Data Mining Methods"
+        ]
+      },
+      {
+        "name": "Unsupervised Learning",
+        "sources": [
+          "Data Mining Methods"
+        ]
+      },
+      {
+        "name": "Model Evaluation",
+        "sources": [
+          "Data Mining Methods"
+        ]
+      },
+      {
+        "name": "Cloud Deployment",
+        "sources": [
+          "Introduction to Cloud Computing"
+        ]
+      },
+      {
+        "name": "DevOps",
+        "sources": [
+          "Introduction to Cloud Computing"
+        ]
+      },
+      {
+        "name": "Cloud Computing",
+        "sources": [
+          "Introduction to Cloud Computing"
+        ]
+      },
+      {
+        "name": "Virtual Machines",
+        "sources": [
+          "Introduction to Cloud Computing"
+        ]
+      },
+      {
+        "name": "nfrastructure As A Service (IaaS)",
+        "sources": [
+          "Introduction to Cloud Computing"
+        ]
+      },
+      {
+        "name": "IBM Cloud",
+        "sources": [
+          "Introduction to Cloud Computing"
+        ]
+      },
+      {
+        "name": "Cloud Infrastructure",
+        "sources": [
+          "Introduction to Cloud Computing"
+        ]
+      },
+      {
+        "name": "Embedded Software",
+        "sources": [
+          "The Arduino Platform and C Programming"
+        ]
+      },
+      {
+        "name": "C (Programming Language)",
+        "sources": [
+          "The Arduino Platform and C Programming"
+        ]
+      },
+      {
+        "name": "Debugging",
+        "sources": [
+          "The Arduino Platform and C Programming"
+        ]
+      },
+      {
+        "name": "Digital Communication",
+        "sources": [
+          "The Arduino Platform and C Programming"
+        ]
+      },
+      {
+        "name": "Arduino IDE",
+        "sources": [
+          "The Arduino Platform and C Programming"
+        ]
+      },
+      {
+        "name": "Electronic Engineering",
+        "sources": [
+          "The Arduino Platform and C Programming"
+        ]
+      },
+      {
+        "name": "Spatial Data Analysis",
+        "sources": [
+          "Introduction to Image Processing"
+        ]
+      },
+      {
+        "name": "Image Segmentation",
+        "sources": [
+          "Introduction to Image Processing"
+        ]
+      },
+      {
+        "name": "Image Analysis",
+        "sources": [
+          "Introduction to Image Processing"
+        ]
+      },
+      {
+        "name": "MATLAB",
+        "sources": [
+          "Introduction to Image Processing"
+        ]
+      },
+      {
+        "name": "Geospatial Information and Technology",
+        "sources": [
+          "Introduction to Image Processing"
+        ]
+      },
+      {
+        "name": "Recurrent Neural Networks (RNN)",
+        "sources": [
+          "Natural Language Processing in TensorFlow"
+        ]
+      },
+      {
+        "name": "Gated Recurrent Units (GRU)",
+        "sources": [
+          "Natural Language Processing in TensorFlow"
+        ]
+      },
+      {
+        "name": "Long Short-term Memory (LSTM)",
+        "sources": [
+          "Natural Language Processing in TensorFlow"
+        ]
+      },
+      {
+        "name": "Keras",
+        "sources": [
+          "Natural Language Processing in TensorFlow"
+        ]
+      },
+      {
+        "name": "Text Processing",
+        "sources": [
+          "Natural Language Processing in TensorFlow"
+        ]
+      },
+      {
+        "name": "TensorFlow",
+        "sources": [
+          "Natural Language Processing in TensorFlow"
+        ]
+      },
+      {
+        "name": "Word Embeddings",
+        "sources": [
+          "Natural Language Processing in TensorFlow"
+        ]
+      },
+      {
+        "name": "Data Science",
+        "sources": [
+          "AI & Data Science Trainee at Digital Egypt Pioneers Initiative - DEPI",
+          "Data Mining Methods"
+        ]
+      },
+      {
+        "name": "Deep Learning",
+        "sources": [
+          "AI & Data Science Trainee at Digital Egypt Pioneers Initiative - DEPI",
+          "Natural Language Processing in TensorFlow"
+        ]
+      },
+      {
+        "name": "Python (Programming Language)",
+        "sources": [
+          "2 experiences at Digital Egypt Pioneers Initiative - DEPI and 1 other company"
+        ]
+      },
+      {
+        "name": "PySpark",
+        "sources": [
+          "Intern at Al-Mansour Automotive"
+        ]
+      },
+      {
+        "name": "Pipelines",
+        "sources": [
+          "Intern at Al-Mansour Automotive"
+        ]
+      },
+      {
+        "name": "Microsoft Power BI",
+        "sources": [
+          "Intern at Al-Mansour Automotive"
+        ]
+      },
+      {
+        "name": "Data Analysis",
+        "sources": [
+          "2 experiences at Digital Egypt Pioneers Initiative - DEPI and 1 other company"
+        ]
+      },
+      {
+        "name": "Machine Learning",
+        "sources": [
+          "2 experiences at Digital Egypt Pioneers Initiative - DEPI and 1 other company"
+        ]
+      },
+      {
+        "name": "Computer Information Systems",
+        "sources": [
+          "Intern at Al-Mansour Automotive"
+        ]
+      }
+    ],
+    "courses": [
+      {
+        "course_name": "Courses that Zeyad adds will appear here.",
+        "associated_with": ""
+      }
+    ],
+    "scraped": true,
+    "featured": [
+      {
+        "url": "https://drive.google.com/file/d/1DPZgqAkdbfaV2z13M-KzX36uYG_YwK9Z/view?usp=drive_link&usp=embed_facebook",
+        "kind": "link",
+        "title": "my CV Google Docs Check out my latest CV!"
+      },
+      {
+        "url": "https://github.com/ZeyadElshenawy",
+        "kind": "link",
+        "title": "ZeyadElshenawy - Overview GitHub View my GitHub"
+      }
+    ],
+    "headline": "Data Scientist | AI Engineer | Data Analyst | Senior Software Engineering Student @ KSIU",
+    "licenses": [
+      {
+        "name": "Project Management: The Basics for Success",
+        "skills": "Skills: Project Planning, Management Information Systems (MIS), +10 skills",
+        "institute": "University of California, Irvine",
+        "issued_date": "Oct 2025",
+        "credential_url": "https://www.coursera.org/account/accomplishments/records/PW0LL8UOHR1D"
+      },
+      {
+        "name": "Data Mining Methods",
+        "skills": "Skills: Unsupervised Learning, Classification Algorithms, +5 skills",
+        "institute": "University of Colorado Boulder",
+        "issued_date": "Dec 2025",
+        "credential_url": "https://www.coursera.org/account/accomplishments/records/W39MIS4381Y2"
+      },
+      {
+        "name": "Introduction to Cloud Computing",
+        "skills": "Skills: DevOps, Cloud Deployment, +5 skills",
+        "institute": "IBM",
+        "issued_date": "Oct 2025",
+        "credential_url": "https://www.coursera.org/account/accomplishments/records/QLSR8E4GCRWO"
+      },
+      {
+        "name": "The Arduino Platform and C Programming",
+        "skills": "Skills: Electronic Engineering, Embedded Software, +4 skills",
+        "institute": "University of California, Irvine",
+        "issued_date": "Nov 2025",
+        "credential_url": "https://www.coursera.org/account/accomplishments/records/37V3TWZBUADF"
+      },
+      {
+        "name": "Introduction to Image Processing",
+        "skills": "Skills: Image Analysis, MATLAB, +3 skills",
+        "institute": "MathWorks",
+        "issued_date": "May 2025",
+        "credential_url": "https://www.coursera.org/account/accomplishments/verify/A223656LQBEA"
+      },
+      {
+        "name": "Natural Language Processing in TensorFlow",
+        "skills": "Skills: Keras, Deep Learning, +6 skills",
+        "institute": "DeepLearning.AI",
+        "issued_date": "May 2026",
+        "credential_url": "https://www.coursera.org/account/accomplishments/records/T0IZEIVPV2UY"
+      },
+      {
+        "name": "Advanced Topics and Future Trends in Database Technologies",
+        "skills": "",
+        "institute": "University of Colorado Boulder",
+        "issued_date": "Dec 2025",
+        "credential_url": "https://www.coursera.org/account/accomplishments/verify/IM30L7LE05WX"
+      },
+      {
+        "name": "Neural Networks and Deep Learning",
+        "skills": "",
+        "institute": "DeepLearning.AI",
+        "issued_date": "May 2025",
+        "credential_url": "https://www.coursera.org/account/accomplishments/verify/HYT51PF7WQGV"
+      },
+      {
+        "name": "Introduction to Image Processing",
+        "skills": "",
+        "institute": "MathWorks",
+        "issued_date": "May 2025",
+        "credential_url": "https://www.coursera.org/account/accomplishments/verify/A223656LQBEA"
+      },
+      {
+        "name": "Database Management with Java and SQL",
+        "skills": "",
+        "institute": "Amazon",
+        "issued_date": "May 2025",
+        "credential_url": "https://www.coursera.org/account/accomplishments/verify/3P34H669GT2I"
+      },
+      {
+        "name": "Introduction to Software Testing",
+        "skills": "",
+        "institute": "University of Minnesota",
+        "issued_date": "Apr 2025",
+        "credential_url": "https://www.coursera.org/account/accomplishments/verify/1OZF8NH9Q4EA"
+      },
+      {
+        "name": "Applied Machine Learning in Python",
+        "skills": "",
+        "institute": "University of Michigan",
+        "issued_date": "Apr 2025",
+        "credential_url": "https://www.coursera.org/account/accomplishments/verify/BUYFU9ADFMIQ"
+      },
+      {
+        "name": "Critical Thinking Skills for the Professional",
+        "skills": "",
+        "institute": "University of California, Davis",
+        "issued_date": "Apr 2025",
+        "credential_url": "https://www.coursera.org/account/accomplishments/verify/P5NLPKSWVJ3N"
+      }
+    ],
+    "projects": [],
+    "username": "zeyad-elshenawy",
+    "warnings": [
+      "No projects entries parsed (section may be empty or the LazyColumn anchor changed)."
+    ],
+    "education": [
+      {
+        "degree": "Student, Computer science",
+        "college": "King Salman International University",
+        "duration": "Oct 2022 \u2013 Jul 2026",
+        "description": "Activities and societies: IEEE Student Branch Member \u2022 GDSC Member \u2022 ICPC Community Member \u2022 COP27 Volunteer (via KSIU) \u2022 Huawei ICT Academy Participant"
+      }
+    ],
+    "experience": [
+      {
+        "duration": "Jun 2025 - Dec 2025 \u00b7 7 mos",
+        "company_name": "Digital Egypt Pioneers Initiative - DEPI",
+        "designations": [
+          {
+            "skills": "Machine Learning, Python (Programming Language) and +3 skills",
+            "duration": "Jun 2025 - Dec 2025 \u00b7 7 mos",
+            "location": "Remote",
+            "description": "Selected participant in the national Digital Egypt Pioneers Initiative (DEPI) \u2014 AI & Data Science track designed by IBM in partnership with Egypt\u2019s Ministry of Communications & Information Technology (MCIT). Applied the full data-science lifecycle to real problems: data collection and cleaning, exploratory data analysis, feature engineering, model development and evaluation, and production-oriented deployment.\n\nI developed practical skills in the Python data-science ecosystem and SQL, and used MLOps tools (MLflow, Hugging Face) to build reproducible pipelines. I practised prompt engineering and integrated AI tools for automation and model augmentation. Throughout the program I focused on translating data into actionable business insights to improve performance, increase efficiency, and enhance customer experience.\n\nCore coursework and hands-on modules included:\n\u2022 Prompt Engineering\n\u2022 What is Data Science? / Data Science Methodology\n\u2022 Tools for Data Science\n\u2022 Python for Data Science, AI & Development + Python Project\n\u2022 Databases & SQL for Data Science with Python\n\u2022 Data Analysis, Visualization & Machine Learning with Python\n\u2022 MLOps tools (MLflow, Hugging Face)\n\u2022 Capstone project: end-to-end AI project demonstrating preprocessing, feature engineering, model selection, evaluation and deployment.\n\nForward-looking emphasis: reproducible, ethical, and scalable ML/AI solutions that bridge technical results and business impact.",
+            "designation": "AI & Data Science Trainee"
+          }
+        ],
+        "employment_type": "Internship"
+      },
+      {
+        "duration": "Aug 2025 \u00b7 1 mo",
+        "company_name": "Al-Mansour Automotive",
+        "designations": [
+          {
+            "skills": "Computer Information Systems, Python (Programming Language) and +5 skills",
+            "duration": "Aug 2025 \u00b7 1 mo",
+            "location": "Al Jizah, Egypt \u00b7 On-site",
+            "description": "Rotational internship within the company\u2019s Digital Transformation Division, gaining cross-functional exposure to IT, SAP ERP, Digital Transformation Strategy, and Network Security.\n\nContributed to modernization initiatives by designing a data pipeline using PySpark for large-scale data ingestion and preprocessing, and experimenting with machine learning models to support operational analytics and decision-making.\n\nAnalyzed ERP workflows to identify automation and efficiency opportunities, assisted in infrastructure monitoring and management, and collaborated with multidisciplinary teams driving the company\u2019s digitalization roadmap.\n\nKey Achievements:\n\nDeveloped and optimized a PySpark-based data pipeline integrated with enterprise systems.\n\nParticipated in SAP process analysis and business workflow mapping for digital improvement.\n\nSupported network infrastructure assessments and IT performance monitoring.\n\nApplied ML techniques to extract insights from operational data.",
+            "designation": "Intern"
+          }
+        ],
+        "employment_type": "Full-time"
+      }
+    ],
+    "fetched_at": "2026-05-15T18:54:39+00:00",
+    "profile_url": "https://www.linkedin.com/in/zeyad-elshenawy/",
+    "volunteering": [
+      {
+        "role": "Youth Volunteer",
+        "cause": "Environment",
+        "duration": "Nov 2022 \u00b7 1 mo",
+        "description": "Volunteer \u2014 COP27 (UN Climate Change Conference) \nvia King Salman International University, Sharm El Sheikh | Nov 2022\n\n\u2022 Assisted university-supported operations by hosting logistics and delegate accommodation through KSIU\u2019s tourism & hospitality facilities. \n\u2022 Collaborated in the Green Challenge competition, contributing to student-led sustainability projects in partnership with Schneider Electric. \n\u2022 Participated in broader youth volunteer activities\u2014supporting attendee coordination, session facilitation, and outreach initiatives under the UNV/UNDP framework. \u2026 more \u062c\u0627\u0645\u0639\u0629 \u0627\u0644\u0645\u0644\u0643 \u0633\u0644\u0645\u0627\u0646 \u062a\u0634\u0627\u0631\u0643 \u0641\u064a \u0645\u0633\u064a\u0631\u0629 \u0644\u062f\u0639\u0645 \u0627\u0644\u0639\u062f\u0627\u0644\u0629 \u0627\u0644\u0645\u0646\u0627\u062e\u064a\u0629.. \u0641\u064a\u062f\u064a\u0648 - \u0627\u0644\u064a\u0648\u0645 \u0627\u0644\u0633\u0627\u0628\u0639",
+        "organization": "COP27 - UN Climate Change Conference"
+      }
+    ],
+    "honors_and_awards": [
+      "When you add new honors & awards they\u2019ll show up here."
+    ]
+  },
+  "projects_enriched": [
+    {
+      "name": "SmartCV",
+      "source": "github",
+      "bullets": [
+        "Built deterministic ATS scoring with stuffing detection and in-context bonus",
+        "Implemented two-phase gap analysis \u2014 LLM categorization + programmatic reconciliation guarantees every JD skill lands in matched / missing / partial",
+        "Designed CV parsing with structured Pydantic output and personal-info extraction"
+      ],
+      "summary": "AI-powered career assistant for job seekers. Upload a CV, paste a job description, and get a gap analysis, an ATS-scored tailored resume, and an outreach campaign plan \u2014 backed by an LLM pipeline that reuses the same services everywhere instead of one-off scripts.",
+      "source_id": "ZeyadElshenawy/SmartCV",
+      "source_url": "https://github.com/ZeyadElshenawy/SmartCV",
+      "tech_stack": [
+        "Python",
+        "Django 5.2",
+        "PostgreSQL",
+        "Supabase",
+        "pgvector",
+        "Groq",
+        "meta-llama/llama-4-scout-17b-16e-instruct"
+      ]
+    },
+    {
+      "name": "healthcare-prediction-depi",
+      "source": "github",
+      "bullets": [
+        "Cleaned and analyzed data with EDA",
+        "Engineered features for imbalanced classification modeling",
+        "Deployed model as a Flask REST API for predictions"
+      ],
+      "summary": "DEPI team capstone \u2014 stroke risk prediction on Kaggle Stroke dataset (5,110 patients, 4.9% stroke rate). Class-weighted Logistic Regression with 84% recall on stroke cases, Flask REST API.",
+      "source_id": "ZeyadElshenawy/healthcare-prediction-depi",
+      "source_url": "https://github.com/ZeyadElshenawy/healthcare-prediction-depi",
+      "tech_stack": [
+        "Python",
+        "Jupyter Notebook",
+        "Pandas",
+        "scikit-learn",
+        "Flask",
+        "MLflow"
+      ]
+    },
+    {
+      "name": "customer-segmentation-rfmt",
+      "source": "github",
+      "bullets": [
+        "Validated k=3 clusters \u2014 silhouette peaks at 0.351",
+        "Extended classical RFM with Tenure (RFMT) for richer lifecycle signals",
+        "Drove 84% of revenue with the Promising segment"
+      ],
+      "summary": "Customer segmentation on UCI Online Retail \u2014 RFMT metrics + K-Means (3 segments: Champions / Promising / At Risk). Jupyter notebook, Streamlit live predictor, and Power BI dashboard.",
+      "source_id": "ZeyadElshenawy/customer-segmentation-rfmt",
+      "source_url": "https://github.com/ZeyadElshenawy/customer-segmentation-rfmt",
+      "tech_stack": [
+        "Python",
+        "Jupyter Notebook",
+        "scikit-learn",
+        "Pandas",
+        "Plotly",
+        "Streamlit",
+        "Power BI"
+      ]
+    },
+    {
+      "name": "BookShop",
+      "source": "github",
+      "bullets": [
+        "Designed responsive layout with Swiper-based book carousel",
+        "Implemented client-side cart and demo login/signup page",
+        "Normalized filenames and fixed broken references"
+      ],
+      "summary": "Static bookstore landing page \u2014 HTML/CSS/JS, Swiper carousels, client-side cart, demo signup UI.",
+      "source_id": "ZeyadElshenawy/BookShop",
+      "source_url": "https://github.com/ZeyadElshenawy/BookShop",
+      "tech_stack": [
+        "HTML",
+        "CSS",
+        "JavaScript",
+        "Swiper"
+      ]
+    },
+    {
+      "name": "hr-analytics-dashboard",
+      "source": "github",
+      "bullets": [
+        "Built star-schema data model with DAX measures",
+        "Analyzed employee attrition, demographics, and performance",
+        "Created executive views \u2014 Overview, Demographics, Performance Tracker, and Attrition"
+      ],
+      "summary": "Power BI dashboard on the Atlas Labs HR dataset (1,470 employees). Star-schema model + DAX measures for attrition, compensation, and performance.",
+      "source_id": "ZeyadElshenawy/hr-analytics-dashboard",
+      "source_url": "https://github.com/ZeyadElshenawy/hr-analytics-dashboard",
+      "tech_stack": [
+        "Power BI",
+        "DAX"
+      ]
+    },
+    {
+      "name": "apotheosis-traffic-sign-detection",
+      "source": "github",
+      "bullets": [
+        "Preprocessed traffic sign images with color filtering and contour detection",
+        "Classified signs using visual characteristics",
+        "Tuned detection thresholds via external JSON configuration"
+      ],
+      "summary": "Traffic-sign detection with classical computer vision (OpenCV preprocessing + contour detection). Course project.",
+      "source_id": "ZeyadElshenawy/apotheosis-traffic-sign-detection",
+      "source_url": "https://github.com/ZeyadElshenawy/apotheosis-traffic-sign-detection",
+      "tech_stack": [
+        "Python",
+        "Jupyter Notebook",
+        "OpenCV",
+        "Numpy"
+      ]
+    }
+  ],
+  "normalized_summary": "Highly motivated Data Scientist with 1 year of experience in digital transformation, data engineering, and machine learning. Proficient in Python, SQL, and various machine learning frameworks.",
+  "military_experience": null,
+  "speaking_engagements": null,
+  "volunteer_experience": [
+    {
+      "date": "Nov 2022 \u00b7 1 mo",
+      "cause": "Environment",
+      "title": "Youth Volunteer",
+      "source": "linkedin",
+      "description": "Volunteer \u2014 COP27 (UN Climate Change Conference) \nvia King Salman International University, Sharm El Sheikh | Nov 2022\n\n\u2022 Assisted university-supported operations by hosting logistics and delegate accommodation through KSIU\u2019s tourism & hospitality facilities. \n\u2022 Collaborated in the Green Challenge competition, contributing to student-led sustainability projects in partnership with Schneider Electric. \n\u2022 Participated in broader youth volunteer activities\u2014supporting attendee coordination, session facilitation, and outreach initiatives under the UNV/UNDP framework. \u2026 more \u062c\u0627\u0645\u0639\u0629 \u0627\u0644\u0645\u0644\u0643 \u0633\u0644\u0645\u0627\u0646 \u062a\u0634\u0627\u0631\u0643 \u0641\u064a \u0645\u0633\u064a\u0631\u0629 \u0644\u062f\u0639\u0645 \u0627\u0644\u0639\u062f\u0627\u0644\u0629 \u0627\u0644\u0645\u0646\u0627\u062e\u064a\u0629.. \u0641\u064a\u062f\u064a\u0648 - \u0627\u0644\u064a\u0648\u0645 \u0627\u0644\u0633\u0627\u0628\u0639",
+      "organization": "COP27 - UN Climate Change Conference"
+    }
+  ],
+  "enriched_projects_hash": "81d7a09fbf097ca2505ee59be0c197651d488843855842815becb6e1e1e78155",
+  "enriched_projects_cache": [
+    {
+      "name": "SmartCV",
+      "source": "github",
+      "bullets": [
+        "Built deterministic ATS scoring with stuffing detection and in-context bonus",
+        "Implemented two-phase gap analysis \u2014 LLM categorization + programmatic reconciliation guarantees every JD skill lands in matched / missing / partial",
+        "Designed CV parsing with structured Pydantic output and personal-info extraction"
+      ],
+      "summary": "AI-powered career assistant for job seekers. Upload a CV, paste a job description, and get a gap analysis, an ATS-scored tailored resume, and an outreach campaign plan \u2014 backed by an LLM pipeline that reuses the same services everywhere instead of one-off scripts.",
+      "source_id": "ZeyadElshenawy/SmartCV",
+      "source_url": "https://github.com/ZeyadElshenawy/SmartCV",
+      "tech_stack": [
+        "Python",
+        "Django 5.2",
+        "PostgreSQL",
+        "Supabase",
+        "pgvector",
+        "Groq",
+        "meta-llama/llama-4-scout-17b-16e-instruct"
+      ]
+    },
+    {
+      "name": "healthcare-prediction-depi",
+      "source": "github",
+      "bullets": [
+        "Cleaned and analyzed data with EDA",
+        "Engineered features for imbalanced classification modeling",
+        "Deployed model as a Flask REST API for predictions"
+      ],
+      "summary": "DEPI team capstone \u2014 stroke risk prediction on Kaggle Stroke dataset (5,110 patients, 4.9% stroke rate). Class-weighted Logistic Regression with 84% recall on stroke cases, Flask REST API.",
+      "source_id": "ZeyadElshenawy/healthcare-prediction-depi",
+      "source_url": "https://github.com/ZeyadElshenawy/healthcare-prediction-depi",
+      "tech_stack": [
+        "Python",
+        "Jupyter Notebook",
+        "Pandas",
+        "scikit-learn",
+        "Flask",
+        "MLflow"
+      ]
+    },
+    {
+      "name": "customer-segmentation-rfmt",
+      "source": "github",
+      "bullets": [
+        "Validated k=3 clusters \u2014 silhouette peaks at 0.351",
+        "Extended classical RFM with Tenure (RFMT) for richer lifecycle signals",
+        "Drove 84% of revenue with the Promising segment"
+      ],
+      "summary": "Customer segmentation on UCI Online Retail \u2014 RFMT metrics + K-Means (3 segments: Champions / Promising / At Risk). Jupyter notebook, Streamlit live predictor, and Power BI dashboard.",
+      "source_id": "ZeyadElshenawy/customer-segmentation-rfmt",
+      "source_url": "https://github.com/ZeyadElshenawy/customer-segmentation-rfmt",
+      "tech_stack": [
+        "Python",
+        "Jupyter Notebook",
+        "scikit-learn",
+        "Pandas",
+        "Plotly",
+        "Streamlit",
+        "Power BI"
+      ]
+    },
+    {
+      "name": "BookShop",
+      "source": "github",
+      "bullets": [
+        "Designed responsive layout with Swiper-based book carousel",
+        "Implemented client-side cart and demo login/signup page",
+        "Normalized filenames and fixed broken references"
+      ],
+      "summary": "Static bookstore landing page \u2014 HTML/CSS/JS, Swiper carousels, client-side cart, demo signup UI.",
+      "source_id": "ZeyadElshenawy/BookShop",
+      "source_url": "https://github.com/ZeyadElshenawy/BookShop",
+      "tech_stack": [
+        "HTML",
+        "CSS",
+        "JavaScript",
+        "Swiper"
+      ]
+    },
+    {
+      "name": "hr-analytics-dashboard",
+      "source": "github",
+      "bullets": [
+        "Built star-schema data model with DAX measures",
+        "Analyzed employee attrition, demographics, and performance",
+        "Created executive views \u2014 Overview, Demographics, Performance Tracker, and Attrition"
+      ],
+      "summary": "Power BI dashboard on the Atlas Labs HR dataset (1,470 employees). Star-schema model + DAX measures for attrition, compensation, and performance.",
+      "source_id": "ZeyadElshenawy/hr-analytics-dashboard",
+      "source_url": "https://github.com/ZeyadElshenawy/hr-analytics-dashboard",
+      "tech_stack": [
+        "Power BI",
+        "DAX"
+      ]
+    },
+    {
+      "name": "apotheosis-traffic-sign-detection",
+      "source": "github",
+      "bullets": [
+        "Preprocessed traffic sign images with color filtering and contour detection",
+        "Classified signs using visual characteristics",
+        "Tuned detection thresholds via external JSON configuration"
+      ],
+      "summary": "Traffic-sign detection with classical computer vision (OpenCV preprocessing + contour detection). Course project.",
+      "source_id": "ZeyadElshenawy/apotheosis-traffic-sign-detection",
+      "source_url": "https://github.com/ZeyadElshenawy/apotheosis-traffic-sign-detection",
+      "tech_stack": [
+        "Python",
+        "Jupyter Notebook",
+        "OpenCV",
+        "Numpy"
+      ]
+    }
+  ],
+  "_test_metadata": {
+    "description": "Zeyad Elshenawy: CS undergrad with AI/ML projects (Brain Tumor CNN, SmartCV with Llama-4/Groq/pgvector RAG, Healthcare Prediction, Customer Segmentation, End-to-End Pipeline). Targets Pharco AI Developer.",
+    "audit_findings_addressed": [
+      "PR 1: LANGUAGES dump bug (renderer guard)",
+      "PR 2a: dual-role classification (ml_engineer+data_scientist union)",
+      "PR 2b: project ranking via JD-tech rescue, cert fuzzy match",
+      "PR 3a: plan-as-contract restoration of dropped projects/certs",
+      "PR 3e: gap analyzer evidence linking beyond bullets",
+      "PR 2c: ml_engineer KB content (RAG/fine-tune/eval verbs)"
+    ],
+    "expected_behaviors": [
+      "Role classifies as ml_engineer (JD wins) + data_scientist (profile)",
+      "TensorFlow credited via project tech tag + cert substring",
+      "Brain Tumor CNN project included in output",
+      "NLP-related cert appears in output",
+      "No LANGUAGES section renders (profile has no spoken languages)",
+      "JD soft-skill phrases do not leak into Skills section",
+      "Summary does not start with banned opener"
+    ]
+  }
+}

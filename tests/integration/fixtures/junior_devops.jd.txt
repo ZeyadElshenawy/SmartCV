@@ -1,0 +1,28 @@
+About the job
+Junior DevOps Engineer
+
+Responsibilities:
+- Design, implement, and manage CI/CD pipelines.
+- Monitor and optimize system performance.
+- Automate infrastructure deployments using best DevOps practices.
+- Collaborate with development teams on scalable deployments.
+- Ensure security and compliance across cloud environments.
+
+Qualifications:
+- Fresh graduate or up to 2 years of DevOps experience.
+- Hands-on experience with Linux, Docker, Kubernetes.
+- Proficiency with CI/CD tools (GitHub Actions, Jenkins).
+- Familiarity with cloud platforms (AWS, GCP).
+- Knowledge of monitoring tools (Prometheus, Grafana).
+- Scripting experience: Bash, Python.
+
+Required Skills:
+- Strong communication and collaboration skills
+- Attention to detail
+- Problem-solving skills
+
+Job Criteria:
+- Seniority level: Entry level
+- Employment type: Full-time
+- Job function: Infrastructure / DevOps
+- Industries: Software
