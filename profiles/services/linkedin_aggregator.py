@@ -153,6 +153,7 @@ def _scraped_snapshot(handle: str) -> LinkedinSnapshot:
 
     try:
         from .linkedin_scraper import (
+            LinkedInScrapeBudgetExceeded,
             LinkedInScraperError,
             scrape_profile,
         )
@@ -188,13 +189,28 @@ def _scraped_snapshot(handle: str) -> LinkedinSnapshot:
             challenge_timeout=cfg['challenge_timeout'],
             imap_creds=imap_creds,
         )
+    except LinkedInScrapeBudgetExceeded as exc:
+        # Budget cap fired — Chrome wasn't launching in a reasonable
+        # window. Log warning (not info / exception) so prod logs make
+        # this distinct from other scrape failures; user sees a
+        # "temporarily unreachable" message that nudges them to retry.
+        logger.warning(
+            "LinkedIn scrape budget exceeded for %s after %.1fs (budget=%.0fs): %s",
+            handle, exc.elapsed_seconds, exc.budget_seconds,
+            exc.last_underlying_error or 'none',
+        )
+        base['error'] = (
+            "LinkedIn is temporarily unreachable. Please try again "
+            "in a few minutes."
+        )
+        return base
     except LinkedInScraperError as exc:
         logger.info("LinkedIn scrape failed for %s: %s", handle, exc)
-        base['error'] = f"LinkedIn scrape failed: {exc}"
+        base['error'] = "Failed to fetch LinkedIn profile. Please try connecting again."
         return base
     except Exception as exc:  # noqa: BLE001 — Selenium can blow up in unexpected ways
         logger.exception("Unexpected LinkedIn scrape error for %s", handle)
-        base['error'] = f"Unexpected scraper error: {exc}"
+        base['error'] = "Failed to fetch LinkedIn profile. Please try connecting again."
         return base
 
     base.update({

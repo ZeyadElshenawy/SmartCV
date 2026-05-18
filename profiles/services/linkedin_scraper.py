@@ -135,6 +135,46 @@ class LinkedInScraperError(RuntimeError):
     """Raised when the scrape fails in a way the caller should surface."""
 
 
+# Hard cap on total wall-clock time spent attempting LinkedIn scrape,
+# across all Chrome-launch retries AND the fallback builder. When the
+# budget is exhausted, _construct_with_retry raises
+# LinkedInScrapeBudgetExceeded before kicking off another attempt — so
+# users see "temporarily unreachable" within ~60s instead of waiting
+# 13 minutes for the full retry cascade to finish.
+#
+# Override at deploy time via LINKEDIN_SCRAPE_BUDGET_SECONDS.
+SCRAPE_BUDGET_SECONDS = float(
+    os.environ.get('LINKEDIN_SCRAPE_BUDGET_SECONDS', '60')
+)
+
+
+class LinkedInScrapeBudgetExceeded(LinkedInScraperError):
+    """Raised when the cumulative retry time exceeds SCRAPE_BUDGET_SECONDS.
+
+    Subclasses ``LinkedInScraperError`` so the aggregator's existing
+    ``except LinkedInScraperError`` branch handles it cleanly (no
+    duplicate logging path). Callers that want to distinguish the
+    budget-exceeded case can ``isinstance(e, LinkedInScrapeBudgetExceeded)``
+    and surface a different user-facing message ("LinkedIn temporarily
+    unreachable" vs the generic "scrape failed").
+    """
+
+    def __init__(
+        self,
+        elapsed_seconds: float,
+        budget_seconds: float,
+        last_underlying_error: str | None = None,
+    ):
+        self.elapsed_seconds = elapsed_seconds
+        self.budget_seconds = budget_seconds
+        self.last_underlying_error = last_underlying_error
+        super().__init__(
+            f"LinkedIn scrape budget exceeded: "
+            f"{elapsed_seconds:.1f}s > {budget_seconds:.0f}s. "
+            f"Last underlying error: {last_underlying_error or 'none'}"
+        )
+
+
 @dataclass
 class ScrapeResult:
     profile_url: str
@@ -247,10 +287,22 @@ def _common_chrome_args(headless: bool, user_data_dir: Path | None) -> list[str]
     return args
 
 
-def _construct_with_retry(builder) -> webdriver.Chrome:
-    """Call ``builder()`` to construct a Chrome driver. On a transient
-    'cannot connect to chrome' / 'session not created' failure, wait 2s
-    and try once more.
+def _construct_with_retry(builder, *, fallback_builder=None) -> webdriver.Chrome:
+    """Call ``builder()`` to construct a Chrome driver, with retries on
+    transient 'cannot connect to chrome' / 'session not created' failures.
+
+    Three attempts with exponential backoff (2s, 5s, 10s). On a cold
+    Windows machine the first launch often races chromedriver vs Chrome
+    itself — UC also patches its driver binary on first run, which adds
+    ~30-60s before the second attempt is even possible. Bumped from
+    1-retry → 2-retries after the 2026-05-16 job-scrape rollout showed
+    both initial attempts losing the race.
+
+    If ``fallback_builder`` is supplied (e.g., vanilla Selenium when the
+    primary path is undetected-chromedriver), it's invoked as a last
+    resort after the retries exhaust. UC is more reliable for bypassing
+    LinkedIn's bot detection but more fragile to install; vanilla is
+    the reverse trade-off.
 
     ``builder`` MUST construct a fresh ``ChromeOptions`` object on every
     call — ``uc.Chrome`` mutates the options object during init and
@@ -258,24 +310,95 @@ def _construct_with_retry(builder) -> webdriver.Chrome:
     pass otherwise. Pass a closure that calls
     ``_make_undetected_options()`` / ``Options()`` inside, not a captured
     one from outside.
+
+    **Budget cap (2026-05-19):** The cumulative wall-clock time across
+    all primary and fallback attempts is bounded by
+    ``SCRAPE_BUDGET_SECONDS``. The budget is checked BEFORE each
+    attempt — if exhausted, ``LinkedInScrapeBudgetExceeded`` is raised
+    instead of starting another attempt. This prevents the 13-minute
+    user-visible hang observed in prod when Chrome refuses to launch
+    (DevToolsActivePort errors, zombie processes, version mismatches).
     """
-    try:
-        return builder()
-    except WebDriverException as exc:
-        msg = str(exc).lower()
-        transient = (
-            'cannot connect to chrome' in msg
-            or 'session not created' in msg
-            or 'chrome not reachable' in msg
+    delays = (2.0, 5.0, 10.0)
+    last_exc: Exception | None = None
+    start = time.monotonic()
+
+    def _elapsed() -> float:
+        return time.monotonic() - start
+
+    def _raise_budget_exceeded() -> None:
+        elapsed = _elapsed()
+        logger.error(
+            "linkedin_scraper: budget exceeded after %.1fs "
+            "(budget=%.0fs, last_error=%s)",
+            elapsed, SCRAPE_BUDGET_SECONDS,
+            type(last_exc).__name__ if last_exc else 'none',
         )
-        if not transient:
-            raise
-        logger.info(
-            "Chrome launch failed (transient); retrying once after 2s: %s",
-            msg.split('stacktrace')[0].strip()[:160],
+        raise LinkedInScrapeBudgetExceeded(
+            elapsed_seconds=elapsed,
+            budget_seconds=SCRAPE_BUDGET_SECONDS,
+            last_underlying_error=(
+                str(last_exc).split('stacktrace')[0].strip()[:160]
+                if last_exc else None
+            ),
         )
-        sleep(2.0)
-        return builder()
+
+    for attempt, delay in enumerate(delays, start=1):
+        # Pre-attempt budget gate — if the previous attempt drained
+        # the budget, fail fast instead of starting another launch
+        # that could take 60+ seconds.
+        if _elapsed() >= SCRAPE_BUDGET_SECONDS:
+            _raise_budget_exceeded()
+        try:
+            return builder()
+        except WebDriverException as exc:
+            msg = str(exc).lower()
+            transient = (
+                'cannot connect to chrome' in msg
+                or 'session not created' in msg
+                or 'chrome not reachable' in msg
+            )
+            if not transient:
+                raise
+            last_exc = exc
+            if attempt == len(delays):
+                break
+            logger.info(
+                "Chrome launch failed (transient, attempt %d/%d); retrying after %.0fs: %s",
+                attempt, len(delays), delay,
+                msg.split('stacktrace')[0].strip()[:160],
+            )
+            # Sleep but not past the budget — if the remaining budget
+            # is shorter than the planned delay, sleep just enough so
+            # the next iteration's budget check fires.
+            remaining = SCRAPE_BUDGET_SECONDS - _elapsed()
+            sleep(min(delay, max(0.0, remaining)))
+
+    if fallback_builder is not None:
+        if _elapsed() >= SCRAPE_BUDGET_SECONDS:
+            _raise_budget_exceeded()
+        logger.warning(
+            "Primary Chrome builder exhausted retries; falling back to alternate builder."
+        )
+        try:
+            return fallback_builder()
+        except WebDriverException as fallback_exc:
+            logger.warning("Fallback builder also failed: %s",
+                           str(fallback_exc).split('stacktrace')[0].strip()[:160])
+            last_exc = fallback_exc
+
+    # Final budget check before surfacing the underlying error: if the
+    # last attempt itself drained the budget (pre-attempt gate cleared,
+    # then the attempt ran long), prefer the budget-exceeded exception
+    # over the raw WebDriverException — the budget exception carries
+    # the diagnostic and is what the aggregator's fast-fail path
+    # expects to catch.
+    if last_exc is not None:
+        if _elapsed() >= SCRAPE_BUDGET_SECONDS:
+            _raise_budget_exceeded()
+        raise last_exc
+    # Defensive — unreachable given the loop structure.
+    raise WebDriverException("Chrome launch failed for unknown reason")
 
 
 def _build_driver(
@@ -293,6 +416,20 @@ def _build_driver(
     retry attempt builds a fresh ChromeOptions instance — uc.Chrome
     cannot reuse the same object across attempts.
     """
+    def build_vanilla():
+        options = Options()
+        for arg in _common_chrome_args(headless, user_data_dir):
+            options.add_argument(arg)
+        if headless:
+            options.add_argument(
+                "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/131.0.0.0 Safari/537.36"
+            )
+        options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        options.add_experimental_option("useAutomationExtension", False)
+        return webdriver.Chrome(options=options)
+
     if use_undetected and _HAS_UC:
         def build_uc():
             opts = uc.ChromeOptions()
@@ -312,21 +449,11 @@ def _build_driver(
             if chrome_major is not None:
                 kwargs["version_main"] = chrome_major
             return uc.Chrome(**kwargs)
-        return _construct_with_retry(build_uc)
+        # UC is more reliable for bot detection but more fragile to launch on
+        # Windows. Pass build_vanilla as fallback so we don't lose the whole
+        # scrape when UC's first-launch race hits.
+        return _construct_with_retry(build_uc, fallback_builder=build_vanilla)
 
-    def build_vanilla():
-        options = Options()
-        for arg in _common_chrome_args(headless, user_data_dir):
-            options.add_argument(arg)
-        if headless:
-            options.add_argument(
-                "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/131.0.0.0 Safari/537.36"
-            )
-        options.add_experimental_option("excludeSwitches", ["enable-automation"])
-        options.add_experimental_option("useAutomationExtension", False)
-        return webdriver.Chrome(options=options)
     driver = _construct_with_retry(build_vanilla)
     try:
         driver.execute_cdp_cmd(
@@ -598,6 +725,13 @@ def _ensure_logged_in(
         except Exception:  # noqa: BLE001
             pass
         raise
+
+
+# Public alias — ``_ensure_logged_in`` is reused by the LinkedIn job-search
+# scraper at ``jobs/services/job_sources/linkedin_selenium.py``. Same auth
+# pattern, same credentials, same challenge / 2FA handling — only the URL
+# the caller wants to land on after login differs.
+ensure_logged_in = _ensure_logged_in
 
 
 def _click_show_more(driver: webdriver.Chrome) -> None:
