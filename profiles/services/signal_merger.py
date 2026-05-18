@@ -73,7 +73,20 @@ def merge_signals_into_profile(profile) -> dict[str, int]:
     # GitHub language_breakdown → skills (top languages only, blocklisted
     # generic ones already filtered by the aggregator).
     if github and not github.get('error'):
-        gh_langs = [lang for lang, _count in (github.get('language_breakdown') or [])[:8]]
+        # Accept both shapes — list[tuple[str, int]] (aggregator native /
+        # JSON-rehydrated list[list]) and list[dict] (alternate normalized
+        # shape some signal sources emit). Mirrors project_enricher's
+        # _format_language_breakdown handling.
+        gh_langs = []
+        for entry in (github.get('language_breakdown') or [])[:8]:
+            if isinstance(entry, dict):
+                lang = entry.get('language')
+            elif isinstance(entry, (list, tuple)) and len(entry) >= 2:
+                lang = entry[0]
+            else:
+                continue
+            if lang:
+                gh_langs.append(lang)
         data['skills'], added_gh = _merge_skills_from_strings(
             data.get('skills') or [], gh_langs,
         )
