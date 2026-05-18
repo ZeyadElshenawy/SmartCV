@@ -1800,9 +1800,11 @@ class ResumeSchemaCoercionTests(SimpleTestCase):
         self.assertEqual(edu.location, '')
 
     def test_object_wrapped_strings_flatten(self):
-        """The model emits highlights as `[{description: "..."}]` and
-        skills as `[{name: "Dart", proficiency: null}]` — both should
-        flatten to plain string lists."""
+        """The model emits the legacy `highlights` alias as
+        `[{description: "..."}]` and skills as
+        `[{name: "Dart", proficiency: null}]` — both should flatten to
+        plain string lists. PR 3a: `highlights` is folded into the
+        canonical `description` field (no separate output field)."""
         from profiles.services.schemas import ResumeProject, ResumeContentResult
         proj = ResumeProject(**{
             'name': 'Mega News',
@@ -1813,9 +1815,11 @@ class ResumeSchemaCoercionTests(SimpleTestCase):
             'description': [],
             'technologies': [],
         })
-        self.assertEqual(len(proj.highlights), 2)
-        self.assertIn('scalable codebase', proj.highlights[0])
-        self.assertIn('Reduced load times', proj.highlights[1])
+        self.assertEqual(len(proj.description), 2)
+        self.assertIn('scalable codebase', proj.description[0])
+        self.assertIn('Reduced load times', proj.description[1])
+        # PR 3a: highlights is no longer a field on ResumeProject.
+        self.assertFalse(hasattr(proj, 'highlights'))
         # ResumeContentResult.skills = list of objects → list of strings
         result = ResumeContentResult(**{
             'professional_title': 'Engineer',
@@ -1884,17 +1888,24 @@ class ResumeSchemaCoercionTests(SimpleTestCase):
             'Used MLOps tools (MLflow, Hugging Face).',
         ])
 
-    def test_experience_list_desc_drops_redundant_highlights(self):
-        # When description is already a multi-item list, highlights is
-        # almost always duplicate content from the LLM — drop it to
-        # avoid duplicate bullets in the rendered docx.
+    def test_experience_list_desc_appends_highlights(self):
+        # PR 3a behavior change: the pre-PR-3a validator dropped
+        # highlights when description was already multi-item (heuristic:
+        # likely-duplicate content from the LLM). The new validator
+        # appends in order — predictable, matches the new prompt's
+        # "do not invent fields" contract (the LLM should produce only
+        # description under PR 3a; duplication is a prompt-side concern,
+        # not a validator-side one).
         from profiles.services.schemas import ResumeExperience
         exp = ResumeExperience(**{
             'title': 'IT Intern',
             'description': ['Built X.', 'Shipped Y.'],
-            'highlights': ['DROP ME: duplicate from LLM'],
+            'highlights': ['Appended from highlights alias.'],
         })
-        self.assertEqual(exp.description, ['Built X.', 'Shipped Y.'])
+        self.assertEqual(exp.description, [
+            'Built X.', 'Shipped Y.',
+            'Appended from highlights alias.',
+        ])
 
     def test_education_null_honors_coerces_to_empty_list(self):
         # Round 1.5.1 — the DevOps regen log showed honors=null on the
@@ -2329,28 +2340,32 @@ class BackfillSummaryNoMetaNarrationTests(SimpleTestCase):
         self.assertTrue(out['professional_summary'].startswith('Junior DevOps Engineer'))
 
 
-class ResumeProjectPrefersRicherHighlightsTests(SimpleTestCase):
-    """The audit caught the LLM putting weak rewrites in description
-    while the rich JSON content sat unused in highlights. When highlights
-    is meaningfully richer (more chars + more numeric tokens), the
-    schema now prefers it."""
+class ResumeProjectAppendsHighlightsAliasTests(SimpleTestCase):
+    """PR 3a behavior: ResumeProject's coerce_to_canonical validator
+    appends `highlights` input into `description` in order — no
+    richness-comparison heuristic, no drop-on-duplicate. The pre-PR-3a
+    richness check was a workaround for the LLM emitting both fields
+    with varying quality; the new prompt ("do not invent fields") makes
+    highlights effectively dead on output, so the validator simply folds
+    any legacy input liberally."""
 
-    def test_highlights_wins_when_richer(self):
+    def test_highlights_appended_after_description(self):
         from profiles.services.schemas import ResumeProject
         p = ResumeProject(**{
             'name': 'ACR-QA',
-            'description': ['Built a platform.'],  # vague rewrite
+            'description': ['Built a platform.'],
             'highlights': [
                 'Built a language-agnostic static analysis platform running 7 tools in parallel with 97.1% precision.',
                 'Delivered a 273-test pytest suite passing in under 6 seconds; GitHub Actions + GitLab CI integration; SARIF v2.1.0 export; OWASP Top 10 compliance mapping with CWE IDs.',
             ],
         })
-        # Description should now be the rich highlights content.
-        self.assertEqual(len(p.description), 2)
-        self.assertIn('97.1%', p.description[0])
-        self.assertIn('SARIF', p.description[1])
+        # description first, then highlights — append-in-order.
+        self.assertEqual(len(p.description), 3)
+        self.assertEqual(p.description[0], 'Built a platform.')
+        self.assertIn('97.1%', p.description[1])
+        self.assertIn('SARIF', p.description[2])
 
-    def test_description_wins_when_already_rich(self):
+    def test_short_highlights_still_appended(self):
         from profiles.services.schemas import ResumeProject
         p = ResumeProject(**{
             'name': 'X',
@@ -2361,9 +2376,170 @@ class ResumeProjectPrefersRicherHighlightsTests(SimpleTestCase):
             ],
             'highlights': ['One short fact.'],
         })
-        # Highlights is much shorter — leave description alone.
-        self.assertEqual(len(p.description), 3)
+        # PR 3a: no richness heuristic — append regardless.
+        self.assertEqual(len(p.description), 4)
         self.assertIn('99.9%', p.description[0])
+        self.assertEqual(p.description[-1], 'One short fact.')
+
+
+class PR3aSchemaTolerance(SimpleTestCase):
+    """PR 3a: ResumeExperience and ResumeProject collapse to a single
+    canonical `description: List[str]` field with extra="forbid".
+    The validator's coerce_to_canonical folds known LLM-invented field
+    names into description; extra="forbid" rejects unknown ones.
+
+    These tests pin the behavior of the input-tolerance layer — the
+    load-bearing piece that the rest of the pipeline depends on."""
+
+    def test_achievements_wrapper_folded_into_description(self):
+        """PR 3f-style invention: achievements: [{description: [...]}]
+        unwraps and merges into the canonical description field."""
+        from profiles.services.schemas import ResumeExperience
+        e = ResumeExperience(
+            title='Engineer', company='X',
+            achievements=[{'description': ['Bullet A.', 'Bullet B.']}],
+        )
+        self.assertEqual(e.description, ['Bullet A.', 'Bullet B.'])
+        self.assertFalse(hasattr(e, 'achievements'))
+
+    def test_responsibilities_invention_folded(self):
+        """Other invented alias names also fold."""
+        from profiles.services.schemas import ResumeExperience
+        e = ResumeExperience(
+            title='Engineer', company='X',
+            responsibilities=['Resp 1', 'Resp 2'],
+        )
+        self.assertEqual(e.description, ['Resp 1', 'Resp 2'])
+        self.assertFalse(hasattr(e, 'responsibilities'))
+
+    def test_string_description_coerced_to_list(self):
+        """Legacy description as a single string wraps in a list."""
+        from profiles.services.schemas import ResumeExperience
+        e = ResumeExperience(
+            title='Engineer', company='X',
+            description='Single-paragraph description.',
+        )
+        self.assertEqual(e.description, ['Single-paragraph description.'])
+
+    def test_unknown_field_rejected_on_experience(self):
+        """extra='forbid' rejects truly unknown fields (not in alias list)."""
+        from pydantic import ValidationError
+        from profiles.services.schemas import ResumeExperience
+        with self.assertRaises(ValidationError):
+            ResumeExperience(
+                title='Engineer', company='X',
+                fake_field='this should fail validation',
+            )
+
+    def test_unknown_field_rejected_on_project(self):
+        from pydantic import ValidationError
+        from profiles.services.schemas import ResumeProject
+        with self.assertRaises(ValidationError):
+            ResumeProject(name='X', fake_field='nope')
+
+    def test_no_bullets_at_all_produces_empty_description(self):
+        """Refinement 3 from the review gate: every-field-absent shape
+        validates and yields description=[]."""
+        from profiles.services.schemas import ResumeExperience, ResumeProject
+        e = ResumeExperience(title='E', company='C')
+        self.assertEqual(e.description, [])
+        p = ResumeProject(name='P')
+        self.assertEqual(p.description, [])
+
+    def test_known_inventions_registered(self):
+        """Refinement 6 — registry doc-test. The bullet-alias registry
+        must cover all LLM inventions observed across the audit thread.
+        If you intentionally tighten this list (drop an entry), update
+        the test deliberately so the change is explicit."""
+        from profiles.services.schemas import _BULLET_ALIAS_KEYS
+        # Historical second-canonical (folds silently)
+        self.assertIn('highlights', _BULLET_ALIAS_KEYS)
+        # Inventions surfaced by PR 3f and recorder logs
+        for invention in ('achievements', 'responsibilities', 'bullets'):
+            self.assertIn(
+                invention, _BULLET_ALIAS_KEYS,
+                msg=(
+                    f"Known LLM invention '{invention}' missing from "
+                    f"_BULLET_ALIAS_KEYS. If this invention should no "
+                    f"longer be tolerated, intentionally update this test."
+                ),
+            )
+
+    def test_project_technologies_csv_tolerance(self):
+        """Pre-existing input tolerance preserved: comma-separated
+        technologies string from the editor form still coerces to list."""
+        from profiles.services.schemas import ResumeProject
+        p = ResumeProject(name='X', technologies='Python, Django, Postgres')
+        self.assertEqual(p.technologies, ['Python', 'Django', 'Postgres'])
+
+
+class PR3aMigrationCommand(SimpleTestCase):
+    """The one-shot data-migration command that converts stored
+    GeneratedResume.content rows from pre-PR-3a (highlights + description
+    dual fields) to PR-3a (description canonical, list[str])."""
+
+    def test_migrates_highlights_to_description(self):
+        from resumes.management.commands.migrate_resume_schema import _migrate_content
+        content = {
+            'experience': [{
+                'title': 'E', 'company': 'C',
+                'highlights': ['B1', 'B2'],
+                'description': 'Old paragraph',
+            }],
+            'projects': [{
+                'name': 'P',
+                'highlights': ['PB1'],
+            }],
+        }
+        migrated, changed = _migrate_content(content)
+        self.assertTrue(changed)
+        # Old string description wraps to list, then highlights appended.
+        self.assertNotIn('highlights', migrated['experience'][0])
+        self.assertEqual(
+            migrated['experience'][0]['description'],
+            ['Old paragraph', 'B1', 'B2'],
+        )
+        self.assertNotIn('highlights', migrated['projects'][0])
+        self.assertEqual(migrated['projects'][0]['description'], ['PB1'])
+
+    def test_idempotent_on_new_shape(self):
+        from resumes.management.commands.migrate_resume_schema import _migrate_content
+        content = {
+            'experience': [{
+                'title': 'E', 'company': 'C',
+                'description': ['B1', 'B2'],
+            }],
+            'projects': [{
+                'name': 'P',
+                'description': ['PB1'],
+                'technologies': ['Python'],
+            }],
+        }
+        migrated, changed = _migrate_content(content)
+        self.assertFalse(changed)
+        self.assertEqual(migrated['experience'][0]['description'], ['B1', 'B2'])
+        self.assertEqual(migrated['projects'][0]['description'], ['PB1'])
+
+    def test_handles_missing_sections_gracefully(self):
+        from resumes.management.commands.migrate_resume_schema import _migrate_content
+        # No experience, no projects — should not raise.
+        migrated, changed = _migrate_content({'professional_title': 'X'})
+        self.assertFalse(changed)
+        self.assertEqual(migrated, {'professional_title': 'X'})
+
+    def test_handles_experiences_plural_key(self):
+        """Some rows use 'experiences' rather than 'experience' as the
+        section key — the migrator accepts either."""
+        from resumes.management.commands.migrate_resume_schema import _migrate_content
+        content = {
+            'experiences': [{
+                'title': 'E', 'company': 'C',
+                'highlights': ['B1'],
+            }],
+        }
+        migrated, changed = _migrate_content(content)
+        self.assertTrue(changed)
+        self.assertEqual(migrated['experiences'][0]['description'], ['B1'])
 
 
 class AwardsFieldEndToEndTests(SimpleTestCase):
@@ -2742,8 +2918,9 @@ class ResumeFailedGenerationRecoveryTests(SimpleTestCase):
         # fallback (which would have a different professional_summary).
         self.assertEqual(out['professional_title'], 'Engineer')
         self.assertEqual(out['skills'], ['Python'])
-        # Object-wrapped highlights got flattened by the schema validator.
-        self.assertEqual(out['projects'][0]['highlights'], ['Shipped X'])
+        # PR 3a: object-wrapped highlights got flattened by the schema
+        # validator into the canonical `description` field.
+        self.assertEqual(out['projects'][0]['description'], ['Shipped X'])
         # Null strings coerced to "":
         self.assertEqual(out['experience'][0]['industry'], '')
         self.assertEqual(out['experience'][0]['location'], '')
@@ -3301,8 +3478,10 @@ class ResumeNormalizerTests(SimpleTestCase):
 
     def test_consolidate_coursework_keeps_non_header_prelude(self):
         # A meaningful prelude (no trailing colon) is preserved as a bullet.
+        # Fixture has three course-name bullets after the prelude so the
+        # MIN_RUN=3 consolidation threshold (PR1 Fix 3) triggers.
         resume = {'experience': [{
-            'description': 'Built models throughout the program\n• Prompt Engineering\n• Data Science Methodology',
+            'description': 'Built models throughout the program\n• Prompt Engineering\n• Data Science Methodology\n• Tools for Data Science',
         }]}
         out = consolidate_coursework(resume)
         bullets = out['experience'][0]['description']
@@ -3458,17 +3637,26 @@ class ResumeNormalizerTests(SimpleTestCase):
         }]}
         out = consolidate_coursework(resume)
         bullets = out['experience'][0]['description']
-        # Prelude + consolidated course-line + capstone = 3 bullets.
-        self.assertEqual(len(bullets), 3)
+        # Post PR-1 Fix 3: MLflow and Hugging Face are now recognised as
+        # technical tokens (_TECHNICAL_TOKENS), so the "MLOps tools
+        # (MLflow, Hugging Face)" bullet is correctly excluded from the
+        # coursework run and emits as its own bullet. Expected total is
+        # now 4 (prelude + consolidated coursework + MLOps + capstone),
+        # not 3. The test's documented purpose — verifying the 12-word
+        # cap on course titles within the consolidated run — is unchanged.
+        self.assertEqual(len(bullets), 4)
         self.assertEqual(bullets[0], 'Selected participant in the DEPI program.')
         self.assertTrue(bullets[1].startswith('Coursework included:'))
-        # Every original course title is in the consolidated line.
+        # Every original LONG-TITLE course is in the consolidated line —
+        # this is the assertion that verifies the 12-word cap is working.
         self.assertIn('Prompt Engineering', bullets[1])
         self.assertIn('Python for Data Science, AI & Development + Python Project', bullets[1])
         self.assertIn('Databases & SQL for Data Science with Python', bullets[1])
-        self.assertIn('Hugging Face', bullets[1])
+        # MLOps tools bullet survives separately (technical_token rule).
+        self.assertIn('MLOps tools', bullets[2])
+        self.assertIn('Hugging Face', bullets[2])
         # Capstone (long, multi-sentence) survives as its own bullet.
-        self.assertTrue(bullets[2].startswith('Capstone project'))
+        self.assertTrue(bullets[3].startswith('Capstone project'))
 
     def test_consolidate_coursework_does_not_merge_real_action_bullets(self):
         # The real Apotheosis Traffic Sign project had two action bullets
@@ -3634,44 +3822,54 @@ from resumes.services.inclusion_planner import (
 
 
 class DiscriminatingTechOverlapTests(SimpleTestCase):
-    def test_python_only_project_has_zero_overlap(self):
-        # Apotheosis Traffic Sign Detection — Python + OpenCV + Jupyter
-        # Notebook on a Data Scientist JD. Python is base; OpenCV /
-        # Jupyter aren't on the JD. Zero discriminating overlap.
+    """Post PR2b Fix A: _discriminating_tech_overlap returns a tuple
+    ``(count, jd_rescued_tokens)`` and the base-tech filter is now
+    JD-aware (a base token like Python COUNTS when the JD explicitly
+    lists it). These four tests assert the same scenarios as before
+    but unpack the tuple and account for JD-aware rescue."""
+
+    def test_python_only_project_with_python_in_jd_counts_via_rescue(self):
+        # PR2b Fix A semantics change: this JD does include 'python',
+        # so the Python tech entry is rescued from the base-tech filter
+        # and counts. Pre-Fix-A this returned 0; post-Fix-A it returns 1
+        # with 'Python' in jd_rescued. OpenCV and Jupyter Notebook
+        # remain uncounted (neither in JD, Jupyter is base).
         jd = {'python', 'pandas', 'numpy', 'scikitlearn', 'tensorflow', 'mlflow'}
-        self.assertEqual(
-            _discriminating_tech_overlap(
-                ['Python', 'OpenCV', 'Jupyter Notebook'], jd,
-            ),
-            0,
+        count, rescued = _discriminating_tech_overlap(
+            ['Python', 'OpenCV', 'Jupyter Notebook'], jd,
         )
+        self.assertEqual(count, 1)
+        self.assertEqual(rescued, ['Python'])
 
     def test_webdev_project_has_zero_overlap(self):
         # Brain Tumor Classification App — HTML/CSS/JavaScript/Swiper
-        # tech list against a DS JD.
+        # tech list against a DS JD. None are in JD, all but Swiper are
+        # base. Still zero — no rescue.
         jd = {'python', 'pandas', 'tensorflow', 'pytorch'}
-        self.assertEqual(
-            _discriminating_tech_overlap(
-                ['HTML', 'CSS', 'JavaScript', 'Swiper'], jd,
-            ),
-            0,
+        count, rescued = _discriminating_tech_overlap(
+            ['HTML', 'CSS', 'JavaScript', 'Swiper'], jd,
         )
+        self.assertEqual(count, 0)
+        self.assertEqual(rescued, [])
 
     def test_ml_project_has_strong_overlap(self):
-        # Healthcare Prediction — counts Pandas + scikit-learn + MLflow.
+        # Healthcare Prediction — Pandas + scikit-learn + MLflow are
+        # all non-base and in JD → counted. Python is base AND in JD
+        # → rescued and counted. Jupyter base AND not in JD → filtered.
+        # Total = 4 (was 3 pre-Fix-A because Python was filtered).
         jd = {'python', 'pandas', 'scikitlearn', 'mlflow', 'tensorflow'}
-        self.assertEqual(
-            _discriminating_tech_overlap(
-                ['Python', 'Jupyter Notebook', 'Pandas', 'scikit-learn',
-                 'Flask', 'MLflow'],
-                jd,
-            ),
-            3,
+        count, rescued = _discriminating_tech_overlap(
+            ['Python', 'Jupyter Notebook', 'Pandas', 'scikit-learn',
+             'Flask', 'MLflow'],
+            jd,
         )
+        self.assertEqual(count, 4)
+        self.assertEqual(rescued, ['Python'])
 
     def test_handles_non_list_input(self):
-        self.assertEqual(_discriminating_tech_overlap(None, {'python'}), 0)
-        self.assertEqual(_discriminating_tech_overlap('Python', {'python'}), 0)
+        # Tuple unpacking — defensive returns are (0, []) now.
+        self.assertEqual(_discriminating_tech_overlap(None, {'python'}), (0, []))
+        self.assertEqual(_discriminating_tech_overlap('Python', {'python'}), (0, []))
 
 
 class ScanForJdSkillsInProfileTextTests(SimpleTestCase):

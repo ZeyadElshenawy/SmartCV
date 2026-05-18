@@ -40,14 +40,20 @@ class TestFlattenAchievementsWrapper:
         out = _flatten_achievements_wrapper(parsed)
         exp = out['experience'][0]
         assert 'achievements' not in exp
-        assert exp['highlights'] == [
+        # PR 3a: flattener writes to canonical `description` (was `highlights`
+        # pre-PR-3a). Final highlight-folding happens at Pydantic validation.
+        assert exp['description'] == [
             'Built data pipeline in Microsoft Fabric.',
             'Analyzed ERP workflows in SAP.',
         ]
         # Non-experience sections unchanged.
         assert out['skills'] == ['Python']
 
-    def test_b_merges_with_existing_highlights(self):
+    def test_b_writes_to_description_leaves_highlights_for_validator(self):
+        """PR 3a: the flattener writes flattened bullets to `description`
+        (the canonical field). It does NOT touch any existing `highlights`
+        key — that's the schema validator's `_fold_into_description`
+        job at Pydantic validation time. Both layers cooperate."""
         from resumes.services.resume_generator import _flatten_achievements_wrapper
         parsed = {
             'experience': [{
@@ -59,12 +65,16 @@ class TestFlattenAchievementsWrapper:
             }],
         }
         out = _flatten_achievements_wrapper(parsed)
-        # Existing highlights first, then flattened bullets appended.
-        assert out['experience'][0]['highlights'] == [
-            'Shipped v2 platform.',
+        exp = out['experience'][0]
+        assert 'achievements' not in exp
+        # Flattener output: description has the unwrapped bullet.
+        assert exp['description'] == [
             'Led migration to event-sourced billing.',
         ]
-        assert 'achievements' not in out['experience'][0]
+        # Existing highlights key is untouched at flattener layer; the
+        # schema validator's _fold_into_description folds it into
+        # description later.
+        assert exp['highlights'] == ['Shipped v2 platform.']
 
     def test_c_achievements_as_string_list(self):
         """Shape C in the docstring: ``achievements`` is a flat list of
@@ -80,7 +90,8 @@ class TestFlattenAchievementsWrapper:
             }],
         }
         out = _flatten_achievements_wrapper(parsed)
-        assert out['experience'][0]['highlights'] == [
+        # PR 3a: flattener writes to canonical `description`.
+        assert out['experience'][0]['description'] == [
             'Fine-tuned Llama-3-8B on internal corpus.',
             'Deployed via vLLM at p95=620ms.',
         ]
@@ -97,7 +108,8 @@ class TestFlattenAchievementsWrapper:
             }],
         }
         out = _flatten_achievements_wrapper(parsed)
-        assert out['experience'][0]['highlights'] == [
+        # PR 3a: flattener writes to canonical `description`.
+        assert out['experience'][0]['description'] == [
             'Owned end-to-end churn model.',
         ]
 
@@ -139,7 +151,8 @@ class TestFlattenAchievementsWrapper:
             }],
         }
         out = _flatten_achievements_wrapper(parsed)
-        assert out['experience'][0]['highlights'] == ['Real bullet.']
+        # PR 3a: flattener writes to canonical `description`.
+        assert out['experience'][0]['description'] == ['Real bullet.']
 
     def test_handles_alternate_key_experiences(self):
         """Some LLM outputs use 'experiences' (plural). Flatten still applies."""
@@ -151,7 +164,8 @@ class TestFlattenAchievementsWrapper:
             }],
         }
         out = _flatten_achievements_wrapper(parsed)
-        assert out['experiences'][0]['highlights'] == ['Bullet.']
+        # PR 3a: flattener writes to canonical `description`.
+        assert out['experiences'][0]['description'] == ['Bullet.']
 
     def test_no_experience_section_is_noop(self):
         from resumes.services.resume_generator import _flatten_achievements_wrapper
