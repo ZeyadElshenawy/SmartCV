@@ -1,0 +1,50 @@
+Responsibilities
+AI & Machine Learning Development
+Design, develop, train, and deploy AI and machine learning models.
+Build intelligent systems using NLP, predictive analytics, and automation technologies.
+Develop and optimize algorithms for business applications.
+Fine-tune and evaluate AI models for performance and accuracy.
+Software Development & Integration
+Integrate AI models into existing applications and platforms.
+Develop APIs and backend services for AI functionalities.
+Collaborate with software engineers to ensure scalable deployment.
+Maintain version control and proper documentation for AI projects.
+Data Management
+Collect, clean, preprocess, and analyze structured and unstructured data.
+Work with large datasets and databases to support AI model training.
+Ensure data quality, integrity, and security standards are maintained.
+Research & Innovation
+Stay updated with emerging AI technologies, tools, and frameworks.
+Conduct research and proof-of-concept development for new AI initiatives.
+Recommend improvements and innovative AI-driven solutions.
+Collaboration & Reporting
+Work closely with business stakeholders to understand requirements.
+Present technical concepts and AI solutions to non-technical teams.
+Prepare technical documentation and project reports.
+Support troubleshooting and continuous improvement initiatives.
+Qualifications
+Bachelor’s degree in Computer Science, Artificial Intelligence, Software Engineering, Data Science, or a related field.
+Proven experience in AI/ML development and software engineering.
+Strong programming skills in Python, Java, or similar languages.
+Experience with machine learning frameworks such as TensorFlow, PyTorch, or Scikit-learn.
+Knowledge of APIs, cloud platforms, and database systems.
+Understanding of data structures, algorithms, and software architecture.
+Required Skills
+Analytical and problem-solving skills
+Critical thinking and innovation
+Strong communication and collaboration skills
+Attention to detail
+Project and time management
+Ability to work in agile environments
+Preferred Skills
+Experience with Generative AI and Large Language Models (LLMs).
+Familiarity with AI model deployment and MLOps practices.
+Experience with NLP, computer vision, or recommendation systems.
+Knowledge of cloud platforms such as AWS, Azure, or Google Cloud.
+Certifications in AI or machine learning are a plus.
+
+Job Criteria:
+- Seniority level: Entry level
+- Employment type: Full-time
+- Job function: Analyst
+- Industries: Pharmaceutical Manufacturing

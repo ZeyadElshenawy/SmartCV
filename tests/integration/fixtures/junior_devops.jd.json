@@ -1,0 +1,41 @@
+{
+  "title": "Junior DevOps Engineer",
+  "company": "Example Cloud Co",
+  "description": "About the job\nJunior DevOps Engineer\n\nResponsibilities:\n- Design, implement, and manage CI/CD pipelines.\n- Monitor and optimize system performance.\n- Automate infrastructure deployments using best DevOps practices.\n- Collaborate with development teams on scalable deployments.\n- Ensure security and compliance across cloud environments.\n\nQualifications:\n- Fresh graduate or up to 2 years of DevOps experience.\n- Hands-on experience with Linux, Docker, Kubernetes.\n- Proficiency with CI/CD tools (GitHub Actions, Jenkins).\n- Familiarity with cloud platforms (AWS, GCP).\n- Knowledge of monitoring tools (Prometheus, Grafana).\n- Scripting experience: Bash, Python.\n\nRequired Skills:\n- Strong communication and collaboration skills\n- Attention to detail\n- Problem-solving skills\n\nJob Criteria:\n- Seniority level: Entry level\n- Employment type: Full-time\n- Job function: Infrastructure / DevOps\n- Industries: Software",
+  "extracted_skills": [
+    "CI/CD",
+    "Linux",
+    "Docker",
+    "Kubernetes",
+    "GitHub Actions",
+    "Jenkins",
+    "AWS",
+    "GCP",
+    "Prometheus",
+    "Grafana",
+    "Bash",
+    "Python",
+    "Strong communication and collaboration skills",
+    "Attention to detail",
+    "Problem-solving skills"
+  ],
+  "extracted_skills_tiers": {
+    "must_have": [
+      "Linux",
+      "Docker",
+      "Kubernetes",
+      "CI/CD",
+      "GitHub Actions",
+      "AWS",
+      "Bash",
+      "Python"
+    ],
+    "nice_to_have": [
+      "Jenkins",
+      "GCP",
+      "Prometheus",
+      "Grafana"
+    ]
+  },
+  "domain": "infrastructure"
+}
