@@ -3439,6 +3439,80 @@ class ProjectsReviewViewTests(TestCase):
         self.assertIn(resp.status_code, (302, 401, 403))
 
 
+class RebuildMasterProfileTests(TestCase):
+    """rebuild_master_profile must read the typed baseline via the
+    UserProfile.projects_typed property (which has a pre-migration
+    fallback to data['projects']). Reading data['projects_typed']
+    directly bypasses the fallback and breaks dedupe for any profile
+    that pre-dates the bucket split."""
+
+    def setUp(self):
+        from profiles.models import UserProfile
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='rebuild@example.com', email='rebuild@example.com', password='x',
+        )
+        self.UserProfile = UserProfile
+
+    def test_rebuilder_falls_back_to_projects_when_typed_unset(self):
+        """When data_content has 'projects' but no 'projects_typed',
+        rebuilder must use 'projects' as the typed baseline (matches
+        UserProfile.projects_typed property contract). Without this,
+        URL-match dedupe sees an empty typed list and routes every
+        enriched repo to add_new, even when an exact-URL match exists."""
+        from profiles.services.profile_rebuilder import rebuild_master_profile
+        from profiles.services import project_enricher, project_dedupe
+
+        profile = self.UserProfile.objects.create(
+            user=self.user,
+            data_content={
+                # 'projects' set, 'projects_typed' intentionally absent.
+                'projects': [
+                    {'name': 'pgbench-tuner',
+                     'url': 'https://github.com/me/pgbench-tuner',
+                     'description': ['Tunes pg.'], 'technologies': ['Python']},
+                ],
+                'github_signals': {
+                    'profile_url': 'https://github.com/me',
+                    'top_repos': [
+                        {'name': 'pgbench-tuner', 'full_name': 'me/pgbench-tuner',
+                         'description': 'Auto-tuner.',
+                         'html_url': 'https://github.com/me/pgbench-tuner',
+                         'stargazers_count': 50, 'forks_count': 3, 'language': 'Python'},
+                    ],
+                    'language_breakdown': [['Python', 1]],
+                    'recent_commit_count': 1,
+                },
+            },
+        )
+        # Force both LLM calls to fail so we exercise the deterministic
+        # fallbacks (github_fallback in enricher, _url_match_fallback in
+        # dedupe). The fallbacks are sufficient to prove the typed-baseline
+        # read path works.
+        with patch.object(project_enricher, 'get_structured_llm') as mock_a, \
+             patch.object(project_dedupe, 'get_structured_llm') as mock_b:
+            mock_a.return_value.invoke.side_effect = RuntimeError('boom')
+            mock_b.return_value.invoke.side_effect = RuntimeError('boom')
+            summary = rebuild_master_profile(profile, force_enrich=True)
+
+        # If projects_typed fallback works, the URL-match dedupe should
+        # match the enriched pgbench-tuner against the typed pgbench-tuner.
+        self.assertGreaterEqual(
+            summary['merged'] + summary['kept_existing'] + summary['kept_new'],
+            1,
+            f"Expected at least one non-add_new decision via URL match; "
+            f"got summary={summary}. Indicates rebuilder read the typed "
+            f"baseline as empty (bug bypassed projects_typed property).",
+        )
+        self.assertEqual(
+            summary['added_new'], 0,
+            f"With one typed project at the same URL as the one enriched "
+            f"repo, dedupe should not route anything to add_new. Got "
+            f"summary={summary}.",
+        )
+
+
 class RefreshSignalTwoPhaseSaveTests(TestCase):
     """The connect-page Pull was sometimes producing a saved snapshot
     but unmerged projects, because the LLM dedupe stage of

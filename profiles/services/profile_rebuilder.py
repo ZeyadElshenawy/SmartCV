@@ -94,7 +94,11 @@ def rebuild_master_profile(
     # ── Stage 2: Dedupe ──────────────────────────────────────────────────────
     # ALWAYS reads projects_typed (never data_content['projects']) so enriched
     # entries added in a previous run can't re-enter the typed baseline.
-    typed = data.get('projects_typed') or []
+    # Use the property accessor — it falls back to data['projects'] (filtered
+    # to entries without a `source`) for pre-migration profiles that never
+    # had the bucket split applied. Reading data['projects_typed'] directly
+    # bypasses that fallback and breaks dedupe for legacy / test profiles.
+    typed = profile.projects_typed or []
     decisions = dedupe_projects(typed, enriched)
     data['dedupe_decisions'] = decisions
 
