@@ -155,10 +155,8 @@ def _iter_bullets(resume: dict) -> Iterable[tuple[str, str]]:
                     yield f"projects[{i}].description[{j}]", b
         elif isinstance(desc, str) and desc.strip():
             yield f"projects[{i}].description", desc
-        # Highlights are bullets too.
-        for j, b in enumerate(proj.get('highlights') or []):
-            if isinstance(b, str) and b.strip():
-                yield f"projects[{i}].highlights[{j}]", b
+        # PR 3a: ResumeProject no longer emits a separate `highlights`
+        # field — bullets are folded into `description` at schema time.
 
 
 def strip_citations_from_resume(resume: dict) -> dict:
@@ -186,9 +184,8 @@ def strip_citations_from_resume(resume: dict) -> dict:
             proj['description'] = [_strip_citation(b) if isinstance(b, str) else b for b in desc]
         elif isinstance(desc, str):
             proj['description'] = _strip_citation(desc)
-        hl = proj.get('highlights')
-        if isinstance(hl, list):
-            proj['highlights'] = [_strip_citation(b) if isinstance(b, str) else b for b in hl]
+        # PR 3a: ResumeProject no longer has a separate `highlights` field;
+        # description is the single canonical bullets bucket.
     return out
 
 

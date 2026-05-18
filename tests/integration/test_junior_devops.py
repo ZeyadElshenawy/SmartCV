@@ -140,7 +140,7 @@ class TestJuniorDevOps:
                 bullets.append(desc)
         exp_list = self.result.get('experience') or self.result.get('experiences') or []
         for exp in exp_list:
-            bullets.extend(exp.get('highlights') or [])
+            # PR 3a: description canonical — no separate highlights field.
             desc = exp.get('description')
             if isinstance(desc, list):
                 bullets.extend(d for d in desc if isinstance(d, str))

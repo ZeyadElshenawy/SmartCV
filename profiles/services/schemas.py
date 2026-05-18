@@ -1,3 +1,4 @@
+import logging
 import re
 
 from pydantic import BaseModel, Field, EmailStr, field_validator, model_validator
@@ -397,7 +398,127 @@ def _flatten_string_list(items, *, prefer_keys: tuple = ('description', 'text', 
     return out
 
 
+# ─── PR 3a (2026-05-18): bullet-alias folding for resume-output schemas ───
+#
+# Bullet-bearing field names the LLM has been observed to emit. The
+# validator folds all of these INPUTS into the canonical `description`
+# output field. This list is input-tolerance scope, NOT a list of fields
+# the model emits — output is always single-canonical `description`.
+#
+# `highlights` is the pre-PR-3a historical second-canonical and folds
+# silently (no log spam). Every other alias logs info() so production-log
+# frequency can inform whether the LLM prompt needs a stronger nudge.
+#
+# Adding entries here is purely additive defense-in-depth: it doesn't
+# change the schema's output contract, only what inputs are tolerated.
+_BULLET_ALIAS_KEYS = (
+    'highlights',        # pre-PR-3a second-canonical — silent fold
+    'achievements',      # PR 3f wrapper invention
+    'responsibilities',  # observed in dev runs
+    'accomplishments',
+    'bullets',
+    'tasks',
+    'features',          # project-only invention
+    'outcomes',          # project-only invention
+    'deliverables',      # project-only invention
+)
+
+
+_DESC_LOGGER = logging.getLogger(__name__)
+
+
+def _fold_into_description(data: dict) -> dict:
+    """Fold all known bullet aliases into the canonical `description` field.
+
+    Input-liberal, output-strict (PR 3a). After this runs:
+      • data['description'] is always List[str] (possibly empty)
+      • No alias keys remain, so extra="forbid" does not reject the model
+
+    Handles these alias VALUE shapes:
+      • str (non-empty)               → appended as single bullet
+      • list[str]                     → appended item-by-item
+      • list[{description|text|content|body: ...}]
+                                      → unwrapped (PR-3f-style wrapper
+                                        invention)
+      • None / other shapes           → silently dropped (no-op)
+
+    Existing `description` is normalized first:
+      • str → single-element list (or [] if blank)
+      • None / non-list → []
+      • list → flattened via _flatten_string_list
+    """
+    desc = data.get('description', [])
+    if isinstance(desc, str):
+        desc = [desc] if desc.strip() else []
+    elif desc is None:
+        desc = []
+    elif isinstance(desc, list):
+        desc = _flatten_string_list(desc)
+    else:
+        desc = []
+
+    for key in _BULLET_ALIAS_KEYS:
+        if key not in data:
+            continue
+        value = data.pop(key)
+
+        if key != 'highlights' and value:
+            _DESC_LOGGER.info(
+                "schema validator: folded LLM-invented bullets field '%s' "
+                "into description (track frequency in case prompt needs a "
+                "stronger nudge)",
+                key,
+            )
+
+        if value is None:
+            continue
+        if isinstance(value, str):
+            if value.strip():
+                desc.append(value)
+        elif isinstance(value, list):
+            for item in value:
+                if isinstance(item, str) and item.strip():
+                    desc.append(item)
+                elif isinstance(item, dict):
+                    inner = (
+                        item.get('description')
+                        or item.get('text')
+                        or item.get('content')
+                        or item.get('body')
+                    )
+                    if isinstance(inner, list):
+                        desc.extend(
+                            s for s in inner
+                            if isinstance(s, str) and s.strip()
+                        )
+                    elif isinstance(inner, str) and inner.strip():
+                        desc.append(inner)
+                # other item shapes: silent skip
+        # other value shapes: silent skip
+
+    data['description'] = desc
+    return data
+
+
 class ResumeExperience(BaseModel):
+    """One experience entry in a generated resume. Bullets canonical in
+    ``description`` (List[str]).
+
+    DESIGN (PR 3a — 2026-05-18):
+    Pre-PR-3a this model declared ``description: Union[str, List[str]]``
+    and accepted an undeclared ``highlights`` input that the validator
+    merged via richness/single-line heuristics. The dual-field shape was
+    the upstream cause of LLM field inventions throughout the audit
+    thread — Pydantic v2's default ``extra="ignore"`` admitted
+    ``achievements``/``responsibilities``/etc. silently.
+
+    PR 3a applies "input liberal, output strict":
+      • ``description: List[str]`` is canonical (always a list).
+      • ``extra="forbid"`` cleanly rejects unknown fields.
+      • ``coerce_to_canonical`` folds known LLM aliases into description
+        and pops the alias keys so extra="forbid" doesn't reject them.
+        New inventions get logged.
+    """
     title: str = ""
     company: str = ""
     duration: str = ""
@@ -405,114 +526,49 @@ class ResumeExperience(BaseModel):
     industry: str = ""
     start_date: str = ""
     end_date: str = ""
-    description: Union[str, List[str]] = Field(default_factory=list)
+    description: List[str] = Field(default_factory=list)
+
+    model_config = ConfigDict(extra="forbid")
 
     @model_validator(mode='before')
     @classmethod
-    def normalize(cls, values):
-        if not isinstance(values, dict):
-            return values
-        # Coerce null → "" for string fields the LLM may emit as null.
-        values = _coerce_null_strings(values, (
+    def coerce_to_canonical(cls, data):
+        if not isinstance(data, dict):
+            return data
+        data = _coerce_null_strings(data, (
             'title', 'company', 'duration', 'location', 'industry',
             'start_date', 'end_date',
         ))
-        desc = values.get('description', [])
-        hl = values.get('highlights')
-        hl_list = _flatten_string_list(hl) if isinstance(hl, list) else []
-        # Groq's tool-call validator strict-rejects `null` on Union types,
-        # and the recovery path that re-parses failed_generation hits the
-        # same null. Treat null as "no description".
-        if desc is None:
-            desc_list = []
-        elif isinstance(desc, str):
-            desc_list = [d.strip() for d in desc.split('\n') if d.strip()]
-        elif isinstance(desc, list):
-            desc_list = _flatten_string_list(desc)
-        else:
-            desc_list = []
-        # The LLM sometimes splits content: description holds a summary
-        # sentence and highlights holds the actual bullets. Or it ignores
-        # the field-mapping rule entirely and puts ALL bullets in
-        # highlights with description=null. The docx exporter only reads
-        # `description`, so merge highlights in:
-        #   - description empty + highlights present  →  use highlights
-        #   - description has a single string         →  prepend it, then
-        #                                                append highlights
-        #     (treats description as prelude / summary line)
-        #   - description already has multiple list   →  trust the LLM,
-        #     entries                                    drop highlights
-        #                                                (it's likely dup
-        #                                                content)
-        if not desc_list and hl_list:
-            desc_list = hl_list
-        elif len(desc_list) == 1 and hl_list:
-            desc_list = desc_list + hl_list
-        values['description'] = desc_list
-        return values
+        return _fold_into_description(data)
+
 
 class ResumeProject(BaseModel):
+    """One project entry in a generated resume. Same canonical pattern
+    as :class:`ResumeExperience` — see that class for the PR-3a design
+    rationale."""
     name: str = ""
-    description: Union[str, List[str]] = Field(default_factory=list)
     url: str = ""
     technologies: List[str] = Field(default_factory=list)
-    highlights: List[str] = Field(default_factory=list)
+    description: List[str] = Field(default_factory=list)
+
+    model_config = ConfigDict(extra="forbid")
 
     @model_validator(mode='before')
     @classmethod
-    def normalize(cls, values):
-        if not isinstance(values, dict):
-            return values
-        values = _coerce_null_strings(values, ('name', 'url'))
-        desc = values.get('description', [])
-        hl = values.get('highlights')
-        hl_list = _flatten_string_list(hl) if isinstance(hl, list) else []
-        # null → [] + same merge rules as ResumeExperience above.
-        if desc is None:
-            desc_list = []
-        elif isinstance(desc, str):
-            desc_list = [d.strip() for d in desc.split('\n') if d.strip()]
-        elif isinstance(desc, list):
-            desc_list = _flatten_string_list(desc)
-        else:
-            desc_list = []
-        if not desc_list and hl_list:
-            desc_list = hl_list
-        elif desc_list and hl_list:
-            # Round 1.5: when BOTH have content, pick the richer one
-            # (more chars + more numeric tokens) — the audit caught the
-            # LLM putting vague rewrites in description while the
-            # source CV's quantified detail sat unused in highlights.
-            # The richness check runs BEFORE the single-line-merge
-            # branch so a one-line vague description gets replaced by
-            # the rich highlights, not concatenated with them.
-            def _richness(items: list) -> int:
-                total_chars = sum(len(s) for s in items if isinstance(s, str))
-                num_count = sum(
-                    len(re.findall(r'\d', s)) for s in items if isinstance(s, str)
-                )
-                return total_chars + (num_count * 20)  # weight numbers heavily
-            if _richness(hl_list) > _richness(desc_list) * 1.2:
-                desc_list = hl_list
-            elif len(desc_list) == 1:
-                # Description is a one-line summary AND highlights isn't
-                # meaningfully richer — keep both by concatenating
-                # (preserves the DEPI "summary line + bullets" pattern).
-                desc_list = desc_list + hl_list
-        values['description'] = desc_list
-        # Accept comma-separated technologies string from the editor form,
-        # AND list-of-objects from a tool-call mode the LLM sometimes uses.
-        tech = values.get('technologies', [])
+    def coerce_to_canonical(cls, data):
+        if not isinstance(data, dict):
+            return data
+        data = _coerce_null_strings(data, ('name', 'url'))
+        # Technologies tolerance: comma-separated string from the editor
+        # form, and list-of-objects from a tool-call mode the LLM sometimes
+        # uses. Kept inside this validator (rather than a sibling) to
+        # consolidate input-tolerance logic in one place.
+        tech = data.get('technologies', [])
         if isinstance(tech, str):
-            values['technologies'] = [t.strip() for t in tech.split(',') if t.strip()]
+            data['technologies'] = [t.strip() for t in tech.split(',') if t.strip()]
         elif isinstance(tech, list):
-            values['technologies'] = _flatten_string_list(tech)
-        # highlights is List[str]; the model sometimes wraps as
-        # [{description: "..."}]. Flatten so the field validates.
-        h = values.get('highlights', [])
-        if isinstance(h, list):
-            values['highlights'] = _flatten_string_list(h)
-        return values
+            data['technologies'] = _flatten_string_list(tech)
+        return _fold_into_description(data)
 
 class ResumeCertification(BaseModel):
     name: str = ""

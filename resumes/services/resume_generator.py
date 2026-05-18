@@ -297,39 +297,62 @@ def _apply_bullet_validator(resume_content: dict) -> dict:
     return resume_content
 
 
-def _build_standards_section(profile, job) -> str:
-    """Return the RAG STANDARDS prompt block, or "" when RAG is disabled
-    or retrieval fails.
+def _build_standards_section(profile, job):
+    """Return ``(standards_block_str, classification_or_None,
+    retrieval_metadata_dict)``.
 
-    Lazily imports the retrieval modules so a settings.RAG_ENABLED=False
-    environment doesn't pay the import cost (sentence-transformers is heavy).
-    Any exception inside the retrieval path is logged and swallowed —
-    resume generation must keep working even if the index is empty or the
-    embedding model fails to load.
+    PR 4 (integration tests) — extended return shape so callers can
+    surface classification and retrieval breadth as metadata. The
+    string remains the primary value (it's spliced into the LLM prompt
+    verbatim); the second and third values are diagnostic.
+
+    Classification runs independently of retrieval, so a DB-less
+    environment (or a retrieval failure mid-query) still produces the
+    classification metadata. Resume generation continues either way.
     """
     from django.conf import settings as dj_settings
-    if not getattr(dj_settings, "RAG_ENABLED", False):
-        return ""
 
+    profile_dict = (getattr(profile, "data_content", None) or {})
+    jd_text = (getattr(job, "description", "") or "")
+
+    classification = None
     try:
         from profiles.services.role_classifier import classify_for_jd
+        classification = classify_for_jd(profile_dict, jd_text)
+    except Exception as exc:  # noqa: BLE001 — classifier failure must not break resume gen
+        logger.warning("Role classification failed (%s); continuing without classification.", exc)
+
+    if not getattr(dj_settings, "RAG_ENABLED", False):
+        return "", classification, {}
+
+    try:
         from profiles.services.knowledge_retriever import (
             retrieve_chunks, format_standards_block,
         )
-
-        profile_dict = (getattr(profile, "data_content", None) or {})
-        jd_text = (getattr(job, "description", "") or "")
-        classification = classify_for_jd(profile_dict, jd_text)
+        # Use a fail-safe classification stub when classifier failed
+        # earlier — retrieval needs the role tag.
+        cls_for_retrieval = classification
+        if cls_for_retrieval is None:
+            from profiles.services.role_classifier import RoleClassification
+            cls_for_retrieval = RoleClassification(
+                primary_role='Software Engineer', seniority='mid',
+                tech_stack_signals=[], region='global',
+            )
         chunks = retrieve_chunks(
             jd_text,
-            classification,
+            cls_for_retrieval,
             k=int(getattr(dj_settings, "RAG_TOP_K", 6)),
             universal_share=int(getattr(dj_settings, "RAG_UNIVERSAL_SHARE", 3)),
         )
-        return format_standards_block(chunks)
+        retrieval_meta = {
+            'chunk_ids': [getattr(c, 'kb_id', '') for c in chunks],
+            'chunk_types': [getattr(c, 'type', '') for c in chunks],
+            'chunk_roles': [list(getattr(c, 'roles', []) or []) for c in chunks],
+        }
+        return format_standards_block(chunks), classification, retrieval_meta
     except Exception as exc:  # noqa: BLE001 — retrieval failure must not break resume gen
         logger.warning("RAG retrieval failed (%s); falling back to no-standards prompt.", exc)
-        return ""
+        return "", classification, {}
 
 
 def _apply_v2_grounding_check(
@@ -484,7 +507,7 @@ def _build_v2_grounding(profile, job, gap_analysis) -> tuple[str, Optional[Inclu
     return "\n".join(block_parts), plan
 
 
-def generate_resume_content(profile, job, gap_analysis):
+def generate_resume_content(profile, job, gap_analysis, *, metadata: dict | None = None):
     """
     Generate a PROFESSIONAL, ATS-optimized tailored resume using LangChain
     structured output, grounded in every signal source we have for the
@@ -537,7 +560,9 @@ def generate_resume_content(profile, job, gap_analysis):
     evidence_context = _build_evidence_context(profile, job, gap_analysis)
     # RAG: retrieve KB chunks + format as STANDARDS block (empty when disabled
     # or when retrieval errors out — failure must not break resume generation).
-    standards_section = _build_standards_section(profile, job)
+    # PR 4 — tuple return surfaces classification + retrieval metadata for
+    # the integration-test harness; both are None/empty when RAG is off.
+    standards_section, classification_obj, retrieval_metadata = _build_standards_section(profile, job)
 
     # v2 grounding: pull per-skill candidate-evidence chunks + build the
     # inclusion plan. Both are no-ops + return empty blocks if anything
@@ -581,13 +606,26 @@ COMPLETE CV DATA (the candidate's authoritative resume):
 - CV `education[].honors` → output `education[].honors` (PRESERVE all)
 - CV `certifications[].url` → output `certifications[].url` (PRESERVE all certification URLs exactly)
 - CV `certifications[].duration` → output `certifications[].duration` (PRESERVE)
-- CV `projects[].description` or `highlights` → output `projects[].description` array (rewrite as bullets)
+- CV `projects[].description` or `highlights` → output `projects[].description` array (rewrite as bullets — single canonical field)
 - CV `projects[].url` → output `projects[].url` (PRESERVE all project URLs exactly)
 - CV `projects[].technologies` → output `projects[].technologies` array (PRESERVE; ATS scanner picks these up as keywords)
-- CV `projects[].highlights` → output `projects[].highlights` array (PRESERVE; structured outcomes that complement the bullet description)
 - CV `projects[].source` (one of "github" / "scholar" / "kaggle") → SIGNAL ONLY (not output as a resume field). If a project has this field, it was enriched from an external signal source the candidate themselves has connected (their own GitHub, Scholar, or Kaggle account), and the user has explicitly confirmed it via the project review UI. Treat its existence, `name`, `url`, and `technologies` as ground truth — they are NOT fabrications. You may still rewrite the bullet phrasing to match the JD, but never drop a confirmed enriched project on the assumption that it's not "really" the candidate's. The bullets in such projects' `description` are typically derived from the source repo / paper / competition, so they are also pre-vetted; rewrite them for tone but don't strip evidence (star counts, citation counts, medal counts).
 - CV `objective` → output `objective` (the standalone objective field; this is OPTIONAL — only include if the candidate's CV explicitly has one and it's not redundant with professional_summary)
 - Include ALL certifications from the CV data — do NOT truncate or omit any.
+
+=== DO NOT INVENT FIELDS (CRITICAL — the output schema is strict and rejects unknown fields) ===
+For each `experience[]` and `projects[]` entry, the ONLY bullet-bearing field is `description` (a flat list of strings). Producing ANY of these will cause the entry to be rejected:
+  • experience[].highlights         → use `description` instead
+  • experience[].achievements       → use `description`
+  • experience[].responsibilities   → use `description`
+  • experience[].accomplishments    → use `description`
+  • experience[].bullets / tasks    → use `description`
+  • projects[].highlights           → use `description` (no separate "structured outcomes" field — bullets and outcomes go in description together)
+  • projects[].features / outcomes  → use `description`
+  • projects[].deliverables         → use `description`
+  • ANY nested wrapper inside description — e.g., `description: [{{"text": [...]}}]` is WRONG; produce `description: ["bullet 1", "bullet 2"]` directly.
+
+The `description` field is a flat list of strings. Each string is one bullet point on the resume. Never split bullets across multiple field names.
 
 === EVIDENCE-GROUNDED ENRICHMENT RULE (CRITICAL — read this twice) ===
 Every concrete claim (a number, a tool name, a scale, a duration, a team size, a metric) must be supported by AT LEAST ONE source you've been given:
@@ -684,6 +722,34 @@ Make it PROFESSIONAL and ATS-OPTIMIZED.
         resume_content = _apply_v2_grounding_check(
             resume_content, inclusion_plan, profile, job, gap_analysis,
         )
+        # PR 4 — surface classification, plan, and retrieval metadata to
+        # any caller that passes ``metadata={}``. Test harness reads these
+        # for assertions; production callers (resumes/tasks.py) pass nothing
+        # and the dict goes unused. Keys are underscore-prefixed so they
+        # don't collide with schema fields the renderer reads.
+        if metadata is not None:
+            if classification_obj is not None:
+                metadata['_classification'] = {
+                    'primary_role': getattr(classification_obj, 'primary_role', ''),
+                    'seniority': getattr(classification_obj, 'seniority', ''),
+                    'region': getattr(classification_obj, 'region', ''),
+                    'profile_role': getattr(classification_obj, 'profile_role', ''),
+                }
+            else:
+                metadata['_classification'] = {}
+            metadata['_retrieval_metadata'] = retrieval_metadata
+            if inclusion_plan is not None:
+                metadata['_plan_metadata'] = {
+                    'project_count_in_plan': len(getattr(inclusion_plan, 'projects', []) or []),
+                    'cert_count_in_plan': len(getattr(inclusion_plan, 'certifications', []) or []),
+                    'skill_count_in_plan': len(getattr(inclusion_plan, 'skills_to_list', []) or []),
+                    'project_names_in_plan': [
+                        getattr(p, 'name', '') for p in (getattr(inclusion_plan, 'projects', []) or [])
+                    ],
+                    'cert_names_in_plan': list(getattr(inclusion_plan, 'certifications', []) or []),
+                }
+            else:
+                metadata['_plan_metadata'] = {}
         return resume_content
 
     try:
@@ -924,6 +990,237 @@ def _extract_failed_generation(exc) -> Optional[str]:
     return None
 
 
+def _tolerant_json_parse(raw: str):
+    """Try strict ``json.loads``; fall back to tolerant repair on parse error.
+
+    Groq's tool-call validator sometimes serialises malformed JSON when
+    the LLM produces a structure that doesn't match the tool schema —
+    we observed a "Expecting ',' delimiter" at line 432 col 3 (char 15483)
+    in a 16 kB blob even though the boundaries at start and end looked
+    correct. The strict parser bails on the first bad character; this
+    fallback tries two recovery strategies before giving up.
+
+    Strategies attempted, in order:
+      1. Strict ``json.loads`` (happy path; no overhead when it works).
+      2. Trailing-comma strip — ``,(\\s*[}\\]])`` → ``\\1``. Catches the
+         common ``[a, b, c,]`` shape.
+      3. Brace-truncation — walk the string tracking brace depth outside
+         strings; truncate to the last position where depth returned to 0.
+         Recovers the well-formed prefix of a partially-malformed payload.
+
+    Returns the parsed dict/list on success. Raises ``json.JSONDecodeError``
+    with context if even tolerant parse fails — caller treats as
+    unrecoverable.
+    """
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as e:
+        logger.warning(
+            "resume_generator: strict JSON parse failed (%s) — attempting tolerant repair",
+            e,
+        )
+
+    # Repair pass 1: strip trailing commas before } or ].
+    repaired = re.sub(r',(\s*[}\]])', r'\1', raw)
+    try:
+        parsed = json.loads(repaired)
+        logger.warning(
+            "resume_generator: recovered via tolerant JSON parse (strategy: trailing-comma-strip)"
+        )
+        return parsed
+    except json.JSONDecodeError:
+        pass
+
+    # Repair pass 2: brace-repair. Walk once and (a) auto-insert missing
+    # close chars when a `]` is seen with `{` on top of stack (or vice
+    # versa) — the LLM forgot a closer somewhere in the middle, and the
+    # closer it DID emit was intended for a deeper opener — and (b)
+    # append missing closers for anything still unclosed at end. Single
+    # pass, handles both mismatch-mid-string and unclosed-at-end shapes.
+    #
+    # Observed Zeyad failure (2026-05-18): ``[{"name": "X",
+    # "parameters": {...}]`` — the `]` was meant to close `[`, but the
+    # outer `{` is unclosed. Repair: see `]` with `{` on top, auto-insert
+    # `}` (closing the orphan `{`), then match `]` against `[`.
+    last_valid = -1
+    repaired2_chars: list[str] = []
+    stack: list[str] = []  # 'O' for {, 'A' for [
+    in_string = False
+    escape_next = False
+    for ch in repaired:
+        if escape_next:
+            repaired2_chars.append(ch)
+            escape_next = False
+            continue
+        if ch == '\\' and in_string:
+            repaired2_chars.append(ch)
+            escape_next = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            repaired2_chars.append(ch)
+            continue
+        if in_string:
+            repaired2_chars.append(ch)
+            continue
+        if ch == '{':
+            stack.append('O')
+            repaired2_chars.append(ch)
+        elif ch == '[':
+            stack.append('A')
+            repaired2_chars.append(ch)
+        elif ch == '}':
+            # If `[` is on top, auto-close it first (LLM forgot the `]`).
+            while stack and stack[-1] == 'A':
+                stack.pop()
+                repaired2_chars.append(']')
+            if stack and stack[-1] == 'O':
+                stack.pop()
+                repaired2_chars.append(ch)
+                if not stack:
+                    last_valid = len(repaired2_chars) - 1
+            # else: orphan } — drop it (no matching opener anywhere)
+        elif ch == ']':
+            # If `{` is on top, auto-close it first (LLM forgot the `}`).
+            while stack and stack[-1] == 'O':
+                stack.pop()
+                repaired2_chars.append('}')
+            if stack and stack[-1] == 'A':
+                stack.pop()
+                repaired2_chars.append(ch)
+                if not stack:
+                    last_valid = len(repaired2_chars) - 1
+            # else: orphan ] — drop it
+        else:
+            repaired2_chars.append(ch)
+    # Append closers for anything still open at end.
+    appended_closers: list[str] = []
+    while stack:
+        op = stack.pop()
+        closer = '}' if op == 'O' else ']'
+        repaired2_chars.append(closer)
+        appended_closers.append(closer)
+    brace_repaired = ''.join(repaired2_chars)
+
+    if brace_repaired != repaired:
+        try:
+            parsed = json.loads(brace_repaired)
+            logger.warning(
+                "resume_generator: recovered via tolerant JSON parse "
+                "(strategy: brace-repair, appended=%r, len %d -> %d)",
+                ''.join(appended_closers), len(raw), len(brace_repaired),
+            )
+            return parsed
+        except json.JSONDecodeError:
+            pass
+
+    # Repair pass 3: truncate to last balanced brace outside strings.
+    # Catches the inverse shape: trailing garbage AFTER a complete object,
+    # e.g. ``{...complete...}{incomplete``. ``last_valid`` was set during
+    # the repair walk above to the position where the brace stack
+    # genuinely returned to 0 (no auto-insertion needed at that point).
+    if last_valid > 0:
+        truncated = brace_repaired[:last_valid + 1]
+        try:
+            parsed = json.loads(truncated)
+            logger.warning(
+                "resume_generator: recovered via tolerant JSON parse "
+                "(strategy: brace-truncation at char %d, original len=%d)",
+                last_valid + 1, len(raw),
+            )
+            return parsed
+        except json.JSONDecodeError:
+            pass
+
+    # Unrecoverable — re-raise with context for the caller's log line.
+    raise json.JSONDecodeError(
+        f"Tolerant parse failed; original len={len(raw)}, last balanced "
+        f"brace at char {last_valid}, appended_closers={appended_closers!r}",
+        raw,
+        last_valid if last_valid > 0 else 0,
+    )
+
+
+def _flatten_achievements_wrapper(parsed: dict) -> dict:
+    """Flatten the LLM-invented ``achievements`` wrapper into ``description``.
+
+    The Groq tool-call validator occasionally produces this shape:
+
+        experience[*].achievements: [{description: [bullet, bullet, ...]}]
+
+    Under PR 3a's schema, ``ResumeExperience`` accepts only ``description``
+    as the canonical bullet field; ``extra="forbid"`` rejects the
+    ``achievements`` key directly. The schema validator's
+    ``_fold_into_description`` would also handle this wrapper at validation
+    time, but doing it here in the recovery path keeps the flattener's
+    output self-consistent with the canonical shape and surfaces a clear
+    "recovered N bullets" log line for diagnostics.
+
+    Idempotent — calling it on an already-flat dict is a no-op. The
+    recovery path calls it twice (before and after schema-envelope
+    unwrap) to catch the wrapper regardless of nesting depth.
+
+    Operates in place AND returns the dict for chaining.
+    """
+    experiences = parsed.get('experience') or parsed.get('experiences')
+    if not isinstance(experiences, list):
+        return parsed
+
+    flattened_count = 0
+    total_bullets_recovered = 0
+
+    for exp in experiences:
+        if not isinstance(exp, dict):
+            continue
+        achievements = exp.pop('achievements', None)
+        if achievements is None:
+            continue
+
+        bullets: list[str] = []
+        # Three observed shapes:
+        #   A) list of dicts each with description: list[str]
+        #   B) list of dicts each with description: str
+        #   C) list of strings directly
+        if isinstance(achievements, list):
+            for item in achievements:
+                if isinstance(item, dict):
+                    desc = item.get('description')
+                    if isinstance(desc, list):
+                        bullets.extend(
+                            d for d in desc if isinstance(d, str) and d.strip()
+                        )
+                    elif isinstance(desc, str) and desc.strip():
+                        bullets.append(desc)
+                elif isinstance(item, str) and item.strip():
+                    bullets.append(item)
+
+        if not bullets:
+            continue
+
+        # Append into existing description, preferring existing-first.
+        # Existing description may be: list[str] (post-PR-3a canonical),
+        # str (legacy single paragraph), or missing.
+        existing = exp.get('description')
+        if isinstance(existing, list):
+            exp['description'] = existing + bullets
+        elif isinstance(existing, str) and existing.strip():
+            exp['description'] = [existing] + bullets
+        else:
+            exp['description'] = bullets
+
+        flattened_count += 1
+        total_bullets_recovered += len(bullets)
+
+    if flattened_count:
+        logger.info(
+            "resume_generator: recovered via achievements-wrapper flattening "
+            "(%d experiences flattened, %d bullets recovered)",
+            flattened_count, total_bullets_recovered,
+        )
+
+    return parsed
+
+
 def _recover_resume_from_failed_generation(exc):
     """Recover a ResumeContentResult from Groq's tool_use_failed body.
 
@@ -962,7 +1259,7 @@ def _recover_resume_from_failed_generation(exc):
         )
         return None
     try:
-        parsed = json.loads(raw)
+        parsed = _tolerant_json_parse(raw)
     except Exception as je:
         logger.warning(
             "Resume recovery: failed_generation JSON parse failed (%s) — "
@@ -978,6 +1275,10 @@ def _recover_resume_from_failed_generation(exc):
             parsed = first
     if not isinstance(parsed, dict):
         return None
+    # PR 3f — Flatten invented `achievements` wrapper BEFORE schema-envelope
+    # unwrap. Idempotent — calling again after the unwrap is harmless and
+    # catches the wrapper at either nesting depth.
+    parsed = _flatten_achievements_wrapper(parsed)
     # Schema-envelope unwrap: the model produced
     #   {"additionalProperties": true, "properties": {<field>: ...}}
     # instead of a flat instance. The `properties` payload IS the instance,
@@ -991,6 +1292,9 @@ def _recover_resume_from_failed_generation(exc):
             "`properties`."
         )
         parsed = parsed['properties']
+    # PR 3f — Second flattener call in case the wrapper lived inside the
+    # schema envelope rather than at the top level.
+    parsed = _flatten_achievements_wrapper(parsed)
     # Per-field type-envelope unwrap: lists arrive as
     #   {"type": "array", "value": [...]}
     # instead of bare arrays. Same for "object"/"string" envelopes the
@@ -1249,7 +1553,10 @@ def _build_offline_fallback(profile, job, raw_cv_data: dict) -> dict:
             'honors': honors,
         })
 
-    # Projects — verbatim, preserving technologies and structured highlights.
+    # Projects — verbatim. PR 3a: description is the single canonical
+    # bullets field; highlights on master is folded in here so the LLM
+    # sees a unified list and the resume-output schema's extra="forbid"
+    # doesn't reject the dict downstream.
     projects = []
     for proj in (raw_cv_data.get('projects') or []):
         if not isinstance(proj, dict):
@@ -1260,19 +1567,11 @@ def _build_offline_fallback(profile, job, raw_cv_data: dict) -> dict:
         techs = proj.get('technologies') or []
         if isinstance(techs, str):
             techs = [t.strip() for t in techs.split(',') if t.strip()]
-        # `highlights` on master may double as the bullet source (above); only
-        # pass it through here when it's structurally distinct from description.
-        master_highlights = proj.get('highlights') or []
-        if isinstance(master_highlights, str):
-            master_highlights = [line.strip() for line in master_highlights.split('\n') if line.strip()]
-        if master_highlights == bullets:
-            master_highlights = []
         projects.append({
             'name': (proj.get('name') or '').strip(),
             'description': bullets,
             'url': (proj.get('url') or '').strip(),
             'technologies': techs,
-            'highlights': master_highlights,
         })
 
     # Certifications — verbatim, including duration.
@@ -1398,6 +1697,10 @@ def _ensure_profile_data_preserved(resume_content: dict, profile_data: dict) -> 
         resume_content['education'] = existing_edu
 
     # --- Projects ---
+    # PR 3a: description is the single canonical bullets field. Master-side
+    # `highlights` is folded into description here for the no-LLM fallback;
+    # the LLM-output path is governed by ResumeProject's coerce_to_canonical
+    # validator.
     if not resume_content.get('projects') and profile_data.get('projects'):
         resume_content['projects'] = []
         for proj in profile_data['projects']:
@@ -1407,17 +1710,11 @@ def _ensure_profile_data_preserved(resume_content: dict, profile_data: dict) -> 
             techs = proj.get('technologies') or []
             if isinstance(techs, str):
                 techs = [t.strip() for t in techs.split(',') if t.strip()]
-            master_highlights = proj.get('highlights') or []
-            if isinstance(master_highlights, str):
-                master_highlights = [line.strip() for line in master_highlights.split('\n') if line.strip()]
-            if master_highlights == description:
-                master_highlights = []
             resume_content['projects'].append({
                 'name': proj.get('name', ''),
                 'description': description,
                 'url': proj.get('url') or '',
                 'technologies': techs,
-                'highlights': master_highlights,
             })
     elif resume_content.get('projects') and profile_data.get('projects'):
         for i, proj in enumerate(resume_content['projects']):
@@ -1429,14 +1726,15 @@ def _ensure_profile_data_preserved(resume_content: dict, profile_data: dict) -> 
                 if isinstance(t, str):
                     t = [x.strip() for x in t.split(',') if x.strip()]
                 proj['technologies'] = t
-            # Only patch highlights if master has them AND they differ from description.
-            if not proj.get('highlights') and src.get('highlights'):
+            # PR 3a: if the LLM returned no bullets, fall back to the
+            # master-profile's bullets (description OR highlights).
+            # Highlights on master is legitimate input (CV parser still
+            # emits both fields); we fold here, not on the output.
+            if not proj.get('description') and src.get('highlights'):
                 h = src['highlights']
                 if isinstance(h, str):
                     h = [line.strip() for line in h.split('\n') if line.strip()]
-                desc = proj.get('description') or []
-                if h != desc:
-                    proj['highlights'] = h
+                proj['description'] = h
 
     # --- Certifications ---
     if not resume_content.get('certifications') and profile_data.get('certifications'):
