@@ -28,6 +28,17 @@ def _shim_cairocffi_if_missing() -> None:
         # Fall through to install stub.
     import types
     stub = types.ModuleType('cairocffi')
+    # Stable identity so stdlib introspection (inspect.getsourcefile,
+    # debug_toolbar's SQL stacktrace recorder, etc.) doesn't blow up
+    # walking the stub's metadata. Without these, the catch-all
+    # __getattr__ below answered every dunder lookup with _StubObj
+    # (the class), which then crashed `filename.endswith(...)` deep
+    # in inspect.getsourcefile.
+    stub.__file__ = '<cairocffi stub>'
+    stub.__spec__ = None
+    stub.__loader__ = None
+    stub.__path__ = []
+
     # Minimum surface area rlPyCairo touches during its top-level import:
     # version metadata + a couple of class references. Anything else gets
     # an attribute access that returns a no-op callable so deeper code
@@ -50,9 +61,18 @@ def _shim_cairocffi_if_missing() -> None:
     stub.Surface = _StubObj
     stub.Matrix = _StubObj
     stub.FontOptions = _StubObj
+
     # Some downstream code does ``from cairocffi import xxx``; missing
-    # attributes default to a stub callable rather than AttributeError.
-    stub.__getattr__ = lambda name: _StubObj
+    # NON-dunder attributes default to a stub callable rather than
+    # AttributeError. Dunders pass through (AttributeError) so stdlib
+    # introspection sees expected "missing" semantics rather than a
+    # non-string stand-in (the bug fixed alongside this comment).
+    def _stub_getattr(name):
+        if name.startswith('__') and name.endswith('__'):
+            raise AttributeError(name)
+        return _StubObj
+    stub.__getattr__ = _stub_getattr
+
     sys.modules['cairocffi'] = stub
     sys.modules.setdefault('cairo', stub)
 
