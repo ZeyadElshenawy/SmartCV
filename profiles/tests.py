@@ -1814,12 +1814,40 @@ class SignalMergerTests(SimpleTestCase):
         self.assertEqual(summary['skills'], 0)
 
     def test_github_languages_become_skills(self):
+        """Legacy compatibility: tuple/list-of-2 shape (aggregator native and
+        JSON-rehydrated). Must keep working alongside the dict shape below."""
         from profiles.services.signal_merger import merge_signals_into_profile
         profile = self._profile({
             'skills': [{'name': 'Python'}],
             'github_signals': {
                 'error': None,
                 'language_breakdown': [['Python', 5], ['Rust', 3], ['Go', 2]],
+            },
+        })
+        summary = merge_signals_into_profile(profile)
+        self.assertEqual(summary['skills'], 2)  # Rust + Go; Python deduped
+        names = [s['name'] if isinstance(s, dict) else s
+                 for s in profile.data_content['skills']]
+        self.assertIn('Rust', names)
+        self.assertIn('Go', names)
+
+    def test_github_languages_dict_shape_become_skills(self):
+        """Regression: signal_merger must accept language_breakdown entries
+        as dicts ({'language': ..., 'count': ..., 'share': ...}). Some
+        normalized signal sources emit this shape — project_enricher /
+        gap_analyzer already accept it; signal_merger was the lone outlier.
+        Failure mode before fix: `ValueError: too many values to unpack
+        (expected 2)` on the dict-iteration unpack."""
+        from profiles.services.signal_merger import merge_signals_into_profile
+        profile = self._profile({
+            'skills': [{'name': 'Python'}],
+            'github_signals': {
+                'error': None,
+                'language_breakdown': [
+                    {'language': 'Python', 'count': 5, 'share': 0.5},
+                    {'language': 'Rust', 'count': 3, 'share': 0.3},
+                    {'language': 'Go', 'count': 2, 'share': 0.2},
+                ],
             },
         })
         summary = merge_signals_into_profile(profile)
