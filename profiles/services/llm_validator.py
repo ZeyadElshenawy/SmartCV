@@ -77,11 +77,71 @@ GENERAL RULES:
 - Only extract and restructure what actually exists.
 
 === SCHEMA MAPPING RULES (CRITICAL) ===
-- For Work Experience and Projects: If the text contains bullet points or lists of achievements, you MUST put them in the `highlights` array field.
-- Do NOT put arrays or bullet points into the `description` field. The `description` field should be used ONLY for a single short paragraph summarizing the role. If there is no summary paragraph, leave `description` null and put everything in `highlights`.
+- For Work Experience and Projects, the bullet-bearing field is `description` — and ONLY `description`. It is an ARRAY of bullet strings. Each string is one bullet point.
+- If the CV has a single paragraph instead of bullets, split it into one or more bullet strings in `description`. Never use `null` for description — use an empty array [] when no content exists.
 - For Experience: ALWAYS extract both `start_date` AND `end_date`. If the role is ongoing, set `end_date` to "Present". If specific end dates are not stated but the role clearly ended, infer "Present" only if it is the most recent role.
-- For Projects: Extract `technologies` as a list of specific tools, frameworks, and languages used (e.g., ["PySpark", "Microsoft Fabric", "TensorFlow"]). Parse these from the project description bullets even if not in a dedicated "Technologies" line.
-- For Projects: Extract `highlights` as key accomplishments or features, separate from the `description` bullets.
+- For Experience: Extract `employment_type` when explicitly stated in the CV — values like "Full-time", "Part-time", "Contract", "Internship", "Freelance". Omit (set to null) when the CV doesn't specify. Don't infer from context; only extract when stated.
+- For Experience: Extract `industry` when the CV labels the company's industry or it's directly stated (e.g., "Automotive", "Fintech", "Healthcare"). Omit when not stated. Don't guess from the company name.
+- For Projects: Extract `technologies` as a list of specific tools, frameworks, and languages used (e.g., ["PySpark", "Microsoft Fabric", "TensorFlow"]). Parse these from the project bullets even if not in a dedicated "Technologies" line.
+- For Projects: Extract `date` when the CV mentions a specific year or month/year for the project (e.g., "August 2025"). Omit when not stated.
+
+=== DO NOT INVENT FIELDS (CRITICAL — the schema is strict, validation will fail) ===
+For each `experiences[]` and `projects[]` entry, the ONLY bullet-bearing field is `description`. Producing ANY of these will cause validation to FAIL:
+  • experiences[].highlights         → use `description` instead
+  • experiences[].achievements       → use `description`
+  • experiences[].responsibilities   → use `description`
+  • experiences[].accomplishments    → use `description`
+  • experiences[].bullets / tasks    → use `description`
+  • projects[].highlights            → use `description` (no separate "key accomplishments" field)
+  • projects[].features / outcomes   → use `description`
+  • projects[].deliverables          → use `description`
+  • ANY nested wrapper inside description — `description: [{"text": [...]}]` is WRONG; produce `description: ["bullet 1", "bullet 2"]` directly.
+  • `description: null` — use `[]` for empty content.
+
+The `description` field is a flat ARRAY of STRINGS. Each string is one bullet point. Empty content uses [] not null. Bullets and outcomes both go in description together.
+
+=== POST-PARSE FIELDS (DO NOT POPULATE) ===
+These fields exist on the schema but are populated by post-parse enrichment, not by you. Leave them absent or null:
+  • projects[].source         (populated by enrichment pipeline)
+  • projects[].source_id      (populated by enrichment pipeline)
+  • projects[].pushed_at      (populated from GitHub API)
+  • experiences[].source      (populated by enrichment pipeline)
+
+You CAN populate (when stated in the CV):
+  • projects[].date                                        (year or month/year)
+  • experiences[].industry, employment_type, location      (when stated)
+
+=== JSON SHAPE EXAMPLE (canonical) ===
+{
+  "experiences": [
+    {
+      "title": "Software Engineer",
+      "company": "Example Corp",
+      "start_date": "Jan 2023",
+      "end_date": "Present",
+      "location": "Cairo",
+      "industry": "Technology",
+      "employment_type": "Full-time",
+      "description": [
+        "Built X using Y",
+        "Improved Z by N percent"
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "name": "SmartCV",
+      "role": "Lead Developer",
+      "url": "https://github.com/example/smartcv",
+      "technologies": ["Django", "PostgreSQL"],
+      "date": "Aug 2025",
+      "description": [
+        "Designed and built X",
+        "Integrated Y"
+      ]
+    }
+  ]
+}
 
 === EDUCATION DATE RULES (CRITICAL) ===
 - The `graduation_year` field means the END date (graduation or expected graduation), NOT the start date.

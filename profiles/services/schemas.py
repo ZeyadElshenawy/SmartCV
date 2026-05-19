@@ -17,27 +17,32 @@ class Skill(BaseModel):
 
 class Experience(BaseModel):
     """CV-parser experience entry. Bullets canonical in ``description``
-    (List[str], possibly None on input — coerced to [] by the validator).
+    (List[str]).
 
-    HOTFIX NOTE (2026-05-19, post-PR-3b):
-    ``extra='allow'`` and ``description: Optional[List[str]] = None``
-    are deliberate relaxations from PR 3b's original ``extra='forbid'``
-    + ``description: List[str]``. The CV-parser LLM prompt still emits
-    the legacy shape (``highlights: [...]``, ``description: null``);
-    Groq's server-side tool-call validator rejects the LLM response
-    BEFORE Python's ``_fold_into_description`` ever runs when the
-    schema is strict. The relaxation is the floor: Python-side fold
-    still pops known aliases and coerces shape, so output is still
-    canonical. The asymmetry vs. :class:`ResumeExperience` (which is
-    extra='forbid') is tracked as PR 3b.1: update the CV-parser LLM
-    prompt to emit canonical shape, then restore extra='forbid'.
+    PROMPT/SCHEMA COUPLING (PR 3b.1 — 2026-05-19):
+    ``extra='forbid'`` on a Pydantic schema handed to Groq becomes
+    ``additionalProperties: false`` in the tool-call JSON schema.
+    Groq's server-side validator enforces it BEFORE the LLM response
+    reaches Python — so the Python-side ``_fold_into_description``
+    validator can't canonicalize what Groq already rejected. Strict
+    Pydantic-side rejection therefore requires the prompt to enforce
+    the same restriction at generation time. PR 3b.1 (this PR) paired
+    the schema tightening with a CV-parser prompt update; see
+    ``VALIDATION_SYSTEM_PROMPT`` in ``llm_validator.py`` for the
+    matching "DO NOT INVENT FIELDS" + "POST-PARSE FIELDS" blocks.
 
-    PR 3b design (still in effect):
-    Pre-PR-3b had three declared bullet fields (description, highlights,
-    achievements) admitted under ``extra='allow'`` silently. PR 3b folds
-    the 9 known bullet aliases via ``_fold_into_description`` and
-    promotes two previously-silent extras (``source``,
-    ``employment_type``) to explicit fields.
+    Historical context: pre-PR-3b the model had THREE declared bullet
+    fields (description, highlights, achievements) admitted under
+    ``extra='allow'`` silently. The dual/triple-field shape was the
+    same audit-thread trap PR 3a fixed for resume-output. PR 3b
+    introduced the alias fold + 6 promoted fields; PR 3b's hotfix
+    (4769442) relaxed strictness when production CV upload broke;
+    PR 3b.1 (now) restores strictness paired with prompt enforcement.
+
+    The validator's input-side fold remains as defense-in-depth
+    against model variance — known aliases still get folded into
+    ``description`` even when the prompt's "do not invent" rule is
+    being followed.
     """
     title: str
     company: str
@@ -47,13 +52,16 @@ class Experience(BaseModel):
     location: Optional[str] = None
     # Provenance: 'cv' / 'linkedin' / etc. SIGNAL ONLY — not output
     # as a resume field. Promoted from extra='allow' in PR 3b.
+    # Per the CV-parser prompt's POST-PARSE FIELDS section, the LLM
+    # is instructed not to populate this field; downstream enrichment
+    # tags it.
     source: Optional[str] = None
     # 'Full-time' / 'part-time' / 'contract' / 'internship'.
     # Promoted from extra='allow' in PR 3b.
     employment_type: Optional[str] = None
-    description: Optional[List[str]] = None
+    description: List[str] = Field(default_factory=list)
 
-    model_config = ConfigDict(extra='allow')
+    model_config = ConfigDict(extra='forbid')
 
     @model_validator(mode='before')
     @classmethod
@@ -74,16 +82,15 @@ class Education(BaseModel):
 
 class Project(BaseModel):
     """CV-parser project entry. Same canonical pattern as
-    :class:`Experience` — see that class for the PR-3b design
-    rationale and the post-PR-3b hotfix note (extra='allow' +
-    Optional description are deliberate; restored to strict via
-    PR 3b.1 after the CV-parser LLM prompt is updated).
+    :class:`Experience` — see that class for the PR-3b.1 prompt/schema
+    coupling rationale.
 
     Preserves ``role`` as a semantically distinct field (not bullets).
     Promotes four previously-silent extras to explicit fields:
-    ``source``, ``source_id``, ``pushed_at``, ``date`` — written by
-    project_enricher and read by resume_generator's GitHub-evidence
-    section.
+    ``source``, ``source_id``, ``pushed_at``, ``date``. The CV-parser
+    prompt instructs the LLM to populate only ``date`` — the other
+    three are post-parse enrichment fields (project_enricher writes
+    them).
     """
     name: str
     role: Optional[str] = None
@@ -91,20 +98,22 @@ class Project(BaseModel):
     technologies: Optional[List[str]] = Field(default_factory=list)
     # Provenance: 'github' / 'scholar' / 'kaggle' / 'linkedin' / 'cv'.
     # Marks enriched projects as ground truth. SIGNAL ONLY — not output
-    # as a resume field. Promoted from extra='allow' in PR 3b.
+    # as a resume field. The LLM is instructed via the prompt's
+    # POST-PARSE FIELDS section to leave this absent; enrichment tags it.
     source: Optional[str] = None
     # Identifier within the source system: GitHub repo full_name,
     # Scholar paper slug, Kaggle dataset ID. Companion to source.
+    # Post-parse only.
     source_id: Optional[str] = None
-    # GitHub-API timestamp used by sort_projects_newest_first. Distinct
-    # from ``date`` (CV-declared).
+    # GitHub-API timestamp used by sort_projects_newest_first.
+    # Post-parse only.
     pushed_at: Optional[str] = None
-    # Project date as declared in the CV (e.g., '2024'). Used for
-    # projects without GitHub provenance.
+    # Project date as declared in the CV (e.g., '2024'). LLM-extractable
+    # when the CV mentions one.
     date: Optional[str] = None
-    description: Optional[List[str]] = None
+    description: List[str] = Field(default_factory=list)
 
-    model_config = ConfigDict(extra='allow')
+    model_config = ConfigDict(extra='forbid')
 
     @model_validator(mode='before')
     @classmethod
