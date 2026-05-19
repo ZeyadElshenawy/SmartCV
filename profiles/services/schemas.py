@@ -17,20 +17,27 @@ class Skill(BaseModel):
 
 class Experience(BaseModel):
     """CV-parser experience entry. Bullets canonical in ``description``
-    (List[str]).
+    (List[str], possibly None on input — coerced to [] by the validator).
 
-    DESIGN (PR 3b — 2026-05-19):
+    HOTFIX NOTE (2026-05-19, post-PR-3b):
+    ``extra='allow'`` and ``description: Optional[List[str]] = None``
+    are deliberate relaxations from PR 3b's original ``extra='forbid'``
+    + ``description: List[str]``. The CV-parser LLM prompt still emits
+    the legacy shape (``highlights: [...]``, ``description: null``);
+    Groq's server-side tool-call validator rejects the LLM response
+    BEFORE Python's ``_fold_into_description`` ever runs when the
+    schema is strict. The relaxation is the floor: Python-side fold
+    still pops known aliases and coerces shape, so output is still
+    canonical. The asymmetry vs. :class:`ResumeExperience` (which is
+    extra='forbid') is tracked as PR 3b.1: update the CV-parser LLM
+    prompt to emit canonical shape, then restore extra='forbid'.
+
+    PR 3b design (still in effect):
     Pre-PR-3b had three declared bullet fields (description, highlights,
-    achievements) and ``extra='allow'``, letting LLM inventions
-    (responsibilities, etc.) ride through silently. The dual-field
-    trap was the same one PR 3a fixed for the resume-output side.
-
-    PR 3b mirrors PR 3a: description canonical as List[str],
-    extra="forbid", ``coerce_to_canonical`` folds the 9 known bullet
-    aliases into description and drops the alias keys. Two previously-
-    silent extras (``source``, ``employment_type``) are promoted to
-    explicit fields — they were always written + read by production
-    code; the schema is now honest about them.
+    achievements) admitted under ``extra='allow'`` silently. PR 3b folds
+    the 9 known bullet aliases via ``_fold_into_description`` and
+    promotes two previously-silent extras (``source``,
+    ``employment_type``) to explicit fields.
     """
     title: str
     company: str
@@ -44,9 +51,9 @@ class Experience(BaseModel):
     # 'Full-time' / 'part-time' / 'contract' / 'internship'.
     # Promoted from extra='allow' in PR 3b.
     employment_type: Optional[str] = None
-    description: List[str] = Field(default_factory=list)
+    description: Optional[List[str]] = None
 
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='allow')
 
     @model_validator(mode='before')
     @classmethod
@@ -68,7 +75,9 @@ class Education(BaseModel):
 class Project(BaseModel):
     """CV-parser project entry. Same canonical pattern as
     :class:`Experience` — see that class for the PR-3b design
-    rationale.
+    rationale and the post-PR-3b hotfix note (extra='allow' +
+    Optional description are deliberate; restored to strict via
+    PR 3b.1 after the CV-parser LLM prompt is updated).
 
     Preserves ``role`` as a semantically distinct field (not bullets).
     Promotes four previously-silent extras to explicit fields:
@@ -93,9 +102,9 @@ class Project(BaseModel):
     # Project date as declared in the CV (e.g., '2024'). Used for
     # projects without GitHub provenance.
     date: Optional[str] = None
-    description: List[str] = Field(default_factory=list)
+    description: Optional[List[str]] = None
 
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='allow')
 
     @model_validator(mode='before')
     @classmethod

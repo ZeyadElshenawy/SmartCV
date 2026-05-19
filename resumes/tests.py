@@ -2595,21 +2595,58 @@ class PR3bSchemaTolerance(SimpleTestCase):
         )
         self.assertEqual(e.description, ['Single-paragraph description.'])
 
-    def test_unknown_field_rejected_on_experience(self):
-        """extra='forbid' rejects fields outside the canonical set AND
-        outside the alias registry. Genuinely unknown invention names
-        (not in _BULLET_ALIAS_KEYS, not one of the 6 promoted fields)
-        fail validation."""
-        from pydantic import ValidationError
+    def test_unknown_field_silently_accepted_on_experience(self):
+        """HOTFIX 2026-05-19: Reverted from extra='forbid' to 'allow'
+        because Groq's server-side tool-call validator rejected legacy
+        LLM output before Python's fold could run. Unknown fields are
+        now silently accepted (kept on model_extra). PR 3b.1 will
+        update the CV-parser LLM prompt to emit canonical shape, then
+        flip this back to a ``with self.assertRaises(ValidationError)``."""
         from profiles.services.schemas import Experience
-        with self.assertRaises(ValidationError):
-            Experience(title='Eng', company='C', fake_field='nope')
+        e = Experience(
+            title='Eng', company='C',
+            description=['B1'],
+            future_invention='silently kept under extra=allow',
+        )
+        # Doesn't raise. The field is accepted into model_extra; canonical
+        # fields still validate normally.
+        self.assertEqual(e.title, 'Eng')
+        self.assertEqual(e.description, ['B1'])
 
-    def test_unknown_field_rejected_on_project(self):
-        from pydantic import ValidationError
+    def test_unknown_field_silently_accepted_on_project(self):
+        """Mirror of the Experience test — extra='allow' on Project too."""
         from profiles.services.schemas import Project
-        with self.assertRaises(ValidationError):
-            Project(name='X', fake_field='nope')
+        p = Project(
+            name='X',
+            description=['B1'],
+            future_invention='silently kept under extra=allow',
+        )
+        self.assertEqual(p.name, 'X')
+        self.assertEqual(p.description, ['B1'])
+
+    def test_null_description_coerced_to_empty_list_on_experience(self):
+        """LLM-emitted ``description: null`` must coerce to [] without
+        ValidationError. This is the shape the CV-parser LLM emits today
+        when it puts bullets in ``highlights`` instead. PR 3b.1 (CV-parser
+        prompt update) will tighten this; until then the schema accepts
+        legacy LLM output and Python folds it into the canonical shape."""
+        from profiles.services.schemas import Experience
+        e = Experience(
+            title='E', company='C',
+            description=None,
+            highlights=['Bullet 1', 'Bullet 2'],
+        )
+        self.assertEqual(e.description, ['Bullet 1', 'Bullet 2'])
+
+    def test_null_description_coerced_to_empty_list_on_project(self):
+        """Mirror for Project."""
+        from profiles.services.schemas import Project
+        p = Project(
+            name='P',
+            description=None,
+            highlights=['PB1'],
+        )
+        self.assertEqual(p.description, ['PB1'])
 
     def test_empty_default(self):
         from profiles.services.schemas import Experience, Project
