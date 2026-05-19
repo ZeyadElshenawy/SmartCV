@@ -1,7 +1,9 @@
 import logging
 import json
 import difflib
+import re
 from profiles.services.llm_engine import get_structured_llm
+from profiles.services.profile_sanitizer import _canonical
 from profiles.services.schemas import (
     GapAnalysisResult,
     MatchedSkill,
@@ -60,15 +62,18 @@ def _build_full_candidate_context(profile):
                 continue
             title = exp.get('title', '')
             company = exp.get('company', '')
-            desc = exp.get('description', '')
-            highlights = exp.get('highlights', [])
+            # PR 3b: description canonical (List[str]). The schema's
+            # coerce_to_canonical folded highlights/achievements into
+            # description, and migrate_profile_schema brought legacy
+            # rows into the same shape.
+            bullets = exp.get('description') or []
+            if isinstance(bullets, str):
+                bullets = [bullets] if bullets.strip() else []
 
             line = f"- {title} at {company}"
-            if desc:
-                line += f": {desc[:300]}"
-            if highlights:
-                hl_text = "; ".join(str(h) for h in highlights[:4])
-                line += f" | Highlights: {hl_text}"
+            if bullets:
+                hl_text = "; ".join(str(b) for b in bullets[:4])
+                line += f": {hl_text[:300]}"
             lines.append(line)
         sections.append("\n".join(lines))
 
@@ -79,16 +84,16 @@ def _build_full_candidate_context(profile):
             if not proj:
                 continue
             name = proj.get('name', '')
-            desc = proj.get('description', '')
-            highlights = proj.get('highlights', [])
+            # PR 3b: description canonical (List[str]).
+            bullets = proj.get('description') or []
+            if isinstance(bullets, str):
+                bullets = [bullets] if bullets.strip() else []
             techs = proj.get('technologies', [])
 
             line = f"- {name}"
-            if desc:
-                line += f": {desc[:200]}"
-            if highlights:
-                hl_text = "; ".join(str(h) for h in highlights[:3])
-                line += f" | {hl_text}"
+            if bullets:
+                hl_text = "; ".join(str(b) for b in bullets[:3])
+                line += f": {hl_text[:200]}"
             if techs:
                 line += f" [Technologies: {', '.join(techs)}]"
             lines.append(line)
@@ -473,7 +478,9 @@ RULE 5 — SOFT SKILL GAPS (separate field, not chips):
 {_PROXIMITY_RUBRIC}
 
 === OUTPUT ===
-Return ONLY the structured JSON via the provided function. No preamble.
+Return ONLY the structured JSON object containing the 5 keys via the provided function. 
+
+HARD SCHEMA RULE: You MUST output a single root JSON object `{{ "matched_must_have": [...], ... }}`. Do NOT output a JSON array `[` at the root. No preamble.
 """
 
     def _invoke(prompt_text: str, attempt_label: str = 'primary'):
@@ -519,6 +526,7 @@ Return ONLY the structured JSON via the provided function. No preamble.
             if is_schema:
                 corrections.append(
                     "- Schema validation failed. Common causes and fixes:\n"
+                    "    * You output a bare JSON array `[` instead of a root JSON object `{`. You MUST output a dictionary with the 5 tier lists as keys.\n"
                     "    * A string field came back as null. Every required "
                     "string field (evidence_source, evidence_quote, "
                     "source_quote, proximity_reason) MUST be a string — use "
@@ -555,7 +563,10 @@ Return ONLY the structured JSON via the provided function. No preamble.
     result = _demote_evidenceless_matches(result)
 
     # ---- Phase 2b: Tier-aware reconciliation ----
-    result = _reconcile_tier(result, must_skills, nice_skills)
+    result = _reconcile_tier(
+        result, must_skills, nice_skills,
+        profile_data=(profile.data_content or {}),
+    )
 
     score = compute_match_score(
         result.matched_must_have, result.missing_must_have,
@@ -652,16 +663,170 @@ def _demote_evidenceless_matches(result):
     )
 
 
-def _reconcile_tier(result, must_skills: list, nice_skills: list):
+# ---------------------------------------------------------------------------
+# PR 3e — Deterministic evidence collector
+# ---------------------------------------------------------------------------
+# The LLM-driven matcher scans bullet text but routinely misses skills that
+# only appear in:
+#   * project ``technologies`` arrays
+#   * certification names (e.g. "Natural Language Processing in TensorFlow"
+#     evidences both NLP and TensorFlow)
+#   * the candidate's ``skills`` array (when corroborated elsewhere)
+#
+# Empirically (Zeyad audit, 2026-05-16): TensorFlow / PyTorch / scikit-learn /
+# Natural Language Processing all landed in ``missing_must_have`` despite
+# being in project tech stacks AND cert names. The fix is a deterministic
+# safety net that runs after the LLM pass to RESCUE skills with verifiable
+# profile evidence — symmetric to the existing ``_demote_evidenceless_matches``
+# which REMOVES claims without evidence.
+
+# Skill canonical form must have at least this many chars before we consider
+# substring-in-cert matches. Prevents "AI" / "ML" / "QA" false-positives
+# matching unrelated cert names. Word-boundary matches on full strings (project
+# tech tags, skills array) ignore this floor — only the cert SUBSTRING check.
+_CERT_SUBSTRING_MIN_CANON = 4
+
+
+def _collect_profile_evidence(skill_name: str, profile_data: dict) -> list[dict]:
+    """Scan profile fields the LLM systematically misses and return any
+    deterministic evidence anchors for ``skill_name``.
+
+    Sources checked, in priority order:
+      1. project_tech — exact canonical match of skill in a project's
+         ``technologies`` array.
+      2. certification — skill canon (≥4 chars) is a substring of a
+         certification's name canon. "Natural Language Processing in
+         TensorFlow" evidences both NLP-via-cert and TensorFlow-via-cert.
+      3. experience_tech — exact canonical match in experience's tech /
+         technologies list when present.
+      4. skills_array — exact canonical match in the candidate's skills,
+         but ONLY surfaced when corroborating evidence exists in 1/2/3.
+         This preserves the anti-claim-stuffing guard for skills listed
+         without substantiation.
+
+    Returns an empty list when no evidence is found.
+    """
+    if not skill_name or not isinstance(profile_data, dict):
+        return []
+    skill_canon = _canonical(skill_name)
+    if len(skill_canon) < 2:
+        return []
+
+    evidence: list[dict] = []
+
+    # 1. Project technologies arrays.
+    for proj in (profile_data.get('projects') or []):
+        if not isinstance(proj, dict):
+            continue
+        techs = (
+            proj.get('technologies')
+            or proj.get('tech_stack')
+            or proj.get('tech')
+            or []
+        )
+        if isinstance(techs, str):
+            # Comma-separated string is the CV-parser's other shape.
+            techs = [t.strip() for t in re.split(r"[,;|]", techs) if t.strip()]
+        for tech in techs:
+            if _canonical(tech) == skill_canon:
+                proj_name = proj.get('name') or proj.get('title') or ''
+                evidence.append({
+                    'source': 'projects',
+                    'ref': proj_name,
+                    'snippet': f"Listed in {proj_name} tech stack"[:140],
+                })
+                break  # one match per project is enough
+
+    # 2. Certification names (substring, ≥4-char canon).
+    if len(skill_canon) >= _CERT_SUBSTRING_MIN_CANON:
+        for cert in (profile_data.get('certifications') or []):
+            if not isinstance(cert, dict):
+                continue
+            cert_name = cert.get('name') or cert.get('title') or ''
+            cert_canon = _canonical(cert_name)
+            if skill_canon and skill_canon in cert_canon:
+                evidence.append({
+                    'source': 'certifications',
+                    'ref': cert_name,
+                    'snippet': f"Earned: {cert_name}"[:140],
+                })
+
+    # 3. Experience tech tags (when present).
+    for exp in (profile_data.get('experiences') or []):
+        if not isinstance(exp, dict):
+            continue
+        techs = (
+            exp.get('technologies')
+            or exp.get('tech_stack')
+            or exp.get('tech')
+            or []
+        )
+        if isinstance(techs, str):
+            techs = [t.strip() for t in re.split(r"[,;|]", techs) if t.strip()]
+        for tech in techs:
+            if _canonical(tech) == skill_canon:
+                title = exp.get('title') or ''
+                company = exp.get('company') or ''
+                ref = f"{title} @ {company}".strip(' @')
+                evidence.append({
+                    'source': 'experience',
+                    'ref': ref,
+                    'snippet': f"Used at {ref}"[:140],
+                })
+                break
+
+    # 4. Skills array (only when corroborated by 1/2/3).
+    if evidence:
+        for entry in (profile_data.get('skills') or []):
+            name = entry.get('name', '') if isinstance(entry, dict) else str(entry or '')
+            if _canonical(name) == skill_canon:
+                corroborator = evidence[0]['source']
+                evidence.append({
+                    'source': 'skills',
+                    'ref': name,
+                    'snippet': f"Listed in skills (corroborated by {corroborator})"[:140],
+                })
+                break
+
+    return evidence
+
+
+def _build_matched_from_evidence(skill: str, evidence: list[dict]) -> 'MatchedSkill':
+    """Materialise an evidence list into a MatchedSkill. Picks the
+    strongest single source per the existing schema convention; uses
+    'multiple' when ≥2 distinct source types fire."""
+    sources = {e['source'] for e in evidence}
+    evidence_source = next(iter(sources)) if len(sources) == 1 else 'multiple'
+    # Prefer the first snippet — it's the highest-priority source per
+    # _collect_profile_evidence's ordering.
+    evidence_quote = evidence[0]['snippet'][:140]
+    return MatchedSkill(
+        name=skill,
+        evidence_source=evidence_source,
+        evidence_quote=evidence_quote,
+    )
+
+
+def _reconcile_tier(result, must_skills: list, nice_skills: list,
+                    profile_data: dict | None = None):
     """Ensure every JD skill is accounted for in exactly one tier list.
 
     For each JD must-have not seen in matched_must_have or missing_must_have,
     append a MissingSkill with proximity=0.0 and the honest stub reason.
     Same for nice-to-have. Cross-tier dedupe: a skill in both matched_* and
     missing_* keeps the matched_* entry only.
+
+    PR 3e — Before giving up on an unaccounted-for skill OR leaving a
+    LLM-marked-missing skill alone, run the deterministic evidence
+    collector against profile fields the LLM systematically misses
+    (project tech arrays, cert names, skills array with corroboration).
+    A rescue PROMOTES the skill into matched_* with an explicit evidence
+    source so downstream consumers (planner, UI) see it correctly.
     """
     def _norm(s: str) -> str:
         return (s or '').lower().strip()
+
+    profile_data = profile_data or {}
 
     matched_must = list(result.matched_must_have)
     matched_nice = list(result.matched_nice_to_have)
@@ -671,8 +836,36 @@ def _reconcile_tier(result, must_skills: list, nice_skills: list):
     matched_must_keys = {_norm(m.name) for m in matched_must}
     matched_nice_keys = {_norm(m.name) for m in matched_nice}
 
+    # Cross-tier dedupe: drop missing entries the LLM also marked matched.
     missing_must = [m for m in missing_must if _norm(m.name) not in matched_must_keys]
     missing_nice = [m for m in missing_nice if _norm(m.name) not in matched_nice_keys]
+
+    # PR 3e — promote LLM-marked-missing skills that have deterministic
+    # profile evidence. This is the Zeyad case: LLM put TensorFlow in
+    # missing_must_have, but it's in the Brain Tumor project tech stack
+    # AND the NLP-in-TensorFlow cert. Promote rather than leave missing.
+    def _rescue_missing(missing_list, matched_list, matched_keys, tier_label: str):
+        rescued = []
+        still_missing = []
+        for m in missing_list:
+            ev = _collect_profile_evidence(m.name, profile_data)
+            if ev:
+                matched_entry = _build_matched_from_evidence(m.name, ev)
+                matched_list.append(matched_entry)
+                matched_keys.add(_norm(m.name))
+                rescued.append((m.name, [f"{e['source']}: {e['ref']}" for e in ev]))
+            else:
+                still_missing.append(m)
+        if rescued:
+            for name, srcs in rescued:
+                logger.info(
+                    "gap_analyzer: rescued %s '%s' from missing -> matched via %s",
+                    tier_label, name, srcs,
+                )
+        return still_missing
+
+    missing_must = _rescue_missing(missing_must, matched_must, matched_must_keys, 'must-have')
+    missing_nice = _rescue_missing(missing_nice, matched_nice, matched_nice_keys, 'nice-to-have')
 
     missing_must_keys = {_norm(m.name) for m in missing_must}
     missing_nice_keys = {_norm(m.name) for m in missing_nice}
@@ -687,6 +880,16 @@ def _reconcile_tier(result, must_skills: list, nice_skills: list):
     for js in must_skills:
         if _is_accounted(js, missing_must_keys, matched_must_keys):
             continue
+        # PR 3e — Before dropping into missing, try deterministic rescue.
+        ev = _collect_profile_evidence(js, profile_data)
+        if ev:
+            matched_must.append(_build_matched_from_evidence(js, ev))
+            matched_must_keys.add(_norm(js))
+            logger.info(
+                "gap_analyzer: matched unaccounted must-have '%s' via %s",
+                js, [f"{e['source']}: {e['ref']}" for e in ev],
+            )
+            continue
         logger.info("Reconciled unaccounted must-have '%s' -> missing_must_have", js)
         missing_must.append(MissingSkill(
             name=js, source_quote='', proximity=0.0,
@@ -697,6 +900,15 @@ def _reconcile_tier(result, must_skills: list, nice_skills: list):
 
     for js in nice_skills:
         if _is_accounted(js, missing_nice_keys, matched_nice_keys):
+            continue
+        ev = _collect_profile_evidence(js, profile_data)
+        if ev:
+            matched_nice.append(_build_matched_from_evidence(js, ev))
+            matched_nice_keys.add(_norm(js))
+            logger.info(
+                "gap_analyzer: matched unaccounted nice-to-have '%s' via %s",
+                js, [f"{e['source']}: {e['ref']}" for e in ev],
+            )
             continue
         logger.info("Reconciled unaccounted nice-to-have '%s' -> missing_nice_to_have", js)
         missing_nice.append(MissingSkill(

@@ -765,8 +765,10 @@ class CandidateEvidenceIndexerTests(_TestCase):
                 'skills': [{'name': 'Python'}, {'name': 'PyTorch'}],
                 'experiences': [{
                     'title': 'ML Engineer', 'company': 'Acme',
-                    'duration': '2024–Present',
-                    'highlights': [
+                    # PR 3b: description canonical on profile-side.
+                    # Pre-3b this fixture used `highlights`; the indexer
+                    # iterated it as a separate bullet source.
+                    'description': [
                         'Built a PyTorch model with 92% recall.',
                         'Shipped a Django REST API serving 500 reqs/s.',
                     ],
@@ -822,7 +824,8 @@ class CandidateEvidenceIndexerTests(_TestCase):
         # An empty-ish bullet — must NOT emit a chunk.
         data['experiences'] = [{
             'title': 'ML Eng', 'company': 'Acme',
-            'highlights': ['short', 'Built a real thing with measurable impact.'],
+            # PR 3b: description canonical on profile-side.
+            'description': ['short', 'Built a real thing with measurable impact.'],
         }]
         self.profile.data_content = data
         chunks = build_chunks(self.profile)

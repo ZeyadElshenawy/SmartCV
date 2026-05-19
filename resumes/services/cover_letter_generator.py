@@ -36,9 +36,10 @@ def _build_experience_summary(profile) -> str:
             continue
         header = f"{title} at {company}".strip(' at ')
         lines.append(f"- {header}")
-        highlights = exp.get('highlights') or []
-        if isinstance(highlights, list):
-            for h in highlights[:2]:
+        # PR 3b: description canonical on profile-side.
+        bullets = exp.get('description') or []
+        if isinstance(bullets, list):
+            for h in bullets[:2]:
                 if isinstance(h, str) and h.strip():
                     lines.append(f"  • {h.strip()}")
     if not lines:

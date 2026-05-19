@@ -178,12 +178,11 @@ def build_chunks(profile) -> list[dict]:
         bits = [b for b in (title, 'at ' + company if company else '', duration) if b]
         if bits:
             emit(f'experience:{i}:context', 'experience', f'experience:{i}', ' '.join(bits))
-        # Free-text description.
-        desc = _flatten(exp.get('description'))
-        if desc:
-            emit(f'experience:{i}:desc', 'experience', f'experience:{i}', desc)
-        # One chunk per bullet — these are the units the retriever pins.
-        for j, bullet in enumerate(exp.get('highlights') or []):
+        # PR 3b: description is the single canonical bullets field on
+        # the profile-side Experience schema. Pre-3b this loop iterated
+        # `highlights` separately (with a context-string `desc` from
+        # `description`). Now both flow through one list.
+        for j, bullet in enumerate(exp.get('description') or []):
             text = _flatten(bullet)
             if not text:
                 continue
@@ -203,18 +202,15 @@ def build_chunks(profile) -> list[dict]:
                 f'project:{i}:context', 'project', f'project:{i}',
                 ' — '.join(context_bits),
             )
+        # PR 3b closed the loop: profile-side and resume-side both use
+        # `description` as canonical now (pre-3b this iterated both
+        # `description` and `highlights`; the dual-shape comment lived
+        # right here).
         for j, bullet in enumerate(proj.get('description') or []):
             text = _flatten(bullet)
             if not text:
                 continue
             emit(f'project:{i}:bullet:{j}', 'project', f'project:{i}', text)
-        # Some entries put detail under `highlights` (resume schema) vs
-        # `description` (CV parser); index both.
-        for j, bullet in enumerate(proj.get('highlights') or []):
-            text = _flatten(bullet)
-            if not text:
-                continue
-            emit(f'project:{i}:hl:{j}', 'project', f'project:{i}', text)
 
     # --- GitHub READMEs (profile + per-repo) ---
     gh = data.get('github_signals') or {}

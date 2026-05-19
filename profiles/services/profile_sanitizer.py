@@ -65,7 +65,55 @@ _SOFT_SKILL_BLOCKLIST_CANON = {
     'scripting', 'shellscripting',
     # Generic noise that DevOps JDs sometimes pull in.
     'cicdtools', 'devopstools',
+    # PR 3d — multi-word JD-formatted soft-skill phrases. The gap
+    # analyzer pulls these verbatim from JD "Required Skills" sections
+    # (Pharco AI Developer JD audit, 2026-05-16). Canonicalized form is
+    # lowercased+alphanum-only per ``_canonical``.
+    'analyticalandproblemsolvingskills', 'problemsolvingskills',
+    'analyticalskills', 'analyticalandproblemsolving',
+    'criticalthinkingandinnovation', 'criticalthinkingskills',
+    'strongcommunicationandcollaborationskills',
+    'communicationandcollaborationskills',
+    'strongcommunicationskills', 'excellentcommunicationskills',
+    'attentiontodetail',
+    'projectandtimemanagement',
+    'abilitytoworkinagileenvironments', 'abilitytoworkinagile',
+    'strongproblemsolvingskills',
+    'strongleadershipskills', 'strongteamworkskills',
+    'innovationandcreativity',
 }
+
+
+def _matches_soft_skill_blocklist(canon: str, min_substring_len: int = 15) -> bool:
+    """Check if a canonical-form skill name should be dropped as a soft skill.
+
+    Two-layer check:
+    1. Exact match against ``_SOFT_SKILL_BLOCKLIST_CANON`` (the historical
+       behavior).
+    2. Substring containment (added PR 3d): if any blocklist entry of at
+       least ``min_substring_len`` characters is a substring of ``canon``
+       (or vice versa), the skill is treated as a soft-skill hit. The
+       length floor prevents false positives — single-word blocklist
+       entries like ``"communication"`` (13 chars) won't match technical
+       skills like ``"communicationprotocols"``.
+
+    The 15-char floor catches the JD-extracted multi-word phrases
+    (``"analyticalandproblemsolvingskills"`` matches the variant
+    ``"stronganalyticalandproblemsolvingskills"``) while preserving every
+    legitimate single-word technical skill.
+    """
+    if not canon:
+        return False
+    if canon in _SOFT_SKILL_BLOCKLIST_CANON:
+        return True
+    if len(canon) < min_substring_len:
+        return False
+    for entry in _SOFT_SKILL_BLOCKLIST_CANON:
+        if len(entry) < min_substring_len:
+            continue
+        if entry in canon or canon in entry:
+            return True
+    return False
 
 # Label-prefix leaks the CV parser bakes into skill names.
 _LABEL_PREFIX_RE = re.compile(
@@ -232,6 +280,87 @@ def _kebab_to_title(slug: str) -> str:
     return head
 
 
+# --- Spoken-language detection (used by docx_exporter._write_languages) ---
+#
+# The LLM occasionally writes the candidate's technical skills into the
+# `languages` field of its tool-call output when the profile's
+# `data_content['languages']` is null/empty. The renderer trusts whatever
+# lands on `content['languages']`, so a misrouted field surfaces tech
+# stacks under a "LANGUAGES" header. These helpers filter the list down
+# to plausible spoken languages before the renderer sees it.
+_SPOKEN_LANGUAGE_HINTS = frozenset({
+    # ISO common names + common variants. Lowercase, alphanum-only canonical form.
+    "arabic", "english", "french", "spanish", "german", "italian", "portuguese",
+    "russian", "chinese", "mandarin", "cantonese", "japanese", "korean",
+    "hindi", "urdu", "bengali", "turkish", "persian", "farsi", "hebrew",
+    "dutch", "polish", "ukrainian", "greek", "swedish", "norwegian", "danish",
+    "finnish", "czech", "romanian", "hungarian", "indonesian", "malay",
+    "vietnamese", "thai", "tagalog", "filipino", "swahili", "amharic",
+    "somali", "berber", "kurdish", "armenian", "georgian",
+})
+
+_LANGUAGE_PROFICIENCY_RE = re.compile(
+    r"\b(native|fluent|proficient|intermediate|basic|conversational|"
+    r"mother\s*tongue|bilingual|c[12]|b[12]|a[12])\b",
+    re.IGNORECASE,
+)
+
+
+def looks_like_spoken_language(text: str) -> bool:
+    """Heuristic: does this string look like a spoken human language?
+
+    Accepts:
+      - "English" / "Arabic" / "French" (ISO common name)
+      - "English (Fluent)" / "Arabic - Native" / "French C1" (name + proficiency)
+    Rejects:
+      - "Python" / "TensorFlow" / "Machine Learning" (tech skills)
+      - "Cloud Computing" / "Pipelines" / "Data Analysis" (concepts)
+    """
+    if not isinstance(text, str) or not text.strip():
+        return False
+    s = text.strip()
+    # Strip parens/dashes content for the name check.
+    name_part = re.split(r"[\(\[\-–—]", s, maxsplit=1)[0].strip().lower()
+    name_canon = re.sub(r"[^a-z]", "", name_part)
+    if name_canon in _SPOKEN_LANGUAGE_HINTS:
+        return True
+    # If the full string has a proficiency marker AND the name part is short
+    # (1-2 words), accept it — covers languages we don't have in the hint set.
+    if _LANGUAGE_PROFICIENCY_RE.search(s) and len(name_part.split()) <= 2:
+        return True
+    return False
+
+
+def sanitize_languages_field(languages):
+    """Filter a list to plausible spoken languages only.
+
+    Returns the filtered list. Logs a WARNING if anything was dropped, so
+    the failure mode (LLM misrouting tech skills into languages) is
+    observable.
+    """
+    if not isinstance(languages, list):
+        return []
+    kept, dropped = [], []
+    for item in languages:
+        if isinstance(item, str):
+            text = item
+        elif isinstance(item, dict):
+            text = item.get("name", "")
+        else:
+            text = ""
+        if looks_like_spoken_language(text):
+            kept.append(item)
+        else:
+            dropped.append(text)
+    if dropped:
+        logger.warning(
+            "profile_sanitizer: dropped %d non-language item(s) from languages: %s",
+            len(dropped),
+            dropped[:10],  # cap log size
+        )
+    return kept
+
+
 # Invisible Unicode characters that the CV parser / copy-paste from web
 # CVs leaves in skill names, project names, and bullets. They render
 # fine visually but break ATS keyword matching ("ACR-QA⁠" is not
@@ -370,7 +499,7 @@ def sanitize_skills(skills: Any) -> list[dict]:
         canon = _canonical(name)
         if not canon:
             continue
-        if canon in _SOFT_SKILL_BLOCKLIST_CANON:
+        if _matches_soft_skill_blocklist(canon):
             dropped_soft += 1
             continue
         if canon in seen_canon:
@@ -428,10 +557,9 @@ def _sanitize_experience(exp: dict) -> dict:
         out['description'] = _strip_first_person(desc)
     elif isinstance(desc, list):
         out['description'] = [_strip_first_person(str(b)) for b in desc if b]
-    # Highlights are bullets — also strip first-person.
-    hls = out.get('highlights')
-    if isinstance(hls, list):
-        out['highlights'] = [_strip_first_person(str(b)) for b in hls if b]
+    # PR 3b: highlights folded into description by
+    # Experience.coerce_to_canonical; migrate_profile_schema brought
+    # legacy data into the same shape. No separate highlights branch.
     return out
 
 
