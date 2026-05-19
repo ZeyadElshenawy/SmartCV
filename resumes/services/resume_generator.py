@@ -1509,9 +1509,10 @@ def _build_offline_fallback(profile, job, raw_cv_data: dict) -> dict:
         # Plain English, no banned phrases. If we have neither, leave empty.
         summary = (', '.join(bits) + '.') if bits else ''
 
-    # Experience — verbatim from profile, with bullets sourced from
-    # highlights/achievements/description (in that order). Pass through the
-    # full set of master-profile fields so the editor can surface them.
+    # Experience — verbatim from profile. PR 3b: description is the
+    # single canonical bullets bucket on the profile-side Experience
+    # schema; highlights/achievements are folded in at validation time
+    # and the migration brought legacy rows into the same shape.
     experience = []
     for exp in (raw_cv_data.get('experiences') or []):
         if not isinstance(exp, dict):
@@ -1519,7 +1520,7 @@ def _build_offline_fallback(profile, job, raw_cv_data: dict) -> dict:
         start = (exp.get('start_date') or '').strip()
         end = (exp.get('end_date') or '').strip()
         duration = f"{start} - {end}".strip(' -') if (start or end) else ''
-        bullets = exp.get('highlights') or exp.get('achievements') or exp.get('description') or []
+        bullets = exp.get('description') or []
         if isinstance(bullets, str):
             bullets = [line.strip() for line in bullets.split('\n') if line.strip()]
         experience.append({
@@ -1553,15 +1554,15 @@ def _build_offline_fallback(profile, job, raw_cv_data: dict) -> dict:
             'honors': honors,
         })
 
-    # Projects — verbatim. PR 3a: description is the single canonical
-    # bullets field; highlights on master is folded in here so the LLM
-    # sees a unified list and the resume-output schema's extra="forbid"
-    # doesn't reject the dict downstream.
+    # Projects — verbatim. PR 3a+3b: description is the single
+    # canonical bullets field across both resume-output AND profile-
+    # input schemas. Legacy highlights data was folded in by the PR 3b
+    # migration and is folded at validation time for fresh data.
     projects = []
     for proj in (raw_cv_data.get('projects') or []):
         if not isinstance(proj, dict):
             continue
-        bullets = proj.get('description') or proj.get('highlights') or []
+        bullets = proj.get('description') or []
         if isinstance(bullets, str):
             bullets = [line.strip() for line in bullets.split('\n') if line.strip()]
         techs = proj.get('technologies') or []
@@ -1633,7 +1634,8 @@ def _ensure_profile_data_preserved(resume_content: dict, profile_data: dict) -> 
             start = exp.get('start_date') or ''
             end = exp.get('end_date') or ''
             duration = f"{start} - {end}".strip(' -') if (start or end) else ''
-            description = exp.get('highlights') or exp.get('achievements') or exp.get('description') or []
+            # PR 3b: description canonical on profile-side too.
+            description = exp.get('description') or []
             if isinstance(description, str):
                 description = [line.strip() for line in description.split('\n') if line.strip()]
             resume_content['experience'].append({
@@ -1704,7 +1706,8 @@ def _ensure_profile_data_preserved(resume_content: dict, profile_data: dict) -> 
     if not resume_content.get('projects') and profile_data.get('projects'):
         resume_content['projects'] = []
         for proj in profile_data['projects']:
-            description = proj.get('description') or proj.get('highlights') or []
+            # PR 3b: description canonical on profile-side.
+            description = proj.get('description') or []
             if isinstance(description, str):
                 description = [line.strip() for line in description.split('\n') if line.strip()]
             techs = proj.get('technologies') or []
@@ -1726,15 +1729,15 @@ def _ensure_profile_data_preserved(resume_content: dict, profile_data: dict) -> 
                 if isinstance(t, str):
                     t = [x.strip() for x in t.split(',') if x.strip()]
                 proj['technologies'] = t
-            # PR 3a: if the LLM returned no bullets, fall back to the
-            # master-profile's bullets (description OR highlights).
-            # Highlights on master is legitimate input (CV parser still
-            # emits both fields); we fold here, not on the output.
-            if not proj.get('description') and src.get('highlights'):
-                h = src['highlights']
-                if isinstance(h, str):
-                    h = [line.strip() for line in h.split('\n') if line.strip()]
-                proj['description'] = h
+            # PR 3b: if the LLM returned no bullets, fall back to the
+            # master-profile's description. Pre-PR-3b this also
+            # checked highlights; now description is canonical on
+            # both layers.
+            if not proj.get('description') and src.get('description'):
+                d = src['description']
+                if isinstance(d, str):
+                    d = [line.strip() for line in d.split('\n') if line.strip()]
+                proj['description'] = d
 
     # --- Certifications ---
     if not resume_content.get('certifications') and profile_data.get('certifications'):

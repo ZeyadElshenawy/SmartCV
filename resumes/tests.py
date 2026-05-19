@@ -2542,6 +2542,245 @@ class PR3aMigrationCommand(SimpleTestCase):
         self.assertEqual(migrated['experiences'][0]['description'], ['B1'])
 
 
+class PR3bSchemaTolerance(SimpleTestCase):
+    """PR 3b mirrors PR 3a's pattern for the CV-parser-side schemas
+    (Experience and Project — used by ResumeSchema, stored in
+    UserProfile.data_content). Uses the same _fold_into_description
+    helper as PR 3a, so these tests verify the helper produces correct
+    output when called from the profile-side validators too.
+
+    Also pins the contract for the 6 fields promoted from extra='allow'
+    during PR 3b (source, employment_type on Experience; source,
+    source_id, pushed_at, date on Project)."""
+
+    def test_description_canonical(self):
+        from profiles.services.schemas import Experience
+        e = Experience(title='Eng', company='C', description=['Built X.'])
+        self.assertEqual(e.description, ['Built X.'])
+
+    def test_input_highlights_folded(self):
+        from profiles.services.schemas import Experience
+        e = Experience(
+            title='Eng', company='C',
+            highlights=['B1', 'B2'],
+        )
+        self.assertEqual(e.description, ['B1', 'B2'])
+        self.assertFalse(hasattr(e, 'highlights'))
+
+    def test_input_achievements_folded(self):
+        """Pre-PR-3b, achievements was a declared field on Experience
+        (the only one of the three schemas with this third field).
+        Post-PR-3b it folds via the alias registry."""
+        from profiles.services.schemas import Experience
+        e = Experience(
+            title='Eng', company='C',
+            achievements=['Shipped X.', 'Mentored 2 jrs.'],
+        )
+        self.assertEqual(e.description, ['Shipped X.', 'Mentored 2 jrs.'])
+        self.assertFalse(hasattr(e, 'achievements'))
+
+    def test_input_responsibilities_folded_on_experience(self):
+        from profiles.services.schemas import Experience
+        e = Experience(
+            title='Eng', company='C',
+            responsibilities=['Resp 1', 'Resp 2'],
+        )
+        self.assertEqual(e.description, ['Resp 1', 'Resp 2'])
+
+    def test_string_description_coerced_to_list(self):
+        from profiles.services.schemas import Experience
+        e = Experience(
+            title='Eng', company='C',
+            description='Single-paragraph description.',
+        )
+        self.assertEqual(e.description, ['Single-paragraph description.'])
+
+    def test_unknown_field_rejected_on_experience(self):
+        """extra='forbid' rejects fields outside the canonical set AND
+        outside the alias registry. Genuinely unknown invention names
+        (not in _BULLET_ALIAS_KEYS, not one of the 6 promoted fields)
+        fail validation."""
+        from pydantic import ValidationError
+        from profiles.services.schemas import Experience
+        with self.assertRaises(ValidationError):
+            Experience(title='Eng', company='C', fake_field='nope')
+
+    def test_unknown_field_rejected_on_project(self):
+        from pydantic import ValidationError
+        from profiles.services.schemas import Project
+        with self.assertRaises(ValidationError):
+            Project(name='X', fake_field='nope')
+
+    def test_empty_default(self):
+        from profiles.services.schemas import Experience, Project
+        e = Experience(title='E', company='C')
+        self.assertEqual(e.description, [])
+        p = Project(name='P')
+        self.assertEqual(p.description, [])
+
+    def test_role_field_preserved_on_project(self):
+        """Project.role is semantically distinct from bullets — it
+        names the candidate's role on the project ("Lead", "Solo dev",
+        etc.). Must survive validation alongside description."""
+        from profiles.services.schemas import Project
+        p = Project(name='thing', role='Lead Developer',
+                    description=['Built it.'])
+        self.assertEqual(p.role, 'Lead Developer')
+        self.assertEqual(p.description, ['Built it.'])
+
+    def test_promoted_extras_accepted_on_experience(self):
+        """source and employment_type were silent extras pre-PR-3b
+        (under extra='allow'). PR 3b promoted them to explicit fields.
+        Both must validate without ValidationError under the new
+        extra='forbid' config."""
+        from profiles.services.schemas import Experience
+        e = Experience(
+            title='Eng', company='C',
+            source='linkedin',
+            employment_type='Full-time',
+        )
+        self.assertEqual(e.source, 'linkedin')
+        self.assertEqual(e.employment_type, 'Full-time')
+
+    def test_promoted_extras_accepted_on_project(self):
+        """source, source_id, pushed_at, date were silent extras
+        pre-PR-3b. All four are now explicit Optional fields and must
+        validate."""
+        from profiles.services.schemas import Project
+        p = Project(
+            name='thing',
+            source='github',
+            source_id='me/thing',
+            pushed_at='2026-01-01T00:00:00Z',
+            date='2024',
+        )
+        self.assertEqual(p.source, 'github')
+        self.assertEqual(p.source_id, 'me/thing')
+        self.assertEqual(p.pushed_at, '2026-01-01T00:00:00Z')
+        self.assertEqual(p.date, '2024')
+
+
+class PR3bMigrationCommand(SimpleTestCase):
+    """The migrate_profile_schema management command converts stored
+    UserProfile.data_content rows from pre-PR-3b shape (description +
+    highlights + achievements + silent extras) to PR-3b shape."""
+
+    def test_migrates_dict_shape_experiences(self):
+        from profiles.management.commands.migrate_profile_schema import (
+            _migrate_data_content,
+        )
+        content = {
+            'experiences': [{
+                'title': 'E', 'company': 'C',
+                'description': 'Para',
+                'highlights': ['B1', 'B2'],
+                'achievements': ['A1'],
+                'source': 'linkedin',           # promoted — must survive
+                'employment_type': 'Full-time', # promoted — must survive
+            }],
+        }
+        migrated, changed = _migrate_data_content(content)
+        self.assertTrue(changed)
+        exp = migrated['experiences'][0]
+        self.assertNotIn('highlights', exp)
+        self.assertNotIn('achievements', exp)
+        # description ordering: existing first, then highlights, then
+        # achievements (alias-registry order).
+        self.assertEqual(exp['description'], ['Para', 'B1', 'B2', 'A1'])
+        # Promoted fields must be preserved by the migration.
+        self.assertEqual(exp['source'], 'linkedin')
+        self.assertEqual(exp['employment_type'], 'Full-time')
+
+    def test_migrates_dict_shape_projects(self):
+        from profiles.management.commands.migrate_profile_schema import (
+            _migrate_data_content,
+        )
+        content = {
+            'projects': [{
+                'name': 'thing',
+                'highlights': ['PB1', 'PB2'],
+                'source': 'github',
+                'source_id': 'me/thing',
+                'pushed_at': '2026-01-01T00:00:00Z',
+                'date': '2024',
+                'technologies': ['Python'],
+            }],
+        }
+        migrated, changed = _migrate_data_content(content)
+        self.assertTrue(changed)
+        proj = migrated['projects'][0]
+        self.assertNotIn('highlights', proj)
+        self.assertEqual(proj['description'], ['PB1', 'PB2'])
+        # All 4 promoted fields preserved.
+        self.assertEqual(proj['source'], 'github')
+        self.assertEqual(proj['source_id'], 'me/thing')
+        self.assertEqual(proj['pushed_at'], '2026-01-01T00:00:00Z')
+        self.assertEqual(proj['date'], '2024')
+        self.assertEqual(proj['technologies'], ['Python'])
+
+    def test_idempotent_on_new_shape(self):
+        from profiles.management.commands.migrate_profile_schema import (
+            _migrate_data_content,
+        )
+        content = {
+            'experiences': [{
+                'title': 'E', 'company': 'C',
+                'description': ['B1', 'B2'],
+                'source': 'cv',
+            }],
+            'projects': [{
+                'name': 'P',
+                'description': ['PB1'],
+                'source': 'github',
+                'source_id': 'me/p',
+            }],
+        }
+        migrated, changed = _migrate_data_content(content)
+        self.assertFalse(changed)
+        self.assertEqual(migrated['experiences'][0]['description'], ['B1', 'B2'])
+        self.assertEqual(migrated['projects'][0]['description'], ['PB1'])
+
+    def test_scan_unknowns_reports_extras(self):
+        """--scan-unknowns must surface keys that aren't canonical and
+        aren't in the alias registry, so the operator can classify
+        them before extra='forbid' rejects them at validation time."""
+        from profiles.management.commands.migrate_profile_schema import (
+            _scan_unknown_keys,
+        )
+        content = {
+            'experiences': [{
+                'title': 'E', 'company': 'C',
+                # Genuinely unknown — not canonical, not an alias.
+                'fake_invented_field': 'mock',
+            }],
+            'projects': [{
+                'name': 'P',
+                'another_unknown': 42,
+            }],
+        }
+        unknowns = _scan_unknown_keys(content)
+        self.assertIn('experience.fake_invented_field', unknowns)
+        self.assertIn('project.another_unknown', unknowns)
+        self.assertEqual(unknowns['experience.fake_invented_field'], 1)
+        self.assertEqual(unknowns['project.another_unknown'], 1)
+        # Promoted fields and known aliases must NOT appear as unknowns.
+        clean_content = {
+            'experiences': [{
+                'title': 'E', 'company': 'C',
+                'source': 'cv',
+                'employment_type': 'Internship',
+            }],
+            'projects': [{
+                'name': 'P',
+                'source': 'github',
+                'source_id': 'me/p',
+                'pushed_at': '2026-01-01T00:00:00Z',
+                'date': '2024',
+            }],
+        }
+        self.assertEqual(_scan_unknown_keys(clean_content), {})
+
+
 class AwardsFieldEndToEndTests(SimpleTestCase):
     """Round 1.5: Honors & Awards section is now first-class. Schema
     accepts the field, _ensure_profile_data_preserved surfaces from

@@ -16,16 +16,44 @@ class Skill(BaseModel):
     years: Optional[float] = None
 
 class Experience(BaseModel):
+    """CV-parser experience entry. Bullets canonical in ``description``
+    (List[str]).
+
+    DESIGN (PR 3b — 2026-05-19):
+    Pre-PR-3b had three declared bullet fields (description, highlights,
+    achievements) and ``extra='allow'``, letting LLM inventions
+    (responsibilities, etc.) ride through silently. The dual-field
+    trap was the same one PR 3a fixed for the resume-output side.
+
+    PR 3b mirrors PR 3a: description canonical as List[str],
+    extra="forbid", ``coerce_to_canonical`` folds the 9 known bullet
+    aliases into description and drops the alias keys. Two previously-
+    silent extras (``source``, ``employment_type``) are promoted to
+    explicit fields — they were always written + read by production
+    code; the schema is now honest about them.
+    """
     title: str
     company: str
     start_date: Optional[str] = None
     end_date: Optional[str] = None
-    description: Optional[Union[str, List[str]]] = Field(None, description="Role description. Can be a string or list of strings.")
-    highlights: Optional[List[str]] = Field(default_factory=list, description="Bullet points of responsibilities or achievements")
     industry: Optional[str] = None
     location: Optional[str] = None
-    achievements: Optional[List[str]] = Field(default_factory=list, description="Specific quantifiable achievements")
-    model_config = ConfigDict(extra='allow')
+    # Provenance: 'cv' / 'linkedin' / etc. SIGNAL ONLY — not output
+    # as a resume field. Promoted from extra='allow' in PR 3b.
+    source: Optional[str] = None
+    # 'Full-time' / 'part-time' / 'contract' / 'internship'.
+    # Promoted from extra='allow' in PR 3b.
+    employment_type: Optional[str] = None
+    description: List[str] = Field(default_factory=list)
+
+    model_config = ConfigDict(extra='forbid')
+
+    @model_validator(mode='before')
+    @classmethod
+    def coerce_to_canonical(cls, data):
+        if not isinstance(data, dict):
+            return data
+        return _fold_into_description(data)
 
 class Education(BaseModel):
     degree: str
@@ -38,13 +66,43 @@ class Education(BaseModel):
     model_config = ConfigDict(extra='allow')
 
 class Project(BaseModel):
+    """CV-parser project entry. Same canonical pattern as
+    :class:`Experience` — see that class for the PR-3b design
+    rationale.
+
+    Preserves ``role`` as a semantically distinct field (not bullets).
+    Promotes four previously-silent extras to explicit fields:
+    ``source``, ``source_id``, ``pushed_at``, ``date`` — written by
+    project_enricher and read by resume_generator's GitHub-evidence
+    section.
+    """
     name: str
-    description: Optional[Union[str, List[str]]] = None
     role: Optional[str] = None
-    highlights: Optional[List[str]] = Field(default_factory=list, description="Bullet points detailing contributions")
-    technologies: Optional[List[str]] = Field(default_factory=list)
     url: Optional[str] = None
-    model_config = ConfigDict(extra='allow')
+    technologies: Optional[List[str]] = Field(default_factory=list)
+    # Provenance: 'github' / 'scholar' / 'kaggle' / 'linkedin' / 'cv'.
+    # Marks enriched projects as ground truth. SIGNAL ONLY — not output
+    # as a resume field. Promoted from extra='allow' in PR 3b.
+    source: Optional[str] = None
+    # Identifier within the source system: GitHub repo full_name,
+    # Scholar paper slug, Kaggle dataset ID. Companion to source.
+    source_id: Optional[str] = None
+    # GitHub-API timestamp used by sort_projects_newest_first. Distinct
+    # from ``date`` (CV-declared).
+    pushed_at: Optional[str] = None
+    # Project date as declared in the CV (e.g., '2024'). Used for
+    # projects without GitHub provenance.
+    date: Optional[str] = None
+    description: List[str] = Field(default_factory=list)
+
+    model_config = ConfigDict(extra='forbid')
+
+    @model_validator(mode='before')
+    @classmethod
+    def coerce_to_canonical(cls, data):
+        if not isinstance(data, dict):
+            return data
+        return _fold_into_description(data)
 
 class Certification(BaseModel):
     name: str

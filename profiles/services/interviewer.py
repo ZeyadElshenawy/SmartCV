@@ -278,10 +278,11 @@ def process_chat_turn(user_id: int, job_id: str, user_reply: str, conversation_h
             for exp in raw_experiences[:3]:
                 title = exp.get('title', exp.get('role', ''))
                 company = exp.get('company', '')
-                highlights = exp.get('highlights', [])[:2]
+                # PR 3b: description canonical on profile-side.
+                bullets = (exp.get('description') or [])[:2]
                 line = f"  - {title} at {company}"
-                if highlights:
-                    line += f" (highlights: {'; '.join(highlights)})"
+                if bullets:
+                    line += f" (highlights: {'; '.join(bullets)})"
                 exp_lines.append(line)
             experiences_summary = '\n'.join(exp_lines)
         
