@@ -2807,6 +2807,106 @@ class PR3bMigrationCommand(SimpleTestCase):
         self.assertEqual(_scan_unknown_keys(clean_content), {})
 
 
+class PR3b2OptionalSchemaTests(SimpleTestCase):
+    """PR 3b.2: 6 fields on the resume-output nested models were
+    relaxed to Optional with None defaults so Groq's server-side
+    tool-call validator stops rejecting LLM responses that emit null
+    for legitimately-missing fields (internship industry, ongoing-
+    role end_date, cert-without-URL, etc.).
+
+    Validators continue to normalize None -> '' / None -> [] for
+    downstream readers, so post-validation shapes are unchanged.
+
+    Also pins the scope-guard contract: required-semantic fields
+    (title, company on Experience; name, issuer on Certification)
+    are NOT in the Optional set. At the JSON-schema layer (what Groq
+    actually validates against), null on those fields would still be
+    rejected — preventing future PRs from silently broadening the
+    relaxation."""
+
+    def test_optional_industry_accepts_none_on_experience(self):
+        from profiles.services.schemas import ResumeExperience
+        e = ResumeExperience(title='Engineer', company='X', industry=None)
+        # Validator normalizes None -> '' for downstream readers.
+        self.assertEqual(e.industry, '')
+
+    def test_optional_end_date_accepts_none(self):
+        """end_date=None is the LLM's correct emission for an ongoing
+        role when the prompt asked for "Present" but the LLM puts
+        "Present" in duration only and leaves end_date empty."""
+        from profiles.services.schemas import ResumeExperience
+        e = ResumeExperience(title='Engineer', company='X', end_date=None)
+        self.assertEqual(e.end_date, '')
+
+    def test_optional_cert_fields_accept_none(self):
+        """ResumeCertification url/date/duration accept None for
+        certs without a verification URL, undated certs, and
+        certs without a stated duration."""
+        from profiles.services.schemas import ResumeCertification
+        c = ResumeCertification(
+            name='Some Cert', issuer='Some Org',
+            url=None, date=None, duration=None,
+        )
+        self.assertEqual(c.url, '')
+        self.assertEqual(c.date, '')
+        self.assertEqual(c.duration, '')
+
+    def test_optional_education_honors_accepts_none(self):
+        """ResumeEducation.honors=None normalizes to [] (a degree
+        entry typically has no honors line for most candidates)."""
+        from profiles.services.schemas import ResumeEducation
+        ed = ResumeEducation(institution='X', degree='Y', honors=None)
+        self.assertEqual(ed.honors, [])
+
+    def test_required_fields_stay_strict_in_json_schema(self):
+        """SCOPE GUARD (PR 3b.2): the relaxation is scoped to fields
+        with semantic-null meaning. Required-semantic fields stay
+        strict at the JSON-schema layer (which is what Groq's
+        server-side tool-call validator actually checks). null on
+        title/company/name/issuer still gets rejected upstream —
+        preserving the surface where genuine data bugs surface.
+
+        Test asserts on model_json_schema() rather than Python-side
+        validation because the existing _coerce_null_strings
+        validator masks Python-side null on ALL declared str fields.
+        The JSON-schema layer is the architecturally relevant boundary.
+        """
+        from profiles.services.schemas import (
+            ResumeExperience, ResumeCertification,
+        )
+
+        exp_schema = ResumeExperience.model_json_schema()
+        cert_schema = ResumeCertification.model_json_schema()
+
+        def _accepts_null(field_schema: dict) -> bool:
+            """True iff the JSON schema for one field admits null.
+
+            Pydantic emits Optional[str] as `{"anyOf": [{"type": "string"},
+            {"type": "null"}]}` or similar; a plain str = "" emits just
+            `{"type": "string"}`."""
+            if field_schema.get('type') == 'null':
+                return True
+            for sub in field_schema.get('anyOf', []):
+                if sub.get('type') == 'null':
+                    return True
+            return False
+
+        # PR 3b.2 relaxed fields — null IS accepted at JSON-schema layer
+        self.assertTrue(_accepts_null(exp_schema['properties']['industry']))
+        self.assertTrue(_accepts_null(exp_schema['properties']['end_date']))
+        self.assertTrue(_accepts_null(cert_schema['properties']['date']))
+        self.assertTrue(_accepts_null(cert_schema['properties']['duration']))
+        self.assertTrue(_accepts_null(cert_schema['properties']['url']))
+
+        # Required-semantic fields — null is NOT accepted at JSON-schema
+        # layer (Groq will still 400 if the LLM emits null for these).
+        self.assertFalse(_accepts_null(exp_schema['properties']['title']))
+        self.assertFalse(_accepts_null(exp_schema['properties']['company']))
+        self.assertFalse(_accepts_null(exp_schema['properties']['start_date']))
+        self.assertFalse(_accepts_null(cert_schema['properties']['name']))
+        self.assertFalse(_accepts_null(cert_schema['properties']['issuer']))
+
+
 class AwardsFieldEndToEndTests(SimpleTestCase):
     """Round 1.5: Honors & Awards section is now first-class. Schema
     accepts the field, _ensure_profile_data_preserved surfaces from

@@ -599,9 +599,14 @@ class ResumeExperience(BaseModel):
     company: str = ""
     duration: str = ""
     location: str = ""
-    industry: str = ""
+    # PR 3b.2: Optional because the LLM correctly emits null when the CV
+    # doesn't state these (internship industry, ongoing-role end_date).
+    # Groq's server-side JSON-schema validator rejects null on plain
+    # `str` fields before the Python validator can normalize. The
+    # validator below still coerces None -> "" for downstream readers.
+    industry: Optional[str] = None
     start_date: str = ""
-    end_date: str = ""
+    end_date: Optional[str] = None
     description: List[str] = Field(default_factory=list)
 
     model_config = ConfigDict(extra="forbid")
@@ -649,9 +654,13 @@ class ResumeProject(BaseModel):
 class ResumeCertification(BaseModel):
     name: str = ""
     issuer: str = ""
-    date: str = ""
-    duration: str = ""
-    url: str = ""
+    # PR 3b.2: Optional because real CVs commonly omit cert verification
+    # URLs, completion dates, and durations. The LLM correctly emits null
+    # rather than fabricating empty strings. Validator normalizes
+    # None -> "" for downstream readers.
+    date: Optional[str] = None
+    duration: Optional[str] = None
+    url: Optional[str] = None
 
     @model_validator(mode='before')
     @classmethod
@@ -667,7 +676,10 @@ class ResumeEducation(BaseModel):
     field: str = ""
     gpa: str = ""
     location: str = ""
-    honors: List[str] = Field(default_factory=list)
+    # PR 3b.2: Optional[List[str]] = None because the LLM correctly
+    # emits null when the CV doesn't list honors. Validator normalizes
+    # None -> [] for downstream readers.
+    honors: Optional[List[str]] = None
 
     @model_validator(mode='before')
     @classmethod
