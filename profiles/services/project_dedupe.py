@@ -152,6 +152,38 @@ ENRICHED PROJECTS (from external signals):
 Output one decision per enriched project, in order. Use enriched_index =
 the project's index in the ENRICHED list above; typed_index = the matched
 typed project's index, or -1 for add_new.
+
+=== OUTPUT SHAPE (CRITICAL) ===
+Return ONE JSON object with a single `decisions` key:
+
+{{
+  "decisions": [
+    {{
+      "enriched_index": 0,
+      "typed_index": 2,
+      "action": "merge",
+      "confidence": 0.92,
+      "reason": "Same GitHub repo URL"
+    }},
+    {{
+      "enriched_index": 1,
+      "typed_index": -1,
+      "action": "add_new",
+      "confidence": 0.85,
+      "reason": "No matching project in typed list"
+    }}
+  ]
+}}
+
+CRITICAL: Do NOT wrap the response in an outer array.
+
+  WRONG:  [{{"decisions": [...]}}]
+  WRONG:  [{{"name": "DedupeBatch", "parameters": {{...}}}}]
+  RIGHT:  {{"decisions": [...]}}
+
+Each entry in `decisions` is a flat object with exactly these 5 keys:
+enriched_index, typed_index, action, confidence, reason.
+No nested wrappers, no metadata, no extra keys.
 """
     try:
         structured = get_structured_llm(
