@@ -16,6 +16,43 @@ def _consolidate(bullets):
     return out['experience'][0]['description']
 
 
+class TestFilterLanguages:
+    """Issue 2: the resume-gen LLM dumps the skills list into the
+    `languages` field. normalize_resume must drop non-spoken-language
+    entries so the HTML preview / PDF don't render tech skills under a
+    'Languages' heading (the DOCX path already filtered; this moves the
+    filter to the central normalizer ahead of every render path)."""
+
+    def test_skills_dumped_into_languages_are_dropped(self):
+        from resumes.services.resume_normalizer import normalize_resume
+        rc = {
+            'professional_title': 'Junior Data Analyst',
+            'languages': [
+                'Python', 'Pandas', 'SQL', 'Data Visualization',
+                'Analytical thinking', 'Problem-solving skills',
+                'Arabic (Native)', 'English (Fluent)', 'Scripting',
+            ],
+        }
+        out = normalize_resume(rc)
+        assert out['languages'] == ['Arabic (Native)', 'English (Fluent)']
+
+    def test_clean_languages_untouched(self):
+        from resumes.services.resume_normalizer import normalize_resume
+        rc = {'languages': ['Arabic (Mother Tongue)', 'English (Fluent)', 'French']}
+        out = normalize_resume(rc)
+        assert out['languages'] == ['Arabic (Mother Tongue)', 'English (Fluent)', 'French']
+
+    def test_empty_languages_untouched(self):
+        from resumes.services.resume_normalizer import normalize_resume
+        out = normalize_resume({'languages': []})
+        assert out['languages'] == []
+
+    def test_filter_languages_direct(self):
+        from resumes.services.resume_normalizer import filter_languages
+        out = filter_languages({'languages': ['Python', 'English (Fluent)']})
+        assert out['languages'] == ['English (Fluent)']
+
+
 def _starts_with_coursework_line(bullets) -> bool:
     return any(
         isinstance(b, str) and b.startswith('Coursework included:')
