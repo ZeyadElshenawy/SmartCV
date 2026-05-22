@@ -752,6 +752,28 @@ Make it PROFESSIONAL and ATS-OPTIMIZED.
                 metadata['_plan_metadata'] = {}
         return resume_content
 
+    # Issue 8 (2026-05-22): skip the doomed full-prompt call when we can
+    # predict the 413. The full prompt 413s above Groq's per-request
+    # ceiling; rather than burn a fast-failing round-trip, pre-slim when
+    # the prompt exceeds RESUME_PROMPT_CHAR_BUDGET (drops the same v2 +
+    # standards blocks the 413 retry would). The retry below stays as the
+    # safety net for sizes we under-estimate. Observed: full 87.7k chars
+    # 413s; slim 78.9k succeeds — default budget 85k sits between.
+    from django.conf import settings as _dj_settings
+    _char_budget = int(getattr(_dj_settings, 'RESUME_PROMPT_CHAR_BUDGET', 85000))
+    if len(prompt) > _char_budget and (v2_block or standards_section):
+        _slimmed = prompt
+        if v2_block:
+            _slimmed = _slimmed.replace(v2_block, '')
+        if standards_section:
+            _slimmed = _slimmed.replace(standards_section, '')
+        logger.info(
+            "Resume gen: prompt %d chars > budget %d; pre-slimming to %d "
+            "(skipping the full call that would 413).",
+            len(prompt), _char_budget, len(_slimmed),
+        )
+        prompt = _slimmed
+
     try:
         structured_llm = get_structured_llm(ResumeContentResult, temperature=0.7, max_tokens=8192, task="resume_gen")
         result = structured_llm.invoke(prompt)
@@ -790,7 +812,8 @@ Make it PROFESSIONAL and ATS-OPTIMIZED.
                 slim_result = slim_llm.invoke(slim_prompt)
                 resume_content = _post_process(slim_result.model_dump())
                 logger.info(
-                    "✓ Resume gen recovered via slim-prompt retry; sections=%s",
+                    "✓ Resume gen succeeded via slim-prompt retry (full prompt "
+                    "hit token limit); sections=%s",
                     list(resume_content.keys()),
                 )
                 return resume_content

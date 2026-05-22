@@ -31,6 +31,7 @@ from typing import Any, Optional
 from profiles.services.profile_sanitizer import (
     _SOFT_SKILL_BLOCKLIST_CANON,
     _canonical,
+    _matches_soft_skill_blocklist,
     _strip_first_person,
     _title_case_with_acronyms,
 )
@@ -180,59 +181,103 @@ def _fuzzy_in(name: str, pool_canon: set[str], pool_pretty: list[str]) -> bool:
     return False
 
 
+# PR1 Fix 3 — unambiguously-technical terms that never appear in real
+# coursework titles. Hit on any of these → reject the bullet from
+# coursework consolidation. Word-boundary match, case-insensitive.
+_TECHNICAL_TOKENS = (
+    'Docker', 'Kubernetes', 'Terraform', 'Ansible', 'Jenkins',
+    'Prometheus', 'Grafana', 'AWS', 'GCP', 'Azure', 'GitHub Actions',
+    'GitLab CI', 'CI/CD', 'IaC', 'RTO', 'RPO', 'HPA', 'k6', 'OWASP',
+    'SARIF', 'FastAPI', 'Flask', 'Django', 'Spring Boot', 'RAG', 'LLM',
+    'LLaMA', 'TensorFlow', 'PyTorch', 'scikit-learn', 'CNN', 'RNN',
+    'LSTM', 'Pandas', 'NumPy', 'MLflow', 'Hugging Face', 'Streamlit',
+    'Power BI', 'OpenCV', 'PySpark', 'pgvector', 'Groq', 'Supabase',
+)
+# Build a single compiled regex: any token, word-boundary, case-insensitive.
+# Escape each token (`Spring Boot` and `CI/CD` have special chars) and
+# anchor with lookarounds that exclude adjacent word chars — same shape
+# as scoring._count_skill_occurrences.
+_TECHNICAL_TOKEN_RE = re.compile(
+    '|'.join(
+        rf"(?<!\w){re.escape(tok)}(?!\w)"
+        for tok in _TECHNICAL_TOKENS
+    ),
+    re.IGNORECASE,
+)
+# URL-ish substrings — any of these in a bullet means it's a real
+# achievement (link to source), not a course-name leftover.
+_URL_INDICATOR_RE = re.compile(
+    r"https?://|github\.com|gitlab\.com|kaggle\.com",
+    re.IGNORECASE,
+)
+# Parenthesised acronym / tech-list pattern, e.g. "(EC2, S3, IAM modules)"
+# — the all-caps inside parens is a strong signal of a capstone artefact,
+# not a course name. Requires uppercase start + 4+ chars + only
+# uppercase letters, digits, comma, slash, space, hyphen, period inside.
+_PARENS_TECHLIST_RE = re.compile(r"\([A-Z][A-Z0-9, /\-.]{3,}\)")
+
+
+def _coursework_reject_reason(text: str) -> str | None:
+    """Return a short rule-id string if `text` should NOT be treated as
+    coursework, or None if it passes every rejection check.
+
+    Split out from `_is_coursework_bullet` so the consolidation loop
+    can log WHY a near-coursework-looking bullet got rejected. Keeps
+    the boolean predicate simple and the diagnostic surface area in
+    one place.
+    """
+    if not text:
+        return 'empty'
+    s = text.strip()
+    if not s:
+        return 'empty'
+    # PR1 Fix 3 — the three new high-confidence rejections run FIRST so
+    # they win over the less-informative digit/colon/verb checks: a URL
+    # contains a `.com` (would falsely match terminal_punctuation),
+    # `(EC2, S3, IAM modules)` contains digits (would match
+    # contains_digit), and `Provisioned (AWS, GCP, ...)` trips the
+    # past-tense verb heuristic. Whichever rule we report drives the
+    # diagnostic log line, so reporting the most specific one wins.
+    if _TECHNICAL_TOKEN_RE.search(s):
+        return 'technical_token'
+    if _URL_INDICATOR_RE.search(s):
+        return 'url'
+    if _PARENS_TECHLIST_RE.search(s):
+        return 'parens_techlist'
+    # Multi-sentence or terminal punctuation → real prose / list header.
+    if '.' in s.rstrip('.') or s.endswith(('!', '?', ':')):
+        return 'terminal_punctuation'
+    if any(c.isdigit() for c in s):
+        return 'contains_digit'
+    if ':' in s:
+        return 'midbullet_colon'
+    words = s.split()
+    if not words:
+        return 'empty'
+    if len(words) > _COURSEWORK_MAX_WORDS:
+        return 'too_long'
+    if len(words) >= 4:
+        if _VERB_START_RE.match(s):
+            return 'action_verb_start'
+        if _starts_with_past_tense_verb(s):
+            return 'past_tense_verb_start'
+    return None
+
+
 def _is_coursework_bullet(text: str) -> bool:
-    """Heuristic: this bullet looks like a leftover course-name from a
-    consolidated coursework list — short, no terminal punctuation,
-    doesn't start with an action verb, no quantified outcomes.
+    """Boolean wrapper around _coursework_reject_reason. See that helper
+    for the full rule list.
 
     Round 1.5.2 — tightened to fix the DevOps regression where capstone
     metrics like "3 Grafana dashboards (19 panels)" got mis-classified
     as coursework and folded into a fake "Coursework included: ..."
-    line. Course titles are almost never quantified; achievement
-    bullets almost always are.
+    line.
 
-    Rejection rules (any one disqualifies the bullet):
-      - Empty / whitespace-only.
-      - Multi-sentence (mid-string period) or ends with !/?/:.
-      - Longer than _COURSEWORK_MAX_WORDS words.
-      - Contains any DIGIT — almost all real coursework titles are
-        clean noun phrases without numbers; bullets like
-        "3 Grafana dashboards (19 panels)" or "15-min RTO" are
-        capstone deliverables, not course names.
-      - Contains a colon mid-bullet — "X: Y" structure is the
-        capstone-section header pattern, not a course name.
-      - For 4+ word bullets: starts with a known action verb
-        (_VERB_START_RE) OR a past-tense verb (-ed-suffix word not
-        in the noun/adjective whitelist).
+    PR1 Fix 3 — three more rejections (TECHNICAL_TOKEN, URL, parens
+    techlist) catch the remaining capstone artefacts that slipped
+    through the digit/colon checks.
     """
-    if not text:
-        return False
-    s = text.strip()
-    if not s:
-        return False
-    # Multi-sentence (has a period followed by more text) — not a course name.
-    if '.' in s.rstrip('.') or s.endswith(('!', '?', ':')):
-        return False
-    # Digit anywhere = capstone metric, not coursework.
-    if any(c.isdigit() for c in s):
-        return False
-    # Mid-bullet colon = "Section: detail" pattern from capstone notes.
-    if ':' in s:
-        return False
-    words = s.split()
-    if not words:
-        return False
-    if len(words) > _COURSEWORK_MAX_WORDS:
-        return False
-    # Action-verb rejection only kicks in for 4+-word bullets so we
-    # don't lose short course titles that happen to start with an -ed
-    # word ("Supervised Learning", "Advanced Statistics").
-    if len(words) >= 4:
-        if _VERB_START_RE.match(s):
-            return False
-        if _starts_with_past_tense_verb(s):
-            return False
-    return True
+    return _coursework_reject_reason(text) is None
 
 
 def _is_soft_skill_bullet(text: str) -> bool:
@@ -303,7 +348,7 @@ def filter_soft_skills(resume: dict) -> dict:
             name = str(entry or '').strip()
         if not name:
             continue
-        if _canonical(name) in _SOFT_SKILL_BLOCKLIST_CANON:
+        if _matches_soft_skill_blocklist(_canonical(name)):
             dropped.append(name)
             continue
         out.append(name)
@@ -358,28 +403,53 @@ def strip_first_person_from_resume(resume: dict) -> dict:
     return resume
 
 
+_COURSEWORK_MIN_RUN = 3  # PR1 Fix 3 — was 2; raised to err on the side of
+                         # NOT collapsing technical bullets
+
+
 def _consolidate_bullet_list(bullets: list) -> list:
-    """Collapse runs of 2+ consecutive coursework-like bullets into one
-    ``Coursework: A, B, C.`` entry. Operates on the bullet list in
-    order, preserving non-course bullets verbatim."""
+    """Collapse runs of ``_COURSEWORK_MIN_RUN`` (=3) or more consecutive
+    coursework-like bullets into one ``Coursework included: A, B, C.``
+    entry. Operates on the bullet list in order, preserving non-course
+    bullets verbatim.
+
+    Logs each rejection that fired one of the PR1-added rules
+    (TECHNICAL_TOKEN / URL / parens techlist) at INFO so future
+    debugging can see why a specific bullet wasn't consolidated.
+    """
     if not bullets:
         return bullets
     out: list[Any] = []
     buffer: list[str] = []
 
     def _flush():
-        if len(buffer) >= 2:
+        if len(buffer) >= _COURSEWORK_MIN_RUN:
             out.append(f"Coursework included: {', '.join(buffer)}.")
         else:
             out.extend(buffer)
         buffer.clear()
 
+    # Only log the new rejection reasons — the older ones (digit, colon,
+    # length, verb-start) are already self-explanatory and would just
+    # be log noise for every action bullet in the resume.
+    _LOGGED_REASONS = {'technical_token', 'url', 'parens_techlist'}
+
     for b in bullets:
-        if isinstance(b, str) and _is_coursework_bullet(b):
-            buffer.append(b.strip())
-        else:
-            _flush()
-            out.append(b)
+        if isinstance(b, str):
+            reason = _coursework_reject_reason(b)
+            if reason is None:
+                buffer.append(b.strip())
+                continue
+            if reason in _LOGGED_REASONS:
+                snippet = b.strip()
+                if len(snippet) > 100:
+                    snippet = snippet[:100] + '…'
+                logger.info(
+                    "resume_normalizer: coursework-consolidate skipped bullet "
+                    "(rule=%s): %r", reason, snippet,
+                )
+        _flush()
+        out.append(b)
     _flush()
     return out
 
@@ -541,9 +611,17 @@ def filter_soft_skill_bullets(resume: dict) -> dict:
 
 
 _BANNED_SUMMARY_OPENERS_RE = re.compile(
+    # Round 1.5.2 base set.
     r"^\s*(?:Highly motivated|Results-driven|Detail-oriented|"
     r"Passionate|Dedicated|Hard-working|Self-motivated|"
-    r"Energetic|Goal-oriented|Dynamic and|Innovative and)\s+",
+    r"Energetic|Goal-oriented|Dynamic and|Innovative and|"
+    # PR 3c additions (2026-05-16) — phrases the Zeyad audit hit. Bare
+    # ``Innovative`` and ``Strategic`` openers are recruiter jargon; the
+    # paired ``Innovative and`` / ``Dynamic and`` patterns above stay
+    # for back-compat. ``Proven`` covers ``Proven track record`` style
+    # openers. ``Self-starter`` mirrors the ``Self-motivated`` ban.
+    r"Highly skilled|Highly accomplished|Highly experienced|"
+    r"Highly qualified|Self-starter|Innovative|Strategic|Proven)\s+",
     re.IGNORECASE,
 )
 # Match "1 year of experience", "2+ years of experience", "less than
@@ -848,7 +926,7 @@ def trim_skills_to_plan(resume: dict, plan) -> dict:
         c = _canonical(name)
         if not c:
             return False
-        if c in _SOFT_SKILL_BLOCKLIST_CANON:
+        if _matches_soft_skill_blocklist(c):
             dropped_soft.append(name)
             return False
         if _is_near_duplicate_skill(kept_pairs, name, c):
@@ -918,7 +996,7 @@ def trim_projects_to_plan(resume: dict, plan) -> dict:
 
 def trim_certs_to_plan(resume: dict, plan) -> dict:
     """Cap the certifications list at ``_CERT_CAP``. Does NOT filter by
-    plan membership any more.
+    plan membership.
 
     Round 1.5 (DevOps audit): the previous "drop certs not in plan"
     filter was over-aggressive — it removed certs that the recruiter
@@ -927,17 +1005,283 @@ def trim_certs_to_plan(resume: dict, plan) -> dict:
     explicit: "Include ALL certifications from JSON". Just keep the
     candidate's full cert list, capped at 8.
 
-    ``plan`` is still accepted for signature compatibility with
-    ``normalize_resume``'s call site but is unused here.
+    PR2b Fix C — Option X (cap-only + JD-relevance ranking). The
+    Round 1.5 invariant is preserved: for any user with ≤ _CERT_CAP
+    certs, NOTHING is dropped. When the cap DOES truncate (e.g. a
+    user with 13 certs), we now order the list so plan-membership
+    certs (high JD relevance) come first and survive the cap, while
+    low-signal certs end up in the truncation tail. This solves the
+    user-visible problem (low-signal DataCamp fundamentals crowding
+    out relevant Coursera/DeepLearning.AI certs) without
+    reintroducing the v1-era "auditor wanted to see this and we
+    dropped it" regression.
+
+    Ordering rule (when sorting matters — i.e. count > cap):
+      1. Certs whose canonical name appears in ``plan.certifications``
+         (plan order preserved as a tie-breaker).
+      2. All other certs, in their original profile order.
     """
     certs = resume.get('certifications') or []
     if not isinstance(certs, list):
         return resume
     kept = [c for c in certs if isinstance(c, dict) and (c.get('name') or '').strip()]
-    if len(kept) > _CERT_CAP:
-        kept = kept[:_CERT_CAP]
-    resume['certifications'] = kept
+    if len(kept) <= _CERT_CAP:
+        # No truncation — Round 1.5 invariant: keep every cert in
+        # original order, no reranking, no logging surface area.
+        resume['certifications'] = kept
+        return resume
+
+    # Only rerank when truncation will actually drop entries. This is
+    # also where the (X) ranking matters.
+    plan_canon_list: list[str] = []
+    if plan is not None:
+        for name in (getattr(plan, 'certifications', None) or []):
+            c = _canonical(name)
+            if c and c not in plan_canon_list:
+                plan_canon_list.append(c)
+    plan_canon_set = set(plan_canon_list)
+
+    in_plan: list[dict] = []
+    out_of_plan: list[dict] = []
+    for cert in kept:
+        cert_canon = _canonical(cert.get('name') or '')
+        if cert_canon and cert_canon in plan_canon_set:
+            in_plan.append(cert)
+        else:
+            out_of_plan.append(cert)
+
+    # Sort the in-plan bucket so it follows plan-order — gives the LLM /
+    # downstream renderer a stable, JD-relevant top of the list.
+    plan_rank = {c: i for i, c in enumerate(plan_canon_list)}
+    in_plan.sort(
+        key=lambda c: plan_rank.get(_canonical(c.get('name') or ''), 1 << 30),
+    )
+
+    ranked = in_plan + out_of_plan
+    final = ranked[:_CERT_CAP]
+    demoted_names = [c.get('name') for c in ranked[_CERT_CAP:]]
+    if demoted_names:
+        logger.info(
+            "resume_normalizer: cert cap hit (count=%d > cap=%d). "
+            "in_plan=%d kept; dropped low-signal: %s",
+            len(kept), _CERT_CAP, len(in_plan), demoted_names,
+        )
+    resume['certifications'] = final
     return resume
+
+
+# ---------------------------------------------------------------------------
+# Plan-as-contract restoration (PR 3a, 2026-05-16)
+# ---------------------------------------------------------------------------
+
+def _restore_plan_items(
+    resume: dict,
+    plan,
+    profile_data: dict | None,
+    *,
+    section_key: str,                      # 'projects' or 'certifications'
+    plan_attr: str,                        # 'projects' or 'certifications'
+    cap: int,                              # _PROJECT_CAP or _CERT_CAP
+    plan_item_to_name,                     # callable: plan-entry -> name string
+    source_to_resume_entry,                # callable: source-CV dict -> resume entry dict
+    item_label: str,                       # 'project' or 'cert' (for log messages)
+) -> dict:
+    """Plan-as-contract restoration core (PR 3a).
+
+    Reorders the section so plan-ranked items come first (restored from
+    source CV when the LLM dropped them; LLM version kept when the LLM
+    kept them), then fills remaining cap slots with LLM-kept items not
+    in the plan. This is the "evict LLM extras to make room for plan
+    items" semantics — necessary because the Zeyad audit found the LLM
+    filling the 8-cert cap with low-relevance picks, leaving no room
+    for plan-ranked high-relevance certs under append-only semantics.
+
+    Cap is still respected. The Round 1.5 invariant ("Include ALL
+    certifications from JSON" for ≤cap users) still holds because in
+    the under-cap case every LLM-kept cert survives — it just gets
+    reordered behind plan-ranked items.
+
+    DESIGN NOTE: restored items use the source-CV verbatim copy via
+    ``source_to_resume_entry``. For projects this means source-CV
+    description / highlights / technologies — NOT LLM-polished bullets.
+    The voice gap is small in practice because both LLM-polished and
+    source-CV bullets share the past-tense completed-action register
+    typical of resume bullets; the alternative (a second LLM pass to
+    rewrite restored bullets) doubles the LLM cost per resume.
+    """
+    if plan is None or not getattr(plan, plan_attr, None):
+        return resume
+    if not profile_data:
+        return resume
+
+    current = list(resume.get(section_key) or [])
+    # Index LLM-kept items by canonical name so plan walk can reuse them.
+    current_by_canon: dict[str, dict] = {}
+    current_pretty: list[str] = []
+    current_canon_set: set[str] = set()
+    for c in current:
+        if not isinstance(c, dict):
+            continue
+        name = c.get('name', '')
+        if not name:
+            continue
+        canon = _canonical(name)
+        if canon and canon not in current_by_canon:
+            current_by_canon[canon] = c
+            current_canon_set.add(canon)
+            current_pretty.append(name)
+
+    profile_items = profile_data.get(section_key, []) or []
+    profile_by_canon: dict[str, dict] = {}
+    for src in profile_items:
+        if not isinstance(src, dict):
+            continue
+        canon = _canonical(src.get('name', ''))
+        if canon and canon not in profile_by_canon:
+            profile_by_canon[canon] = src
+
+    final: list[dict] = []
+    final_canon: set[str] = set()
+    restored_names: list[str] = []
+
+    # Pass 1: walk plan in rank order. For each plan item:
+    #   - if LLM kept it (fuzzy match) — reuse LLM-polished version
+    #   - if LLM dropped it — restore source-CV verbatim
+    #   - if not in source profile — log warning, skip
+    for plan_item in getattr(plan, plan_attr):
+        plan_name = plan_item_to_name(plan_item)
+        plan_canon = _canonical(plan_name)
+        if not plan_canon or plan_canon in final_canon:
+            continue
+        if len(final) >= cap:
+            break
+        # Check LLM-kept first (fuzzy match, since LLM may have renamed).
+        kept = current_by_canon.get(plan_canon)
+        if kept is None and _fuzzy_in(plan_name, current_canon_set, current_pretty):
+            for ccanon, centry in current_by_canon.items():
+                # Find the LLM entry that fuzzy-matched.
+                if _fuzzy_in(plan_name, {ccanon}, [centry.get('name', '')]):
+                    kept = centry
+                    plan_canon = ccanon  # use matched canon so dedupe is correct
+                    break
+        if kept is not None:
+            final.append(kept)
+            final_canon.add(plan_canon)
+            continue
+        src = profile_by_canon.get(plan_canon)
+        if not src:
+            logger.warning(
+                "resume_normalizer: plan-ranked %s %r not in source profile; skipping restoration",
+                item_label, plan_name,
+            )
+            continue
+        final.append(source_to_resume_entry(src))
+        final_canon.add(plan_canon)
+        restored_names.append(src.get('name', ''))
+
+    # Pass 2: fill remaining cap with LLM-kept items not in plan.
+    evicted_names: list[str] = []
+    for entry in current:
+        if not isinstance(entry, dict):
+            continue
+        canon = _canonical(entry.get('name', ''))
+        if not canon:
+            continue
+        if canon in final_canon:
+            continue
+        if len(final) >= cap:
+            evicted_names.append(entry.get('name', ''))
+            continue
+        final.append(entry)
+        final_canon.add(canon)
+
+    # Only commit if something actually changed.
+    if restored_names or evicted_names or len(final) != len(current):
+        resume[section_key] = final
+        if restored_names:
+            logger.info(
+                "resume_normalizer: restored %d plan-ranked %s(s) the LLM dropped: %s",
+                len(restored_names), item_label, restored_names,
+            )
+        if evicted_names:
+            logger.info(
+                "resume_normalizer: evicted %d LLM-kept %s(s) not in plan to make cap room: %s",
+                len(evicted_names), item_label, evicted_names,
+            )
+
+    return resume
+
+
+def restore_plan_projects(resume: dict, plan, profile_data: dict | None = None) -> dict:
+    """PR 3a — restore plan-ranked projects the LLM dropped.
+
+    See ``_restore_plan_items`` for the shared mechanics + the plan-as-
+    contract rationale. Plan-ranked projects always come first; LLM
+    extras not in plan fill remaining cap slots.
+    """
+    def _plan_name(p):
+        return getattr(p, 'name', None) or (
+            p.get('name', '') if isinstance(p, dict) else ''
+        )
+
+    def _src_to_entry(src):
+        return {
+            'name': src.get('name', ''),
+            # description / highlights may both be present, either str
+            # or list — renderer's ``_ensure_list`` handles both shapes.
+            'description': src.get('description', ''),
+            'highlights': src.get('highlights', []),
+            'technologies': (
+                src.get('technologies')
+                or src.get('tech_stack')
+                or src.get('tech')
+                or []
+            ),
+            'url': src.get('url', ''),
+        }
+
+    return _restore_plan_items(
+        resume, plan, profile_data,
+        section_key='projects',
+        plan_attr='projects',
+        cap=_PROJECT_CAP,
+        plan_item_to_name=_plan_name,
+        source_to_resume_entry=_src_to_entry,
+        item_label='project',
+    )
+
+
+def restore_plan_certs(resume: dict, plan, profile_data: dict | None = None) -> dict:
+    """PR 3a — restore plan-ranked certs the LLM dropped.
+
+    Certs don't have bullets, so the voice-consistency note in
+    ``restore_plan_projects`` doesn't apply — restoration is verbatim
+    source-CV name / issuer / date / duration / url.
+    """
+    def _plan_name(c):
+        # plan.certifications is a list[str] per InclusionPlan dataclass.
+        return c if isinstance(c, str) else (
+            getattr(c, 'name', None) or (c.get('name', '') if isinstance(c, dict) else '')
+        )
+
+    def _src_to_entry(src):
+        return {
+            'name': src.get('name', ''),
+            'issuer': src.get('issuer', ''),
+            'date': src.get('date', ''),
+            'duration': src.get('duration', ''),
+            'url': src.get('url', ''),
+        }
+
+    return _restore_plan_items(
+        resume, plan, profile_data,
+        section_key='certifications',
+        plan_attr='certifications',
+        cap=_CERT_CAP,
+        plan_item_to_name=_plan_name,
+        source_to_resume_entry=_src_to_entry,
+        item_label='cert',
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -990,8 +1334,36 @@ def normalize_resume(
         resume = trim_skills_to_plan(resume, plan)
         resume = trim_projects_to_plan(resume, plan)
         resume = trim_certs_to_plan(resume, plan)
+        # PR 3a — plan-as-contract restoration. trim runs first (removes
+        # LLM additions not in plan), then restore re-injects plan-ranked
+        # projects/certs the LLM dropped. Both bounded by the same caps
+        # (_PROJECT_CAP / _CERT_CAP).
+        resume = restore_plan_projects(resume, plan, profile_data)
+        resume = restore_plan_certs(resume, plan, profile_data)
     resume = backfill_summary(resume, job=job)
     # Round 1.5.2: strip recruiter-jargon openers ("Highly motivated…")
     # and unsupported YoE claims that survive the LLM-side prompt rule.
     resume = clean_summary_phrasing(resume)
+    resume = filter_languages(resume)
+    return resume
+
+
+def filter_languages(resume: dict) -> dict:
+    """Issue 2: drop non-spoken-language entries from the `languages`
+    field. The resume-gen LLM sometimes dumps the entire skills list
+    (programming languages + tech + soft skills) into `languages`.
+    docx_exporter already filtered this at export time, but the HTML
+    preview and PDF render paths showed the raw dump — so the filter
+    belongs here in the central normalizer, ahead of every render path.
+
+    Reuses ``profile_sanitizer.sanitize_languages_field`` (the same
+    spoken-language heuristic the DOCX path uses) so the two never drift.
+    """
+    if not isinstance(resume, dict):
+        return resume
+    langs = resume.get('languages')
+    if not isinstance(langs, list) or not langs:
+        return resume
+    from profiles.services.profile_sanitizer import sanitize_languages_field
+    resume['languages'] = sanitize_languages_field(langs)
     return resume

@@ -297,10 +297,23 @@ RAG_UNIVERSAL_SHARE = config('RAG_UNIVERSAL_SHARE', default=3, cast=int)
 # BULLET_AUTOFIX = "report_only" runs validation and attaches a report but
 # does not mutate the resume. "safe_autofix" additionally applies the
 # deterministic substitutions (em-dash → comma, banned-word swaps).
-BULLET_AUTOFIX = config('BULLET_AUTOFIX', default='report_only')
+# Default flipped to safe_autofix (Issue 4/7, 2026-05-22): the autofix
+# pass only does deterministic, bounded rewrites (BANNED_PHRASES
+# substitution + em-dash→comma); anything riskier stays report-only.
+# Leaving banned recruiter-jargon and em-dashes in shipped resumes was
+# strictly worse than auto-cleaning them. Override with
+# BULLET_AUTOFIX=report_only if a deployment wants report-only behavior.
+BULLET_AUTOFIX = config('BULLET_AUTOFIX', default='safe_autofix')
 # BULLET_VALIDATOR_STRICT also flags the corporate-jargon set in
 # prompt_guards.BANNED_JARGON_PHRASES — higher false-positive risk.
 BULLET_VALIDATOR_STRICT = config('BULLET_VALIDATOR_STRICT', default=False, cast=bool)
+# RESUME_PROMPT_CHAR_BUDGET (Issue 8): when the resume-gen prompt exceeds
+# this many chars, pre-slim it (drop v2 grounding + standards blocks)
+# instead of sending the full prompt and eating a 413 round-trip. Observed
+# Groq per-request ceiling sits between the slim (~79k) and full (~88k)
+# prompt sizes; 85k is a safe midpoint. The post-call 413 retry remains
+# as the safety net for under-estimates.
+RESUME_PROMPT_CHAR_BUDGET = config('RESUME_PROMPT_CHAR_BUDGET', default=85000, cast=int)
 # BULLET_RETRY (reserved for §4 T3 treatment): on validator failure, the
 # resume_generator may re-call the LLM once with the findings appended to
 # the prompt. Not wired yet — placeholder so .env edits don't surprise the
