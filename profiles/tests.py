@@ -3246,6 +3246,223 @@ class ProjectDedupeTests(TestCase):
         self.assertEqual(names, ['My Resume Site', 'pgbench-tuner'])
 
 
+class Issue9DeterministicURLMatchingTests(SimpleTestCase):
+    """Issue 9 root-cause fix: URL-equal (typed, enriched) pairs are
+    matched deterministically BEFORE the LLM call, so the LLM can't
+    hallucinate/miss a URL match (which corrupted Zeyad's projects:
+    hr-analytics-dashboard was falsely matched to apotheosis, and the
+    real apotheosis URL match was marked add_new)."""
+
+    def test_url_equal_pairs_pre_matched(self):
+        from profiles.services.project_dedupe import _deterministic_url_matches
+        typed = [{'name': 'Project A', 'url': 'https://github.com/u/proj-a'}]
+        enriched = [{'source_url': 'https://github.com/u/proj-a', 'name': 'proj-a'}]
+        decisions, matched = _deterministic_url_matches(typed, enriched)
+        self.assertEqual(len(decisions), 1)
+        self.assertEqual(decisions[0]['action'], 'merge')
+        self.assertEqual(decisions[0]['typed_index'], 0)
+        self.assertEqual(decisions[0]['enriched_index'], 0)
+        self.assertEqual(decisions[0]['confidence'], 1.0)
+        self.assertIn('Deterministic', decisions[0]['reason'])
+        self.assertEqual(matched, {0})
+
+    def test_url_distinct_pairs_not_pre_matched(self):
+        from profiles.services.project_dedupe import _deterministic_url_matches
+        typed = [{'name': 'HR Dashboard', 'url': 'https://github.com/u/cs-rfmt'}]
+        enriched = [{'source_url': 'https://github.com/u/hr-dash', 'name': 'hr-dash'}]
+        decisions, matched = _deterministic_url_matches(typed, enriched)
+        self.assertEqual(decisions, [])
+        self.assertEqual(matched, set())
+
+    def test_normalize_url_protocol_www_trailingslash(self):
+        from profiles.services.project_dedupe import _normalize_url
+        a = _normalize_url('https://www.github.com/u/x/')
+        b = _normalize_url('http://github.com/u/x')
+        self.assertEqual(a, b)
+        self.assertEqual(a, 'github.com/u/x')
+
+    def test_zeyad_apotheosis_regression(self):
+        """The exact Zeyad case: apotheosis (real URL match to typed[0])
+        must pre-match; hr-analytics-dashboard (no typed URL match) must
+        NOT pre-match (it goes to the LLM / add_new)."""
+        from profiles.services.project_dedupe import _deterministic_url_matches
+        typed = [{
+            'name': 'apotheosis-traffic-sign-detection',
+            'url': 'https://github.com/u/apotheosis-traffic-sign-detection',
+        }]
+        enriched = [
+            {'source_url': 'https://github.com/u/hr-analytics-dashboard',
+             'name': 'hr-analytics-dashboard'},
+            {'source_url': 'https://github.com/u/apotheosis-traffic-sign-detection',
+             'name': 'apotheosis-traffic-sign-detection'},
+        ]
+        decisions, matched = _deterministic_url_matches(typed, enriched)
+        self.assertEqual(matched, {1})           # only apotheosis pre-matched
+        self.assertNotIn(0, matched)             # hr-analytics NOT pre-matched
+        ap = next(d for d in decisions if d['enriched_index'] == 1)
+        self.assertEqual(ap['typed_index'], 0)
+        self.assertEqual(ap['action'], 'merge')
+
+    def test_dedupe_projects_pre_matches_and_skips_llm_for_url_pairs(self):
+        """End-to-end: when all enriched have URL matches, the LLM is
+        never called (the deterministic layer covers everything)."""
+        from profiles.services import project_dedupe
+        typed = [
+            {'name': 'A', 'url': 'https://github.com/u/a'},
+            {'name': 'B', 'url': 'https://github.com/u/b'},
+        ]
+        enriched = [
+            {'name': 'a', 'source_url': 'https://github.com/u/a', 'bullets': ['x']},
+            {'name': 'b', 'source_url': 'https://github.com/u/b', 'bullets': ['y']},
+        ]
+        called = {'llm': False}
+
+        def _spy(*a, **k):
+            called['llm'] = True
+            return []
+        with patch.object(project_dedupe, '_adjudicate_unmatched', _spy):
+            decisions = project_dedupe.dedupe_projects(typed, enriched)
+        self.assertFalse(called['llm'], "LLM should not be called when all pairs URL-match")
+        self.assertEqual(len(decisions), 2)
+        self.assertTrue(all(d['action'] == 'merge' for d in decisions))
+
+    def test_dedupe_projects_remaps_subset_indices(self):
+        """When only some enriched go to the LLM, the LLM's subset-relative
+        enriched_index is remapped to the original list index."""
+        from profiles.services import project_dedupe
+        typed = [{'name': 'A', 'url': 'https://github.com/u/a'}]
+        enriched = [
+            {'name': 'a', 'source_url': 'https://github.com/u/a'},        # idx 0: URL match
+            {'name': 'novel', 'source_url': 'https://github.com/u/novel'}, # idx 1: no match -> LLM
+        ]
+
+        def _fake_adjudicate(typed_projects, enriched_subset):
+            # subset has 1 item (the novel one); LLM says add_new at subset idx 0
+            return [{'enriched_index': 0, 'typed_index': -1,
+                     'action': 'add_new', 'confidence': 0.6, 'reason': 'novel'}]
+        with patch.object(project_dedupe, '_adjudicate_unmatched', _fake_adjudicate):
+            decisions = project_dedupe.dedupe_projects(typed, enriched)
+        by_e = {d['enriched_index']: d for d in decisions}
+        self.assertEqual(by_e[0]['action'], 'merge')      # deterministic
+        self.assertEqual(by_e[1]['action'], 'add_new')    # remapped from subset idx 0 -> original 1
+        self.assertEqual(by_e[1]['reason'], 'novel')
+
+
+class Issue9DefensiveDedupTests(SimpleTestCase):
+    """apply_decisions collapses duplicate-canonical-name entries with a
+    3-layer tiebreak (URL-match -> non-empty description -> first)."""
+
+    def test_url_match_wins_tiebreak(self):
+        from profiles.services.project_dedupe import (
+            _dedup_by_canonical_name, _canonical_name,
+        )
+        projects = [
+            {'name': 'Apotheosis Traffic Sign Detection',
+             'url': 'https://github.com/wrong/repo',
+             'description': ['HR bullets here']},
+            {'name': 'apotheosis-traffic-sign-detection',
+             'url': 'https://github.com/u/apotheosis-traffic-sign-detection',
+             'description': ['Correct traffic bullets']},
+        ]
+        lookup = {
+            _canonical_name('apotheosis-traffic-sign-detection'):
+                'github.com/u/apotheosis-traffic-sign-detection',
+        }
+        result = _dedup_by_canonical_name(projects, lookup)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]['description'], ['Correct traffic bullets'])
+
+    def test_non_empty_description_wins_when_no_url_match(self):
+        from profiles.services.project_dedupe import _dedup_by_canonical_name
+        projects = [
+            {'name': 'Project A', 'url': 'https://no-match-1.com', 'description': []},
+            {'name': 'Project A', 'url': 'https://no-match-2.com', 'description': ['Bullet 1']},
+        ]
+        result = _dedup_by_canonical_name(projects, {})
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]['description'], ['Bullet 1'])
+
+    def test_first_occurrence_wins_when_tied(self):
+        from profiles.services.project_dedupe import _dedup_by_canonical_name
+        projects = [
+            {'name': 'Project A', 'description': ['First']},
+            {'name': 'Project A', 'description': ['Second']},
+        ]
+        result = _dedup_by_canonical_name(projects, {})
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]['description'], ['First'])
+
+    def test_distinct_names_unaffected(self):
+        from profiles.services.project_dedupe import _dedup_by_canonical_name
+        projects = [
+            {'name': 'Project A', 'description': ['A']},
+            {'name': 'Project B', 'description': ['B']},
+        ]
+        result = _dedup_by_canonical_name(projects, {})
+        self.assertEqual(len(result), 2)
+
+    def test_apply_decisions_dedups_double_merge(self):
+        """End-to-end: even if two decisions produce same-canonical-name
+        entries, apply_decisions collapses them."""
+        from profiles.services.project_dedupe import apply_decisions
+        typed = [
+            {'name': 'apotheosis-traffic-sign-detection',
+             'url': 'https://github.com/u/apotheosis-traffic-sign-detection',
+             'description': []},
+        ]
+        enriched = [
+            # add_new with the SAME canonical name as the typed project
+            {'name': 'Apotheosis Traffic Sign Detection',
+             'source_url': 'https://github.com/u/apotheosis-traffic-sign-detection',
+             'bullets': ['Traffic sign bullet']},
+        ]
+        decisions = [
+            {'enriched_index': 0, 'typed_index': -1, 'action': 'add_new',
+             'confidence': 0.5, 'reason': 'mock duplicate'},
+        ]
+        result = apply_decisions(typed, enriched, decisions)
+        self.assertEqual(
+            len(result), 1,
+            f"expected dedup to 1, got {[p['name'] for p in result]}",
+        )
+
+
+class Issue9MigrationCommandTests(SimpleTestCase):
+    """The rebuild_profiles_with_github command's cheap corruption
+    detector (duplicate canonical project names) used by --dry-run."""
+
+    def test_duplicate_canonical_names_detected(self):
+        from profiles.management.commands.rebuild_profiles_with_github import (
+            _duplicate_canonical_names,
+        )
+        projects = [
+            {'name': 'apotheosis-traffic-sign-detection'},
+            {'name': 'Apotheosis Traffic Sign Detection'},  # same canonical
+            {'name': 'SmartCV'},
+        ]
+        dupes = _duplicate_canonical_names(projects)
+        self.assertEqual(len(dupes), 1)
+        self.assertIn('apotheosistrafficsigndetection', dupes)
+
+    def test_no_duplicates_clean_profile(self):
+        from profiles.management.commands.rebuild_profiles_with_github import (
+            _duplicate_canonical_names,
+        )
+        projects = [{'name': 'A'}, {'name': 'B'}, {'name': 'C'}]
+        self.assertEqual(_duplicate_canonical_names(projects), [])
+
+    def test_has_github_signals(self):
+        from profiles.management.commands.rebuild_profiles_with_github import (
+            _has_github_signals,
+        )
+        self.assertTrue(_has_github_signals(
+            {'github_signals': {'username': 'x', 'public_repos': 5}}))
+        self.assertFalse(_has_github_signals({}))
+        self.assertFalse(_has_github_signals({'github_signals': {}}))
+        self.assertFalse(_has_github_signals(
+            {'github_signals': {'error': 'rate limited'}}))
+
+
 class EnrichFromSignalsViewTests(TestCase):
     """The enrich-from-signals JSON endpoint orchestrates enricher + dedupe
     and returns the three lists for the (future) review UI."""

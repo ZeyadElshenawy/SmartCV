@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 
 from profiles.services.llm_engine import get_structured_llm
 from profiles.services.schemas import DedupeBatch, DedupeDecision
@@ -81,16 +82,142 @@ def _recover_decisions_from_failed_generation(exc) -> list[dict] | None:
     return out if out else None
 
 
+def _normalize_url(url: str) -> str:
+    """Normalize a URL for equality comparison: lowercase, strip
+    protocol + www + trailing slash. Shared by the deterministic
+    pre-matcher and the URL-match fallback so the two never drift."""
+    s = (url or '').strip().lower().rstrip('/')
+    for prefix in ('https://', 'http://', 'www.'):
+        if s.startswith(prefix):
+            s = s[len(prefix):]
+    return s
+
+
+def _deterministic_url_matches(
+    typed_projects: list[dict],
+    enriched_projects: list[dict],
+) -> tuple[list[dict], set[int]]:
+    """Pre-compute (typed, enriched) pairs that match by normalized URL.
+
+    URL equality is deterministic — delegating it to the LLM was the
+    Issue 9 root cause (the LLM hallucinated a URL match and missed a
+    real one, cross-assigning bullets and creating a duplicate project).
+    This computes the certain matches in code; only URL-distinct pairs
+    go to the LLM for semantic adjudication.
+
+    Returns ``(decisions, matched_enriched_indices)``. Each decision is a
+    full DedupeDecision-shaped dict with ``action='merge'``. The set is
+    the enriched indices that matched (excluded from the LLM call).
+    """
+    typed_url_to_idx: dict[str, int] = {}
+    for t_idx, t in enumerate(typed_projects):
+        tu = _normalize_url(t.get('url', ''))
+        if tu and tu not in typed_url_to_idx:
+            typed_url_to_idx[tu] = t_idx
+
+    decisions: list[dict] = []
+    matched_enriched: set[int] = set()
+    for e_idx, e in enumerate(enriched_projects):
+        eu = _normalize_url(e.get('source_url', '') or e.get('url', ''))
+        if eu and eu in typed_url_to_idx:
+            decisions.append({
+                'enriched_index': e_idx,
+                'typed_index': typed_url_to_idx[eu],
+                'action': 'merge',
+                'confidence': 1.0,
+                'reason': 'Deterministic URL match (pre-matched, not LLM-adjudicated).',
+            })
+            matched_enriched.add(e_idx)
+    return decisions, matched_enriched
+
+
 def dedupe_projects(typed_projects: list[dict], enriched_projects: list[dict]) -> list[dict]:
-    """Run the dedupe LLM call. Returns a list of DedupeDecision-shaped dicts.
+    """Match enriched projects against typed projects. Returns a list of
+    DedupeDecision-shaped dicts, one per enriched project.
 
     `typed_projects`: user-authored projects from `UserProfile.data_content['projects']`.
     `enriched_projects`: output from `project_enricher.enrich_profile`.
 
-    Decisions cover EVERY enriched project. If an enriched project has no
-    typed match, the decision is `add_new` with `typed_index=-1`. If a typed
-    project has no enriched match, no decision is emitted for it (the typed
-    project stays untouched by definition).
+    Issue 9 fix (Path B1): URL-equal pairs are matched DETERMINISTICALLY
+    before the LLM call — only URL-distinct pairs are sent to the LLM for
+    semantic adjudication. URL matching is deterministic; the LLM
+    previously hallucinated/missed URL matches, cross-assigning bullets
+    and creating duplicate projects. The LLM now only does what code
+    can't: semantic/title matching across name variants.
+
+    Decisions cover EVERY enriched project. ``enriched_index`` always
+    refers to the ORIGINAL enriched list (subset indices from the LLM
+    call are remapped back). If an enriched project has no typed match,
+    the decision is `add_new` with `typed_index=-1`.
+    """
+    if not enriched_projects:
+        return []
+    if not typed_projects:
+        # No comparison possible — every enriched project is automatically new.
+        return [
+            {
+                'enriched_index': i,
+                'typed_index': -1,
+                'action': 'add_new',
+                'confidence': 1.0,
+                'reason': 'No typed projects to compare against.',
+            }
+            for i in range(len(enriched_projects))
+        ]
+
+    det_decisions, matched_enriched = _deterministic_url_matches(
+        typed_projects, enriched_projects,
+    )
+    unmatched_idxs = [
+        i for i in range(len(enriched_projects)) if i not in matched_enriched
+    ]
+
+    llm_decisions: list[dict] = []
+    if unmatched_idxs:
+        enriched_subset = [enriched_projects[i] for i in unmatched_idxs]
+        subset_decisions = _adjudicate_unmatched(typed_projects, enriched_subset)
+        # Remap subset-relative enriched_index back to the original list.
+        # typed_index stays in original space (full typed list is sent to
+        # the LLM). Any rare double-merge into an already-matched typed
+        # slot is caught by _dedup_by_canonical_name in apply_decisions.
+        for d in subset_decisions:
+            se = d.get('enriched_index', -1)
+            if 0 <= se < len(unmatched_idxs):
+                d['enriched_index'] = unmatched_idxs[se]
+            llm_decisions.append(d)
+
+    decisions = det_decisions + llm_decisions
+    # Defensive: ensure every enriched project has exactly one decision.
+    seen = {d['enriched_index'] for d in decisions if d.get('enriched_index') is not None}
+    for i in range(len(enriched_projects)):
+        if i not in seen:
+            decisions.append({
+                'enriched_index': i,
+                'typed_index': -1,
+                'action': 'add_new',
+                'confidence': 0.5,
+                'reason': 'No decision emitted; defaulting to add_new.',
+            })
+    decisions.sort(key=lambda d: d['enriched_index'])
+    logger.info(
+        "project_dedupe: %d deterministic URL match(es); LLM adjudicated "
+        "%d remaining pair(s); %d decisions total (%d typed, %d enriched)",
+        len(det_decisions), len(unmatched_idxs), len(decisions),
+        len(typed_projects), len(enriched_projects),
+    )
+    return decisions
+
+
+def _adjudicate_unmatched(typed_projects: list[dict], enriched_projects: list[dict]) -> list[dict]:
+    """LLM-adjudicate URL-distinct (typed, enriched) pairs. Returns one
+    decision per enriched project, with ``enriched_index`` relative to the
+    passed (subset) enriched list — the caller remaps to original indices.
+
+    This is the original ``dedupe_projects`` LLM body (prompt + structured
+    call + failed_generation recovery + URL-match fallback), unchanged
+    except for being fed the URL-unmatched subset. URL matching is now
+    handled deterministically upstream by ``_deterministic_url_matches``
+    (Issue 9 Path B1).
     """
     if not enriched_projects:
         return []
@@ -111,7 +238,12 @@ def dedupe_projects(typed_projects: list[dict], enriched_projects: list[dict]) -
     typed_view = [_slim_typed(i, p) for i, p in enumerate(typed_projects)]
     enriched_view = [_slim_enriched(i, p) for i, p in enumerate(enriched_projects)]
 
-    prompt = f"""For each ENRICHED project below, decide whether it represents the
+    prompt = f"""NOTE: URL-based matches have ALREADY been computed deterministically
+upstream. Every (typed, enriched) pair you see here has DIFFERENT URLs (or
+one/both lack a URL). Do NOT rely on "URL match" reasoning — judge SEMANTIC
+identity from names, descriptions, and tech stack. When in doubt, add_new.
+
+For each ENRICHED project below, decide whether it represents the
 same real-world project as one of the TYPED projects, and if so which dedupe
 action applies. Emit ONE decision per ENRICHED project — never skip one.
 
@@ -313,10 +445,99 @@ def apply_decisions(
 
     # Apply drops AFTER all decisions (so indices don't shift mid-iteration).
     final = [p for i, p in enumerate(final) if i not in drop_typed]
+
+    # Issue 9 defensive dedup: collapse any duplicate-canonical-name
+    # entries a decision bug might have produced (belt-and-suspenders
+    # behind the deterministic URL pre-match). Tiebreak prefers the entry
+    # whose URL matches the typed source for that canonical name.
+    typed_url_lookup: dict[str, str] = {}
+    for t in (typed_projects or []):
+        if not isinstance(t, dict):
+            continue
+        canon = _canonical_name(t.get('name', ''))
+        u = _normalize_url(t.get('url', ''))
+        if canon and u and canon not in typed_url_lookup:
+            typed_url_lookup[canon] = u
+    final = _dedup_by_canonical_name(final, typed_url_lookup)
     return final
 
 
 # --- Helpers -----------------------------------------------------------------
+
+_NON_ALNUM_RE = re.compile(r'[^a-z0-9]+')
+
+
+def _canonical_name(name: str) -> str:
+    """Canonicalize a project name for dedup: lowercase, collapse all
+    non-alphanumeric runs. 'Apotheosis Traffic-Sign Detection' and
+    'apotheosis-traffic-sign-detection' canonicalize identically."""
+    return _NON_ALNUM_RE.sub('', (name or '').lower())
+
+
+def _pick_better_entry(
+    a: dict, b: dict, canon: str, typed_url_lookup: dict[str, str] | None,
+) -> dict:
+    """Tiebreak two same-canonical-name project entries. Priority:
+    (1) URL matches the typed source URL for this name; (2) non-empty
+    description/bullets; (3) first occurrence (``a``)."""
+    # Layer 1: URL match against the typed source.
+    if typed_url_lookup:
+        expected = typed_url_lookup.get(canon)
+        if expected:
+            a_match = _normalize_url(a.get('url', '')) == expected
+            b_match = _normalize_url(b.get('url', '')) == expected
+            if a_match and not b_match:
+                return a
+            if b_match and not a_match:
+                return b
+    # Layer 2: non-empty description/bullets wins.
+    a_has = bool(a.get('description') or a.get('bullets'))
+    b_has = bool(b.get('description') or b.get('bullets'))
+    if a_has and not b_has:
+        return a
+    if b_has and not a_has:
+        return b
+    # Layer 3: first occurrence.
+    return a
+
+
+def _dedup_by_canonical_name(
+    projects: list[dict], typed_url_lookup: dict[str, str] | None = None,
+) -> list[dict]:
+    """Collapse entries sharing a canonical name. Stable: preserves the
+    first-seen order of the winning entries. Entries whose name doesn't
+    canonicalize (empty) pass through untouched."""
+    if not projects:
+        return projects
+
+    winners: dict[str, dict] = {}
+    for proj in projects:
+        if not isinstance(proj, dict):
+            continue
+        canon = _canonical_name(proj.get('name', ''))
+        if not canon:
+            continue
+        existing = winners.get(canon)
+        winners[canon] = (
+            proj if existing is None
+            else _pick_better_entry(existing, proj, canon, typed_url_lookup)
+        )
+
+    result: list[dict] = []
+    emitted: set[str] = set()
+    for proj in projects:
+        if not isinstance(proj, dict):
+            result.append(proj)
+            continue
+        canon = _canonical_name(proj.get('name', ''))
+        if not canon:
+            result.append(proj)  # un-canonicalizable — pass through
+            continue
+        if canon in emitted:
+            continue
+        result.append(winners[canon])
+        emitted.add(canon)
+    return result
 
 def _slim_typed(idx: int, p: dict) -> dict:
     """Project view sent to the LLM. Drops noise like internal ids, keeps
@@ -418,23 +639,19 @@ def _merge(typed: dict, enriched: dict) -> dict:
 
 def _url_match_fallback(typed_projects: list[dict], enriched_projects: list[dict]) -> list[dict]:
     """Conservative URL-match dedupe used when the LLM is unavailable. Only
-    matches on exact-after-normalization URL; everything else is add_new."""
-    def _norm(url: str) -> str:
-        s = (url or '').strip().lower().rstrip('/')
-        for prefix in ('https://', 'http://', 'www.'):
-            if s.startswith(prefix):
-                s = s[len(prefix):]
-        return s
+    matches on exact-after-normalization URL; everything else is add_new.
 
+    Shares ``_normalize_url`` with the deterministic pre-matcher so the
+    two never drift (Issue 9)."""
     typed_url_to_idx: dict[str, int] = {}
     for i, p in enumerate(typed_projects):
-        u = _norm(p.get('url', ''))
+        u = _normalize_url(p.get('url', ''))
         if u:
             typed_url_to_idx[u] = i
 
     decisions: list[dict] = []
     for i, e in enumerate(enriched_projects):
-        eu = _norm(e.get('source_url', ''))
+        eu = _normalize_url(e.get('source_url', ''))
         if eu and eu in typed_url_to_idx:
             decisions.append({
                 'enriched_index': i,
