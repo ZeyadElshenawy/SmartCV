@@ -2907,6 +2907,84 @@ class PR3b2OptionalSchemaTests(SimpleTestCase):
         self.assertFalse(_accepts_null(cert_schema['properties']['issuer']))
 
 
+class NormalizeRoleAnalystVariantsTests(SimpleTestCase):
+    """Issue 3 fix (2026-05-20): _normalize_role was missing 'analyst'
+    keywords. 'Junior Data Analyst' was falling through to the
+    software_engineer default, causing KB retrieval to pull
+    software-engineering chunks (Django/PostgreSQL/LLM-systems patterns)
+    for analyst JDs instead of data-flavored content.
+
+    Fix routes analyst variants to data_scientist (the closest existing
+    bucket with KB depth — 3 role-specific + 45 universal chunks).
+    KB Sprint 2 may add a dedicated data_analyst bucket later; this
+    PR is the routing fix only."""
+
+    def test_data_analyst_variants_route_to_data_scientist(self):
+        from profiles.services.knowledge_retriever import _normalize_role
+        cases = [
+            'Data Analyst',
+            'Junior Data Analyst',
+            'Senior Data Analyst',
+            'Data Analyst Intern',
+            'Business Analyst',
+            'Reporting Analyst',
+        ]
+        for jd_title in cases:
+            self.assertEqual(
+                _normalize_role(jd_title), 'data_scientist',
+                msg=f"'{jd_title}' should route to 'data_scientist'",
+            )
+
+    def test_analyst_variants_never_fall_to_software_engineer(self):
+        """SCOPE GUARD: pin that the analyst keywords actually catch.
+        Prevents future refactors from silently reverting the bug."""
+        from profiles.services.knowledge_retriever import _normalize_role
+        for jd_title in (
+            'Data Analyst', 'Junior Data Analyst', 'Senior Data Analyst',
+            'Business Analyst', 'Reporting Analyst',
+        ):
+            self.assertNotEqual(
+                _normalize_role(jd_title), 'software_engineer',
+                msg=(
+                    f"'{jd_title}' fell through to software_engineer — "
+                    f"the very bug Issue 3 was meant to fix."
+                ),
+            )
+
+    def test_engineering_roles_with_data_context_route_to_engineering(self):
+        """SCOPE GUARD: 'Data X Engineer' titles must NOT be caught by
+        the new analyst keywords. The 'data analyst' substring requires
+        the literal word 'analyst' — 'Data Analysis Engineer' doesn't
+        match (no 't' suffix). Pinning this so future broader matches
+        ('analyst' alone, etc.) don't accidentally catch engineering
+        roles."""
+        from profiles.services.knowledge_retriever import _normalize_role
+        # Direct data_engineer match.
+        self.assertEqual(_normalize_role('Data Engineer'), 'data_engineer')
+        # No keyword catches this — falls through to software_engineer.
+        # Pinning the current behavior so the analyst PR can't be blamed
+        # for it later.
+        self.assertEqual(
+            _normalize_role('Data Analysis Engineer'),
+            'software_engineer',
+        )
+        # NOTE: 'Senior Data Platform Engineer' routes to 'devops' (NOT
+        # 'data_engineer') because the existing devops branch matches
+        # 'platform'. That's pre-existing behavior, predates this PR,
+        # and is intentionally left untouched.
+
+    def test_non_data_analysts_preserved(self):
+        """SCOPE GUARD: bare 'analyst' was rejected — Quality/Financial/
+        Security Analysts still route the same as before this PR."""
+        from profiles.services.knowledge_retriever import _normalize_role
+        # Quality Analyst -> qa (matches 'quality' in the qa branch).
+        self.assertEqual(_normalize_role('Quality Analyst'), 'qa')
+        # Financial / Security Analyst -> software_engineer default.
+        # Not great, but no better bucket exists; same as pre-PR.
+        self.assertEqual(_normalize_role('Financial Analyst'), 'software_engineer')
+        self.assertEqual(_normalize_role('Security Analyst'), 'software_engineer')
+
+
 class AwardsFieldEndToEndTests(SimpleTestCase):
     """Round 1.5: Honors & Awards section is now first-class. Schema
     accepts the field, _ensure_profile_data_preserved surfaces from
