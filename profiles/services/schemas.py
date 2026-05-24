@@ -872,3 +872,110 @@ class SuggestedJobPreferences(BaseModel):
     experience_levels: List[str] = Field(default_factory=list, description="One or more of: internship, entry, associate, mid_senior, director, executive. Pick the user's current band plus the next one up.")
     workplace_types: List[str] = Field(default_factory=list, description="Subset of: onsite, remote, hybrid. Reflect what's plausible given location + recent roles.")
     rationale: str = Field(default="", description="One short sentence explaining the choices, surfaced to the user.")
+
+
+# --- HR/CV specialist supervisor (final review layer) ---------------------
+
+# Severity words the model may emit for a deal-breaker. Everything else
+# (medium/low/minor/needs-work/strong, 🟡/🟢) collapses to "warning" so an
+# uncertain reviewer never blocks shipping by accident.
+_SUPERVISOR_BLOCKING_SEVERITY = {
+    "blocking", "block", "blocker", "critical", "high", "severe",
+    "fail", "failure", "major", "deal-breaker", "dealbreaker", "red",
+    "🔴",
+}
+# Words that mean the finding is about the RENDERED artifact (layout /
+# cross-format), which full re-generation cannot fix — so these are surfaced
+# but never drive the regen loop. Everything else is "content".
+_SUPERVISOR_RENDER_LAYER = {
+    "render", "layout", "format", "formatting", "visual", "visualisation",
+    "pdf", "docx", "page", "page-break", "pagebreak", "spacing",
+    "alignment", "typography", "design", "overflow", "margins",
+}
+_SUPERVISOR_ADVANCE_VERDICT = {
+    "advance", "pass", "ship", "ok", "okay", "approve", "approved",
+    "clean", "good", "accept", "accepted",
+}
+
+
+class SupervisorFinding(BaseModel):
+    """One issue raised by the HR/CV specialist supervisor.
+
+    `layer` decides whether the regen loop can act on it:
+      - "content" → fixable by re-generating resume_content (summary, skills,
+        ordering, bullets, JD-fit, grounding). Blocking content findings drive
+        the loop.
+      - "render"  → a property of the rendered artifact (page breaks, date
+        format, header separators). Surfaced for visibility, but regeneration
+        reproduces it, so it never triggers another round.
+    `severity` is "blocking" (🔴 deal-breaker) or "warning" (everything else).
+    """
+    layer: str = "content"
+    severity: str = "warning"
+    category: str = ""
+    location: str = ""
+    issue: str = ""
+    fix: str = ""
+
+    model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode='before')
+    @classmethod
+    def normalize(cls, values):
+        if not isinstance(values, dict):
+            return values
+        values = _coerce_null_strings(
+            values, ('layer', 'severity', 'category', 'location', 'issue', 'fix')
+        )
+        sev = str(values.get('severity', '') or '').strip().lower()
+        values['severity'] = 'blocking' if sev in _SUPERVISOR_BLOCKING_SEVERITY else 'warning'
+        lyr = str(values.get('layer', '') or '').strip().lower()
+        values['layer'] = 'render' if lyr in _SUPERVISOR_RENDER_LAYER else 'content'
+        return values
+
+
+class SupervisorReview(BaseModel):
+    """The supervisor's verdict on a generated resume.
+
+    `verdict` ("advance"|"revise") mirrors the manual reviewer's ship/no-ship
+    call and is for reporting only — the regen loop is driven by
+    `blocking_content_findings()`, not the verdict string.
+    """
+    verdict: str = "advance"
+    summary: str = ""
+    findings: List[SupervisorFinding] = Field(default_factory=list)
+
+    model_config = ConfigDict(extra="allow")
+
+    @model_validator(mode='before')
+    @classmethod
+    def normalize(cls, values):
+        # The tool-call output sometimes arrives as a bare list of findings.
+        if isinstance(values, list):
+            values = {"findings": values}
+        if not isinstance(values, dict):
+            return values
+        # Common aliases for the findings list.
+        if 'findings' not in values:
+            for alias in ('issues', 'problems', 'findings_list', 'results'):
+                if alias in values:
+                    values['findings'] = values[alias]
+                    break
+        f = values.get('findings')
+        if isinstance(f, dict):
+            values['findings'] = [f]
+        elif f is None:
+            values['findings'] = []
+        values = _coerce_null_strings(values, ('verdict', 'summary'))
+        v = str(values.get('verdict', '') or '').strip().lower()
+        values['verdict'] = 'advance' if v in _SUPERVISOR_ADVANCE_VERDICT else 'revise'
+        return values
+
+    def blocking_content_findings(self) -> List["SupervisorFinding"]:
+        """Findings that should trigger another generation round."""
+        return [f for f in self.findings
+                if f.severity == 'blocking' and f.layer == 'content']
+
+    def all_blocking(self) -> List["SupervisorFinding"]:
+        """All deal-breakers (content + render) — for reporting/surfacing."""
+        return [f for f in self.findings if f.severity == 'blocking']
