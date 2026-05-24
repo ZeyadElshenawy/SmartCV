@@ -507,7 +507,9 @@ def _build_v2_grounding(profile, job, gap_analysis) -> tuple[str, Optional[Inclu
     return "\n".join(block_parts), plan
 
 
-def generate_resume_content(profile, job, gap_analysis, *, metadata: dict | None = None):
+def generate_resume_content(profile, job, gap_analysis, *, metadata: dict | None = None,
+                            supervisor_feedback: str = "",
+                            standards_section_override: str | None = None):
     """
     Generate a PROFESSIONAL, ATS-optimized tailored resume using LangChain
     structured output, grounded in every signal source we have for the
@@ -562,7 +564,23 @@ def generate_resume_content(profile, job, gap_analysis, *, metadata: dict | None
     # or when retrieval errors out — failure must not break resume generation).
     # PR 4 — tuple return surfaces classification + retrieval metadata for
     # the integration-test harness; both are None/empty when RAG is off.
-    standards_section, classification_obj, retrieval_metadata = _build_standards_section(profile, job)
+    if standards_section_override is not None:
+        # Supervised loop already retrieved the KB block once; reuse it instead
+        # of re-running retrieval every regen round. Still classify (cheap, 400
+        # tokens) so the metadata['_classification'] contract holds.
+        standards_section = standards_section_override
+        retrieval_metadata = {}
+        classification_obj = None
+        try:
+            from profiles.services.role_classifier import classify_for_jd
+            classification_obj = classify_for_jd(
+                (getattr(profile, "data_content", None) or {}),
+                (getattr(job, "description", "") or ""),
+            )
+        except Exception as exc:  # noqa: BLE001 — classifier failure must not break gen
+            logger.warning("Override path: classification failed (%s); continuing.", exc)
+    else:
+        standards_section, classification_obj, retrieval_metadata = _build_standards_section(profile, job)
 
     # v2 grounding: pull per-skill candidate-evidence chunks + build the
     # inclusion plan. Both are no-ops + return empty blocks if anything
@@ -576,6 +594,21 @@ def generate_resume_content(profile, job, gap_analysis, *, metadata: dict | None
         len(v2_block),
     )
 
+    # Supervisor feedback (set by the supervised regen loop). High-salience,
+    # placed right after JOB DETAILS, and — unlike v2_block/standards_section —
+    # NEVER stripped by the 413 pre-slim/retry, so blocking fixes always survive.
+    supervisor_block = ""
+    if supervisor_feedback:
+        supervisor_block = (
+            "\n=== SUPERVISOR FEEDBACK (a senior HR/CV reviewer found these BLOCKING "
+            "issues in the previous draft) ===\n"
+            "Fix EVERY issue below. Do NOT fabricate anything to do so — never invent a "
+            "metric, employer, tool, certification, or claim that is not already supported "
+            "by the CV data and evidence. If an issue cannot be fixed with truthful "
+            "content, improve the phrasing instead.\n"
+            f"{supervisor_feedback}\n"
+        )
+
     prompt = f"""You are an EXPERT resume optimization strategist. Create a PROFESSIONAL, ATS-optimized resume tailored for this specific job using EVERY source provided.
 
 JOB DETAILS:
@@ -584,7 +617,7 @@ JOB DETAILS:
 - Required Skills: {', '.join(job.extracted_skills or [])}
 - Job Description:
 {jd_body}
-
+{supervisor_block}
 COMPLETE CV DATA (the candidate's authoritative resume):
 {json.dumps(slim_cv, indent=2)}
 
@@ -851,6 +884,93 @@ Make it PROFESSIONAL and ATS-OPTIMIZED.
         # Offline fallback uses the sanitized CV so a hard failure renders
         # cleaned data, not the parser artefacts.
         return _build_offline_fallback(profile, job, sanitized_cv)
+
+
+def _format_supervisor_feedback(findings) -> str:
+    """Numbered, content-blocking-only feedback for the regen prompt (cap 8)."""
+    lines = []
+    for i, f in enumerate(findings[:8], 1):
+        loc = (f.location or "").strip()
+        loc_str = f" [{loc}]" if loc else ""
+        lines.append(f"{i}. ({f.category}){loc_str} {f.issue} -> FIX: {f.fix}")
+    return "\n".join(lines)
+
+
+def generate_resume_content_supervised(profile, job, gap_analysis, *, metadata: dict | None = None):
+    """generate_resume_content + an HR/CV supervisor review loop.
+
+    Generate -> review (KB-grounded, render-aware) -> if blocking CONTENT issues
+    remain and the round cap isn't hit, regenerate with the feedback injected ->
+    re-review -> ship. Render/layout findings are surfaced but never drive the
+    loop (regeneration can't fix them). The review fails open, so the supervisor
+    can never block a resume from shipping.
+
+    When SUPERVISOR_ENABLED is off this is a transparent pass-through to
+    generate_resume_content.
+    """
+    from django.conf import settings as _dj
+    if not getattr(_dj, 'SUPERVISOR_ENABLED', False):
+        return generate_resume_content(profile, job, gap_analysis, metadata=metadata)
+
+    # Lazy import — resume_supervisor imports helpers from this module, so a
+    # top-level import here would be circular.
+    from resumes.services.resume_supervisor import review_resume
+
+    cap = int(getattr(_dj, 'SUPERVISOR_MAX_REVISION_ROUNDS', 1))
+    # Retrieve the KB block once and reuse it across rounds (the override path
+    # in generate_resume_content skips its own retrieval).
+    standards_block, _, _ = _build_standards_section(profile, job)
+
+    feedback = ""
+    resume_content: dict | None = None
+    review = None
+    rounds_run = 0
+    for round_i in range(cap + 1):
+        rounds_run = round_i + 1
+        resume_content = generate_resume_content(
+            profile, job, gap_analysis, metadata=metadata,
+            supervisor_feedback=feedback, standards_section_override=standards_block,
+        )
+        try:
+            review = review_resume(
+                resume_content, profile, job, gap_analysis, standards_block=standards_block,
+            )
+        except Exception as exc:  # noqa: BLE001 — review must never block shipping
+            logger.warning("Supervisor review raised (%s); shipping current draft.", exc)
+            review = None
+            break
+        blocking = review.blocking_content_findings()
+        render_count = len([f for f in review.findings if f.layer == 'render'])
+        logger.info(
+            "Supervisor round %d: %d findings (%d content-blocking, %d render) verdict=%s",
+            round_i, len(review.findings), len(blocking), render_count, review.verdict,
+        )
+        if not blocking:
+            break
+        if round_i >= cap:
+            logger.info(
+                "Supervisor: round cap (%d) reached with %d content-blocking issues; shipping.",
+                cap, len(blocking),
+            )
+            break
+        feedback = _format_supervisor_feedback(blocking)
+
+    if review is not None and isinstance(resume_content, dict):
+        all_findings = [
+            {'layer': f.layer, 'severity': f.severity, 'category': f.category,
+             'location': f.location, 'issue': f.issue, 'fix': f.fix}
+            for f in review.findings
+        ]
+        resume_content['supervisor_review'] = {
+            'verdict': review.verdict,
+            'summary': review.summary,
+            'rounds': rounds_run,
+            'findings': all_findings,
+        }
+        vr = resume_content.setdefault('validation_report', {})
+        if isinstance(vr, dict):
+            vr['supervisor_findings'] = all_findings
+    return resume_content
 
 
 _SCHEMA_ENVELOPE_KEYS = frozenset(('additionalProperties', 'properties', 'type', 'items'))

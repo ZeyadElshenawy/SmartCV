@@ -4357,3 +4357,375 @@ class ScanForJdSkillsInProfileTextTests(SimpleTestCase):
             data, ['Torch'], already_in_list_canon=set(),
         )
         self.assertEqual(found, [])  # "PyTorch" doesn't word-match "Torch"
+
+
+# --- HR/CV specialist supervisor (final review layer) ---------------------
+
+import json as _json_for_supervisor
+from resumes.services.resume_generator import generate_resume_content_supervised
+
+
+class _FakeLLM:
+    """Minimal LLM stand-in: .invoke(...) returns a fixed value (or raises)."""
+    def __init__(self, ret=None, exc=None):
+        self._ret = ret
+        self._exc = exc
+        self.calls = []
+
+    def invoke(self, messages, *a, **k):
+        self.calls.append(messages)
+        if self._exc is not None:
+            raise self._exc
+        return self._ret
+
+
+def _content_has_image(messages) -> bool:
+    """True iff the HumanMessage content list carries an image_url block."""
+    try:
+        content = messages[0].content
+    except Exception:
+        return False
+    if not isinstance(content, list):
+        return False
+    return any(isinstance(b, dict) and b.get('type') == 'image_url' for b in content)
+
+
+def _mk_finding(severity='blocking', layer='content', category='summary',
+                issue='x', fix='y', location='l'):
+    from profiles.services.schemas import SupervisorFinding
+    return SupervisorFinding(severity=severity, layer=layer, category=category,
+                             issue=issue, fix=fix, location=location)
+
+
+class _FakeTokenLimitError(Exception):
+    """Mimics Groq's 413 token-ceiling rejection for _is_token_limit_error."""
+    def __init__(self):
+        super().__init__("Request too large for tokens per minute (TPM)")
+        self.body = {'error': {'type': 'tokens'}}
+
+
+class RenderResumePngTests(SimpleTestCase):
+    """resume_render.render_resume_png — the PDF->PNG path for the supervisor."""
+
+    _CONTENT = {
+        'professional_title': 'Data Analyst',
+        'professional_summary': 'Analytical professional with SQL and Python.',
+        'skills': ['Python', 'SQL', 'Tableau'],
+        'experience': [], 'education': [], 'projects': [],
+        'certifications': [], 'languages': [], 'awards': [],
+    }
+
+    def test_minimal_resume_renders_nonempty_png(self):
+        from resumes.services.resume_render import render_resume_png
+        png = render_resume_png(self._CONTENT, None, pages=1)
+        self.assertTrue(png)
+        self.assertEqual(png[:8], b'\x89PNG\r\n\x1a\n')  # PNG magic bytes
+
+    def test_png_to_data_url_prefix(self):
+        from resumes.services.resume_render import png_to_data_url
+        url = png_to_data_url(b'\x89PNG\r\n\x1a\n\x00')
+        self.assertTrue(url.startswith('data:image/png;base64,'))
+
+    def test_cairocffi_shim_invoked(self):
+        from unittest.mock import patch
+        import resumes.services.pdf_exporter as pe
+        from resumes.services.resume_render import render_resume_png
+        with patch.object(pe, '_shim_cairocffi_if_missing',
+                          wraps=pe._shim_cairocffi_if_missing) as m:
+            render_resume_png(self._CONTENT, None, pages=1)
+        m.assert_called_once()
+
+
+class SupervisorRecoveryTests(SimpleTestCase):
+    """_recover_review_from_failed_generation salvages a SupervisorReview from
+    a failed structured-output call (the tool-call envelope shapes Groq emits)."""
+
+    def _err_with_body(self, failed_generation: str):
+        class _E(Exception):
+            pass
+        e = _E("tool_use_failed")
+        e.body = {'error': {'failed_generation': failed_generation}}
+        return e
+
+    def test_unwraps_name_parameters_envelope(self):
+        from resumes.services.resume_supervisor import _recover_review_from_failed_generation
+        payload = _json_for_supervisor.dumps([{
+            "name": "SupervisorReview",
+            "parameters": {
+                "verdict": "revise", "summary": "s",
+                "findings": [{"layer": "content", "severity": "blocking",
+                              "category": "summary", "location": "top",
+                              "issue": "truncated", "fix": "complete it"}],
+            },
+        }])
+        rev = _recover_review_from_failed_generation(self._err_with_body(payload))
+        self.assertIsNotNone(rev)
+        self.assertEqual(rev.verdict, "revise")
+        self.assertEqual(len(rev.findings), 1)
+        self.assertEqual(len(rev.blocking_content_findings()), 1)
+
+    def test_bare_findings_list_two_items(self):
+        from resumes.services.resume_supervisor import _recover_review_from_failed_generation
+        payload = _json_for_supervisor.dumps([
+            {"layer": "content", "severity": "blocking", "issue": "a", "fix": "fa"},
+            {"layer": "render", "severity": "warning", "issue": "b", "fix": "fb"},
+        ])
+        rev = _recover_review_from_failed_generation(self._err_with_body(payload))
+        self.assertIsNotNone(rev)
+        self.assertEqual(len(rev.findings), 2)
+
+    def test_single_bare_finding_not_mistaken_for_envelope(self):
+        from resumes.services.resume_supervisor import _recover_review_from_failed_generation
+        payload = _json_for_supervisor.dumps([
+            {"layer": "content", "severity": "blocking", "issue": "only", "fix": "f"},
+        ])
+        rev = _recover_review_from_failed_generation(self._err_with_body(payload))
+        self.assertIsNotNone(rev)
+        self.assertEqual(len(rev.findings), 1)
+
+    def test_recovers_from_str_exc_envelope(self):
+        from resumes.services.resume_supervisor import _recover_review_from_failed_generation
+        inner = _json_for_supervisor.dumps({
+            "verdict": "revise",
+            "findings": [{"layer": "content", "severity": "blocking", "issue": "x", "fix": "y"}],
+        })
+        # body=None; the payload is only reachable via str(exc)'s Python repr.
+        msg = "Error code: 400 - " + repr({'error': {'failed_generation': inner}})
+        rev = _recover_review_from_failed_generation(Exception(msg))
+        self.assertIsNotNone(rev)
+        self.assertEqual(len(rev.findings), 1)
+
+    def test_garbage_payload_returns_none(self):
+        from resumes.services.resume_supervisor import _recover_review_from_failed_generation
+        rev = _recover_review_from_failed_generation(self._err_with_body("}{not json at all"))
+        self.assertIsNone(rev)
+
+    def test_no_failed_generation_returns_none(self):
+        from resumes.services.resume_supervisor import _recover_review_from_failed_generation
+        self.assertIsNone(_recover_review_from_failed_generation(Exception("boom")))
+
+
+class ReviewResumeContextTests(SimpleTestCase):
+    """_build_review_context keeps the prompt compact: gap lines + JD + resume
+    JSON, but NOT the GitHub/Kaggle/LinkedIn signal blobs that 413 the generator."""
+
+    def _job(self):
+        return SimpleNamespace(
+            title='Junior Data Analyst', company='Acme',
+            extracted_skills=['SQL', 'Python'], description='Analyze data daily.',
+        )
+
+    def _gap(self):
+        return SimpleNamespace(
+            matched_skills=['Python'], critical_missing_skills=['Tableau'],
+            soft_skill_gaps=['seniority'],
+        )
+
+    def test_includes_standards_gap_jd_and_resume_json(self):
+        from resumes.services.resume_supervisor import _build_review_context
+        rc = {'professional_summary': 'hi', 'validation_report': {'grounding_findings': []}}
+        ctx = _build_review_context(rc, self._job(), self._gap(), 'KB_STANDARDS_HERE')
+        self.assertIn('KB_STANDARDS_HERE', ctx)
+        self.assertIn('MATCHED', ctx)
+        self.assertIn('Junior Data Analyst', ctx)
+        self.assertIn('professional_summary', ctx)
+
+    def test_excludes_signal_blobs(self):
+        from resumes.services.resume_supervisor import _build_review_context
+        # Even if the resume_content somehow carried a signal blob, the context
+        # is built from gap lines + JD + the resume JSON only.
+        rc = {'professional_summary': 'hi'}
+        ctx = _build_review_context(rc, self._job(), self._gap(), '')
+        self.assertNotIn('github_signals', ctx)
+        self.assertNotIn('kaggle_signals', ctx)
+
+
+class ReviewResumeTests(SimpleTestCase):
+    """review_resume orchestration: two-step (vision -> structure), fail-open,
+    token-limit retry drops the image."""
+
+    def _job(self):
+        return SimpleNamespace(title='DA', company='X', extracted_skills=['SQL'],
+                               description='d')
+
+    def _gap(self):
+        return SimpleNamespace(matched_skills=['SQL'], critical_missing_skills=[],
+                               soft_skill_gaps=[])
+
+    def test_blocking_finding_surfaced(self):
+        from unittest.mock import patch
+        import resumes.services.resume_supervisor as rs
+        from profiles.services.schemas import SupervisorReview
+        review = SupervisorReview(verdict='revise', summary='s',
+                                  findings=[_mk_finding()])
+        with patch.object(rs, 'render_resume_png', return_value=b'\x89PNG'), \
+             patch.object(rs, 'get_llm', return_value=_FakeLLM(SimpleNamespace(content='critique'))), \
+             patch.object(rs, 'get_structured_llm', return_value=_FakeLLM(review)):
+            out = rs.review_resume({'professional_summary': 'x'}, None,
+                                   self._job(), self._gap(), standards_block='S')
+        self.assertEqual(out.verdict, 'revise')
+        self.assertEqual(len(out.blocking_content_findings()), 1)
+
+    def test_fail_open_on_exception(self):
+        from unittest.mock import patch
+        import resumes.services.resume_supervisor as rs
+        with patch.object(rs, 'render_resume_png', return_value=b'\x89PNG'), \
+             patch.object(rs, 'get_llm', return_value=_FakeLLM(exc=RuntimeError('down'))):
+            out = rs.review_resume({'a': 1}, None, self._job(), self._gap(),
+                                   standards_block='S')
+        self.assertEqual(out.verdict, 'advance')
+        self.assertEqual(out.summary, 'review unavailable')
+        self.assertEqual(out.findings, [])
+
+    def test_render_failure_degrades_to_text_only(self):
+        from unittest.mock import patch
+        import resumes.services.resume_supervisor as rs
+        from profiles.services.schemas import SupervisorReview
+        vision = _FakeLLM(SimpleNamespace(content='critique'))
+        with patch.object(rs, 'render_resume_png', side_effect=RuntimeError('no render')), \
+             patch.object(rs, 'get_llm', return_value=vision), \
+             patch.object(rs, 'get_structured_llm',
+                          return_value=_FakeLLM(SupervisorReview(verdict='advance'))):
+            out = rs.review_resume({'a': 1}, None, self._job(), self._gap(),
+                                   standards_block='S')
+        self.assertEqual(out.verdict, 'advance')
+        # No image was rendered, so the vision call carried no image block.
+        self.assertFalse(_content_has_image(vision.calls[0]))
+
+    def test_token_limit_retry_drops_image(self):
+        from unittest.mock import patch
+        import resumes.services.resume_supervisor as rs
+        from profiles.services.schemas import SupervisorReview
+
+        class _RetryLLM:
+            def __init__(self):
+                self.calls = []
+            def invoke(self, messages, *a, **k):
+                self.calls.append(messages)
+                # First call (with image) hits the token ceiling; retry succeeds.
+                if len(self.calls) == 1:
+                    raise _FakeTokenLimitError()
+                return SimpleNamespace(content='critique after slim')
+
+        vision = _RetryLLM()
+        with patch.object(rs, 'render_resume_png', return_value=b'\x89PNG'), \
+             patch.object(rs, 'get_llm', return_value=vision), \
+             patch.object(rs, 'get_structured_llm',
+                          return_value=_FakeLLM(SupervisorReview(verdict='advance'))):
+            out = rs.review_resume({'a': 1}, None, self._job(), self._gap(),
+                                   standards_block='S')
+        self.assertEqual(out.verdict, 'advance')
+        self.assertEqual(len(vision.calls), 2)
+        self.assertTrue(_content_has_image(vision.calls[0]))   # first had image
+        self.assertFalse(_content_has_image(vision.calls[1]))  # retry dropped it
+
+
+class SupervisedLoopTests(SimpleTestCase):
+    """generate_resume_content_supervised — the generate/review/regenerate loop."""
+
+    def _job(self):
+        return SimpleNamespace(title='DA', company='X', extracted_skills=['SQL'],
+                               description='d')
+
+    def _gap(self):
+        return SimpleNamespace(matched_skills=['SQL'], critical_missing_skills=[],
+                               soft_skill_gaps=[])
+
+    def _profile(self):
+        return SimpleNamespace(data_content={})
+
+    def _patches(self, gen_side_effect, review_side_effect):
+        from unittest.mock import patch
+        import resumes.services.resume_generator as g
+        import resumes.services.resume_supervisor as rs
+        return (
+            patch.object(g, 'generate_resume_content', side_effect=gen_side_effect),
+            patch.object(g, '_build_standards_section', return_value=('STD', None, {})),
+            patch.object(rs, 'review_resume', side_effect=review_side_effect),
+        )
+
+    def test_disabled_bypasses_loop(self):
+        from unittest.mock import patch
+        from django.test import override_settings
+        import resumes.services.resume_generator as g
+        sentinel = {'professional_summary': 'plain'}
+        with override_settings(SUPERVISOR_ENABLED=False):
+            with patch.object(g, 'generate_resume_content', return_value=sentinel) as gen, \
+                 patch.object(g, '_build_standards_section') as std:
+                out = g.generate_resume_content_supervised(
+                    self._profile(), self._job(), self._gap())
+        gen.assert_called_once()
+        std.assert_not_called()
+        self.assertNotIn('supervisor_review', out)
+
+    @staticmethod
+    def _review(findings):
+        from profiles.services.schemas import SupervisorReview
+        verdict = 'revise' if any(
+            f.severity == 'blocking' and f.layer == 'content' for f in findings) else 'advance'
+        return SupervisorReview(verdict=verdict, summary='s', findings=findings)
+
+    def test_stops_when_no_blocking_content(self):
+        from django.test import override_settings
+        gen = lambda *a, **k: {'professional_summary': 'draft'}
+        reviews = [self._review([_mk_finding(severity='warning')])]
+        p_gen, p_std, p_rev = self._patches(gen, reviews)
+        with override_settings(SUPERVISOR_ENABLED=True, SUPERVISOR_MAX_REVISION_ROUNDS=1):
+            with p_gen as gm, p_std, p_rev:
+                out = generate_resume_content_supervised(
+                    self._profile(), self._job(), self._gap())
+        self.assertEqual(gm.call_count, 1)  # no regen
+        self.assertEqual(out['supervisor_review']['rounds'], 1)
+        self.assertEqual(out['validation_report']['supervisor_findings'][0]['severity'], 'warning')
+
+    def test_render_only_blocking_does_not_regen(self):
+        from django.test import override_settings
+        gen = lambda *a, **k: {'professional_summary': 'draft'}
+        reviews = [self._review([_mk_finding(severity='blocking', layer='render')])]
+        p_gen, p_std, p_rev = self._patches(gen, reviews)
+        with override_settings(SUPERVISOR_ENABLED=True, SUPERVISOR_MAX_REVISION_ROUNDS=1):
+            with p_gen as gm, p_std, p_rev:
+                out = generate_resume_content_supervised(
+                    self._profile(), self._job(), self._gap())
+        self.assertEqual(gm.call_count, 1)  # render blocking does NOT drive regen
+        self.assertEqual(len(out['supervisor_review']['findings']), 1)
+
+    def test_content_blocking_regenerates_with_feedback_then_ships(self):
+        from django.test import override_settings
+        gen_calls = []
+
+        def gen(*a, **k):
+            gen_calls.append(k.get('supervisor_feedback', ''))
+            return {'professional_summary': f'draft {len(gen_calls)}'}
+
+        reviews = [
+            self._review([_mk_finding(severity='blocking', layer='content', issue='truncated')]),
+            self._review([_mk_finding(severity='warning')]),
+        ]
+        p_gen, p_std, p_rev = self._patches(gen, reviews)
+        with override_settings(SUPERVISOR_ENABLED=True, SUPERVISOR_MAX_REVISION_ROUNDS=1):
+            with p_gen, p_std, p_rev:
+                out = generate_resume_content_supervised(
+                    self._profile(), self._job(), self._gap())
+        self.assertEqual(len(gen_calls), 2)         # regenerated once
+        self.assertEqual(gen_calls[0], '')          # first draft: no feedback
+        self.assertIn('truncated', gen_calls[1])    # second draft: got the feedback
+        self.assertEqual(out['supervisor_review']['rounds'], 2)
+
+    def test_cap_stops_after_max_rounds(self):
+        from django.test import override_settings
+        gen = lambda *a, **k: {'professional_summary': 'draft'}
+        # Always blocking content -> would loop forever without the cap.
+        reviews = [
+            self._review([_mk_finding(severity='blocking', layer='content')]),
+            self._review([_mk_finding(severity='blocking', layer='content')]),
+            self._review([_mk_finding(severity='blocking', layer='content')]),
+        ]
+        p_gen, p_std, p_rev = self._patches(gen, reviews)
+        with override_settings(SUPERVISOR_ENABLED=True, SUPERVISOR_MAX_REVISION_ROUNDS=1):
+            with p_gen as gm, p_std, p_rev:
+                out = generate_resume_content_supervised(
+                    self._profile(), self._job(), self._gap())
+        self.assertEqual(gm.call_count, 2)  # round 0 + round 1, then cap
+        self.assertEqual(out['supervisor_review']['rounds'], 2)
+        self.assertEqual(out['supervisor_review']['verdict'], 'revise')

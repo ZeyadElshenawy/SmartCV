@@ -3814,3 +3814,61 @@ class RefreshSignalTwoPhaseSaveTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         payload = resp.json()
         self.assertEqual(payload['merge_summary'], fake_summary)
+
+
+class SupervisorReviewSchemaTests(SimpleTestCase):
+    """SupervisorFinding / SupervisorReview — the supervisor's output schema."""
+
+    def test_finding_null_coercion_and_alias_normalization(self):
+        from profiles.services.schemas import SupervisorFinding
+        f = SupervisorFinding(severity='Critical', layer='LAYOUT',
+                              category=None, location=None, issue='x', fix=None)
+        self.assertEqual(f.severity, 'blocking')  # critical -> blocking
+        self.assertEqual(f.layer, 'render')        # layout -> render
+        self.assertEqual(f.category, '')           # null coerced to ""
+        self.assertEqual(f.fix, '')
+
+    def test_finding_unknown_severity_and_layer_fall_back(self):
+        from profiles.services.schemas import SupervisorFinding
+        f = SupervisorFinding(severity='medium', layer='summary')
+        self.assertEqual(f.severity, 'warning')  # not in blocking set
+        self.assertEqual(f.layer, 'content')     # not in render set
+
+    def test_finding_extra_field_forbidden(self):
+        import pydantic
+        from profiles.services.schemas import SupervisorFinding
+        with self.assertRaises(pydantic.ValidationError):
+            SupervisorFinding(severity='high', issue='x', bogus='nope')
+
+    def test_review_bare_list_folds_to_findings(self):
+        from profiles.services.schemas import SupervisorReview
+        r = SupervisorReview.model_validate([
+            {'severity': 'blocking', 'layer': 'content', 'issue': 'a'},
+            {'severity': 'high', 'layer': 'render', 'issue': 'b'},
+        ])
+        self.assertEqual(len(r.findings), 2)
+
+    def test_review_issues_alias_and_single_dict_finding(self):
+        from profiles.services.schemas import SupervisorReview
+        r = SupervisorReview.model_validate({
+            'verdict': 'no',
+            'issues': {'severity': 'block', 'layer': 'content', 'issue': 'c'},
+        })
+        self.assertEqual(len(r.findings), 1)
+        self.assertEqual(r.verdict, 'revise')  # 'no' is not an advance alias
+
+    def test_verdict_advance_alias(self):
+        from profiles.services.schemas import SupervisorReview
+        self.assertEqual(SupervisorReview(verdict='ship').verdict, 'advance')
+        self.assertEqual(SupervisorReview(verdict='whatever').verdict, 'revise')
+
+    def test_blocking_content_findings_excludes_render_and_warning(self):
+        from profiles.services.schemas import SupervisorReview, SupervisorFinding
+        r = SupervisorReview(findings=[
+            SupervisorFinding(severity='blocking', layer='content', issue='keep'),
+            SupervisorFinding(severity='blocking', layer='render', issue='drop-render'),
+            SupervisorFinding(severity='warning', layer='content', issue='drop-warn'),
+        ])
+        self.assertEqual(len(r.blocking_content_findings()), 1)
+        self.assertEqual(r.blocking_content_findings()[0].issue, 'keep')
+        self.assertEqual(len(r.all_blocking()), 2)  # both blockings, any layer

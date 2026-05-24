@@ -320,4 +320,25 @@ RESUME_PROMPT_CHAR_BUDGET = config('RESUME_PROMPT_CHAR_BUDGET', default=85000, c
 # eval scripts.
 BULLET_RETRY = config('BULLET_RETRY', default=False, cast=bool)
 
+# ---------------------------------------------------------------------------
+# HR/CV specialist supervisor — final review layer
+# ---------------------------------------------------------------------------
+# SUPERVISOR_ENABLED gates the generate -> review -> regenerate loop in
+# resume_generator.generate_resume_content_supervised. Default False (dark
+# ship): turning it on roughly doubles synchronous resume latency (extra
+# multimodal review + a possible regen round) AND the integration suite
+# replays RECORDED LLM responses — which don't exist for the supervisor — so
+# defaulting on would break the green suite. Enable per-environment via .env.
+SUPERVISOR_ENABLED = config('SUPERVISOR_ENABLED', default=False, cast=bool)
+# Max REVISION rounds after the first draft. 1 = up to one regeneration when
+# the first draft has blocking content issues. 0 = review-only shadow mode
+# (surface findings, never regenerate). Each round adds one generation + one
+# review call.
+SUPERVISOR_MAX_REVISION_ROUNDS = config('SUPERVISOR_MAX_REVISION_ROUNDS', default=1, cast=int)
+# The supervisor's vision model is selected via the per-task credential
+# convention (profiles.services.llm_engine._resolve_credentials): set
+# GROQ_MODEL_SUPERVISOR / GROQ_API_KEY_SUPERVISOR to override. Falls back to
+# the default GROQ_MODEL (meta-llama/llama-4-scout-17b-16e-instruct), which
+# the Step 0 spike confirmed serves vision.
+
 # End of settings.py
