@@ -4436,6 +4436,100 @@ class RenderResumePngTests(SimpleTestCase):
         m.assert_called_once()
 
 
+class SupervisorPromptCoverageTests(SimpleTestCase):
+    """Lock in the recruiter-checklist coverage: the supervisor prompt must
+    direct the model at the high-value issue classes a senior reviewer catches
+    (the ones a generic 'review the resume' prompt misses)."""
+
+    def test_prompt_covers_high_value_checks(self):
+        from resumes.services.resume_supervisor import SUPERVISOR_PROMPT
+        p = SUPERVISOR_PROMPT.lower()
+        # Redundant / duplicate bullets within a role.
+        self.assertIn('redundant', p)
+        # Bullet count vs tenure (padding on short roles).
+        self.assertIn('tenure', p)
+        # Overclaiming / inflation against seniority.
+        self.assertIn('overclaim', p)
+        self.assertIn('seniority', p)
+        # Skill-list duplicates / near-duplicates.
+        self.assertIn('near-duplicate', p)
+        # Date completeness / consistency across roles.
+        self.assertIn('date', p)
+        # Internal jargon / recruiter audience.
+        self.assertIn('jargon', p)
+        # Role relevance / dilution.
+        self.assertIn('relevance', p)
+        # Generic summary.
+        self.assertIn('generic', p)
+
+    def test_prompt_still_forbids_fabrication(self):
+        from resumes.services.resume_supervisor import SUPERVISOR_PROMPT
+        p = SUPERVISOR_PROMPT.lower()
+        self.assertIn('fabrication', p)
+        self.assertIn('missing skills', p)
+
+
+class StructuralObservationsTests(SimpleTestCase):
+    """The deterministic pre-scan that surfaces structural defects (bullet
+    bloat, redundant bullets, date gaps, duplicate skills) for the LLM to judge."""
+
+    def test_flags_bullet_bloat(self):
+        from resumes.services.resume_supervisor import _structural_observations
+        rc = {'experience': [{'title': 'Intern', 'duration': 'Aug 2025 - Sep 2025',
+                              'description': ['a', 'b', 'c', 'd', 'e', 'f', 'g']}]}
+        out = _structural_observations(rc)
+        self.assertIn('7 bullets', out)
+        self.assertIn('HIGH', out)
+
+    def test_flags_lexical_redundant_bullets(self):
+        from resumes.services.resume_supervisor import _structural_observations
+        rc = {'experience': [{'title': 'Intern', 'duration': 'Aug 2025 - Sep 2025',
+                              'description': [
+                                  'Developed and optimized a PySpark data pipeline for enterprise systems',
+                                  'Developed and optimized a PySpark data pipeline for enterprise systems and analytics',
+                              ]}]}
+        out = _structural_observations(rc)
+        self.assertIn('REDUNDANT', out)
+
+    def test_flags_missing_end_date(self):
+        from resumes.services.resume_supervisor import _structural_observations
+        rc = {'experience': [{'title': 'Intern', 'start_date': 'Aug 2025',
+                              'description': ['a']}]}
+        out = _structural_observations(rc)
+        self.assertIn('NO end date', out)
+
+    def test_flags_single_date_no_range(self):
+        from resumes.services.resume_supervisor import _structural_observations
+        rc = {'experience': [{'title': 'Intern', 'duration': 'Aug 2025',
+                              'description': ['a']}]}
+        out = _structural_observations(rc)
+        self.assertIn('single date', out)
+
+    def test_accepts_proper_range_and_present(self):
+        from resumes.services.resume_supervisor import _structural_observations
+        rc = {'experience': [
+            {'title': 'A', 'duration': 'Jun 2025 - Dec 2025', 'description': ['x']},
+            {'title': 'B', 'duration': 'Jan 2024 - Present', 'description': ['y']},
+        ]}
+        out = _structural_observations(rc)
+        self.assertNotIn('single date', out)
+        self.assertNotIn('NO end date', out)
+
+    def test_flags_subset_duplicate_skills(self):
+        from resumes.services.resume_supervisor import _structural_observations
+        rc = {'skills': ['SQL', 'Databases & SQL', 'Supervised Learning',
+                         'Supervised & Unsupervised Learning']}
+        out = _structural_observations(rc)
+        self.assertIn('duplicate skills', out.lower())
+
+    def test_clean_resume_returns_empty(self):
+        from resumes.services.resume_supervisor import _structural_observations
+        rc = {'experience': [{'title': 'A', 'duration': 'Jun 2025 - Dec 2025',
+                              'description': ['Built X', 'Shipped Y']}],
+              'skills': ['Python', 'SQL', 'Docker']}
+        self.assertEqual(_structural_observations(rc), "")
+
+
 class SupervisorRecoveryTests(SimpleTestCase):
     """_recover_review_from_failed_generation salvages a SupervisorReview from
     a failed structured-output call (the tool-call envelope shapes Groq emits)."""
