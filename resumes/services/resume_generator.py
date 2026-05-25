@@ -602,10 +602,17 @@ def generate_resume_content(profile, job, gap_analysis, *, metadata: dict | None
         supervisor_block = (
             "\n=== SUPERVISOR FEEDBACK (a senior HR/CV reviewer found these BLOCKING "
             "issues in the previous draft) ===\n"
-            "Fix EVERY issue below. Do NOT fabricate anything to do so — never invent a "
-            "metric, employer, tool, certification, or claim that is not already supported "
-            "by the CV data and evidence. If an issue cannot be fixed with truthful "
-            "content, improve the phrasing instead.\n"
+            "Fix EVERY issue below WITHOUT making anything else worse:\n"
+            "- Do NOT fabricate: never invent a metric, employer, tool, certification, or "
+            "claim not already supported by the CV data and evidence. If an issue cannot be "
+            "fixed truthfully, improve the phrasing instead.\n"
+            "- Do NOT ADD bullets to fix a 'thin' or 'lacks metrics' bullet - REWRITE the "
+            "existing bullet to be sharper. Keep each role's bullet count appropriate to its "
+            "tenure (a short internship: 2-3 bullets maximum).\n"
+            "- Each bullet in a role must describe a DISTINCT accomplishment - never produce "
+            "two bullets that say the same thing in different words.\n"
+            "- PRESERVE every factual field exactly: do NOT drop or alter start_date, "
+            "end_date, titles, employers, or locations when rewriting a section.\n"
             f"{supervisor_feedback}\n"
         )
 
