@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, FileResponse, Http404, JsonResponse
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
+from django.conf import settings
 from jobs.models import Job
 from profiles.models import UserProfile
 from analysis.models import GapAnalysis
@@ -47,9 +48,20 @@ def generate_resume_view(request, job_id):
     if request.method == 'POST':
         # Instantly render the "Generating..." state to provide immediate feedback.
         # The frontend JS will then trigger the actual sync computation via API.
+        # The supervisor loop (generate -> review -> regenerate) roughly doubles
+        # latency (observed ~90s, worse under Groq 429 backoff), so the client
+        # abort timeout must scale with the round cap — otherwise the browser
+        # gives up at 60s while the backend is still working and a resume that
+        # WAS generated looks like a failure.
+        if getattr(settings, 'SUPERVISOR_ENABLED', False):
+            rounds = int(getattr(settings, 'SUPERVISOR_MAX_REVISION_ROUNDS', 1))
+            gen_timeout_ms = (rounds + 1) * 90000
+        else:
+            gen_timeout_ms = 60000
         return render(request, 'resumes/generate.html', {
             'job': job,
             'generating': True,
+            'gen_timeout_ms': gen_timeout_ms,
         })
     
     return render(request, 'resumes/generate.html', {'job': job})

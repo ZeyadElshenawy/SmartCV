@@ -81,7 +81,10 @@ surfaces a real error with retry instead of an infinite spinner.
             // network), abort the fetch and surface a real error rather
             // than letting the user stare at a spinner indefinitely.
             const controller = new AbortController();
-            const timeoutMs = op.timeoutMs || 60000;
+            // Server-computed budget: scales with the supervisor round cap
+            // (supervised generation ~doubles latency). Falls back to the op
+            // default when the view didn't supply one.
+            const timeoutMs = {{ gen_timeout_ms|default:"0" }} || op.timeoutMs || 60000;
             const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
             fetch(`{% url 'trigger_resume_api' job.id %}`, {
