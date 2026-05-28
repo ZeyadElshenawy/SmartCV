@@ -34,6 +34,10 @@ from resumes.services.resume_generator import (
     _extract_failed_generation,
     _tolerant_json_parse,
 )
+from resumes.services.scoring import (
+    STUFFING_THRESHOLD,
+    _count_skill_occurrences,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -182,12 +186,19 @@ def _norm_text(s) -> str:
     return re.sub(r'\s+', ' ', re.sub(r'[^a-z0-9 ]', ' ', str(s).lower())).strip()
 
 
-def _structural_observations(resume_content) -> str:
+def _structural_observations(resume_content, job=None) -> str:
     """Deterministic pre-scan that surfaces the structural defects a 17B model
     won't reliably catch from prose alone: bullet bloat, near-duplicate bullets,
-    missing dates, duplicate skills. These are HINTS for the LLM (it still judges
-    severity, wording, and grounding, and can dismiss false positives) - the same
-    deterministic-detection + LLM-judgment split the gap analysis uses.
+    missing dates, duplicate skills, keyword stuffing. These are HINTS for the
+    LLM (it still judges severity, wording, and grounding, and can dismiss
+    false positives) - the same deterministic-detection + LLM-judgment split
+    the gap analysis uses.
+
+    When ``job`` is provided, also flag any JD skill (and any candidate skill)
+    that appears in the full resume more than ``STUFFING_THRESHOLD`` times.
+    The same counts drive the ATS stuffing penalty downstream — surfacing them
+    here lets the supervisor regen feedback fix the resume instead of just
+    knocking points off after the fact.
     """
     obs: list[str] = []
     rc = resume_content or {}
@@ -251,6 +262,38 @@ def _structural_observations(resume_content) -> str:
         if seen_pairs >= 5:
             break
 
+    # Keyword stuffing: same logic + threshold as resumes.services.scoring.
+    # We scan both JD-required and candidate-declared skill names, dedup'd.
+    candidate_skills = [s for s in (rc.get('skills') or []) if isinstance(s, str) and s.strip()]
+    jd_skills = list(getattr(job, 'extracted_skills', None) or []) if job is not None else []
+    stuffing_terms: list[str] = []
+    seen_lower: set[str] = set()
+    for term in jd_skills + candidate_skills:
+        if not isinstance(term, str):
+            continue
+        norm = term.strip()
+        if not norm:
+            continue
+        key = norm.lower()
+        if key in seen_lower:
+            continue
+        seen_lower.add(key)
+        stuffing_terms.append(norm)
+    if stuffing_terms:
+        full_text = json.dumps(rc).lower()
+        flagged: list[tuple[str, int]] = []
+        for term in stuffing_terms:
+            count = _count_skill_occurrences(full_text, term.lower())
+            if count > STUFFING_THRESHOLD:
+                flagged.append((term, count))
+        flagged.sort(key=lambda x: -x[1])
+        for term, count in flagged[:8]:
+            obs.append(
+                f'KEYWORD STUFFING: "{term}" appears {count} times '
+                f'(threshold {STUFFING_THRESHOLD}) - thin out repeats; '
+                f'ATS scanners penalize this and recruiters notice.'
+            )
+
     if not obs:
         return ""
     return "=== STRUCTURAL OBSERVATIONS (deterministic pre-scan - verify and judge each) ===\n" + \
@@ -300,7 +343,7 @@ def _build_review_context(resume_content, job, gap_analysis, standards_block) ->
     if gap:
         parts.append("=== GAP ANALYSIS ===\n" + gap)
 
-    structural = _structural_observations(resume_content)
+    structural = _structural_observations(resume_content, job=job)
     if structural:
         parts.append(structural)
 
