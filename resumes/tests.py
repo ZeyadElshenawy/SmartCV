@@ -3368,6 +3368,116 @@ class ResumeFailedGenerationRecoveryTests(SimpleTestCase):
         self.assertEqual(out['experience'][0]['industry'], '')
         self.assertEqual(out['experience'][0]['location'], '')
 
+    def test_recovers_when_experience_has_employment_type(self):
+        """2026-05-28 production failure: Groq emitted
+        experience[].employment_type='Internship'/'Full-time' which hits
+        ResumeExperience.extra='forbid' and previously dropped the whole
+        recovery — shipping the offline fallback instead of the LLM
+        output. The validator must now silently pop employment_type and
+        let the salvaged resume through."""
+        import json as _json
+        from resumes.services.resume_generator import (
+            _recover_resume_from_failed_generation,
+        )
+        payload = {
+            'name': 'ResumeContentResult',
+            'parameters': {
+                'professional_title': '',
+                'professional_summary': 'Data Scientist.',
+                'objective': '',
+                'skills': [
+                    {'name': 'Python', 'years': None, 'proficiency': None},
+                    {'name': 'PySpark', 'years': None, 'proficiency': None},
+                ],
+                'experience': [
+                    {
+                        'title': 'AI & Data Science Trainee',
+                        'company': 'DEPI',
+                        'duration': 'Jun 2025 - Dec 2025',
+                        'location': 'Remote',
+                        'industry': None,
+                        'start_date': 'Jun 2025',
+                        'end_date': 'Dec 2025',
+                        'description': ['Applied the full DS lifecycle.'],
+                        'employment_type': 'Internship',
+                    },
+                    {
+                        'title': 'Digital Transformation Intern',
+                        'company': 'Almansour Automotive',
+                        'duration': 'Aug 2025',
+                        'location': 'Al Jizah, Egypt',
+                        'industry': None,
+                        'start_date': 'August 2025',
+                        'end_date': None,
+                        'description': ['Built PySpark pipeline.'],
+                        'employment_type': 'Full-time',
+                    },
+                ],
+                'education': [],
+                'projects': [],
+                'certifications': [],
+                'languages': [],
+                'awards': [],
+            },
+        }
+        raw = _json.dumps([payload])
+        e = self._exc(raw)
+        result = _recover_resume_from_failed_generation(e)
+        self.assertIsNotNone(
+            result,
+            "employment_type extra should be dropped, not abort recovery",
+        )
+        # Skills coerced from objects to strings via _flatten_string_list.
+        self.assertEqual(result.skills, ['Python', 'PySpark'])
+        # Both experience entries survived with their bullets intact.
+        self.assertEqual(len(result.experience), 2)
+        self.assertEqual(result.experience[0].title, 'AI & Data Science Trainee')
+        self.assertEqual(result.experience[0].description,
+                         ['Applied the full DS lifecycle.'])
+        self.assertEqual(result.experience[1].title,
+                         'Digital Transformation Intern')
+
+    def test_recovers_when_project_has_signal_only_source_field(self):
+        """Projects sometimes carry `source='github'` etc. in the LLM
+        output — that field is signal-only per the prompt and not part
+        of ResumeProject. The validator must drop it instead of failing
+        recovery."""
+        import json as _json
+        from resumes.services.resume_generator import (
+            _recover_resume_from_failed_generation,
+        )
+        payload = {
+            'name': 'ResumeContentResult',
+            'parameters': {
+                'professional_title': '',
+                'professional_summary': '',
+                'objective': '',
+                'skills': ['Python'],
+                'experience': [],
+                'education': [],
+                'projects': [{
+                    'name': 'SmartCV',
+                    'url': 'https://example.com',
+                    'technologies': ['Python'],
+                    'description': ['Built it.'],
+                    'source': 'github',
+                    'source_id': 'foo/SmartCV',
+                    'source_url': 'https://github.com/foo/SmartCV',
+                    'role': 'Author',
+                }],
+                'certifications': [],
+                'languages': [],
+                'awards': [],
+            },
+        }
+        raw = _json.dumps([payload])
+        e = self._exc(raw)
+        result = _recover_resume_from_failed_generation(e)
+        self.assertIsNotNone(result)
+        self.assertEqual(len(result.projects), 1)
+        self.assertEqual(result.projects[0].name, 'SmartCV')
+        self.assertEqual(result.projects[0].description, ['Built it.'])
+
 
 class LearningPathFailedGenerationRecoveryTests(SimpleTestCase):
     """Groq returns 400 tool_use_failed when the model emits a bare top-level

@@ -499,6 +499,29 @@ _BULLET_ALIAS_KEYS = (
     'deliverables',      # project-only invention
 )
 
+# Non-bullet LLM inventions the recovery path must DROP (not fold into
+# description) so `extra="forbid"` doesn't reject the salvaged payload.
+# The prompt already lists these in the "REMOVE FROM RESUMES" / "DO NOT
+# INVENT FIELDS" sections, but the model still emits them under retry
+# pressure — silently popping them here keeps the recovery path useful
+# instead of letting one stray key drop the whole resume to the offline
+# fallback (see 2026-05-28 5:16 run, employment_type='Internship').
+_NON_BULLET_EXTRA_KEYS_EXPERIENCE = (
+    'employment_type',   # 2026-05-28 — Groq emits "Internship" / "Full-time"
+    'employment_status',
+    'job_type',
+    'role_type',
+    'work_type',         # remote/hybrid/onsite — captured elsewhere
+)
+_NON_BULLET_EXTRA_KEYS_PROJECT = (
+    'source',            # signal-only field documented in prompt
+    'source_id',
+    'source_url',
+    'role',              # observed: project "role" labels (Author / Maintainer)
+    'duration',          # not part of ResumeProject schema
+    'date',
+)
+
 
 _DESC_LOGGER = logging.getLogger(__name__)
 
@@ -620,6 +643,14 @@ class ResumeExperience(BaseModel):
             'title', 'company', 'duration', 'location', 'industry',
             'start_date', 'end_date',
         ))
+        for k in _NON_BULLET_EXTRA_KEYS_EXPERIENCE:
+            if k in data:
+                _DESC_LOGGER.info(
+                    "schema validator: dropped LLM-invented experience field "
+                    "'%s'=%r (not part of ResumeExperience schema)",
+                    k, data.get(k),
+                )
+                data.pop(k, None)
         return _fold_into_description(data)
 
 
@@ -649,6 +680,14 @@ class ResumeProject(BaseModel):
             data['technologies'] = [t.strip() for t in tech.split(',') if t.strip()]
         elif isinstance(tech, list):
             data['technologies'] = _flatten_string_list(tech)
+        for k in _NON_BULLET_EXTRA_KEYS_PROJECT:
+            if k in data:
+                _DESC_LOGGER.info(
+                    "schema validator: dropped LLM-invented project field "
+                    "'%s'=%r (not part of ResumeProject schema)",
+                    k, data.get(k),
+                )
+                data.pop(k, None)
         return _fold_into_description(data)
 
 class ResumeCertification(BaseModel):
