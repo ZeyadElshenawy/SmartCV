@@ -667,6 +667,12 @@ For each `experience[]` and `projects[]` entry, the ONLY bullet-bearing field is
 
 The `description` field is a flat list of strings. Each string is one bullet point on the resume. Never split bullets across multiple field names.
 
+=== PRIMITIVE SHAPES (CRITICAL — Groq rejects the tool call if any of these are wrong) ===
+  • `skills` is a list of PLAIN STRINGS. Correct: `["Python", "PySpark", "SQL"]`. WRONG: `[{{"name": "Python", "years": null, "proficiency": null}}, ...]` — Groq will reject the entire generation with HTTP 400 because the schema declares `List[str]`. Do not wrap each skill in an object.
+  • `languages` is also a list of plain strings (spoken/programming languages only — never the full tech stack).
+  • `experience[]` has NO `employment_type` field. Don't emit `"employment_type": "Internship"` / `"Full-time"` / `"Contract"`. Employment type is already in "REMOVE FROM RESUMES" above.
+  • `projects[]` has NO `source` / `source_id` / `source_url` / `role` / `duration` field — those are signal-only inputs documented in FIELD MAPPING and must not appear in the output.
+
 === EVIDENCE-GROUNDED ENRICHMENT RULE (CRITICAL — read this twice) ===
 Every concrete claim (a number, a tool name, a scale, a duration, a team size, a metric) must be supported by AT LEAST ONE source you've been given:
   (a) the CV's own bullets / skills / education / projects;
