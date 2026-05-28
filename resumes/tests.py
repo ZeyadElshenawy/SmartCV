@@ -4639,6 +4639,69 @@ class StructuralObservationsTests(SimpleTestCase):
               'skills': ['Python', 'SQL', 'Docker']}
         self.assertEqual(_structural_observations(rc), "")
 
+    def test_flags_keyword_stuffing_for_jd_skill(self):
+        """The 2026-05-28 5:16 run shipped a resume with 'Python' ×18 and
+        'Machine Learning' ×8. Counts above STUFFING_THRESHOLD (4) must
+        surface as an observation when ``job`` is provided so the
+        supervisor can feed it back into the regen prompt."""
+        from types import SimpleNamespace
+        from resumes.services.resume_supervisor import _structural_observations
+        rc = {
+            'experience': [
+                {'title': 'AI Trainee', 'duration': 'Jun 2025 - Dec 2025',
+                 'description': [
+                     'Built Python data pipelines and Python ETL with Python.',
+                     'Wrote Python unit tests and Python notebooks for Python services.',
+                     'Maintained Python infra and Python CI/CD with Python tooling.',
+                 ]},
+            ],
+            'skills': ['Python', 'SQL'],
+        }
+        job = SimpleNamespace(extracted_skills=['Python', 'SQL'])
+        out = _structural_observations(rc, job=job)
+        self.assertIn('KEYWORD STUFFING', out)
+        self.assertIn('"Python"', out)
+        # SQL appears once — should NOT be flagged.
+        self.assertNotIn('"SQL"', out)
+
+    def test_no_stuffing_flag_below_threshold(self):
+        """Counts at or below STUFFING_THRESHOLD (4) must not flag, so we
+        don't bother the supervisor with noise. The detector counts the
+        whole resume JSON, so the skills array and any duration / title
+        also contribute — keep total <=4 to verify the strict-greater-
+        than-threshold check."""
+        from types import SimpleNamespace
+        from resumes.services.resume_supervisor import _structural_observations
+        rc = {
+            'experience': [
+                {'title': 'A', 'duration': 'Jun 2025 - Dec 2025',
+                 # 3 'Python' in description + 1 in skills = 4 total, == threshold.
+                 'description': ['Python Python Python work']},
+            ],
+            'skills': ['Python'],
+        }
+        job = SimpleNamespace(extracted_skills=['Python'])
+        out = _structural_observations(rc, job=job)
+        self.assertNotIn('KEYWORD STUFFING', out)
+
+    def test_stuffing_flag_works_without_job_arg(self):
+        """When ``job`` is None, falls back to the candidate's own skills
+        list — this keeps the pre-scan useful in callers that don't have
+        a job object (e.g. ad-hoc tooling)."""
+        from resumes.services.resume_supervisor import _structural_observations
+        rc = {
+            'experience': [
+                {'title': 'A', 'duration': 'Jun 2025 - Dec 2025',
+                 'description': [
+                     'Pandas Pandas Pandas Pandas Pandas Pandas analysis.',
+                 ]},
+            ],
+            'skills': ['Pandas'],
+        }
+        out = _structural_observations(rc)  # no job
+        self.assertIn('KEYWORD STUFFING', out)
+        self.assertIn('"Pandas"', out)
+
 
 class SupervisorRecoveryTests(SimpleTestCase):
     """_recover_review_from_failed_generation salvages a SupervisorReview from
