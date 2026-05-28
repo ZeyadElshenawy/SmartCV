@@ -4933,3 +4933,81 @@ class SupervisedLoopTests(SimpleTestCase):
         self.assertEqual(gm.call_count, 2)  # round 0 + round 1, then cap
         self.assertEqual(out['supervisor_review']['rounds'], 2)
         self.assertEqual(out['supervisor_review']['verdict'], 'revise')
+
+    def test_ships_best_draft_when_regen_regresses(self):
+        """2026-05-28 5:16 production run: round 0 had 2 blocking, round 1
+        had 4 blocking — regen made things worse and we shipped round 1.
+        With the elitism guard the loop ships round 0 instead, since
+        score (blocking, total) (2, 6) < (4, 9)."""
+        from django.test import override_settings
+        gen_calls = []
+
+        def gen(*a, **k):
+            gen_calls.append(k.get('supervisor_feedback', ''))
+            return {'professional_summary': f'draft {len(gen_calls)}'}
+
+        # Round 0: 2 blocking. Round 1: 4 blocking (regression).
+        reviews = [
+            self._review([
+                _mk_finding(severity='blocking', layer='content', issue='a'),
+                _mk_finding(severity='blocking', layer='content', issue='b'),
+                _mk_finding(severity='warning', layer='content', issue='w1'),
+                _mk_finding(severity='warning', layer='content', issue='w2'),
+                _mk_finding(severity='warning', layer='content', issue='w3'),
+                _mk_finding(severity='warning', layer='content', issue='w4'),
+            ]),
+            self._review([
+                _mk_finding(severity='blocking', layer='content', issue='c'),
+                _mk_finding(severity='blocking', layer='content', issue='d'),
+                _mk_finding(severity='blocking', layer='content', issue='e'),
+                _mk_finding(severity='blocking', layer='content', issue='f'),
+                _mk_finding(severity='warning', layer='content', issue='w5'),
+                _mk_finding(severity='warning', layer='content', issue='w6'),
+                _mk_finding(severity='warning', layer='content', issue='w7'),
+                _mk_finding(severity='warning', layer='content', issue='w8'),
+                _mk_finding(severity='warning', layer='content', issue='w9'),
+            ]),
+        ]
+        p_gen, p_std, p_rev = self._patches(gen, reviews)
+        with override_settings(SUPERVISOR_ENABLED=True, SUPERVISOR_MAX_REVISION_ROUNDS=1):
+            with p_gen, p_std, p_rev:
+                out = generate_resume_content_supervised(
+                    self._profile(), self._job(), self._gap())
+        # Both rounds ran (round 0 + 1 regen), but the shipped content is
+        # round 0's because round 1 regressed.
+        self.assertEqual(out['professional_summary'], 'draft 1')
+        # Surfaced findings are from the shipped (best) draft, not the latest.
+        findings = out['supervisor_review']['findings']
+        self.assertEqual(len([f for f in findings if f['severity'] == 'blocking']), 2)
+
+    def test_ships_latest_when_regen_improves(self):
+        """The complementary case: round 0 has 3 blocking, round 1 has 1
+        blocking. Ship round 1 (it's the better draft) — the elitism
+        guard must not regress the happy path."""
+        from django.test import override_settings
+        gen_calls = []
+
+        def gen(*a, **k):
+            gen_calls.append(k.get('supervisor_feedback', ''))
+            return {'professional_summary': f'draft {len(gen_calls)}'}
+
+        reviews = [
+            self._review([
+                _mk_finding(severity='blocking', layer='content', issue='a'),
+                _mk_finding(severity='blocking', layer='content', issue='b'),
+                _mk_finding(severity='blocking', layer='content', issue='c'),
+            ]),
+            self._review([
+                _mk_finding(severity='blocking', layer='content', issue='d'),
+                _mk_finding(severity='warning', layer='content', issue='w1'),
+            ]),
+        ]
+        p_gen, p_std, p_rev = self._patches(gen, reviews)
+        with override_settings(SUPERVISOR_ENABLED=True, SUPERVISOR_MAX_REVISION_ROUNDS=1):
+            with p_gen, p_std, p_rev:
+                out = generate_resume_content_supervised(
+                    self._profile(), self._job(), self._gap())
+        # Round 1 was strictly better — ship it.
+        self.assertEqual(out['professional_summary'], 'draft 2')
+        findings = out['supervisor_review']['findings']
+        self.assertEqual(len([f for f in findings if f['severity'] == 'blocking']), 1)

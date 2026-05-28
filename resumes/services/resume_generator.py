@@ -938,6 +938,15 @@ def generate_resume_content_supervised(profile, job, gap_analysis, *, metadata: 
     resume_content: dict | None = None
     review = None
     rounds_run = 0
+    # Best-draft elitism: regeneration occasionally introduces *more* blocking
+    # findings than the prior draft (observed 2026-05-28 5:16 run: round 0
+    # had 2 blocking, round 1 had 4). Always retain the draft with the
+    # fewest blocking findings (tie-break: fewest total findings) so the
+    # supervisor loop is monotonically non-decreasing in quality.
+    best_content: dict | None = None
+    best_review = None
+    best_round = -1
+    best_score: tuple[int, int] | None = None
     for round_i in range(cap + 1):
         rounds_run = round_i + 1
         resume_content = generate_resume_content(
@@ -958,15 +967,35 @@ def generate_resume_content_supervised(profile, job, gap_analysis, *, metadata: 
             "Supervisor round %d: %d findings (%d content-blocking, %d render) verdict=%s",
             round_i, len(review.findings), len(blocking), render_count, review.verdict,
         )
+        score = (len(blocking), len(review.findings))
+        if best_score is None or score < best_score:
+            best_content = resume_content
+            best_review = review
+            best_round = round_i
+            best_score = score
         if not blocking:
             break
         if round_i >= cap:
-            logger.info(
-                "Supervisor: round cap (%d) reached with %d content-blocking issues; shipping.",
-                cap, len(blocking),
-            )
+            if best_round != round_i:
+                logger.info(
+                    "Supervisor: round cap (%d) reached; round %d regressed "
+                    "(blocking=%d findings=%d) vs round %d (blocking=%d "
+                    "findings=%d) — shipping the earlier draft.",
+                    cap, round_i, score[0], score[1],
+                    best_round, best_score[0], best_score[1],
+                )
+            else:
+                logger.info(
+                    "Supervisor: round cap (%d) reached with %d content-blocking issues; shipping.",
+                    cap, len(blocking),
+                )
             break
         feedback = _format_supervisor_feedback(blocking)
+
+    # Ship the best draft observed, not necessarily the last one.
+    if best_content is not None:
+        resume_content = best_content
+        review = best_review
 
     if review is not None and isinstance(resume_content, dict):
         all_findings = [
