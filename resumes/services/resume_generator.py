@@ -669,7 +669,7 @@ The `description` field is a flat list of strings. Each string is one bullet poi
 
 === PRIMITIVE SHAPES (CRITICAL — Groq rejects the tool call if any of these are wrong) ===
   • `skills` is a list of PLAIN STRINGS. Correct: `["Python", "PySpark", "SQL"]`. WRONG: `[{{"name": "Python", "years": null, "proficiency": null}}, ...]` — Groq will reject the entire generation with HTTP 400 because the schema declares `List[str]`. Do not wrap each skill in an object.
-  • `languages` is also a list of plain strings (spoken/programming languages only — never the full tech stack).
+  • `languages` is a list of plain strings, SPOKEN (human) languages ONLY — "Arabic (Native)", "English (Fluent)". NEVER programming languages, libraries, frameworks, or tech ("Python", "Pandas", "SQL" all belong in `skills`, not `languages`). The downstream sanitizer drops any non-spoken-language entry, so misrouting wastes the slot.
   • `experience[]` has NO `employment_type` field. Don't emit `"employment_type": "Internship"` / `"Full-time"` / `"Contract"`. Employment type is already in "REMOVE FROM RESUMES" above.
   • `projects[]` has NO `source` / `source_id` / `source_url` / `role` / `duration` field — those are signal-only inputs documented in FIELD MAPPING and must not appear in the output.
 
