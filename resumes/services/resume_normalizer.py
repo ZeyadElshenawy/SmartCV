@@ -635,9 +635,50 @@ _YOE_CLAIM_RE = re.compile(
     r"(?:\s+in\s+[^.]*)?",
     re.IGNORECASE,
 )
+# Detect a pipe-separated multi-title header at the START of the summary.
+# Matches "<title>(\| <title>){1,4}\s+<connector>" where title is up to
+# 4 words and connector is a body-starting word/punctuation.
+# Belt-and-suspenders for the round-3 prompt rule the LLM kept ignoring.
+_PIPE_TITLE_HEADER_RE = re.compile(
+    # Non-greedy ``{0,3}?`` on each title's extra-word slot stops the
+    # regex from eating body words ("with applied experience", "hands-
+    # on Python work") as part of the last pipe-title. Hyphen-sep
+    # requires whitespace on BOTH sides so an embedded hyphen in
+    # "hands-on" can't terminate the title group.
+    r"^\s*(?P<primary>[\w/&\-]+(?:\s+[\w/&\-]+){0,3}?)"
+    r"(?:\s*\|\s*[\w/&\-]+(?:\s+[\w/&\-]+){0,3}?){1,4}"
+    r"(?P<sep>\s+(?:with|focused|focusing|skilled|experienced|having|"
+    r"specializing|specialized|who|that)\b|\s*,\s*|\s*\.\s*|\s+[\-—–]\s+)",
+    re.IGNORECASE,
+)
 
 
-def clean_summary_phrasing(resume: dict) -> dict:
+def _strip_pipe_title_header(summary: str, jd_title: str = '') -> str:
+    """If the summary leads with "X | Y | Z [connector] ..." rewrite to
+    "<jd_title> [connector] ..." (falling back to the primary title when
+    no JD title is provided)."""
+    if '|' not in summary[:120]:
+        return summary
+    m = _PIPE_TITLE_HEADER_RE.match(summary)
+    if not m:
+        return summary
+    title = (jd_title or m.group('primary')).strip()
+    sep = m.group('sep')
+    # Connector is a word boundary — keep the leading whitespace so the
+    # body's first word is correctly spaced. For a punctuation sep
+    # (", " or ". "), replace with a single space and uppercase the body.
+    rest = summary[m.end():]
+    if re.match(r"^\s+(?:with|focused|focusing|skilled|experienced|having|"
+                r"specializing|specialized|who|that)\b", sep, re.IGNORECASE):
+        return f"{title}{sep}{rest}"
+    # Punctuation separator: start a new sentence after the title.
+    rest = rest.lstrip()
+    if rest:
+        rest = rest[0].upper() + rest[1:]
+    return f"{title}. {rest}" if rest else title
+
+
+def clean_summary_phrasing(resume: dict, job=None) -> dict:
     """Strip recruiter-tell phrases and unsupported YoE claims from the
     LLM's generated summary.
 
@@ -656,6 +697,18 @@ def clean_summary_phrasing(resume: dict) -> dict:
     if not summary:
         return resume
     cleaned = summary
+    # 2026-05-29 round-4: the LLM keeps emitting "DS | AI Engineer | DA
+    # with body" headers despite the round-3 prompt rule. Strip
+    # deterministically. JD title (from job.title) is the rewrite anchor;
+    # falls back to the LLM's first title if no job.
+    jd_title = (getattr(job, 'title', '') or '').strip() if job is not None else ''
+    after_strip = _strip_pipe_title_header(cleaned, jd_title)
+    if after_strip != cleaned:
+        logger.info(
+            "resume_normalizer: stripped pipe-title summary header (jd_title=%r)",
+            jd_title or '<unset>',
+        )
+        cleaned = after_strip
     # Strip leading recruiter-jargon openers; re-capitalise the next word.
     new_cleaned = _BANNED_SUMMARY_OPENERS_RE.sub('', cleaned)
     if new_cleaned and new_cleaned != cleaned:
@@ -1386,14 +1439,16 @@ def normalize_resume(
     resume = backfill_summary(resume, job=job)
     # Round 1.5.2: strip recruiter-jargon openers ("Highly motivated…")
     # and unsupported YoE claims that survive the LLM-side prompt rule.
-    resume = clean_summary_phrasing(resume)
-    resume = filter_languages(resume)
+    # 2026-05-29 round-4: also strips pipe-title summary headers
+    # ("DS | AI Eng | DA with body" → "<JD title> with body").
+    resume = clean_summary_phrasing(resume, job=job)
+    resume = filter_languages(resume, profile_data=profile_data)
     resume = normalize_experience_dates(resume)
     resume = mark_expected_graduation(resume)
     return resume
 
 
-def filter_languages(resume: dict) -> dict:
+def filter_languages(resume: dict, profile_data: dict | None = None) -> dict:
     """Issue 2: drop non-spoken-language entries from the `languages`
     field. The resume-gen LLM sometimes dumps the entire skills list
     (programming languages + tech + soft skills) into `languages`.
@@ -1403,15 +1458,97 @@ def filter_languages(resume: dict) -> dict:
 
     Reuses ``profile_sanitizer.sanitize_languages_field`` (the same
     spoken-language heuristic the DOCX path uses) so the two never drift.
+
+    2026-05-29 round-4: when ``profile_data`` is available, enrich bare
+    name entries ("English", "Arabic") with the profile's proficiency
+    annotation ("English (Fluent)", "Arabic (Native)") and order them
+    by the profile's sequence — the LLM keeps stripping proficiency
+    markers between regenerations, which hides a candidate's native
+    language asset for region-specific roles.
     """
     if not isinstance(resume, dict):
         return resume
     langs = resume.get('languages')
     if not isinstance(langs, list) or not langs:
         return resume
+    if profile_data:
+        enriched_form = _build_language_proficiency_map(profile_data)
+        if enriched_form:
+            ordered = _reorder_and_enrich_languages(langs, enriched_form)
+            if ordered != langs:
+                logger.info(
+                    "resume_normalizer: enriched languages from profile "
+                    "proficiency map (%s → %s)", langs, ordered,
+                )
+                langs = ordered
     from profiles.services.profile_sanitizer import sanitize_languages_field
     resume['languages'] = sanitize_languages_field(langs)
     return resume
+
+
+def _build_language_proficiency_map(profile_data: dict) -> dict:
+    """Build a {bare-name-lower: fuller-form} map from profile.data_content.
+    Preserves the profile's ordering via ``_profile_language_order`` (an
+    underscore-prefixed extra key on the returned dict for the reorder pass)."""
+    out: dict = {}
+    order: list[str] = []
+    profile_langs = profile_data.get('languages') or []
+    if not isinstance(profile_langs, list):
+        return out
+    for entry in profile_langs:
+        if isinstance(entry, dict):
+            name = (entry.get('name') or '').strip()
+            prof = (entry.get('proficiency') or '').strip()
+            if not name:
+                continue
+            key = name.lower()
+            if prof and prof.lower() != key:
+                out[key] = f"{name} ({prof})"
+            else:
+                out[key] = name
+            if key not in order:
+                order.append(key)
+        elif isinstance(entry, str) and entry.strip():
+            bare = re.split(r'[\(\[\-–—]', entry, maxsplit=1)[0].strip()
+            if not bare:
+                continue
+            key = bare.lower()
+            out[key] = entry.strip()
+            if key not in order:
+                order.append(key)
+    out['_profile_language_order'] = order  # type: ignore[assignment]
+    return out
+
+
+def _reorder_and_enrich_languages(langs: list, prof_map: dict) -> list:
+    """Replace bare-name resume entries with the profile's fuller form
+    and reorder by the profile's sequence. Languages not in the profile
+    are kept in their original relative order, appended at the end."""
+    order = prof_map.get('_profile_language_order') or []
+    # Map current resume entries to their canonical key.
+    indexed: list[tuple[str, str]] = []  # (key, enriched_text)
+    for item in langs:
+        text = (
+            item if isinstance(item, str)
+            else (item.get('name', '') if isinstance(item, dict) else '')
+        )
+        if not isinstance(text, str) or not text.strip():
+            continue
+        bare = re.split(r'[\(\[\-–—]', text, maxsplit=1)[0].strip().lower()
+        enriched = prof_map.get(bare, text.strip())
+        indexed.append((bare, enriched))
+    # Emit in profile-order first, then any extras the profile didn't have.
+    by_key: dict = {}
+    for key, enriched in indexed:
+        # If the resume mentions a language twice, keep first occurrence.
+        if key not in by_key:
+            by_key[key] = enriched
+    out: list = []
+    for key in order:
+        if key in by_key:
+            out.append(by_key.pop(key))
+    out.extend(by_key.values())
+    return out
 
 
 # Month name -> 3-letter abbreviation, for date-format consistency.
