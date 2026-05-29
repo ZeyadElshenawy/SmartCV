@@ -730,12 +730,22 @@ This is the difference between a tailored resume and a hallucinated one. Restruc
    - REQUIRED — never leave this field empty. The summary is the recruiter's 5-second hook; an empty summary signals "this candidate didn't bother". If the voice constraints below feel restrictive, write a SHORT, FACTUAL summary (one sentence is fine) rather than nothing.
    - Use NEUTRAL, DIRECT voice. No "I" / "my" pronouns. NO third-person references to the candidate by name (NEVER write "Zeyad has built..." or "Sara is a...") — referring to oneself by name in one's own resume reads as ghost-written and unprofessional.
    - Lead with the role and what the candidate does, not how long they've done it.
+   - ONE PRIMARY ROLE — never lead with a pipe-separated multi-title header like "Data Scientist | AI Engineer | Data Analyst". That pattern reads as "I'm applying to anything" and dilutes the JD match. Pick the SINGLE role the job is hiring for (use the JD title from the header above as the anchor) and write a focused first sentence about THAT role. If adjacent skills are worth surfacing, weave them into the body sentence ("...with applied experience in NLP and dashboarding"), never as a co-equal title.
+   - NO HEADLINE-STUFFING PATTERN — also avoid the LinkedIn-headline structure "{{Role}} with a focus on X, Y, and Z. Proficient in A, B, C. Experienced in deploying D and working with E." That reads as ATS keyword bait, not positioning. Use narrative prose instead.
+   - NO UNSUPPORTED CAPABILITY CLAIMS — phrases like "experienced in deploying AI models" or "working with large datasets" must be backed by an experience or project bullet that actually shows deployment / scale. If no bullet supports it, drop the claim. The summary cannot promise something the experience section doesn't deliver.
    - YoE / TENURE CLAIMS: Never invent or estimate years of experience. Only state YoE when the source CV's experience entries support it via real start_date / end_date dates that span at least 12 months total. If the candidate's only experience is an internship or a recent role under a year, do NOT use phrases like "X+ years experience", "early-career", "less than N years experience", or any framing that implies a duration. Just describe what they do and one concrete proof point. Example for a fresh-out-of-school candidate with one short role: "AI & Tooling Engineer focused on data pipelines in Microsoft Fabric, with hands-on PySpark and Python work across automation and ERP integration." NOT "early-career engineer with less than 2 years of experience".
    - 2-3 sentences, 40-60 words max. No fluff.
    - Reflect ONLY experience already present in the resume + corroborated signals.
 2. SKILLS SECTION: Remove ALL soft skills. Keep ONLY hard/technical skills explicitly listed.
 3. EXPERIENCE BULLETS: Start each bullet with a strong action verb. Use STAR structure where possible (Situation/Task → Action → Result).
-4. MOST RECENT EXPERIENCE FIRST: Within each section, order entries newest first.
+4. MOST RECENT EXPERIENCE FIRST: Within EXPERIENCE, order entries newest first.
+5. PROJECT ORDERING (DIFFERENT FROM EXPERIENCE): order projects by demonstrated DEPTH for the target role, not by recency or by raw JD-keyword overlap. The first project in the list is the one the recruiter reads first, so it must be the one that most directly signals "I can do this job":
+   - Production-deployed system > toy notebook
+   - End-to-end pipeline (parse → analyze → serve) > isolated EDA notebook
+   - Real evaluation metrics in the bullets (silhouette score, F1, accuracy, k-clusters, dataset size) > qualitative descriptions only
+   - Diverse / production-grade tech stack (e.g., Django + PostgreSQL + LLM + vector DB) > narrow stack (single notebook + pandas)
+   - Custom system the candidate designed > standard tutorial implementation
+   The INCLUSION PLAN below provides a JD-overlap ranking, but it under-weights tech-stack diversity and production signals; you may override its order when a less-overlapping project clearly demonstrates more depth. NEVER auto-default to "the one with most matched JD tokens leads".
 
 === ATS OPTIMIZATION ===
 - Use standard section names: "Professional Summary", "Skills", "Experience", "Education", "Projects", "Certifications".

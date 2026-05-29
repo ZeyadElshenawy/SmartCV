@@ -1987,6 +1987,134 @@ class TrimSkillsToPlanTests(SimpleTestCase):
         out = trim_skills_to_plan(resume, plan)
         self.assertEqual(out['skills'], ['Python', 'Rust'])
 
+    def test_dedupes_conjunction_extended_subset(self):
+        """The 2026-05-28 5:16 run shipped 'SQL' AND 'Databases & SQL'
+        side-by-side. The token-subset-with-conjunction rule must drop
+        the second-seen so the resume shows one canonical entry."""
+        resume = {'skills': []}
+        plan = _FakePlan()
+        plan.skills_to_list = ['SQL', 'Databases & SQL', 'Python']
+        out = trim_skills_to_plan(resume, plan)
+        self.assertIn('SQL', out['skills'])
+        self.assertNotIn('Databases & SQL', out['skills'])
+        self.assertIn('Python', out['skills'])
+
+    def test_dedupes_supervised_learning_variants(self):
+        """Same pattern: 'Supervised Learning' + 'Supervised &
+        Unsupervised Learning' — drop the conjunction-extended form
+        when the simpler one was seen first."""
+        resume = {'skills': []}
+        plan = _FakePlan()
+        plan.skills_to_list = ['Supervised Learning',
+                               'Supervised & Unsupervised Learning']
+        out = trim_skills_to_plan(resume, plan)
+        self.assertIn('Supervised Learning', out['skills'])
+        self.assertNotIn('Supervised & Unsupervised Learning', out['skills'])
+
+    def test_dedupes_when_conjunction_form_seen_first(self):
+        """Order-independence: with 'Databases & SQL' seen first and
+        'SQL' coming after, the SQL entry is the subset and gets dropped."""
+        resume = {'skills': []}
+        plan = _FakePlan()
+        plan.skills_to_list = ['Databases & SQL', 'SQL']
+        out = trim_skills_to_plan(resume, plan)
+        # First-seen wins: 'Databases & SQL' stays, second 'SQL' drops.
+        self.assertIn('Databases & SQL', out['skills'])
+        self.assertNotIn('SQL', out['skills'])
+
+    def test_does_not_dedupe_compound_product_names(self):
+        """Docker / Docker Compose is a known false-positive risk. The
+        longer form has no conjunction, so the rule MUST NOT fire.
+        Same protection for PostgreSQL / SQL."""
+        resume = {'skills': []}
+        plan = _FakePlan()
+        plan.skills_to_list = ['Docker', 'Docker Compose', 'SQL', 'PostgreSQL']
+        out = trim_skills_to_plan(resume, plan)
+        self.assertIn('Docker', out['skills'])
+        self.assertIn('Docker Compose', out['skills'])
+        self.assertIn('SQL', out['skills'])
+        self.assertIn('PostgreSQL', out['skills'])
+
+
+class NormalizeExperienceDatesTests(SimpleTestCase):
+    """2026-05-29 Almansour duration shipped as 'August 2025 - Sep 2025'
+    (mixed long/short month form). Normalize to 3-letter abbreviations."""
+
+    def test_shortens_long_month_in_duration(self):
+        from resumes.services.resume_normalizer import normalize_experience_dates
+        resume = {'experience': [
+            {'title': 'A', 'duration': 'August 2025 - Sep 2025', 'description': []},
+        ]}
+        out = normalize_experience_dates(resume)
+        self.assertEqual(out['experience'][0]['duration'], 'Aug 2025 - Sep 2025')
+
+    def test_shortens_in_start_and_end_dates(self):
+        from resumes.services.resume_normalizer import normalize_experience_dates
+        resume = {'experience': [
+            {'title': 'A', 'start_date': 'August 2025', 'end_date': 'December 2025',
+             'duration': '', 'description': []},
+        ]}
+        out = normalize_experience_dates(resume)
+        self.assertEqual(out['experience'][0]['start_date'], 'Aug 2025')
+        self.assertEqual(out['experience'][0]['end_date'], 'Dec 2025')
+
+    def test_idempotent_on_already_abbreviated(self):
+        from resumes.services.resume_normalizer import normalize_experience_dates
+        resume = {'experience': [
+            {'title': 'A', 'duration': 'Jun 2025 - Dec 2025', 'description': []},
+        ]}
+        out = normalize_experience_dates(resume)
+        self.assertEqual(out['experience'][0]['duration'], 'Jun 2025 - Dec 2025')
+
+    def test_preserves_present_and_ranges(self):
+        from resumes.services.resume_normalizer import normalize_experience_dates
+        resume = {'experience': [
+            {'title': 'A', 'duration': 'January 2024 - Present', 'description': []},
+        ]}
+        out = normalize_experience_dates(resume)
+        self.assertEqual(out['experience'][0]['duration'], 'Jan 2024 - Present')
+
+
+class MarkExpectedGraduationTests(SimpleTestCase):
+    """Prefix education year with 'Expected' when it's in the future."""
+
+    def test_marks_future_month_year_as_expected(self):
+        import datetime as dt
+        from resumes.services.resume_normalizer import mark_expected_graduation
+        resume = {'education': [{'degree': 'BSc', 'year': 'June 2026'}]}
+        out = mark_expected_graduation(resume, _today=dt.date(2026, 5, 29))
+        self.assertEqual(out['education'][0]['year'], 'Expected June 2026')
+
+    def test_does_not_mark_past_dates(self):
+        import datetime as dt
+        from resumes.services.resume_normalizer import mark_expected_graduation
+        resume = {'education': [{'degree': 'BSc', 'year': 'June 2024'}]}
+        out = mark_expected_graduation(resume, _today=dt.date(2026, 5, 29))
+        self.assertEqual(out['education'][0]['year'], 'June 2024')
+
+    def test_does_not_mark_current_month(self):
+        """Same month, same year — already happened or in progress, not
+        future. No prefix."""
+        import datetime as dt
+        from resumes.services.resume_normalizer import mark_expected_graduation
+        resume = {'education': [{'degree': 'BSc', 'year': 'May 2026'}]}
+        out = mark_expected_graduation(resume, _today=dt.date(2026, 5, 29))
+        self.assertEqual(out['education'][0]['year'], 'May 2026')
+
+    def test_marks_year_only_future(self):
+        import datetime as dt
+        from resumes.services.resume_normalizer import mark_expected_graduation
+        resume = {'education': [{'degree': 'BSc', 'year': '2027'}]}
+        out = mark_expected_graduation(resume, _today=dt.date(2026, 5, 29))
+        self.assertEqual(out['education'][0]['year'], 'Expected 2027')
+
+    def test_idempotent_when_already_marked(self):
+        import datetime as dt
+        from resumes.services.resume_normalizer import mark_expected_graduation
+        resume = {'education': [{'degree': 'BSc', 'year': 'Expected June 2026'}]}
+        out = mark_expected_graduation(resume, _today=dt.date(2026, 5, 29))
+        self.assertEqual(out['education'][0]['year'], 'Expected June 2026')
+
 
 class NormalizeBulletPunctuationTests(SimpleTestCase):
     def test_adds_period_when_at_least_one_bullet_has_one(self):
