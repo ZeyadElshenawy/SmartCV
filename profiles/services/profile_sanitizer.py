@@ -81,6 +81,17 @@ _SOFT_SKILL_BLOCKLIST_CANON = {
     'strongproblemsolvingskills',
     'strongleadershipskills', 'strongteamworkskills',
     'innovationandcreativity',
+    # 2026-05-29 round-4 audit: "Digital Communication" leaked into a
+    # Data Scientist skills list as a JD-token-match backfill. The base
+    # "communication" entry doesn't catch it because the substring rule
+    # has a 15-char floor; explicit variants are safer than lowering the
+    # floor (which would risk false positives on "communicationprotocols"
+    # and similar). Add common "<modifier> Communication" forms here.
+    'digitalcommunication', 'verbalcommunication', 'writtencommunication',
+    'oralcommunication', 'effectivecommunication',
+    'professionalcommunication', 'interpersonalcommunication',
+    'crossfunctionalcommunication', 'crossfunctionalcollaboration',
+    'stakeholdercommunication',
 }
 
 

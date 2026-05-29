@@ -2116,6 +2116,114 @@ class MarkExpectedGraduationTests(SimpleTestCase):
         self.assertEqual(out['education'][0]['year'], 'Expected June 2026')
 
 
+class StripPipeTitleSummaryTests(SimpleTestCase):
+    """Round-4 reviewer: "Data Scientist | AI Engineer | Data Analyst
+    with applied experience in..." was the lead phrase for 4 rounds
+    despite the prompt rule. Strip deterministically."""
+
+    def test_strips_three_pipe_titles_with_with_connector(self):
+        from types import SimpleNamespace
+        from resumes.services.resume_normalizer import clean_summary_phrasing
+        resume = {'professional_summary':
+                  'Data Scientist | AI Engineer | Data Analyst with applied '
+                  'experience in Machine Learning and Deep Learning.'}
+        job = SimpleNamespace(title='Data Scientist')
+        out = clean_summary_phrasing(resume, job=job)
+        self.assertEqual(
+            out['professional_summary'],
+            'Data Scientist with applied experience in Machine Learning and Deep Learning.',
+        )
+
+    def test_uses_jd_title_when_primary_does_not_match(self):
+        from types import SimpleNamespace
+        from resumes.services.resume_normalizer import clean_summary_phrasing
+        resume = {'professional_summary':
+                  'AI Engineer | Data Scientist | Analyst with applied experience.'}
+        job = SimpleNamespace(title='Data Scientist')
+        out = clean_summary_phrasing(resume, job=job)
+        self.assertEqual(
+            out['professional_summary'],
+            'Data Scientist with applied experience.',
+        )
+
+    def test_falls_back_to_primary_when_no_job(self):
+        from resumes.services.resume_normalizer import clean_summary_phrasing
+        resume = {'professional_summary':
+                  'Data Scientist | AI Engineer | Data Analyst with hands-on Python work.'}
+        out = clean_summary_phrasing(resume, job=None)
+        self.assertEqual(
+            out['professional_summary'],
+            'Data Scientist with hands-on Python work.',
+        )
+
+    def test_leaves_single_title_unchanged(self):
+        from types import SimpleNamespace
+        from resumes.services.resume_normalizer import clean_summary_phrasing
+        resume = {'professional_summary':
+                  'Data Scientist with applied experience in NLP.'}
+        job = SimpleNamespace(title='Data Scientist')
+        out = clean_summary_phrasing(resume, job=job)
+        self.assertEqual(
+            out['professional_summary'],
+            'Data Scientist with applied experience in NLP.',
+        )
+
+    def test_handles_two_pipe_titles(self):
+        from types import SimpleNamespace
+        from resumes.services.resume_normalizer import clean_summary_phrasing
+        resume = {'professional_summary':
+                  'Data Scientist | ML Engineer focused on production pipelines.'}
+        job = SimpleNamespace(title='Data Scientist')
+        out = clean_summary_phrasing(resume, job=job)
+        self.assertEqual(
+            out['professional_summary'],
+            'Data Scientist focused on production pipelines.',
+        )
+
+
+class FilterLanguagesProficiencyTests(SimpleTestCase):
+    """Round-4 reviewer: R3 had 'Arabic (Native), English (Fluent)'.
+    R4 lost the proficiency markers, shipping bare 'English, Arabic'.
+    Enrich from profile_data and reorder by profile sequence."""
+
+    def test_enriches_bare_names_with_profile_proficiency(self):
+        from resumes.services.resume_normalizer import filter_languages
+        resume = {'languages': ['English', 'Arabic']}
+        profile = {'languages': [
+            {'name': 'Arabic', 'proficiency': 'Native'},
+            {'name': 'English', 'proficiency': 'Fluent'},
+        ]}
+        out = filter_languages(resume, profile_data=profile)
+        self.assertEqual(out['languages'], ['Arabic (Native)', 'English (Fluent)'])
+
+    def test_reorders_to_match_profile_sequence(self):
+        """LLM emitted 'English' first but the profile lists Arabic first
+        (the candidate's native language). Profile order wins."""
+        from resumes.services.resume_normalizer import filter_languages
+        resume = {'languages': ['English (Fluent)', 'Arabic (Native)']}
+        profile = {'languages': [
+            {'name': 'Arabic', 'proficiency': 'Native'},
+            {'name': 'English', 'proficiency': 'Fluent'},
+        ]}
+        out = filter_languages(resume, profile_data=profile)
+        self.assertEqual(out['languages'], ['Arabic (Native)', 'English (Fluent)'])
+
+    def test_no_op_without_profile_data(self):
+        from resumes.services.resume_normalizer import filter_languages
+        resume = {'languages': ['Arabic (Native)', 'English (Fluent)']}
+        out = filter_languages(resume, profile_data=None)
+        # Without profile, just sanitize-pass. Both still spoken languages.
+        self.assertEqual(out['languages'], ['Arabic (Native)', 'English (Fluent)'])
+
+    def test_handles_profile_string_entries(self):
+        from resumes.services.resume_normalizer import filter_languages
+        resume = {'languages': ['Arabic']}
+        # Profile stored as strings with parens already embedded.
+        profile = {'languages': ['Arabic (Native)', 'English (Fluent)']}
+        out = filter_languages(resume, profile_data=profile)
+        self.assertEqual(out['languages'], ['Arabic (Native)'])
+
+
 class NormalizeBulletPunctuationTests(SimpleTestCase):
     def test_adds_period_when_at_least_one_bullet_has_one(self):
         resume = {'experience': [{'description': [
