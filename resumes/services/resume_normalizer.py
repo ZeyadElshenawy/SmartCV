@@ -23,6 +23,7 @@ Public API
 from __future__ import annotations
 
 import copy
+import datetime as _dt
 import logging
 import re
 from difflib import SequenceMatcher
@@ -821,6 +822,31 @@ _GENERIC_SKILL_SUFFIXES = (
     'library', 'libraries', 'service', 'services',
     'tooling', 'technology', 'technologies',
 )
+
+_CONJUNCTION_RE = re.compile(r'[&+/]|\b(?:and|or)\b', re.IGNORECASE)
+
+
+def _skill_tokens(name: str) -> set[str]:
+    """Tokenize a skill name into its content tokens (lowercased, alphanumeric).
+
+    Used by the token-subset dedup rule to catch "SQL" inside "Databases & SQL"
+    and "Supervised Learning" inside "Supervised & Unsupervised Learning" -
+    cases _canonical's alphanum-strip flattens into different strings.
+    """
+    if not name:
+        return set()
+    parts = re.split(r'[\s&+/,;]+|\b(?:and|or)\b', name.lower())
+    return {re.sub(r'[^a-z0-9]', '', p) for p in parts if re.sub(r'[^a-z0-9]', '', p)}
+
+
+def _has_conjunction(name: str) -> bool:
+    """True if the name contains an explicit conjunction (&, +, /, 'and', 'or').
+
+    Distinguishes "Supervised & Unsupervised Learning" (conjunction-extended)
+    from "Docker Compose" (product name), so the token-subset dedup rule
+    doesn't false-positive on the latter.
+    """
+    return bool(_CONJUNCTION_RE.search(name or ''))
 # Match a trailing parenthesised acronym, e.g.
 # "Continuous Integration and Continuous Delivery (CI/CD)" → "CI/CD".
 _PARENS_ACRONYM_RE = re.compile(r"\(([A-Za-z][A-Za-z0-9/&._-]{1,15})\)\s*$")
@@ -885,6 +911,23 @@ def _is_near_duplicate_skill(
                 continue
             remainder = long[len(short):]
             if any(remainder == suf for suf in _GENERIC_SKILL_SUFFIXES):
+                return True
+        # (3) Token-subset where the LONGER name contains an explicit
+        # conjunction (&, +, /, "and", "or"). The longer form is
+        # implicitly "shorter + extra terms joined by a conjunction",
+        # which makes the shorter redundant. Catches the cases _canonical
+        # flattens into different strings (alphanum-strip loses the
+        # word boundaries):
+        #   "SQL" + "Databases & SQL" → drop the second-seen
+        #   "Supervised Learning" + "Supervised & Unsupervised Learning"
+        # Safe because connector-less compounds (Docker / Docker Compose,
+        # PostgreSQL / SQL) don't satisfy the conjunction requirement.
+        new_tokens = _skill_tokens(new_name)
+        ec_tokens = _skill_tokens(ec_name)
+        if new_tokens and ec_tokens and new_tokens != ec_tokens:
+            if ec_tokens < new_tokens and _has_conjunction(new_name):
+                return True
+            if new_tokens < ec_tokens and _has_conjunction(ec_name):
                 return True
     return False
 
@@ -1345,6 +1388,8 @@ def normalize_resume(
     # and unsupported YoE claims that survive the LLM-side prompt rule.
     resume = clean_summary_phrasing(resume)
     resume = filter_languages(resume)
+    resume = normalize_experience_dates(resume)
+    resume = mark_expected_graduation(resume)
     return resume
 
 
@@ -1366,4 +1411,106 @@ def filter_languages(resume: dict) -> dict:
         return resume
     from profiles.services.profile_sanitizer import sanitize_languages_field
     resume['languages'] = sanitize_languages_field(langs)
+    return resume
+
+
+# Month name -> 3-letter abbreviation, for date-format consistency.
+_MONTH_LONG_TO_SHORT = {
+    'january': 'Jan', 'february': 'Feb', 'march': 'Mar', 'april': 'Apr',
+    'may': 'May', 'june': 'Jun', 'july': 'Jul', 'august': 'Aug',
+    'september': 'Sep', 'october': 'Oct', 'november': 'Nov', 'december': 'Dec',
+}
+# Recognize either form so we can pull a month index for "expected" detection.
+_MONTH_INDEX = {
+    'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+    'jul': 7, 'aug': 8, 'sep': 9, 'sept': 9, 'oct': 10, 'nov': 11, 'dec': 12,
+    'january': 1, 'february': 2, 'march': 3, 'april': 4, 'june': 6,
+    'july': 7, 'august': 8, 'september': 9, 'october': 10, 'november': 11, 'december': 12,
+}
+_DATE_TOKEN_RE = re.compile(
+    r'\b(January|February|March|April|May|June|July|August|September|October|November|December)\b',
+    re.IGNORECASE,
+)
+_EXPECTED_RE = re.compile(r'\bexpected\b', re.IGNORECASE)
+_YEAR_RE = re.compile(r'\b(20\d{2}|19\d{2})\b')
+
+
+def _shorten_long_month(text: str) -> str:
+    """Replace any full-name month token with its 3-letter form. Other
+    tokens (year, dashes, "Present") are left alone, so "August 2025 -
+    Sep 2025" → "Aug 2025 - Sep 2025"."""
+    if not isinstance(text, str):
+        return text
+
+    def _replace(m):
+        return _MONTH_LONG_TO_SHORT.get(m.group(1).lower(), m.group(1))
+
+    return _DATE_TOKEN_RE.sub(_replace, text)
+
+
+def normalize_experience_dates(resume: dict, _today=None) -> dict:
+    """Make experience date formatting consistent: pick the 3-letter
+    abbreviated month form ("Aug 2025") everywhere, so mixed outputs
+    like "August 2025 - Sep 2025" (observed 2026-05-29 in the
+    Almansour duration) become uniform "Aug 2025 - Sep 2025".
+
+    Touches ``duration``, ``start_date``, ``end_date``. Idempotent on
+    already-abbreviated forms.
+    """
+    if not isinstance(resume, dict):
+        return resume
+    exps = resume.get('experience')
+    if not isinstance(exps, list):
+        return resume
+    for entry in exps:
+        if not isinstance(entry, dict):
+            continue
+        for field in ('duration', 'start_date', 'end_date'):
+            val = entry.get(field)
+            if isinstance(val, str) and val.strip():
+                entry[field] = _shorten_long_month(val)
+    return resume
+
+
+def mark_expected_graduation(resume: dict, _today=None) -> dict:
+    """Prefix education ``year`` with "Expected " when it lies in the
+    future relative to today. A June 2026 graduation written today
+    (May 2026) is a future date — recruiters expect the "Expected"
+    qualifier to disambiguate "this hasn't happened yet" from "I
+    already graduated".
+
+    The check parses month + year out of the ``year`` field (which the
+    CV parser uses for graduation date despite the name). If only a
+    year is present, we compare year-vs-year. If both month and year
+    parse, we use them together.
+
+    Idempotent — if the field already starts with "Expected" (case-
+    insensitive), it's left alone.
+    """
+    if not isinstance(resume, dict):
+        return resume
+    edus = resume.get('education')
+    if not isinstance(edus, list):
+        return resume
+    today = _today or _dt.date.today()
+    for entry in edus:
+        if not isinstance(entry, dict):
+            continue
+        year_str = entry.get('year')
+        if not isinstance(year_str, str) or not year_str.strip():
+            continue
+        if _EXPECTED_RE.search(year_str):
+            continue
+        y_match = _YEAR_RE.search(year_str)
+        if not y_match:
+            continue
+        year = int(y_match.group(1))
+        m_match = _DATE_TOKEN_RE.search(year_str)
+        month_idx = _MONTH_INDEX.get(m_match.group(1).lower()) if m_match else None
+        is_future = (
+            year > today.year
+            or (year == today.year and month_idx is not None and month_idx > today.month)
+        )
+        if is_future:
+            entry['year'] = f"Expected {year_str.strip()}"
     return resume
