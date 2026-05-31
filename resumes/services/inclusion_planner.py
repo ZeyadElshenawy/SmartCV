@@ -57,6 +57,90 @@ _BASE_TECH_CANON = frozenset({
     'vscode', 'pycharm', 'intellij', 'eclipse',
 })
 
+# Fix #5 (audit report §6.5, 2026-05-30) — project depth bonus.
+#
+# Tokens that reliably indicate a non-trivial system was built (backend
+# frameworks, databases, vector stores, LLM SDKs, infra/orchestration,
+# MLOps) — NOT thin frontends or tutorial wrappers. Review periodically;
+# adding a tutorial-common framework here will over-promote shallow
+# projects. The depth bonus is bounded (DEPTH_CAP=4) and only fires on
+# projects that already pass the keep filter, so adding a borderline
+# token has limited blast radius — but it can still tilt rank order
+# unexpectedly. Two dry-runs (improving_resume_output/depth_bonus_dryrun*)
+# validated this exact set across 3 real profile families.
+SYSTEM_STACK_CANON = frozenset({
+    # Backend frameworks
+    'django', 'flask', 'fastapi', 'rails', 'spring', 'springboot',
+    'express', 'nestjs', 'nextjs', 'nuxt',
+    # Databases
+    'postgresql', 'postgres', 'mysql', 'mariadb', 'sqlserver', 'mongodb',
+    'redis', 'cassandra', 'dynamodb', 'sqlite', 'prisma',
+    # Vector / LLM / RAG
+    'pgvector', 'pinecone', 'weaviate', 'chroma', 'qdrant', 'milvus',
+    'langchain', 'llamaindex', 'openai', 'anthropic', 'groq',
+    'huggingface', 'llama', 'rag', 'whisper',
+    # Cloud / infra / distributed
+    'kubernetes', 'k8s', 'docker', 'terraform', 'aws', 'gcp', 'azure',
+    'kafka', 'spark', 'pyspark', 'airflow', 'dbt', 'snowflake', 'databricks',
+    'prometheus', 'grafana', 'githubactions',
+    # ML serving / MLOps
+    'mlflow', 'kubeflow', 'tritoninferenceserver', 'triton',
+    # Mobile / Devices
+    'reactnative', 'flutter', 'swift', 'kotlin',
+    # Auth/Edge — 'firebaseauth' and 'firestore' DELIBERATELY EXCLUDED:
+    # they are sub-components of one Firebase service. Counting all three
+    # of {firebase, firebaseauth, firestore} would let a single service
+    # decision collect +3, defeating the anti-sprawl design of the cap.
+    'supabase', 'firebase',
+    # Systems-y
+    'rust', 'go', 'nodejs',
+})
+
+# Project-depth bonus caps. SYSTEM_STACK_CAP bounds the per-token
+# component; DEPTH_CAP bounds the total (URL + system tokens). Both
+# tuned against the dry-runs so JD relevance (disc * 2 = up to 6+ for
+# a strongly-aligned project) stays dominant over a maxed-out depth
+# bonus (4). See improving_resume_output/depth_bonus_dryrun_v2.py.
+_DEPTH_CAP = 4
+_DEPTH_URL_BONUS = 1
+_DEPTH_SYSTEM_STACK_CAP = 4
+
+
+def _project_depth_bonus(project: dict, jd_skill_canon: set[str]) -> tuple[int, list[str]]:
+    """Compute the additive depth bonus for one project.
+
+    Returns ``(depth, fired_tokens)`` where ``fired_tokens`` is the list
+    of project-tech entries that fed the SYSTEM_STACK part of the score
+    (for log visibility). Tokens already in ``jd_skill_canon`` are
+    excluded because they're already counted by ``disc * 2`` — no
+    double-counting. Tokens in ``_BASE_TECH_CANON`` are excluded by
+    construction (those are the universal-noise filter).
+
+    The bonus is bounded: the per-token sum caps at ``_DEPTH_SYSTEM_STACK_CAP``
+    and the URL+stack total caps at ``_DEPTH_CAP``. A single rich project
+    cannot dominate a moderately JD-aligned project — verified by the
+    dry-runs in ``improving_resume_output/depth_bonus_dryrun_v2.py``.
+    """
+    if not isinstance(project, dict):
+        return 0, []
+    url_part = _DEPTH_URL_BONUS if project.get('url') else 0
+    techs = project.get('technologies') or []
+    if not isinstance(techs, list):
+        techs = []
+    seen: set[str] = set()
+    fired: list[str] = []
+    for t in techs:
+        c = _canonical(str(t or ''))
+        if not c:
+            continue
+        if c in jd_skill_canon or c in _BASE_TECH_CANON:
+            continue
+        if c in SYSTEM_STACK_CANON and c not in seen:
+            seen.add(c)
+            fired.append(str(t))
+    stack_part = min(len(seen), _DEPTH_SYSTEM_STACK_CAP)
+    return min(url_part + stack_part, _DEPTH_CAP), fired
+
 
 @dataclass
 class ExperiencePlan:
@@ -157,25 +241,48 @@ def _skill_chunks_by_source(
 
 def _discriminating_tech_overlap(
     project_techs: Any, jd_skill_canon: set[str]
-) -> int:
+) -> tuple[int, list[str]]:
     """Count how many of a project's declared technologies match a JD
     skill, ignoring "base" tech that doesn't distinguish projects
-    (Python, Jupyter, HTML/CSS/JS, Git, …). A project with ZERO
-    discriminating overlap is almost certainly off-topic for the JD
-    even if its description happens to mention a JD keyword like
-    "preprocessing" or "classification"."""
+    (Python, Jupyter, HTML/CSS/JS, Git, …).
+
+    PR2b Fix A — base-tech filter is now JD-AWARE: a tech token in
+    ``_BASE_TECH_CANON`` is still counted if the JD explicitly listed
+    it. The intuition: "Python" is uninformative for most JDs (every
+    project has it), but if the JD says "Python developer needed",
+    Python becomes a real signal for that JD and a project listing it
+    should not be penalised. The behaviour for non-JD-mentioned base
+    tech (the original ``Python``/``Jupyter``/``Git`` exclusion) is
+    unchanged.
+
+    Returns ``(overlap_count, jd_rescued_tokens)``. ``jd_rescued_tokens``
+    is the list of tech entries that were counted ONLY because they
+    were JD-mentioned (i.e. they would have been filtered out under the
+    pre-Fix-A rule). The caller logs them for diagnostic visibility —
+    see PIPELINE_ANALYSIS §5 / PR2b Step 3 spec.
+    """
     if not isinstance(project_techs, list):
-        return 0
+        return 0, []
     count = 0
+    jd_rescued: list[str] = []
     for t in project_techs:
         if not t:
             continue
-        c = _canonical(str(t))
-        if not c or c in _BASE_TECH_CANON:
+        original = str(t)
+        c = _canonical(original)
+        if not c:
             continue
-        if c in jd_skill_canon:
+        is_base = c in _BASE_TECH_CANON
+        in_jd = c in jd_skill_canon
+        if is_base and in_jd:
             count += 1
-    return count
+            jd_rescued.append(original)
+            continue
+        if is_base:
+            continue  # base tech, JD didn't ask for it → don't count
+        if in_jd:
+            count += 1
+    return count, jd_rescued
 
 
 def _scan_for_jd_skills_in_profile_text(
@@ -403,16 +510,40 @@ def build_inclusion_plan(
         if s
     }
     project_candidates: list[ProjectPlan] = []
-    proj_disc_overlap: dict[int, int] = {}  # for the keep filter below
+    proj_disc_overlap: dict[int, int] = {}  # for the keep filter + tie-break
     for i, proj in enumerate(data.get('projects') or []):
         if not isinstance(proj, dict):
             continue
         sid = f'project:{i}'
         anchor_chunks = sorted(by_source.get(sid, set()))
         retrieval_score = relevance.get(sid, 0)
-        disc = _discriminating_tech_overlap(proj.get('technologies'), jd_skill_canon)
+        disc, jd_rescued = _discriminating_tech_overlap(
+            proj.get('technologies'), jd_skill_canon,
+        )
         proj_disc_overlap[i] = disc
-        combined = max(retrieval_score, disc * 2)
+        # Fix #5 — depth bonus. Capped, additive, never dominant: the
+        # base relevance (disc*2 or retrieval) stays the lead signal.
+        # Reach: see _project_depth_bonus docstring.
+        depth_bonus, depth_tokens = _project_depth_bonus(proj, jd_skill_canon)
+        combined = max(retrieval_score, disc * 2) + depth_bonus
+        # PR2b Fix A — log when a project's score was raised by the
+        # JD-aware base-tech rescue. Helps future debugging trace why a
+        # project was kept (e.g. "Brain Tumor App" surviving on AI Dev
+        # JD because TensorFlow was JD-mentioned, even though TensorFlow
+        # would normally be in _BASE_TECH_CANON).
+        if jd_rescued:
+            logger.info(
+                "inclusion_planner: project %r disc_overlap raised to %d via "
+                "JD-tech %s (was filtered out by _BASE_TECH_CANON)",
+                (proj.get('name') or proj.get('title') or '').strip(),
+                disc, jd_rescued,
+            )
+        if depth_bonus:
+            logger.info(
+                "inclusion_planner: project %r depth_bonus=+%d (url=%s, system_tokens=%s)",
+                (proj.get('name') or proj.get('title') or '').strip(),
+                depth_bonus, 'Y' if proj.get('url') else 'N', depth_tokens,
+            )
         project_candidates.append(ProjectPlan(
             profile_index=i,
             name=(proj.get('name') or proj.get('title') or '').strip(),
@@ -420,7 +551,18 @@ def build_inclusion_plan(
             relevance_score=combined,
             evidence_anchored_chunk_ids=anchor_chunks,
         ))
-    project_candidates.sort(key=lambda p: (-p.relevance_score, p.profile_index))
+    # Sort: relevance desc, then disc desc (Fix #5 tie-breaker — when two
+    # projects tie on the new score, the one more JD-aligned by raw
+    # discriminating tech wins), then profile_index asc (preserve insertion
+    # order on a true tie). The _MIN_PROJECTS top-up below iterates this
+    # list, so it picks up depth-bonused projects in the new order too.
+    project_candidates.sort(
+        key=lambda p: (
+            -p.relevance_score,
+            -proj_disc_overlap.get(p.profile_index, 0),
+            p.profile_index,
+        )
+    )
 
     # Filter: KEEP only projects that pass at least one of:
     #   (a) discriminating tech overlap >= 1 (project's declared tech
@@ -453,9 +595,31 @@ def build_inclusion_plan(
             needed -= 1
 
     # ---- Certifications: keep only matched ones --------------------------
-    matched_cert_canon = {
-        _canonical(s) for s in (matched_must + matched_nice + matched_v1)
-    }
+    # PR2b Fix B — strict canonical equality misses obvious matches like
+    # "NLP" (canon='nlp') vs "Natural Language Processing in TensorFlow"
+    # (canon='naturallanguageprocessingintensorflow'). We now also accept
+    # substring containment in either direction with a 4-char minimum on
+    # the SKILL canon so 2-letter skills like "AI"/"ML" don't trigger
+    # off accidental letter overlap. Keep the (name, canon) pairs so the
+    # log can show which skill matched.
+    matched_skill_pairs: list[tuple[str, str]] = []
+    for raw in (matched_must + matched_nice + matched_v1):
+        c = _canonical(raw)
+        if c:
+            matched_skill_pairs.append((raw, c))
+    matched_cert_canon = {c for _, c in matched_skill_pairs}
+
+    def _fuzzy_skill_match(cert_canon: str) -> tuple[bool, str]:
+        """Return (matched, skill_name). The 4-char minimum on the skill
+        canon side prevents short acronyms from triggering off letter
+        overlap (the "AI" in "Air Conditioning" risk)."""
+        for skill_name, skill_canon in matched_skill_pairs:
+            if len(skill_canon) < 4:
+                continue
+            if skill_canon in cert_canon or cert_canon in skill_canon:
+                return True, skill_name
+        return False, ''
+
     certs_plan: list[str] = []
     for cert in (data.get('certifications') or []):
         if not isinstance(cert, dict):
@@ -463,12 +627,27 @@ def build_inclusion_plan(
         name = (cert.get('name') or '').strip()
         if not name:
             continue
-        # Two acceptance paths: the cert name matches a matched skill,
-        # OR the cert chunk surfaced in per-skill retrieval (which means
-        # SOMETHING JD-relevant lives in its description/issuer).
+        # Three acceptance paths now:
+        #   1. exact canon match (original rule, kept for cheap fast path)
+        #   2. fuzzy substring match (PR2b Fix B)
+        #   3. cert chunk surfaced in per-skill retrieval (original
+        #      fallback — matches when SOMETHING JD-relevant lives in
+        #      the cert's description/issuer text)
         c = _canonical(name)
         cert_sid = name  # indexer uses cert name as source_id
-        if c in matched_cert_canon or relevance.get(cert_sid, 0) > 0:
+        if c in matched_cert_canon:
+            certs_plan.append(name)
+            continue
+        fuzzy_ok, matched_skill = _fuzzy_skill_match(c)
+        if fuzzy_ok:
+            certs_plan.append(name)
+            logger.info(
+                "inclusion_planner: cert %r kept via fuzzy match on "
+                "skill %r (canon overlap)",
+                name, matched_skill,
+            )
+            continue
+        if relevance.get(cert_sid, 0) > 0:
             certs_plan.append(name)
 
     # ---- Volunteer / publications / awards: include iff any chunk from

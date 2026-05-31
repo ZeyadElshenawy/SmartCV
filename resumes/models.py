@@ -16,6 +16,22 @@ class GeneratedResume(models.Model):
     # on legacy rows / when the validator is disabled. Shape:
     # {"passed": bool, "findings": [...], "stats": {...}}
     validation_report = models.JSONField(default=dict, blank=True)
+    # Fix #1 — content stickiness (audit §6.5, 2026-05-30).
+    # Snapshot of the resume content as it was at the user's most recent
+    # export (PDF or DOCX). On the next regeneration for the same JD, the
+    # supervised loop injects this as a "preserve OR improve, do not
+    # regress" reference and deterministically enforces no-metric-loss /
+    # no-bullet-count-drop against it. Empty dict means "no prior export
+    # yet" (the resume regenerates without a stickiness reference, same
+    # as today). Shape when populated:
+    #   {
+    #     "content": <deepcopy of resume.content at export time>,
+    #     "exported_at": "<iso timestamp>",
+    #     "ats_score_at_export": <float>,
+    #     "jd_identity_hash": "<sha256 of normalised job identity>",
+    #   }
+    # The snapshot lives on the RESUME row — never on the master profile.
+    previous_best = models.JSONField(default=dict, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
 

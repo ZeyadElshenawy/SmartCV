@@ -56,6 +56,7 @@
                             <span aria-hidden="true" class="font-display italic text-xs leading-none tabular-nums w-4 flex-shrink-0 opacity-70"
                                   style="font-variation-settings: 'opsz' 24;">01</span>
                             <span>Summary</span>
+                            {% include "components/findings_nav_badge.html" with counts=review_summary.section_counts.summary only %}
                         </a>
                     </li>
                     <li>
@@ -65,6 +66,7 @@
                             <span aria-hidden="true" class="font-display italic text-xs leading-none tabular-nums w-4 flex-shrink-0 opacity-70"
                                   style="font-variation-settings: 'opsz' 24;">02</span>
                             <span>Skills</span>
+                            {% include "components/findings_nav_badge.html" with counts=review_summary.section_counts.skills only %}
                         </a>
                     </li>
                     <li>
@@ -74,6 +76,7 @@
                             <span aria-hidden="true" class="font-display italic text-xs leading-none tabular-nums w-4 flex-shrink-0 opacity-70"
                                   style="font-variation-settings: 'opsz' 24;">03</span>
                             <span>Experience</span>
+                            {% include "components/findings_nav_badge.html" with counts=review_summary.section_counts.experience only %}
                         </a>
                     </li>
                     <li>
@@ -83,6 +86,7 @@
                             <span aria-hidden="true" class="font-display italic text-xs leading-none tabular-nums w-4 flex-shrink-0 opacity-70"
                                   style="font-variation-settings: 'opsz' 24;">04</span>
                             <span>Education</span>
+                            {% include "components/findings_nav_badge.html" with counts=review_summary.section_counts.education only %}
                         </a>
                     </li>
                     <li>
@@ -92,6 +96,7 @@
                             <span aria-hidden="true" class="font-display italic text-xs leading-none tabular-nums w-4 flex-shrink-0 opacity-70"
                                   style="font-variation-settings: 'opsz' 24;">05</span>
                             <span>Projects</span>
+                            {% include "components/findings_nav_badge.html" with counts=review_summary.section_counts.projects only %}
                         </a>
                     </li>
                     <li>
@@ -101,6 +106,7 @@
                             <span aria-hidden="true" class="font-display italic text-xs leading-none tabular-nums w-4 flex-shrink-0 opacity-70"
                                   style="font-variation-settings: 'opsz' 24;">06</span>
                             <span>Certifications</span>
+                            {% include "components/findings_nav_badge.html" with counts=review_summary.section_counts.certifications only %}
                         </a>
                     </li>
                     <li>
@@ -110,6 +116,7 @@
                             <span aria-hidden="true" class="font-display italic text-xs leading-none tabular-nums w-4 flex-shrink-0 opacity-70"
                                   style="font-variation-settings: 'opsz' 24;">07</span>
                             <span>Languages</span>
+                            {% include "components/findings_nav_badge.html" with counts=review_summary.section_counts.languages only %}
                         </a>
                     </li>
                 </ul>
@@ -136,7 +143,32 @@
         <div class="max-w-3xl mx-auto space-y-8">
 
             <header class="space-y-4">
-                {% include "components/section_label.html" with text="Editing resume" tone="brand" %}
+                <div class="flex items-center justify-between gap-3 flex-wrap">
+                    {% include "components/section_label.html" with text="Editing resume" tone="brand" %}
+                    {% with to_fix=review_summary.total_to_fix|default:0 to_confirm=review_summary.total_to_confirm|default:0 to_review=review_summary.total_to_review|default:0 %}
+                    {% if to_fix %}
+                    <span data-review-pill="blocking" class="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full text-[11px] font-medium tabular-nums bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-800/60">
+                        <span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                        {{ to_fix }} to fix{% if to_confirm %} · {{ to_confirm }} to confirm{% endif %}{% if to_review %} · {{ to_review }} to review{% endif %}
+                    </span>
+                    {% elif to_confirm %}
+                    <span data-review-pill="user_input" class="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full text-[11px] font-medium tabular-nums bg-sky-50 dark:bg-sky-950/40 text-sky-800 dark:text-sky-300 ring-1 ring-sky-200/80 dark:ring-sky-800/60">
+                        <span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
+                        {{ to_confirm }} to confirm{% if to_review %} · {{ to_review }} to review{% endif %}
+                    </span>
+                    {% elif to_review %}
+                    <span data-review-pill="advisory" class="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full text-[11px] font-medium tabular-nums bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 ring-1 ring-amber-200/80 dark:ring-amber-800/60">
+                        <span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                        {{ to_review }} to review
+                    </span>
+                    {% elif review_summary and review_summary.tier == "clean" %}
+                    <span data-review-pill="clean" class="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full text-[11px] font-medium tabular-nums bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200/80 dark:ring-emerald-800/60">
+                        <span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        Reviewer passed
+                    </span>
+                    {% endif %}
+                    {% endwith %}
+                </div>
                 <h1 class="font-display text-4xl sm:text-5xl leading-[1.02] tracking-tight text-neutral-900 dark:text-neutral-50"
                     style="font-variation-settings: 'opsz' 80;">
                     {{ resume.gap_analysis.job.title }}
@@ -247,7 +279,10 @@
                 <section id="section-summary" class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
                     <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
                     <div class="p-6 space-y-5">
-                        {% include "components/section_label.html" with text="01 · Summary" tone="brand" %}
+                        <div class="flex items-center justify-between gap-3 flex-wrap">
+                            {% include "components/section_label.html" with text="01 · Summary" tone="brand" %}
+                            {% include "components/findings_chip.html" with annotations=review_summary.annotations section_key="summary" only %}
+                        </div>
                         <div class="space-y-2">
                             <label class="block text-xs font-medium uppercase tracking-[0.14em] text-neutral-600 dark:text-neutral-400">Target job title</label>
                             <input type="text" name="professional_title" value="{{ resume.content.professional_title|default:'' }}"
@@ -275,8 +310,11 @@
                 <section id="section-skills" class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
                     <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
                     <div class="p-6 space-y-3">
-                        <div class="flex items-center justify-between gap-2">
-                            {% include "components/section_label.html" with text="02 · Core skills · ATS keywords" tone="brand" %}
+                        <div class="flex items-center justify-between gap-2 flex-wrap">
+                            <div class="flex items-center gap-2">
+                                {% include "components/section_label.html" with text="02 · Core skills · ATS keywords" tone="brand" %}
+                                {% include "components/findings_chip.html" with annotations=review_summary.annotations section_key="skills" only %}
+                            </div>
                             <button type="button" onclick="regenSection('skills', this)"
                                     class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline disabled:opacity-50 disabled:cursor-wait"
                                     title="Regenerate the skills list using the latest signals + JD">↻ Regenerate</button>
@@ -291,19 +329,23 @@
                 <section id="section-experience" class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
                     <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
                     <div class="p-6 space-y-5">
-                        <div class="flex items-center justify-between gap-2">
-                            {% include "components/section_label.html" with text="03 · Experience" tone="brand" %}
+                        <div class="flex items-center justify-between gap-2 flex-wrap">
+                            <div class="flex items-center gap-2">
+                                {% include "components/section_label.html" with text="03 · Experience" tone="brand" %}
+                                {% include "components/findings_chip.html" with annotations=review_summary.annotations section_key="experience" only %}
+                            </div>
                             <button type="button" onclick="regenSection('experience', this, /*reload=*/ true)"
                                     class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline disabled:opacity-50 disabled:cursor-wait"
                                     title="Rewrite all experience bullets using the latest signals + JD. Saves and reloads.">↻ Regenerate bullets</button>
                         </div>
                         <div id="experience-container" class="space-y-5">
                             {% for exp in resume.content.experience %}
-                            <div class="experience-entry group relative rounded-xl ring-1 ring-neutral-200 dark:ring-neutral-800 bg-neutral-50/60 dark:bg-neutral-950/40 p-5 transition-colors hover:ring-neutral-300 dark:hover:ring-neutral-700">
+                            <div id="anchor-experience-item-{{ forloop.counter0 }}" class="experience-entry group relative rounded-xl ring-1 ring-neutral-200 dark:ring-neutral-800 bg-neutral-50/60 dark:bg-neutral-950/40 p-5 transition-colors hover:ring-neutral-300 dark:hover:ring-neutral-700">
                                 <button type="button" onclick="this.parentElement.remove(); updateLivePreview();" aria-label="Remove entry"
                                         class="absolute -top-2.5 -right-2.5 w-7 h-7 bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-700 rounded-full flex items-center justify-center text-neutral-400 hover:text-red-600 hover:ring-red-200 shadow-sm opacity-0 group-hover:opacity-100 transition-all">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                                 </button>
+                                {% include "components/findings_chip.html" with annotations=review_summary.annotations section_key="experience" item_idx=forloop.counter0 only %}
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                     <div class="space-y-1.5">
                                         <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Job title</label>
@@ -344,7 +386,10 @@
                 <section id="section-education" class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
                     <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
                     <div class="p-6 space-y-5">
-                        {% include "components/section_label.html" with text="04 · Education" tone="brand" %}
+                        <div class="flex items-center justify-between gap-3 flex-wrap">
+                            {% include "components/section_label.html" with text="04 · Education" tone="brand" %}
+                            {% include "components/findings_chip.html" with annotations=review_summary.annotations section_key="education" only %}
+                        </div>
                         <div id="education-container" class="space-y-5">
                             {% for edu in resume.content.education %}
                             <div class="education-entry group relative rounded-xl ring-1 ring-neutral-200 dark:ring-neutral-800 bg-neutral-50/60 dark:bg-neutral-950/40 p-5 transition-colors hover:ring-neutral-300 dark:hover:ring-neutral-700">
@@ -397,19 +442,23 @@
                 <section id="section-projects" class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
                     <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
                     <div class="p-6 space-y-5">
-                        <div class="flex items-center justify-between gap-2">
-                            {% include "components/section_label.html" with text="05 · Projects" tone="brand" %}
+                        <div class="flex items-center justify-between gap-2 flex-wrap">
+                            <div class="flex items-center gap-2">
+                                {% include "components/section_label.html" with text="05 · Projects" tone="brand" %}
+                                {% include "components/findings_chip.html" with annotations=review_summary.annotations section_key="projects" only %}
+                            </div>
                             <button type="button" onclick="regenSection('projects', this, /*reload=*/ true)"
                                     class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline disabled:opacity-50 disabled:cursor-wait"
                                     title="Rewrite all project bullets using the latest signals + JD. Saves and reloads.">↻ Regenerate bullets</button>
                         </div>
                         <div id="projects-container" class="space-y-5">
                             {% for proj in resume.content.projects %}
-                            <div class="project-entry group relative rounded-xl ring-1 ring-neutral-200 dark:ring-neutral-800 bg-neutral-50/60 dark:bg-neutral-950/40 p-5 transition-colors hover:ring-neutral-300 dark:hover:ring-neutral-700">
+                            <div id="anchor-projects-item-{{ forloop.counter0 }}" class="project-entry group relative rounded-xl ring-1 ring-neutral-200 dark:ring-neutral-800 bg-neutral-50/60 dark:bg-neutral-950/40 p-5 transition-colors hover:ring-neutral-300 dark:hover:ring-neutral-700">
                                 <button type="button" onclick="this.parentElement.remove(); updateLivePreview();" aria-label="Remove entry"
                                         class="absolute -top-2.5 -right-2.5 w-7 h-7 bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-700 rounded-full flex items-center justify-center text-neutral-400 hover:text-red-600 hover:ring-red-200 shadow-sm opacity-0 group-hover:opacity-100 transition-all">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                                 </button>
+                                {% include "components/findings_chip.html" with annotations=review_summary.annotations section_key="projects" item_idx=forloop.counter0 only %}
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div class="space-y-1.5">
                                         <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Project name</label>
@@ -442,7 +491,10 @@
                 <section id="section-certifications" class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
                     <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
                     <div class="p-6 space-y-5">
-                        {% include "components/section_label.html" with text="06 · Certifications" tone="brand" %}
+                        <div class="flex items-center justify-between gap-3 flex-wrap">
+                            {% include "components/section_label.html" with text="06 · Certifications" tone="brand" %}
+                            {% include "components/findings_chip.html" with annotations=review_summary.annotations section_key="certifications" only %}
+                        </div>
                         <div id="certifications-container" class="space-y-5">
                             {% for cert in resume.content.certifications %}
                             <div class="cert-entry group relative rounded-xl ring-1 ring-neutral-200 dark:ring-neutral-800 bg-neutral-50/60 dark:bg-neutral-950/40 p-5 transition-colors hover:ring-neutral-300 dark:hover:ring-neutral-700">
@@ -486,7 +538,10 @@
                 <section id="section-languages" class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
                     <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-brand-500"></div>
                     <div class="p-6 space-y-3">
-                        {% include "components/section_label.html" with text="07 · Languages" tone="brand" %}
+                        <div class="flex items-center justify-between gap-3 flex-wrap">
+                            {% include "components/section_label.html" with text="07 · Languages" tone="brand" %}
+                            {% include "components/findings_chip.html" with annotations=review_summary.annotations section_key="languages" only %}
+                        </div>
                         <textarea name="languages" rows="2"
                                   class="block w-full px-4 py-3 text-sm rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none transition-[box-shadow] duration-150 font-mono leading-relaxed">{% for lang in resume.content.languages %}{{ lang }}{% if not forloop.last %}, {% endif %}{% endfor %}</textarea>
                         <p class="text-xs text-neutral-500 dark:text-neutral-400">Comma-separated (e.g., English (Native), Spanish (Fluent)).</p>

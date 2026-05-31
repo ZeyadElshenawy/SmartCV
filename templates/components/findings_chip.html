@@ -1,0 +1,83 @@
+{% comment %}
+Single source of truth for the inline finding chip.
+
+Pass `annotations` (a list), `section_key` (str), and either nothing
+(section-level chips) or `item_idx` (int, item-level chips).
+
+ALWAYS include with the `only` keyword — gives the partial an isolated
+context, which sidesteps the test-client signal-copy stack growth that
+broke the prior pass. See also: the recursion-root-cause report.
+
+POPOVER POSITIONING (2026-05-31 fix — three symptoms, one cause):
+The chip lives inside `<section class="… overflow-hidden …">`, so any
+absolutely-positioned descendant gets clipped at the section's bounds.
+That single ancestor clip produced:
+  C1  popover off the left edge → left half cut off
+  C2  popover overlapping the textarea below → bottom line cut off
+  C3  popover squeezed into a one-word-per-line strip
+Fix: teleport the popover to <body> with `<template x-teleport>`,
+position it with `position: fixed` + computed top/left from the
+trigger's getBoundingClientRect(), clamp to viewport (8px padding),
+flip above if it would overflow the bottom, and give it a stable
+width band (min 260px / w 320px / max 360px). Z-index 120 sits above
+the form controls (which top out at z-30 via focus rings).
+
+The chip's color treatment is keyed on `ann.bucket`, not `ann.tier`:
+  - bucket=auto_fix + tier=blocking → red "to fix"
+  - bucket=user_input                → sky "Only you can verify these"
+  - otherwise                        → amber "worth a second look"
+Treatment unchanged — only geometry was wrong.
+{% endcomment %}
+{% if annotations and section_key %}
+{% for ann in annotations %}
+{% if ann.section == section_key %}
+{% if item_idx is None and ann.anchor_kind == "section" %}
+<span class="relative inline-block" x-data="{
+  open: false,
+  top: 0,
+  left: 0,
+  toggle() {
+    this.open = !this.open;
+    if (this.open) this.$nextTick(() => this.reposition());
+  },
+  reposition() {
+    const trig = this.$refs.trigger; const pop = this.$refs.pop;
+    if (!trig || !pop) return;
+    const r = trig.getBoundingClientRect();
+    const pw = pop.offsetWidth || 320; const ph = pop.offsetHeight || 180;
+    const pad = 8;
+    let left = r.left;
+    if (left + pw > window.innerWidth - pad) left = window.innerWidth - pw - pad;
+    if (left < pad) left = pad;
+    let top = r.bottom + 6;
+    if (top + ph > window.innerHeight - pad) top = Math.max(pad, r.top - ph - 6);
+    this.top = top; this.left = left;
+  }
+}" @click.away="open = false" @keydown.escape.window="open = false" @resize.window.debounce.150ms="if (open) reposition()" @scroll.window.passive="if (open) reposition()" data-finding-anchor="{{ ann.anchor_target }}" data-finding-tier="{{ ann.tier }}" data-finding-bucket="{{ ann.bucket }}" data-finding-kind="{{ ann.anchor_kind }}"><button type="button" x-ref="trigger" @click.stop="toggle()" aria-haspopup="dialog" :aria-expanded="open ? 'true' : 'false'" class="inline-flex items-center gap-1.5 h-6 px-2 rounded-md text-[11px] font-medium tabular-nums {% if ann.bucket == 'user_input' %}bg-sky-50 dark:bg-sky-950/40 text-sky-800 dark:text-sky-300 ring-1 ring-sky-200/80 dark:ring-sky-800/60 hover:bg-sky-100{% elif ann.bucket == 'auto_fix' and ann.tier == 'blocking' %}bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-800/60 hover:bg-red-100{% else %}bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 ring-1 ring-amber-200/80 dark:ring-amber-800/60 hover:bg-amber-100{% endif %}"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full {% if ann.bucket == 'user_input' %}bg-sky-500{% elif ann.bucket == 'auto_fix' and ann.tier == 'blocking' %}bg-red-500{% else %}bg-amber-500{% endif %}"></span><span>{{ ann.count }}</span><span class="opacity-70">{% if ann.bucket == 'user_input' %}to confirm{% elif ann.bucket == 'auto_fix' and ann.tier == 'blocking' %}to fix{% else %}to review{% endif %}</span></button><template x-teleport="body"><div x-ref="pop" x-show="open" x-cloak role="dialog" :style="`top: ${top}px; left: ${left}px;`" class="fixed z-[120] min-w-[260px] w-[320px] max-w-[min(360px,calc(100vw-1rem))] rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 shadow-[0_12px_32px_-8px_rgba(15,23,42,0.25)] p-4 space-y-2.5"><p class="text-[11px] uppercase tracking-[0.14em] font-medium {% if ann.bucket == 'user_input' %}text-sky-700 dark:text-sky-300{% elif ann.bucket == 'auto_fix' and ann.tier == 'blocking' %}text-red-700 dark:text-red-300{% else %}text-amber-700 dark:text-amber-300{% endif %}">{% if ann.bucket == 'user_input' %}Only you can verify these{% elif ann.bucket == 'auto_fix' and ann.tier == 'blocking' %}{{ ann.tier|title }} — on the whole section{% else %}Worth a second look — on the whole section{% endif %}</p><ul class="space-y-2 text-sm leading-snug">{% for item in ann.items|slice:":3" %}<li class="break-words"><strong class="font-medium">{{ item.label }}</strong>{% if item.detail %} <span class="text-neutral-600 dark:text-neutral-400">— {{ item.detail }}</span>{% endif %}{% if item.token %} <code class="ml-1 px-1 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-[11px] font-mono">{{ item.token }}</code>{% endif %}</li>{% endfor %}{% if ann.count > 3 %}<li class="text-neutral-500 dark:text-neutral-400 italic">and {{ ann.count|add:"-3" }} more</li>{% endif %}</ul></div></template></span>
+{% elif item_idx is not None and ann.anchor_kind == "item" and ann.item_idx == item_idx %}
+<span class="relative inline-block" x-data="{
+  open: false,
+  top: 0,
+  left: 0,
+  toggle() {
+    this.open = !this.open;
+    if (this.open) this.$nextTick(() => this.reposition());
+  },
+  reposition() {
+    const trig = this.$refs.trigger; const pop = this.$refs.pop;
+    if (!trig || !pop) return;
+    const r = trig.getBoundingClientRect();
+    const pw = pop.offsetWidth || 320; const ph = pop.offsetHeight || 180;
+    const pad = 8;
+    let left = r.left;
+    if (left + pw > window.innerWidth - pad) left = window.innerWidth - pw - pad;
+    if (left < pad) left = pad;
+    let top = r.bottom + 6;
+    if (top + ph > window.innerHeight - pad) top = Math.max(pad, r.top - ph - 6);
+    this.top = top; this.left = left;
+  }
+}" @click.away="open = false" @keydown.escape.window="open = false" @resize.window.debounce.150ms="if (open) reposition()" @scroll.window.passive="if (open) reposition()" data-finding-anchor="{{ ann.anchor_target }}" data-finding-tier="{{ ann.tier }}" data-finding-bucket="{{ ann.bucket }}" data-finding-kind="{{ ann.anchor_kind }}"><button type="button" x-ref="trigger" @click.stop="toggle()" aria-haspopup="dialog" :aria-expanded="open ? 'true' : 'false'" class="inline-flex items-center gap-1.5 h-6 px-2 rounded-md text-[11px] font-medium tabular-nums {% if ann.bucket == 'user_input' %}bg-sky-50 dark:bg-sky-950/40 text-sky-800 dark:text-sky-300 ring-1 ring-sky-200/80 dark:ring-sky-800/60 hover:bg-sky-100{% elif ann.bucket == 'auto_fix' and ann.tier == 'blocking' %}bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-800/60 hover:bg-red-100{% else %}bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 ring-1 ring-amber-200/80 dark:ring-amber-800/60 hover:bg-amber-100{% endif %}"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full {% if ann.bucket == 'user_input' %}bg-sky-500{% elif ann.bucket == 'auto_fix' and ann.tier == 'blocking' %}bg-red-500{% else %}bg-amber-500{% endif %}"></span><span>{{ ann.count }}</span><span class="opacity-70">{% if ann.bucket == 'user_input' %}to confirm{% elif ann.bucket == 'auto_fix' and ann.tier == 'blocking' %}to fix{% else %}to review{% endif %}</span></button><template x-teleport="body"><div x-ref="pop" x-show="open" x-cloak role="dialog" :style="`top: ${top}px; left: ${left}px;`" class="fixed z-[120] min-w-[260px] w-[320px] max-w-[min(360px,calc(100vw-1rem))] rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 shadow-[0_12px_32px_-8px_rgba(15,23,42,0.25)] p-4 space-y-2.5"><p class="text-[11px] uppercase tracking-[0.14em] font-medium {% if ann.bucket == 'user_input' %}text-sky-700 dark:text-sky-300{% elif ann.bucket == 'auto_fix' and ann.tier == 'blocking' %}text-red-700 dark:text-red-300{% else %}text-amber-700 dark:text-amber-300{% endif %}">{% if ann.bucket == 'user_input' %}Only you can verify these{% elif ann.bucket == 'auto_fix' and ann.tier == 'blocking' %}{{ ann.tier|title }} — on this {% if ann.section == "experience" %}role{% elif ann.section == "projects" %}project{% else %}item{% endif %}{% else %}Worth a second look — on this {% if ann.section == "experience" %}role{% elif ann.section == "projects" %}project{% else %}item{% endif %}{% endif %}</p><ul class="space-y-2 text-sm leading-snug">{% for item in ann.items|slice:":3" %}<li class="break-words"><strong class="font-medium">{{ item.label }}</strong>{% if item.detail %} <span class="text-neutral-600 dark:text-neutral-400">— {{ item.detail }}</span>{% endif %}{% if item.token %} <code class="ml-1 px-1 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-[11px] font-mono">{{ item.token }}</code>{% endif %}</li>{% endfor %}{% if ann.count > 3 %}<li class="text-neutral-500 dark:text-neutral-400 italic">and {{ ann.count|add:"-3" }} more</li>{% endif %}</ul></div></template></span>
+{% endif %}
+{% endif %}
+{% endfor %}
+{% endif %}

@@ -50,6 +50,40 @@ class TestTierABulletRules(SimpleTestCase):
         report = validate_resume(resume)
         self.assertFalse(_has_finding(report, "A3_duty_opener"))
 
+    def test_A3_duty_opener_flags_contributed_to(self):
+        """Achievement-orientation guardrail (2026-05-31): generic weak
+        openers that hide the verb of action are caught by A3 too."""
+        resume = _one_bullet("Contributed to the digital transformation project by building a data pipeline for the SAP team.")
+        report = validate_resume(resume)
+        self.assertTrue(_has_finding(report, "A3_duty_opener"))
+
+    def test_A3_duty_opener_flags_engaged_in(self):
+        resume = _one_bullet("Engaged in a customer-segmentation analysis using k-means clustering and PCA.")
+        report = validate_resume(resume)
+        self.assertTrue(_has_finding(report, "A3_duty_opener"))
+
+    def test_A3_duty_opener_flags_took_part_in(self):
+        resume = _one_bullet("Took part in the migration of the analytics warehouse to BigQuery.")
+        report = validate_resume(resume)
+        self.assertTrue(_has_finding(report, "A3_duty_opener"))
+
+    def test_A3_duty_opener_flags_involved_in(self):
+        resume = _one_bullet("Involved in shipping the new procurement dashboard for the SAP team.")
+        report = validate_resume(resume)
+        self.assertTrue(_has_finding(report, "A3_duty_opener"))
+
+    def test_A3_duty_opener_does_not_flag_applied_or_developed(self):
+        """`Applied` / `Developed and evaluated` are legitimate action verbs
+        when followed by a real outcome — the prompt steers away from
+        hollow uses, but the validator must NOT flag them mechanically
+        and produce false positives."""
+        resume = _one_bullet("Applied k-means clustering to 50k customer records, surfacing 4 actionable segments.")
+        report = validate_resume(resume)
+        self.assertFalse(_has_finding(report, "A3_duty_opener"))
+        resume = _one_bullet("Developed and evaluated a churn-prediction model on 20k accounts, achieving 0.82 ROC-AUC.")
+        report = validate_resume(resume)
+        self.assertFalse(_has_finding(report, "A3_duty_opener"))
+
     def test_A5_length_short_flags(self):
         resume = _one_bullet("Did stuff.")
         report = validate_resume(resume)

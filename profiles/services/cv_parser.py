@@ -942,8 +942,49 @@ _SKILL_BLOCKLIST_LOWER = frozenset({
     "mother tongue", "cross",  # "Cross-functional" gets split → "Cross"
 })
 
-# Short-token allowlist: 2-char skills that are real (otherwise filter drops them).
-_SKILL_SHORT_ALLOWLIST = frozenset({"go", "r", "c", "ai", "ml", "qa"})
+# Short-token allowlist — real skills whose names are too short for the
+# default "length-≥-4 unless ALL-CAPS / has-punct" heuristic to admit.
+# This list is the explicit "yes this 1–3 char string IS a skill" override
+# and MUST be consulted BEFORE any length-based rejection (otherwise
+# single-character entries like "r" / "c" are unreachable).
+#
+# Entries (case-insensitive, stored lowercase):
+#   PR1.2 additions (silent-data-loss audit, May 2026):
+#     vue — Vue.js shorthand; pre-PR1.2 every frontend candidate's "Vue"
+#           was silently dropped at parse time (3 chars, mixed case →
+#           failed acronym-shape escape, not in allowlist).
+#     js  — JavaScript shorthand for the lowercase form. Uppercase "JS"
+#           already passes via the acronym-shape escape; lowercase "js"
+#           did not. Reaches the canonicalizer which expands to JavaScript.
+#     ts  — TypeScript shorthand, same lowercase rationale.
+#     ux  — UX design (lowercase variant).
+#     ui  — UI design (lowercase variant).
+#     ar  — Augmented Reality (lowercase variant).
+#     vr  — Virtual Reality (lowercase variant).
+#   Not added in PR1.2 (rationale for future maintainers):
+#     ci / cd — almost always seen as the "CI/CD" compound, which the
+#               canonicalizer handles; bare "ci" / "cd" is more often
+#               noise (initials, file extension) than a real skill.
+#     bi      — "Power BI" is the real skill and canonicalises as a
+#               compound; bare "BI" is too generic.
+#     db / se — generic enough to be noise.
+#   Pre-existing entries (kept):
+#     go  — Go (programming language)
+#     r   — R (statistical language); needs the ordering fix below to
+#           actually be reachable (was blocked by len<2 pre-PR1.2)
+#     c   — C (programming language)
+#     ai, ml, qa — common technical acronyms
+_SKILL_SHORT_ALLOWLIST = frozenset({
+    "go", "r", "c", "ai", "ml", "qa",
+    # PR1.2 additions:
+    "vue", "js", "ts", "ux", "ui", "ar", "vr",
+    # ".NET" starts with a dot, so the leading-non-alpha rejection
+    # below would drop it. The allowlist runs first (PR1.2 ordering
+    # fix), so listing it here is the surgical workaround that doesn't
+    # require loosening the leading-punct guard (which still legitimately
+    # blocks "(React)", "1Password", etc.).
+    ".net",
+})
 
 
 def _is_plausible_skill_name(name: str) -> bool:
@@ -951,34 +992,100 @@ def _is_plausible_skill_name(name: str) -> bool:
 
     Tuned against the parser_eval fixtures: each rejected pattern was an
     actual hit in benchmark results (2026-04-25 + 2026-05-06).
+
+    Order of checks matters: the allowlist override runs BEFORE any
+    length-based rejection so single-character allowlisted entries
+    (e.g. "R" / "C") are reachable. Pre-PR1.2 the ``len(s) < 2`` guard
+    ran first and silently dropped them.
+
+    Rejections are INFO-logged with the rejection reason so future
+    debugging of "user says skill X is missing" doesn't require
+    re-running the user through the pipeline. INFO (not WARNING) because
+    rejecting real noise is the function's job — alarm-fatigue would
+    obscure the rare real-skill case.
     """
     if not name:
+        logger.info(
+            "cv_parser._is_plausible_skill_name rejected: %r (reason=%s)",
+            name, 'empty',
+        )
         return False
     s = name.strip()
+
+    # PR1.2 — allowlist override runs FIRST. Without this, single-char
+    # entries ("R" / "C") fail the len<2 check below before the allowlist
+    # is consulted; pre-PR1.2 the R language was silently dropped from
+    # every data scientist's parsed skills list.
+    if s.lower() in _SKILL_SHORT_ALLOWLIST:
+        return True
+
     if len(s) < 2 or len(s) > 40:
+        logger.info(
+            "cv_parser._is_plausible_skill_name rejected: %r (reason=%s)",
+            name, 'too_short' if len(s) < 2 else 'too_long',
+        )
         return False
     if s.endswith('.') or s.endswith(':'):   # sentence / group-label fragment
+        logger.info(
+            "cv_parser._is_plausible_skill_name rejected: %r (reason=%s)",
+            name, 'terminal_punctuation',
+        )
         return False
     if not s[0].isalpha():                   # "(React)" / digit-leading noise
+        logger.info(
+            "cv_parser._is_plausible_skill_name rejected: %r (reason=%s)",
+            name, 'non_alpha_start',
+        )
         return False
     if len(s.split()) > 4:                   # bullet body, not a skill
+        logger.info(
+            "cv_parser._is_plausible_skill_name rejected: %r (reason=%s)",
+            name, 'too_many_words',
+        )
         return False
     if any(ch in s for ch in '[]{}'):        # markdown / link fragments ("Ghany]")
+        logger.info(
+            "cv_parser._is_plausible_skill_name rejected: %r (reason=%s)",
+            name, 'bracket_chars',
+        )
         return False
     low = s.lower()
     if any(token in low for token in _SKILL_NOISE_SUBSTRINGS):
+        logger.info(
+            "cv_parser._is_plausible_skill_name rejected: %r (reason=%s)",
+            name, 'noise_substring',
+        )
         return False
     if _SKILL_PERCENT_RE.search(s):          # "increased sales by 40%"
+        logger.info(
+            "cv_parser._is_plausible_skill_name rejected: %r (reason=%s)",
+            name, 'percent_phrase',
+        )
         return False
     if low in _SKILL_BLOCKLIST_LOWER:        # section headers, language proficiency words
+        logger.info(
+            "cv_parser._is_plausible_skill_name rejected: %r (reason=%s)",
+            name, 'blocklist',
+        )
         return False
     # All-caps multi-word strings are almost always section headers, not skills.
     if len(s.split()) > 1 and s.isupper():
+        logger.info(
+            "cv_parser._is_plausible_skill_name rejected: %r (reason=%s)",
+            name, 'allcaps_multiword',
+        )
         return False
-    # Short tokens (2-3 chars) are usually name/word fragments unless allowlisted.
-    if len(s) <= 3 and low not in _SKILL_SHORT_ALLOWLIST:
-        # Allow if it's a known acronym shape (all caps, with dots, etc.)
+    # Short tokens (2-3 chars) are usually name/word fragments. The
+    # allowlist override above already let through everything we
+    # explicitly know; this is the fallback for acronym-shaped tokens
+    # (all caps, has dot/plus/hash). Anything 2-3 chars that's neither
+    # allowlisted nor acronym-shaped is noise.
+    if len(s) <= 3:
         if not (s.isupper() or '.' in s or '+' in s or '#' in s):
+            logger.info(
+                "cv_parser._is_plausible_skill_name rejected: %r (reason=%s)",
+                name, 'short_non_acronym',
+            )
             return False
     return True
 

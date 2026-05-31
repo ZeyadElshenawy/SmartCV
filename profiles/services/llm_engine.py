@@ -2,7 +2,35 @@ import os
 import logging
 from langchain_groq import ChatGroq
 
+from profiles.services.tpm_throttle import reserve_for_invoke
+
 logger = logging.getLogger(__name__)
+
+
+class _ThrottledLLM:
+    """Wraps a LangChain Runnable so `.invoke()` consults the TPM
+    throttle first. Attribute access on anything other than `invoke`
+    passes through to the inner object, preserving e.g.
+    `with_structured_output()` chains.
+
+    The wrap is the single chokepoint where every Groq call in the
+    process goes through one rolling 60s budget — supervised regen,
+    role classifier, supervisor review, cover-letter helpers, all of
+    them share one window. That's what makes the 30k-TPM ceiling
+    actually respected instead of just hoped at."""
+
+    __slots__ = ('_inner', '_max_output_tokens')
+
+    def __init__(self, inner, max_output_tokens: int):
+        self._inner = inner
+        self._max_output_tokens = int(max_output_tokens or 0)
+
+    def __getattr__(self, name):
+        return getattr(self._inner, name)
+
+    def invoke(self, input_, *args, **kwargs):
+        reserve_for_invoke(input_, self._max_output_tokens)
+        return self._inner.invoke(input_, *args, **kwargs)
 
 # ---------------------------------------------------------------------------
 # Per-task credential resolution.
@@ -38,13 +66,16 @@ def get_llm(temperature: float = 0.3, max_tokens: int = 4096, task=None) -> Chat
     aren't set.
     """
     api_key, model = _resolve_credentials(task)
-    return ChatGroq(
-        model=model,
-        api_key=api_key,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        max_retries=1,
-        timeout=20,
+    return _ThrottledLLM(
+        ChatGroq(
+            model=model,
+            api_key=api_key,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            max_retries=1,
+            timeout=20,
+        ),
+        max_output_tokens=max_tokens,
     )
 
 
@@ -65,7 +96,10 @@ def get_structured_llm(pydantic_schema, temperature: float = 0.1, max_tokens: in
         max_retries=1,
         timeout=20,
     )
-    return llm.with_structured_output(pydantic_schema)
+    return _ThrottledLLM(
+        llm.with_structured_output(pydantic_schema),
+        max_output_tokens=max_tokens,
+    )
 
 
 # ---------------------------------------------------------------------------

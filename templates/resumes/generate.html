@@ -87,7 +87,16 @@ surfaces a real error with retry instead of an infinite spinner.
             const timeoutMs = {{ gen_timeout_ms|default:"0" }} || op.timeoutMs || 60000;
             const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-            fetch(`{% url 'trigger_resume_api' job.id %}`, {
+            // Path A (Generate button): trigger_url unset, POSTs to
+            // trigger_resume_api (job-keyed, creates a new row), redirects
+            // to /resumes/edit/<new_id>/.
+            // Path B regen (audit §6.5 fix #3, 2026-05-29): trigger_url +
+            // redirect_url supplied by regenerate_resume_view so the
+            // loader POSTs to trigger_resume_regen_api (resume-keyed,
+            // updates same row) and lands back on the same edit page.
+            const triggerUrl = "{{ trigger_url|default:'' }}" || "{% url 'trigger_resume_api' job.id %}";
+            const fixedRedirectUrl = "{{ redirect_url|default:'' }}";
+            fetch(triggerUrl, {
                 method: 'POST',
                 headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json'},
                 signal: controller.signal,
@@ -102,7 +111,7 @@ surfaces a real error with retry instead of an infinite spinner.
                     clearTimers();
                     liNodes.forEach((li, i) => _renderStep(li, 'done', op.steps[i].label));
                     setTimeout(() => {
-                        window.location.href = `/resumes/edit/${data.resume_id}/`;
+                        window.location.href = fixedRedirectUrl || `/resumes/edit/${data.resume_id}/`;
                     }, 400);
                 } else {
                     throw new Error(data.error || 'Unknown error');

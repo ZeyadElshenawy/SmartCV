@@ -3,7 +3,11 @@ from .models import GeneratedResume
 from jobs.models import Job
 from profiles.models import UserProfile
 from analysis.models import GapAnalysis
-from .services.resume_generator import generate_resume_content_supervised, calculate_ats_score
+from .services.resume_generator import (
+    generate_resume_content_supervised,
+    calculate_ats_score,
+    load_previous_best_for,
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -18,7 +22,15 @@ def generate_resume_task(job_id, user_id):
         profile = UserProfile.objects.get(user_id=user_id)
         gap_analysis = GapAnalysis.objects.get(job=job)
         
-        resume_content = generate_resume_content_supervised(profile, job, gap_analysis)
+        # Fix #1 — look up the most recent previous_best snapshot for
+        # this (profile, job). Path A creates a NEW GeneratedResume row
+        # each call, so the snapshot lives on the PRIOR row; load_…
+        # walks rows for this gap_analysis and returns the latest. None
+        # when no prior export exists.
+        previous_best = load_previous_best_for(gap_analysis)
+        resume_content = generate_resume_content_supervised(
+            profile, job, gap_analysis, previous_best=previous_best,
+        )
         ats_score = calculate_ats_score(resume_content, job.extracted_skills)
 
         resume = GeneratedResume.objects.create(

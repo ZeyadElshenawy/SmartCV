@@ -37,6 +37,10 @@ from .base import JobRecord, ProgressReporter
 from .glassdoor import scrape_glassdoor
 from .indeed import scrape_indeed
 from .linkedin import scrape_linkedin
+from .linkedin_selenium import (
+    credentials_configured as linkedin_credentials_configured,
+    scrape_linkedin_selenium,
+)
 
 
 logger = logging.getLogger("jobs.scraping.runner")
@@ -210,15 +214,36 @@ def run(scrape_job_id):
 
                 try:
                     if source == "linkedin":
-                        coro = scraper(
-                            keyword,
-                            loc,
-                            experience_levels=exp_levels,
-                            workplace_types=workplace_types,
-                            date_posted=date_posted,
-                            max_jobs=max_jobs,
-                            reporter=reporter,
-                        )
+                        # Prefer the credential-based Selenium path when
+                        # LINKEDIN_EMAIL / LINKEDIN_PASSWORD are configured —
+                        # same auth pattern the profile scraper uses, no
+                        # manual CLI-login step required. Falls back to the
+                        # Playwright + saved-session path otherwise.
+                        if linkedin_credentials_configured():
+                            logger.info(
+                                "Using Selenium-credential LinkedIn scraper "
+                                "(LINKEDIN_EMAIL configured)."
+                            )
+                            records = scrape_linkedin_selenium(
+                                keyword,
+                                loc,
+                                experience_levels=exp_levels,
+                                workplace_types=workplace_types,
+                                date_posted=date_posted,
+                                max_jobs=max_jobs,
+                                reporter=reporter,
+                            )
+                        else:
+                            coro = scraper(
+                                keyword,
+                                loc,
+                                experience_levels=exp_levels,
+                                workplace_types=workplace_types,
+                                date_posted=date_posted,
+                                max_jobs=max_jobs,
+                                reporter=reporter,
+                            )
+                            records = asyncio.run(coro)
                     elif source == "indeed":
                         coro = scraper(
                             keyword,
@@ -227,6 +252,7 @@ def run(scrape_job_id):
                             max_jobs=max_jobs,
                             reporter=reporter,
                         )
+                        records = asyncio.run(coro)
                     else:
                         coro = scraper(
                             keyword,
@@ -234,8 +260,7 @@ def run(scrape_job_id):
                             max_jobs=max_jobs,
                             reporter=reporter,
                         )
-
-                    records = asyncio.run(coro)
+                        records = asyncio.run(coro)
                 except Exception as exc:
                     any_failure = True
                     logger.exception("Scraper %s failed for %s", source, loc)

@@ -529,10 +529,33 @@ on profile.data_content['has_seen_tour']).
 
                 async cancelScan() {
                     if (!this.scrapeJobId) return;
-                    await fetch(`/jobs/recommend/scrape/${this.scrapeJobId}/cancel/`, {
-                        method: 'POST',
-                        headers: { 'X-CSRFToken': csrfToken },
-                    });
+                    // Immediate UI feedback — without this the user clicks
+                    // Cancel and nothing visible happens for 4s until the
+                    // next poll comes back. The runner is cooperative and
+                    // may take 10-30s to actually stop on the backend side
+                    // (it polls cancel_requested between sources/locations
+                    // and during scroll loops), but the UI shouldn't wait.
+                    this.message = 'Cancelling…';
+                    this.currentStep = 'Cancel requested';
+                    if (this.pollHandle) {
+                        clearTimeout(this.pollHandle);
+                        this.pollHandle = null;
+                    }
+                    try {
+                        await fetch(`/jobs/recommend/scrape/${this.scrapeJobId}/cancel/`, {
+                            method: 'POST',
+                            headers: { 'X-CSRFToken': csrfToken },
+                        });
+                    } catch (e) {
+                        /* network errors fall through to local-stop below */
+                    }
+                    // Stop the scanning view locally; backend will settle
+                    // to STATUS_CANCELLED on its next checkpoint poll.
+                    this.scanning = false;
+                    this.scrapeJobId = null;
+                    this.progressPct = 0;
+                    this.currentStep = '';
+                    this.message = 'Scan cancelled.';
                 },
 
                 async saveRec(recId, evt) {
