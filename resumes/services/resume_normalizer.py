@@ -1444,6 +1444,11 @@ def normalize_resume(
     resume = clean_summary_phrasing(resume, job=job)
     resume = filter_languages(resume, profile_data=profile_data)
     resume = normalize_experience_dates(resume)
+    # Universal resume convention: most-recent role first. Runs AFTER
+    # date-format normalization so the parser sees consistent month
+    # tokens (though the parser also tolerates the long forms directly).
+    # General rule — no profile-, role-, or company-specific logic.
+    resume = sort_experience_reverse_chronological(resume)
     resume = mark_expected_graduation(resume)
     return resume
 
@@ -1606,6 +1611,174 @@ def normalize_experience_dates(resume: dict, _today=None) -> dict:
             val = entry.get(field)
             if isinstance(val, str) and val.strip():
                 entry[field] = _shorten_long_month(val)
+    return resume
+
+
+# ---------------------------------------------------------------------------
+# Experience ordering — reverse-chronological by end date (universal resume
+# convention). General rule for all users; nothing profile-specific.
+# ---------------------------------------------------------------------------
+
+_PRESENT_RE = re.compile(
+    r'\b(present|current|currently|ongoing|now|to\s+date|till\s+now)\b',
+    re.IGNORECASE,
+)
+_RANGE_SEP_RE = re.compile(r'\s+(?:[-–—]|to|until|through)\s+', re.IGNORECASE)
+# "2025-09" / "2025-09-15" / "2025/09" — ISO-ish year-month forms.
+_ISO_YM_RE = re.compile(r'\b(20\d{2}|19\d{2})[-/](\d{1,2})(?:[-/]\d{1,2})?\b')
+# Bare month abbreviations (the existing _DATE_TOKEN_RE only matches the
+# long forms). Case-insensitive; trailing dot tolerated ("Sep.").
+_MONTH_ABBR_RE = re.compile(
+    r'\b(jan|feb|mar|apr|may|jun|jul|aug|sept?|oct|nov|dec)\.?\b',
+    re.IGNORECASE,
+)
+
+
+def _parse_yearmonth(s: str, today_ym, *, end_of_year: bool = True):
+    """Parse a date-like string into a sortable ``(year, month)`` tuple.
+
+    Returns ``None`` when the string carries no parseable year. Handles
+    the formats real profiles use:
+      - "Sep 2025" / "September 2025" / "Sept 2025"
+      - "2025-09" / "2025/09" / "2025-09-15"
+      - "2025" (year only) — month falls back to 12 when
+        ``end_of_year=True`` (end-of-range conservatism: a "2024" end
+        date occupies the whole year), else to 1
+      - "Present" / "Current" / "Ongoing" / "Now" / "to date" /
+        "till now"  →  ``today_ym``
+
+    The caller is expected to extract the range tail before calling
+    when sorting by end_date — see ``_extract_end_yearmonth``.
+    """
+    if not isinstance(s, str):
+        return None
+    s = s.strip()
+    if not s:
+        return None
+    if _PRESENT_RE.search(s):
+        return today_ym
+    iso = _ISO_YM_RE.search(s)
+    if iso:
+        y = int(iso.group(1))
+        m = max(1, min(12, int(iso.group(2))))
+        return (y, m)
+    month = None
+    long_m = _DATE_TOKEN_RE.search(s)
+    if long_m:
+        month = _MONTH_INDEX.get(long_m.group(1).lower())
+    if month is None:
+        abbr = _MONTH_ABBR_RE.search(s)
+        if abbr:
+            month = _MONTH_INDEX.get(abbr.group(1).lower().rstrip('.'))
+    year_m = _YEAR_RE.search(s)
+    if month and year_m:
+        return (int(year_m.group(0)), month)
+    if year_m:
+        return (int(year_m.group(0)), 12 if end_of_year else 1)
+    return None
+
+
+def _extract_end_yearmonth(entry: dict, today_ym):
+    """End-date sort key for one experience entry. Preference:
+      1. ``end_date`` field, parsed end-of-year on year-only.
+      2. The tail of ``duration`` after a range separator.
+      3. ``duration`` parsed as a single date (some profiles set only one).
+    Returns ``None`` when no source yields a parseable year."""
+    if not isinstance(entry, dict):
+        return None
+    raw_end = entry.get('end_date')
+    if isinstance(raw_end, str) and raw_end.strip():
+        ym = _parse_yearmonth(raw_end, today_ym, end_of_year=True)
+        if ym:
+            return ym
+    raw_dur = entry.get('duration')
+    if isinstance(raw_dur, str) and raw_dur.strip():
+        parts = _RANGE_SEP_RE.split(raw_dur, maxsplit=1)
+        tail = parts[-1].strip() if parts else raw_dur.strip()
+        ym = _parse_yearmonth(tail, today_ym, end_of_year=True)
+        if ym:
+            return ym
+        ym = _parse_yearmonth(raw_dur, today_ym, end_of_year=True)
+        if ym:
+            return ym
+    return None
+
+
+def _extract_start_yearmonth(entry: dict, today_ym):
+    """Start-date sort key, used as a secondary key when end dates tie
+    or are missing."""
+    if not isinstance(entry, dict):
+        return None
+    raw_start = entry.get('start_date')
+    if isinstance(raw_start, str) and raw_start.strip():
+        ym = _parse_yearmonth(raw_start, today_ym, end_of_year=False)
+        if ym:
+            return ym
+    raw_dur = entry.get('duration')
+    if isinstance(raw_dur, str) and raw_dur.strip():
+        parts = _RANGE_SEP_RE.split(raw_dur, maxsplit=1)
+        head = parts[0].strip() if parts else raw_dur.strip()
+        ym = _parse_yearmonth(head, today_ym, end_of_year=False)
+        if ym:
+            return ym
+    return None
+
+
+def sort_experience_reverse_chronological(resume: dict, _today=None) -> dict:
+    """Sort experience entries reverse-chronological by end date.
+
+    Universal resume convention: most recent role first. This is a
+    GENERAL rule for every profile and every job description — no
+    hardcoded role names, company names, or domain-specific logic.
+
+    Sort key: ``(end_year, end_month, start_year, start_month)``
+    descending; ties broken by original index ascending so equal
+    inputs produce equal outputs (idempotent, stable).
+
+    Fallback chain when end_date is missing/unparseable:
+      1. Fall back to start_date.
+      2. If start_date is also missing, the entry sinks below all
+         parseable entries (sentinel ``(0, 0)``) and preserves its
+         relative position with other unparseable entries (the index
+         tiebreak in the sort key keeps the order stable).
+
+    "Present" / "Current" / "Ongoing" / "Now" / "to date" / "till now"
+    in any date field resolves to today's (year, month), so live roles
+    sort to the top.
+
+    Idempotent: a list already in the correct order is unchanged.
+    Lists with fewer than 2 entries pass through untouched. No entry
+    is dropped; no bullet content is modified — only the order changes.
+    """
+    if not isinstance(resume, dict):
+        return resume
+    exps = resume.get('experience')
+    if not isinstance(exps, list) or len(exps) < 2:
+        return resume
+    if _today is None:
+        d = _dt.date.today()
+        today_ym = (d.year, d.month)
+    else:
+        today_ym = _today
+
+    def _sort_key(item):
+        idx, entry = item
+        end_ym = _extract_end_yearmonth(entry, today_ym)
+        start_ym = _extract_start_yearmonth(entry, today_ym)
+        eff_end = end_ym or start_ym or (0, 0)
+        eff_start = start_ym or (0, 0)
+        # Negate the year/month components for descending. Original
+        # index stays positive so it serves as a deterministic asc
+        # tiebreak across truly equal records (idempotency guard).
+        return (
+            -eff_end[0], -eff_end[1],
+            -eff_start[0], -eff_start[1],
+            idx,
+        )
+
+    indexed = list(enumerate(exps))
+    indexed.sort(key=_sort_key)
+    resume['experience'] = [e for _, e in indexed]
     return resume
 
 

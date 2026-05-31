@@ -314,6 +314,22 @@ BULLET_VALIDATOR_STRICT = config('BULLET_VALIDATOR_STRICT', default=False, cast=
 # prompt sizes; 85k is a safe midpoint. The post-call 413 retry remains
 # as the safety net for under-estimates.
 RESUME_PROMPT_CHAR_BUDGET = config('RESUME_PROMPT_CHAR_BUDGET', default=85000, cast=int)
+# GROQ_TPM_BUDGET — rolling 60s token budget for the centralized TPM
+# throttle (profiles.services.tpm_throttle). The on-demand Groq tier
+# caps each org at 30,000 tokens/min; 28,000 leaves 2k headroom for
+# burst-overlap timing skew. Raise toward 30k if the throttle delays
+# calls too aggressively, or lower it if the tier is shared across
+# multiple processes / external clients.
+GROQ_TPM_BUDGET = config('GROQ_TPM_BUDGET', default=28000, cast=int)
+# GROQ_TPM_THROTTLE_DISABLED — flip true under `manage.py test` so the
+# 60s rolling window can't cause cross-test flakiness (tests mock
+# the LLM client; throttling them would be both wasteful and unstable
+# when many tests fire `invoke` in close succession).
+GROQ_TPM_THROTTLE_DISABLED = config(
+    'GROQ_TPM_THROTTLE_DISABLED',
+    default=('test' in sys.argv or sys.argv[0].endswith('pytest')),
+    cast=bool,
+)
 # BULLET_RETRY (reserved for §4 T3 treatment): on validator failure, the
 # resume_generator may re-call the LLM once with the findings appended to
 # the prompt. Not wired yet — placeholder so .env edits don't surprise the

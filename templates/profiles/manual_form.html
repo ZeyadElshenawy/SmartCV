@@ -308,24 +308,34 @@
                             </div>
 
                             <div class="space-y-1.5">
-                                <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Description</label>
-                                <textarea x-model="proj.description" rows="2" class="block w-full px-3 py-2.5 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none resize-y text-neutral-900 dark:text-neutral-100" placeholder="Brief overview of what you built."></textarea>
+                                <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Description <span class="normal-case font-normal text-neutral-400 dark:text-neutral-500">(brief summary — 1 sentence)</span></label>
+                                <textarea x-model="proj.description" rows="2" class="block w-full px-3 py-2.5 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none resize-y text-neutral-900 dark:text-neutral-100" placeholder="Brief overview of what you built and why it matters."></textarea>
                             </div>
 
                             <div class="space-y-2">
                                 <div class="flex items-center justify-between">
-                                    <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Key features</label>
-                                    <button type="button" @click="if(!proj.highlights) proj.highlights = []; proj.highlights.push('')" class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400 hover:underline">+ Add feature</button>
+                                    <div class="flex items-center gap-2">
+                                        <label class="block text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">Bullet points</label>
+                                        <span class="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                                              :class="(proj.highlights||[]).length >= 4 ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400'"
+                                              x-text="(proj.highlights||[]).length + ' / 4'"></span>
+                                    </div>
+                                    <button type="button"
+                                            @click="if(!proj.highlights) proj.highlights = []; if(proj.highlights.length < 4) proj.highlights.push('')"
+                                            :disabled="(proj.highlights||[]).length >= 4"
+                                            :class="(proj.highlights||[]).length >= 4 ? 'opacity-40 cursor-not-allowed' : 'hover:underline'"
+                                            class="text-[11px] uppercase tracking-[0.14em] font-medium text-brand-700 dark:text-brand-400">+ Add bullet</button>
                                 </div>
                                 <template x-for="(hl, hlIdx) in (proj.highlights || [])" :key="hlIdx">
                                     <div class="flex gap-2 items-start group/p">
-                                        <span aria-hidden="true" class="pt-2.5 text-neutral-400">•</span>
-                                        <textarea x-model="proj.highlights[hlIdx]" rows="2" class="flex-1 block w-full px-3 py-2 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none resize-y text-neutral-900 dark:text-neutral-100"></textarea>
+                                        <span aria-hidden="true" class="pt-2.5 text-brand-400 font-bold select-none">•</span>
+                                        <textarea x-model="proj.highlights[hlIdx]" rows="2" class="flex-1 block w-full px-3 py-2 text-sm rounded-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 focus:ring-4 focus:ring-brand-200/70 focus:border-brand-500 focus:outline-none resize-y text-neutral-900 dark:text-neutral-100" placeholder="Action verb + what you did + measurable outcome."></textarea>
                                         <button type="button" @click="proj.highlights.splice(hlIdx, 1)" class="h-10 w-10 flex items-center justify-center text-neutral-400 hover:text-red-600 rounded-lg opacity-0 group-hover/p:opacity-100 transition-all">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                                         </button>
                                     </div>
                                 </template>
+                                <div x-show="!(proj.highlights && proj.highlights.length > 0)" class="text-xs text-neutral-400 dark:text-neutral-500 italic py-1">No bullets yet — add up to 4 key points.</div>
                             </div>
 
                             <div class="space-y-2">
@@ -495,6 +505,37 @@
                 if (!this.projects) this.projects = [];
                 if (!this.contact_links) this.contact_links = [];
                 if (!this.extraSections) this.extraSections = {};
+
+                // Normalise projects that came from the CV parser.
+                // The parser stores bullet points as description:list[str].
+                // We want: description = brief 1-sentence summary (string),
+                //          highlights  = bullet list (max 4 items).
+                this.projects = this.projects.map(proj => {
+                    const desc = proj.description;
+                    const existingHighlights = Array.isArray(proj.highlights)
+                        ? proj.highlights.filter(h => h && h.trim())
+                        : [];
+
+                    if (Array.isArray(desc) && desc.length > 0) {
+                        // description is a list → migrate to highlights,
+                        // leave description blank so user can write a summary.
+                        const bullets = desc
+                            .map(d => (typeof d === 'string' ? d.trim() : ''))
+                            .filter(Boolean);
+                        const merged = [
+                            ...existingHighlights,
+                            ...bullets.filter(b => !existingHighlights.includes(b)),
+                        ].slice(0, 4);   // cap at 4
+                        return { ...proj, description: '', highlights: merged };
+                    }
+
+                    // description is already a string — just ensure highlights is an array.
+                    return {
+                        ...proj,
+                        description: typeof desc === 'string' ? desc : '',
+                        highlights: existingHighlights,
+                    };
+                });
             },
 
             /**

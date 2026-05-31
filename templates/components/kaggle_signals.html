@@ -3,7 +3,7 @@ Kaggle signals tile — tier, competitions/datasets/notebooks counts + medals.
 Required context: `profile`.
 {% endcomment %}
 {{ profile.data_content.kaggle_signals|default:""|json_script:"kaggle-signals-initial" }}
-<section x-data="kaggleSignals('kaggle-signals-initial')"
+<section x-data="kaggleSignals('{{ profile.data_content.kaggle_url|default:''|escapejs }}', 'kaggle-signals-initial')"
          class="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
     <div aria-hidden="true" class="absolute inset-x-0 top-0 h-[3px] bg-[#20BEFF]"></div>
     <div class="p-5 space-y-4">
@@ -88,17 +88,19 @@ Required context: `profile`.
 </section>
 
 <script>
-function kaggleSignals(snapshotElementId) {
+function kaggleSignals(initialUrl, snapshotElementId) {
     let initialSnapshot = null;
     try {
         const el = document.getElementById(snapshotElementId);
         const raw = el ? el.textContent.trim() : '';
         if (raw && raw !== '""') initialSnapshot = JSON.parse(raw);
     } catch (_) { initialSnapshot = null; }
-    const initialUrl = initialSnapshot ? initialSnapshot.profile_url || '' : '';
+    
+    // If the template provided a URL, use it; otherwise fallback to the snapshot's URL
+    const derivedInitialUrl = initialUrl || (initialSnapshot ? initialSnapshot.profile_url || '' : '');
     return {
-        urlInput: initialUrl,
-        _savedUrl: initialUrl,
+        urlInput: derivedInitialUrl,
+        _savedUrl: derivedInitialUrl,
         snapshot: initialSnapshot,
         loading: false,
         error: null,

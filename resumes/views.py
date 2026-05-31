@@ -99,6 +99,128 @@ def check_resume_status_api(request, job_id):
         return JsonResponse({'status': 'completed', 'resume_id': str(resume.id)})
     return JsonResponse({'status': 'waiting'})
 
+
+@login_required
+@require_GET
+def regenerate_resume_view(request, resume_id):
+    """Canonical entry point for in-place supervised resume regeneration.
+
+    This view + trigger_resume_regeneration_api are the canonical
+    implementation. The /resumes/edit/<id>/?refresh=1 branch in
+    resume_edit_view is a back-compat redirect into HERE; no third regen
+    entry point should be added — both should land in this loader.
+
+    PR audit fix #3 (2026-05-29): the previous Path B behaviour was to
+    regenerate inline on the resume_edit_view GET handler, which
+    (a) blocked the browser for 15-90s on the supervised LLM call and
+    (b) actually used the NON-supervised generator, silently bypassing
+    the supervisor safety net.
+
+    This view mirrors Path A's UX exactly — it reuses generate.html in
+    its `generating=True` mode, scaled timeout, AbortController, and
+    substep panel — but routes the loader's POST to
+    trigger_resume_regen_api so the existing GeneratedResume row is
+    updated in place instead of a new one being created. The
+    `redirect_url` includes ?refresh=0 to prevent the destination
+    edit page from looping back into another regen.
+    """
+    # Ownership scoped at the queryset, not via a post-fetch attribute
+    # check: a foreign user's resume id resolves to 404 directly,
+    # eliminating the (theoretical) window where we'd fetch a row we
+    # have no business touching.
+    resume = get_object_or_404(
+        GeneratedResume,
+        id=resume_id,
+        gap_analysis__job__user=request.user,
+    )
+    job = resume.gap_analysis.job
+    if getattr(settings, 'SUPERVISOR_ENABLED', False):
+        rounds = int(getattr(settings, 'SUPERVISOR_MAX_REVISION_ROUNDS', 1))
+        gen_timeout_ms = (rounds + 1) * 90000
+    else:
+        gen_timeout_ms = 60000
+    return render(request, 'resumes/generate.html', {
+        'job': job,
+        'generating': True,
+        'gen_timeout_ms': gen_timeout_ms,
+        # Route the loader to the in-place regen endpoint instead of
+        # Path A's job-keyed create-new endpoint. The template falls
+        # back to {% url 'trigger_resume_api' job.id %} when this is
+        # unset so Path A is untouched.
+        'trigger_url': reverse('trigger_resume_regen_api', args=[resume.id]),
+        # ?refresh=0 disables the destination view's stale-profile
+        # check so we don't loop right back into another regen.
+        'redirect_url': reverse('resume_edit', args=[resume.id]) + '?refresh=0',
+    })
+
+
+@login_required
+@require_POST
+def trigger_resume_regeneration_api(request, resume_id):
+    """In-place supervised regeneration. Counterpart of trigger_resume_generation_api,
+    but updates an existing GeneratedResume row rather than creating a new one.
+
+    Mirrors generate_resume_task's orchestration:
+      generate_resume_content_supervised → calculate_ats_score → save.
+    Preserves the user's template_name choice across the regen, matching
+    the contract of the previous inline Path B implementation.
+    """
+    from .services.resume_generator import generate_resume_content_supervised
+    # Ownership scoped at the queryset (same pattern as regenerate_resume_view).
+    # A foreign user's resume id resolves to 404 directly — no post-fetch
+    # attribute check, no chance of leaking a row we shouldn't have read.
+    resume = get_object_or_404(
+        GeneratedResume,
+        id=resume_id,
+        gap_analysis__job__user=request.user,
+    )
+    try:
+        profile = UserProfile.objects.get(user=request.user)
+    except UserProfile.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'No profile found'}, status=400)
+
+    gap_analysis = resume.gap_analysis
+    job = gap_analysis.job
+    # Fix #1 — Path B updates in place, so the snapshot lives directly on
+    # THIS row. Use it; fall back to the gap-analysis lookup so a Path B
+    # regen still gets a snapshot if a SIBLING row was the one most
+    # recently exported (rare but possible if the user has multiple rows
+    # for the same JD).
+    from .services.resume_generator import load_previous_best_for
+    previous_best = resume.previous_best or None
+    if not (previous_best and isinstance(previous_best, dict)
+            and previous_best.get('content')):
+        previous_best = load_previous_best_for(gap_analysis)
+    try:
+        # Atomicity: build the full new content + score FIRST. Only after
+        # both succeed do we mutate the GeneratedResume instance — and we
+        # do it in a contiguous block ending with a single .save() so any
+        # exception from the LLM path leaves the existing row's content,
+        # ats_score, and validation_report byte-identical. Do NOT mutate
+        # resume.<field> until everything below has succeeded.
+        new_content = generate_resume_content_supervised(
+            profile, job, gap_analysis, previous_best=previous_best,
+        )
+        new_score = calculate_ats_score(new_content, job.extracted_skills)
+        # Preserve the user's template choice across regeneration (same
+        # contract as the previous inline Path B behaviour).
+        if resume.content and resume.content.get('template_name'):
+            new_content['template_name'] = resume.content['template_name']
+        new_validation_report = new_content.get('validation_report', {})
+        # All inputs ready — commit the row in one block. Once we start
+        # assigning, every line below MUST NOT raise so the save fires.
+        resume.content = new_content
+        resume.ats_score = new_score
+        resume.validation_report = new_validation_report
+        resume.save()
+        logger.info(
+            "Supervised in-place regeneration completed for resume %s", resume.id,
+        )
+        return JsonResponse({'success': True, 'resume_id': str(resume.id)})
+    except Exception as e:
+        logger.exception("Supervised regen failed for resume %s", resume.id)
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
 def _description_text_to_list(raw):
     """Convert a textarea string (newline-separated bullets) into a List[str].
 
@@ -122,6 +244,39 @@ def _description_list_to_text(value):
     if isinstance(value, str):
         return value
     return '\n'.join(str(d) for d in value if d)
+
+
+def _capture_previous_best(resume) -> None:
+    """Fix #1 — write the snapshot used as a 'preserve OR improve'
+    reference on the NEXT regeneration for the same JD. Called from
+    both export views just before the file is generated.
+
+    Best-effort: this function MUST NOT raise. If anything fails (DB
+    write timeout, JD-hash compute error, JSON-serialise edge case),
+    we log and continue so the user's download still succeeds. The
+    stickiness mechanism degrades gracefully — worst case the user
+    sees no preservation on the next regen, same as today.
+    """
+    try:
+        from datetime import datetime, timezone
+        import copy as _copy
+        from .services.resume_generator import _jd_identity_hash
+        job = resume.gap_analysis.job
+        snapshot = {
+            'content': _copy.deepcopy(resume.content or {}),
+            'exported_at': datetime.now(timezone.utc).isoformat(),
+            'ats_score_at_export': float(resume.ats_score or 0.0),
+            'jd_identity_hash': _jd_identity_hash(job),
+        }
+        resume.previous_best = snapshot
+        resume.save(update_fields=['previous_best'])
+        logger.info("Captured previous_best snapshot for resume %s", resume.id)
+    except Exception as exc:  # noqa: BLE001 — never block the download
+        logger.warning(
+            "Capture of previous_best failed for resume %s (%s); "
+            "export proceeds without snapshot.",
+            getattr(resume, 'id', '<unknown>'), exc,
+        )
 
 
 def _normalize_legacy_resume_content(resume):
@@ -324,17 +479,22 @@ def resume_edit_view(request, resume_id):
             and profile.updated_at > resume.created_at
         )
         if should_refresh or request.GET.get('refresh') == '1':
-            gap_analysis = resume.gap_analysis
-            job = gap_analysis.job
-            new_content = generate_resume_content(profile, job, gap_analysis)
-            new_score = calculate_ats_score(new_content, job.extracted_skills)
-            # Preserve user's template choice across regeneration
-            if resume.content.get('template_name'):
-                new_content['template_name'] = resume.content['template_name']
-            resume.content = new_content
-            resume.ats_score = new_score
-            resume.save()
-            logger.info(f"Auto-regenerated resume {resume.id} from updated profile")
+            # Back-compat regen entry point — redirects into the canonical
+            # implementation at regenerate_resume_view. Do not add a third
+            # regen entry point: both this branch and /resumes/regenerate/
+            # MUST land in regenerate_resume_view's loader.
+            #
+            # PR audit report §6.5 fix #3 (2026-05-29): the previous behavior
+            # was an inline call to the NON-supervised generator on a plain
+            # GET — 15-30s typical, up to ~88s under Groq 429 backoff. That
+            # blocked the browser and silently bypassed the supervisor
+            # safety net. Both problems are addressed by handing the
+            # regeneration off to the same async-loader UX Path A uses
+            # ("Generate Resume" button); the loader POSTs to a new
+            # in-place trigger endpoint that runs through the SUPERVISED
+            # generator. The redirect target renders generate.html in
+            # `generating=True` mode pointed at trigger_resume_regen_api.
+            return redirect('regenerate_resume', resume_id=resume.id)
         else:
             # Cheap, no-LLM auto-sync of new master-profile fields into this
             # resume's content. Patches blank/missing supplemental fields
@@ -430,6 +590,13 @@ def resume_edit_view(request, resume_id):
     # sync event.
     sync_banner = request.session.pop(f'resume_synced_{resume.id}', False)
 
+    # Audit fix #2 (2026-05-29): surface validation + supervisor findings
+    # as a small severity-tiered banner. Read-only — the underlying
+    # findings are computed elsewhere; this presenter only translates them
+    # into a human-readable summary the template renders.
+    from .services.findings_presenter import build_review_summary
+    review_summary = build_review_summary(resume.content, resume.validation_report)
+
     return render(request, 'resumes/edit.html', {
         'resume': resume,
         'profile': profile,
@@ -437,6 +604,7 @@ def resume_edit_view(request, resume_id):
         'section_order': section_order,
         'section_order_with_labels': section_order_with_labels,
         'sync_banner': sync_banner,
+        'review_summary': review_summary,
     })
 
 
@@ -564,6 +732,35 @@ def regenerate_section_view(request, resume_id, section):
                 'detail': "The model returned experience entries with no bullets. "
                           "Your existing content is unchanged. Try again.",
             }, status=422)
+        # Fix-1b (2026-06-01) — HARD identity guard. The trace caught a
+        # phantom "Banque Misr" role shipping because the prior code
+        # whole-section-replaced regardless of identity. Now: filter the
+        # returned entries to those whose company (or title fallback)
+        # appears in current_content['experience']. If the LLM invented
+        # a role, drop it. If the kept set doesn't cover every real
+        # role, REJECT — partial returns are worse than a retry.
+        from resumes.services.role_identity_guard import (
+            filter_experiences_to_known,
+            covers_known_identities,
+            log_dropped,
+        )
+        current_exps = (current_content or {}).get('experience') or []
+        kept, dropped = filter_experiences_to_known(new_value, current_exps)
+        if dropped:
+            log_dropped(dropped, kind='experience', surface='section-regen')
+        if not covers_known_identities(kept, current_exps, kind='experience'):
+            logger.warning(
+                "regenerate_section experience identity mismatch — refusing "
+                "(returned=%d kept=%d dropped=%d known=%d)",
+                len(new_value or []), len(kept), len(dropped), len(current_exps),
+            )
+            return JsonResponse({
+                'error': 'identity_mismatch',
+                'detail': "The model returned a different set of roles than the "
+                          "resume currently has (it invented or dropped a role). "
+                          "Your existing content is unchanged. Try again.",
+            }, status=422)
+        new_value = kept
     elif section == 'projects':
         usable = [p for p in (new_value or []) if isinstance(p, dict)
                   and p.get('name')
@@ -575,6 +772,28 @@ def regenerate_section_view(request, resume_id, section):
                 'detail': "The model returned project entries with no bullets. "
                           "Your existing content is unchanged. Try again.",
             }, status=422)
+        from resumes.services.role_identity_guard import (
+            filter_projects_to_known,
+            covers_known_identities,
+            log_dropped,
+        )
+        current_projs = (current_content or {}).get('projects') or []
+        kept, dropped = filter_projects_to_known(new_value, current_projs)
+        if dropped:
+            log_dropped(dropped, kind='projects', surface='section-regen')
+        if not covers_known_identities(kept, current_projs, kind='projects'):
+            logger.warning(
+                "regenerate_section projects identity mismatch — refusing "
+                "(returned=%d kept=%d dropped=%d known=%d)",
+                len(new_value or []), len(kept), len(dropped), len(current_projs),
+            )
+            return JsonResponse({
+                'error': 'identity_mismatch',
+                'detail': "The model returned a different set of projects than the "
+                          "resume currently has (it invented or dropped a project). "
+                          "Your existing content is unchanged. Try again.",
+            }, status=422)
+        new_value = kept
 
     # Persist on the saved snapshot so a subsequent reload reflects the
     # regen. We don't auto-save the user's other in-flight edits here —
@@ -636,6 +855,9 @@ def export_docx_view(request, resume_id):
     if resume.gap_analysis.job.user != request.user:
         raise Http404
     _normalize_legacy_resume_content(resume)
+    # Fix #1 — capture the version being exported as previous_best.
+    # Best-effort: must NEVER prevent the download from succeeding.
+    _capture_previous_best(resume)
     try:
         buf = generate_docx(resume)
         data = buf.getvalue()
@@ -661,6 +883,9 @@ def export_pdf_view(request, resume_id):
         raise Http404
 
     _normalize_legacy_resume_content(resume)
+    # Fix #1 — capture the version being exported as previous_best.
+    # Best-effort: must NEVER prevent the download from succeeding.
+    _capture_previous_best(resume)
 
     fd, output_path = tempfile.mkstemp(suffix='.pdf')
     os.close(fd)

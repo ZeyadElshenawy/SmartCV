@@ -58,7 +58,9 @@ class ValidationReport(BaseModel):
 # Rule constants
 # ---------------------------------------------------------------------------
 
-# A3: bullet must not start with these "duty" openers.
+# A3: bullet must not start with these "duty" openers — they frame the
+# work as a job description rather than an achievement. Universally
+# recognized weak shapes (no role/profile/domain-specific entries).
 _DUTY_OPENERS = (
     "responsible for",
     "tasked with",
@@ -72,6 +74,15 @@ _DUTY_OPENERS = (
     "assisted with",
     "assisted in",
     "participated in",
+    # 2026-05-31 — generic weak openers that hide the verb of action.
+    # All are widely recognized resume-writing anti-patterns; none are
+    # profile-, role-, or domain-specific. "Applied" / "Developed and
+    # evaluated" are deliberately NOT here — they're legitimate verbs
+    # when followed by a real outcome; the prompt handles them.
+    "contributed to",
+    "engaged in",
+    "took part in",
+    "involved in",
 )
 
 # A4: inside-out summary opener templates (substring match, lowercase).

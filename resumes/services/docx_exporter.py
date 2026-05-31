@@ -149,6 +149,95 @@ def _bullet(doc: Document, text: str) -> None:
     _set_run_font(p.runs[0], size_pt=BULLET_PT)
 
 
+# PR1 Fix 4 — date-range normaliser. The LLM emits date strings in
+# whatever month format it picks (full word, 3-letter abbrev, numeric);
+# the docx then renders an inconsistent mix per resume. This helper
+# coerces any pair of date-ish strings into "MMM YYYY – MMM YYYY".
+_PRESENT_TOKENS = frozenset({'present', 'current', 'now', 'today'})
+
+
+def _format_date_range(start: str | None, end: str | None) -> str:
+    """Render a date range as ``"MMM YYYY – MMM YYYY"`` with en-dash.
+
+    Rules:
+      - Both parsed and in the same month/year → ``"MMM YYYY"`` once.
+      - End in {Present, Current, Now} or empty/None and start parsed
+        → ``"MMM YYYY – Present"``.
+      - Year only (no month detected) → ``"YYYY"``.
+      - Unparseable field → returned verbatim (never raises).
+
+    Separator is ``" – "`` (space, en-dash, space).
+    """
+    from dateutil import parser as _dateutil_parser
+
+    def _try_parse(value):
+        """Parse a date-ish string. Returns (dt, month_present_bool) or
+        None if unparseable. ``month_present_bool`` is False when only a
+        year was extracted, so the caller can emit ``"YYYY"`` instead
+        of forcing a month into the output."""
+        if value is None:
+            return None
+        s = str(value).strip()
+        if not s:
+            return None
+        try:
+            dt = _dateutil_parser.parse(s, default=None, fuzzy=False)
+        except (ValueError, TypeError, OverflowError):
+            return None
+        # dateutil with no default fills missing fields with TODAY's
+        # values — that obscures "year-only" inputs. Re-parse with two
+        # different defaults; a year-only string will give the same
+        # year but different months, so we can detect "no month".
+        from datetime import datetime
+        d1 = datetime(1, 1, 1)
+        d2 = datetime(2, 6, 15)
+        try:
+            r1 = _dateutil_parser.parse(s, default=d1, fuzzy=False)
+            r2 = _dateutil_parser.parse(s, default=d2, fuzzy=False)
+        except (ValueError, TypeError, OverflowError):
+            return (dt, True)  # fall back, treat as full date
+        month_present = (r1.month == r2.month)
+        return (dt, month_present)
+
+    def _render_single(value, parsed):
+        if parsed is None:
+            return str(value).strip() if value is not None else ''
+        dt, month_present = parsed
+        if month_present:
+            return dt.strftime('%b %Y')
+        return dt.strftime('%Y')
+
+    start_str = (start or '').strip()
+    end_str = (end or '').strip()
+
+    # Detect Present-style end.
+    end_is_present = end_str.lower() in _PRESENT_TOKENS or not end_str
+
+    parsed_start = _try_parse(start_str)
+    parsed_end = None if end_is_present else _try_parse(end_str)
+
+    rendered_start = _render_single(start_str, parsed_start)
+    if end_is_present:
+        if parsed_start is None:
+            # No usable start either — return whatever start was, verbatim.
+            return rendered_start
+        return f"{rendered_start} – Present"
+    rendered_end = _render_single(end_str, parsed_end)
+
+    if not rendered_start and not rendered_end:
+        return ''
+    if not rendered_start:
+        return rendered_end
+    if not rendered_end:
+        return rendered_start
+    # Same-output collapse — fires for "Aug 2025"/"Aug 2025" (both parsed
+    # to same month) AND "2024"/"2024" (year-only on both sides). One
+    # rendered string out, no range separator.
+    if rendered_start == rendered_end:
+        return rendered_start
+    return f"{rendered_start} – {rendered_end}"
+
+
 def _ensure_list(value) -> list:
     """description fields can be either a list or a multi-line string —
     normalize so the writer doesn't have to branch."""
@@ -296,9 +385,19 @@ def _write_experience(doc: Document, content: dict) -> None:
         head.paragraph_format.tab_stops.add_tab_stop(Inches(6.5), WD_PARAGRAPH_ALIGNMENT.RIGHT)
         title_run = head.add_run(exp.get('title', '') or '')
         _set_run_font(title_run, size_pt=ITEM_TITLE_PT, bold=True)
-        if exp.get('duration'):
+        # PR1 Fix 4 — prefer the schema's start_date/end_date pair so we
+        # can normalise the format; fall back to the legacy `duration`
+        # string when those aren't present (e.g. offline-fallback path).
+        date_text = ''
+        start_date = exp.get('start_date') or ''
+        end_date = exp.get('end_date') or ''
+        if start_date or end_date:
+            date_text = _format_date_range(start_date, end_date)
+        if not date_text:
+            date_text = exp.get('duration') or ''
+        if date_text:
             head.add_run('\t')
-            date_run = head.add_run(exp.get('duration', ''))
+            date_run = head.add_run(date_text)
             _set_run_font(date_run, size_pt=ITEM_TITLE_PT)
         # Company · location · industry on the next line, italic accent
         sub_bits = [b for b in (exp.get('company'), exp.get('location'), exp.get('industry')) if b]
@@ -342,7 +441,12 @@ def _write_education(doc: Document, content: dict) -> None:
         _set_run_font(title_run, size_pt=ITEM_TITLE_PT, bold=True)
         if year:
             head.add_run('\t')
-            date_run = head.add_run(str(year))
+            # PR1 Fix 4 — same normaliser as experience. For a single-year
+            # field (the usual education shape), passing year as both
+            # start and end triggers the "same month/year collapse" rule
+            # and emits "MMM YYYY" or "YYYY" cleanly.
+            year_text = _format_date_range(str(year), str(year))
+            date_run = head.add_run(year_text or str(year))
             _set_run_font(date_run, size_pt=ITEM_TITLE_PT)
         sub_bits = [b for b in (institution, location, (f"GPA {gpa}" if gpa else '')) if b]
         if sub_bits:
@@ -477,7 +581,13 @@ def _write_certifications(doc: Document, content: dict) -> None:
             sep = p.add_run(' · ')
             _set_run_font(sep, size_pt=BODY_PT, bold=False)
             _add_hyperlink(p, url, 'verify', color=ACCENT_RGB)
-            # Shrink the verify link by a point so it reads as metadata.
+            # Shrink the verify link by a point so it reads as metadata
+            # AND explicitly write <w:b w:val="0"/> so the hyperlink runs
+            # don't inherit bold from the List Bullet style chain.
+            # _add_hyperlink writes only <w:color> and <w:u> — no <w:b>
+            # either way — so without this override the whole verify
+            # link renders bold in any paragraph style that cascades
+            # bold (which is what the multi-user audit caught).
             last_link = p._p.findall(qn('w:hyperlink'))
             if last_link:
                 for r in last_link[-1].iter(qn('w:r')):
@@ -492,6 +602,12 @@ def _write_certifications(doc: Document, content: dict) -> None:
                     for existing in rPr.findall(qn('w:sz')):
                         rPr.remove(existing)
                     rPr.append(sz)
+                    # Explicit bold-off marker.
+                    for existing in rPr.findall(qn('w:b')):
+                        rPr.remove(existing)
+                    b = OxmlElement('w:b')
+                    b.set(qn('w:val'), '0')
+                    rPr.append(b)
 
 
 def _write_awards(doc: Document, content: dict) -> None:
@@ -528,7 +644,17 @@ def _write_awards(doc: Document, content: dict) -> None:
 
 
 def _write_languages(doc: Document, content: dict) -> None:
-    langs = (content or {}).get('languages') or []
+    # Guard against the LLM misrouting technical skills into the
+    # `languages` field (observed when data_content['languages'] is null
+    # or empty — the model improvises). sanitize_languages_field drops
+    # anything that doesn't look like a spoken human language and logs
+    # a WARNING with what was filtered. If nothing real remains, skip
+    # the section entirely — printing an empty "LANGUAGES" heading is
+    # worse than no heading.
+    from profiles.services.profile_sanitizer import sanitize_languages_field
+
+    raw = (content or {}).get('languages') or []
+    langs = sanitize_languages_field(raw)
     if not langs:
         return
     _add_section_heading(doc, 'Languages')

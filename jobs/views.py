@@ -355,6 +355,30 @@ def scan_recommended_jobs(request):
             status=400,
         )
 
+    # LinkedIn requires either: (a) email+password credentials set in
+    # settings (the Selenium-credential path used by the profile scraper),
+    # or (b) a saved Playwright session from `python manage.py login_linkedin`.
+    # If LinkedIn is selected but neither auth path is available, fail
+    # loud with an actionable message instead of starting a scrape that
+    # silently returns zero LinkedIn results.
+    if 'linkedin' in (prefs.sources or []):
+        from .services.job_sources.linkedin_selenium import credentials_configured
+        from .services.job_sources.auth import has_saved_state
+        if not credentials_configured() and not has_saved_state('linkedin'):
+            return JsonResponse(
+                {
+                    "error": (
+                        "LinkedIn is selected but no authentication is configured. "
+                        "Either set LINKEDIN_SCRAPING_ENABLED=True with "
+                        "LINKEDIN_EMAIL and LINKEDIN_PASSWORD in your .env "
+                        "(recommended — same credentials as profile scraping), "
+                        "or run `python manage.py login_linkedin` once to save a "
+                        "browser session."
+                    ),
+                },
+                status=400,
+            )
+
     # If a scan is already in flight, return its id rather than starting a duplicate.
     in_flight = ScrapeJob.objects.filter(
         user=request.user,

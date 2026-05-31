@@ -811,6 +811,23 @@ def dashboard(request):
     scan_failure_banner = None
     try:
         from jobs.models import ScrapeJob as _SJ
+        from datetime import timedelta
+
+        # Zombie guard: if a ScrapeJob has been RUNNING for more than 15 minutes
+        # without ever reaching a terminal state, the worker thread likely crashed
+        # silently (e.g. Selenium session closed, OOM). Mark it ERROR so the
+        # dashboard doesn't re-attach to it forever.
+        _zombie_cutoff = timezone.now() - timedelta(minutes=15)
+        _SJ.objects.filter(
+            user=request.user,
+            status__in=[_SJ.STATUS_PENDING, _SJ.STATUS_RUNNING],
+            created_at__lt=_zombie_cutoff,
+        ).update(
+            status=_SJ.STATUS_ERROR,
+            message="Scan timed out — please try again.",
+            finished_at=timezone.now(),
+        )
+
         active = (_SJ.objects.filter(
             user=request.user,
             status__in=[_SJ.STATUS_PENDING, _SJ.STATUS_RUNNING],

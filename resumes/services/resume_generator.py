@@ -14,6 +14,49 @@ from resumes.services.resume_normalizer import normalize_resume
 logger = logging.getLogger(__name__)
 
 
+# ---------------------------------------------------------------------------
+# Bullet quality + metric-fabrication safety. Shared by:
+#   - the main generation prompt (generate_resume_content)
+#   - the per-section regen prompt (regenerate_section)
+# Both prompts MUST embed this constant verbatim so the per-section
+# "↻ Regenerate bullets" button (which used to ship without the safety
+# rules) can't open a fabrication hole the main path closed.
+# ---------------------------------------------------------------------------
+BULLET_QUALITY_AND_SAFETY_RULES = """ACHIEVEMENT SHAPE (this is the difference between a strong resume and a job-description rewrite):
+Every bullet must read as a RESULT, not a duty. The shape is:
+  [Strong action verb] + [What you did, briefly] + [Concrete outcome — a result, a deliverable, a metric, a scope marker]
+- "What you did" is the SHORT middle. "Outcome" is the load-bearing tail and must reference something real: a metric (only when it belongs to THIS item — see SAFETY rules below), a shipped artifact, a downstream effect, a scope number (rows / users / models / regions).
+- When the source has no number for this item, the outcome stays qualitative but stays concrete: name the artifact, the tool integrated, the audience reached, the problem the work solved. "Honest qualitative bullet beats fake quantitative bullet" — never reach for a number that isn't there.
+
+WEAK SHAPES TO AVOID (these are duty descriptions, not achievements):
+- "Contributed to <project> by <doing X>" — drop "contributed to"; lead with the verb that captures the actual work, and add the result.
+- "Applied <technique> to <data>" — name what the application achieved, not just that it was applied.
+- "Worked on / Helped with / Assisted in / Participated in / Took part in / Engaged in / Involved in <X>" — same fix.
+- "Responsible for / Tasked with / In charge of / Duties included <X>" — pure duty framing; rewrite as a verb + outcome.
+- "Developed and evaluated <models>" / "Built and tested <X>" — compound verbs that hide the outcome. Pick the load-bearing verb and add the result.
+- "Demonstrating proficiency in / showcasing experience with <tool>" — the bullet's tail must be a real outcome, not a meta-claim about skill.
+
+SAFETY RULES FOR METRICS (NON-NEGOTIABLE — fabrication is the worst failure for a resume tool):
+- Use ONLY metrics that already exist in the source data for THIS specific item. Look in the
+  V2 GROUNDING block (per-skill evidence chunks pulled from the candidate's own profile) and in
+  the experience/project fields. Numbers in the JD or in other items are OFF-LIMITS for this item.
+- NEVER move a metric from one item to another. A silhouette score that belongs to project A
+  must not appear on project B, experience C, or anywhere else. Cross-attaching = fabrication.
+- NEVER invent a number, percentage, count, scale, duration, team size, or any other quantitative
+  claim that is not literally present in the source for this item. "Approximate" or "round" fabrication
+  is still fabrication.
+- If an item has NO real metric, write the bullet with a stronger verb and a clearer qualitative
+  outcome — but add NO number. The grounding validator will flag any invented metric and the
+  finding will surface to the user; don't gamble on the validator missing one.
+
+- Start every bullet within ONE role/project with a DIFFERENT action verb (and don't reuse a verb
+  across adjacent roles in the same resume when you can help it).
+- Preferred action verbs by intent: Built / Designed / Engineered / Shipped / Launched / Delivered
+  (creation); Reduced / Improved / Accelerated / Cut / Automated (optimization); Led / Owned /
+  Coordinated / Mentored / Drove (leadership); Analyzed / Investigated / Diagnosed / Profiled
+  (analysis). Use one with a real OBJECT, not one with a vague generalization."""
+
+
 # --- Domain detection ---------------------------------------------------------
 # Keyword-based classifier. Cheap, deterministic, no LLM call. If nothing
 # matches we fall back to 'general' and the prompt stays neutral.
@@ -507,9 +550,691 @@ def _build_v2_grounding(profile, job, gap_analysis) -> tuple[str, Optional[Inclu
     return "\n".join(block_parts), plan
 
 
+# --------------------------------------------------------------------------
+# Fix #1 — content stickiness (audit §6.5, 2026-05-30).
+#
+# When the user EXPORTS a resume (PDF or DOCX), the export view captures the
+# current resume.content as a "previous_best" snapshot on the GeneratedResume
+# row. On a later regeneration for the SAME JD (verified via content hash —
+# Job has no updated_at to rely on), the supervised loop:
+#   1. Injects a "preserve OR improve, do NOT regress" prompt block listing
+#      the previous-best content per section (per-item where the join key
+#      is stable; whole-section where it isn't).
+#   2. After generation, runs a deterministic regression check that flags
+#      metric_loss + bullet_count_drop as BLOCKING findings — the
+#      supervised loop then uses the same revision-round budget as the
+#      supervisor to drive a regen that restores the lost content.
+#   3. On cap exhaustion (SUPERVISOR_MAX_REVISION_ROUNDS reached with
+#      regression findings still open), ships the best draft observed
+#      (matching the supervisor's existing cap-hit behaviour) and DEMOTES
+#      any remaining regression findings to 'warning' so the fix-#2
+#      banner surfaces them rather than the user receiving an error.
+#
+# Master profile is never written to. Snapshot is resume-row-scoped.
+# --------------------------------------------------------------------------
+
+
+def _jd_identity_hash(job) -> str:
+    """SHA256 of normalised job identity. Used to detect "same JD" between
+    a previous export and a later regeneration. We can't rely on
+    job.updated_at because the Job model doesn't track it; instead we
+    hash the four fields that determine the tailoring outcome.
+
+    Returns the hex digest, or '' for a falsy job.
+    """
+    import hashlib
+    if job is None:
+        return ''
+    payload = {
+        'title': (getattr(job, 'title', '') or '').strip().lower(),
+        'company': (getattr(job, 'company', '') or '').strip().lower(),
+        'description': (getattr(job, 'description', '') or '').strip(),
+        'tiers': getattr(job, 'extracted_skills_tiers', None) or {},
+    }
+    blob = json.dumps(payload, sort_keys=True, default=str)
+    return hashlib.sha256(blob.encode('utf-8')).hexdigest()
+
+
+def _canon_pb(text) -> str:
+    """Local canonical form for previous-best join keys: lowercase +
+    alphanumeric only. Mirrors inclusion_planner._canonical but kept
+    local to avoid coupling resume_generator → inclusion_planner for a
+    pure-string helper."""
+    if not text:
+        return ''
+    return ''.join(c.lower() for c in str(text) if c.isalnum())
+
+
+def _build_previous_best_block(snapshot: dict | None, current_job_hash: str) -> str:
+    """Emit the prompt block that anchors regeneration to the user's last
+    exported version. Returns '' when:
+      • the snapshot is missing / empty (no prior export);
+      • the JD identity hash doesn't match (the user edited the job —
+        previous-best is evidence against a now-irrelevant target).
+
+    When it returns content, the LLM sees a structured per-section
+    "preserve OR improve" reference. Per join keys agreed in scoping B5:
+      experience    → (canon company, canon title)
+      education     → (canon institution, canon degree)
+      projects      → url (when non-empty) else canon name
+      certifications → (canon name, canon issuer)
+      summary / objective / title / skills / languages / awards → whole
+    """
+    if not snapshot or not isinstance(snapshot, dict):
+        return ''
+    snap_hash = snapshot.get('jd_identity_hash') or ''
+    if not snap_hash or not current_job_hash or snap_hash != current_job_hash:
+        return ''
+    content = snapshot.get('content') or {}
+    if not isinstance(content, dict):
+        return ''
+    lines: list[str] = []
+    lines.append(
+        "=== PREVIOUS BEST (from your last export — preserve OR improve, "
+        "do NOT regress) ==="
+    )
+    lines.append(
+        "A previous export of this resume contained content the user already "
+        "approved. For each item below, MATCH or IMPROVE — do not drop "
+        "metrics (%/numbers/named tools), do not cut bullets, and do not "
+        "weaken phrasing. If you can genuinely improve a bullet (sharper "
+        "verb, tighter claim) do so; otherwise keep it. NEVER fabricate to "
+        "preserve — if a metric was real before, it's still real now."
+    )
+    # Single-block / flat-list sections.
+    summ = (content.get('professional_summary') or '').strip()
+    if summ:
+        lines.append("")
+        lines.append("[PREVIOUS SUMMARY] (preserve or improve)")
+        lines.append(summ)
+    obj = (content.get('objective') or '').strip()
+    if obj:
+        lines.append("")
+        lines.append("[PREVIOUS OBJECTIVE]")
+        lines.append(obj)
+    title = (content.get('professional_title') or '').strip()
+    if title:
+        lines.append("")
+        lines.append(f"[PREVIOUS TITLE] {title}")
+    skills = content.get('skills') or []
+    if isinstance(skills, list) and skills:
+        lines.append("")
+        lines.append(
+            "[PREVIOUS SKILLS] (preserve these; you may add JD-aligned ones)"
+        )
+        lines.append(", ".join(str(s) for s in skills if s))
+    # Experience — per-role anchored on (company, title).
+    exps = content.get('experience') or []
+    if isinstance(exps, list) and exps:
+        lines.append("")
+        lines.append(
+            "[PREVIOUS EXPERIENCE BULLETS] (per role — preserve metrics, "
+            "same bullet count or more)"
+        )
+        for e in exps:
+            if not isinstance(e, dict):
+                continue
+            t = (e.get('title') or '').strip()
+            c = (e.get('company') or '').strip()
+            desc = e.get('description') or []
+            if isinstance(desc, str):
+                desc = [desc]
+            bullets = [b for b in desc if isinstance(b, str) and b.strip()]
+            if not (t or c) or not bullets:
+                continue
+            lines.append(f"- Role: {t} @ {c}")
+            for b in bullets:
+                lines.append(f"    * {b}")
+    # Projects — per-project anchored on url (preferred) or canon name.
+    projs = content.get('projects') or []
+    if isinstance(projs, list) and projs:
+        lines.append("")
+        lines.append(
+            "[PREVIOUS PROJECT BULLETS] (per project — preserve metrics, "
+            "same bullet count or more)"
+        )
+        for p in projs:
+            if not isinstance(p, dict):
+                continue
+            n = (p.get('name') or '').strip()
+            u = (p.get('url') or '').strip()
+            desc = p.get('description') or []
+            if isinstance(desc, str):
+                desc = [desc]
+            bullets = [b for b in desc if isinstance(b, str) and b.strip()]
+            if not n or not bullets:
+                continue
+            anchor = n if not u else f"{n} ({u})"
+            lines.append(f"- Project: {anchor}")
+            for b in bullets:
+                lines.append(f"    * {b}")
+    # Certifications — names only (the LLM's job is to keep them on the page,
+    # not rewrite issuers/dates).
+    certs = content.get('certifications') or []
+    if isinstance(certs, list) and certs:
+        cert_names = [
+            (c.get('name') or '').strip() if isinstance(c, dict) else str(c).strip()
+            for c in certs
+        ]
+        cert_names = [n for n in cert_names if n]
+        if cert_names:
+            lines.append("")
+            lines.append("[PREVIOUS CERTIFICATIONS] (preserve)")
+            lines.append("; ".join(cert_names))
+    langs = content.get('languages') or []
+    if isinstance(langs, list) and langs:
+        lines.append("")
+        lines.append("[PREVIOUS LANGUAGES] (preserve)")
+        lines.append(", ".join(str(l) for l in langs if l))
+    awards = content.get('awards') or []
+    if isinstance(awards, list) and awards:
+        lines.append("")
+        lines.append("[PREVIOUS AWARDS] (preserve)")
+        lines.append("; ".join(str(a) for a in awards if a))
+    if len(lines) <= 2:
+        # Snapshot existed but had no actual content — don't emit a useless block.
+        return ''
+    return "\n".join(lines)
+
+
+# Regex for "this bullet contained a numeric metric" — reused inside the
+# regression check. The resume_validator module owns the canonical regex;
+# importing it here is cleaner than redefining the pattern.
+def _bullet_numeric_claims(bullet: str) -> set[str]:
+    """Return the set of numeric tokens in a bullet (e.g. '92%', '5M').
+    Thin wrapper that delegates to the existing resume_validator helper."""
+    from resumes.services.resume_validator import _extract_numeric_claims
+    if not isinstance(bullet, str) or not bullet.strip():
+        return set()
+    return set(_extract_numeric_claims(bullet))
+
+
+def _apply_regression_check(
+    resume_content: dict,
+    previous_best: dict | None,
+    current_job_hash: str | None = None,
+) -> dict:
+    """Compare a freshly-generated resume against its prior export. Emits
+    deterministic findings into ``validation_report['regression_findings']``:
+
+      • metric_loss      (severity='blocking') — a numeric claim that was
+                         in the matched previous-best bullet is missing
+                         from the new one. Per (section, item, bullet).
+      • bullet_count_drop (severity='blocking') — a matched experience/
+                         project item has fewer bullets than before.
+      • skill_loss       (severity='warning') — a canonical skill that
+                         was on the previous version isn't on the new
+                         one. Advisory: skills legitimately shift with
+                         tailoring, but the user should see the change.
+
+    Mutates ``resume_content`` in place (sets the findings list) and
+    returns it. Empty list when:
+      • no previous_best snapshot, OR
+      • snapshot's jd_identity_hash doesn't match ``current_job_hash``
+        (JD edited — previous-best is no longer a valid comparator;
+        mirrors _build_previous_best_block's gate so injection and
+        enforcement stay in sync), OR
+      • no regression.
+    """
+    if not isinstance(resume_content, dict):
+        return resume_content
+    findings: list[dict] = []
+    snap = previous_best or {}
+    if not isinstance(snap, dict):
+        snap = {}
+    # JD-identity gate: if caller supplied current hash AND snapshot has a
+    # hash AND they don't match, the snapshot is stale (user edited the
+    # JD). Skip the diff entirely; write empty findings list.
+    snap_hash = snap.get('jd_identity_hash') or ''
+    if current_job_hash is not None and snap_hash and snap_hash != current_job_hash:
+        vr = resume_content.setdefault('validation_report', {})
+        if isinstance(vr, dict):
+            vr['regression_findings'] = []
+        return resume_content
+    prev_content = snap.get('content') or {}
+    if not isinstance(prev_content, dict):
+        prev_content = {}
+
+    # --- Skills (whole-section, canonical-set comparison). ---
+    if prev_content.get('skills'):
+        new_skills = resume_content.get('skills') or []
+        if not isinstance(new_skills, list):
+            new_skills = []
+        new_canon = {_canon_pb(s) for s in new_skills if s}
+        for s in (prev_content.get('skills') or []):
+            c = _canon_pb(s)
+            if c and c not in new_canon:
+                findings.append({
+                    'kind': 'skill_loss', 'severity': 'warning',
+                    'where': 'skills',
+                    'prev': str(s),
+                    'now': '',
+                    'detail': (
+                        f"Skill {str(s)!r} was on your last exported version "
+                        "but is missing from this draft. (Advisory — skills "
+                        "can shift with tailoring.)"
+                    ),
+                })
+
+    # --- Experience — match by (canon company, canon title). ---
+    def _index_by(items, keyfn):
+        idx: dict = {}
+        for i, it in enumerate(items or []):
+            if not isinstance(it, dict):
+                continue
+            k = keyfn(it)
+            if k and k not in idx:
+                idx[k] = it
+        return idx
+
+    def _exp_key(e):
+        return (_canon_pb(e.get('company')), _canon_pb(e.get('title')))
+
+    new_exps = resume_content.get('experience') or []
+    prev_exps = prev_content.get('experience') or []
+    new_exp_idx = _index_by(new_exps, _exp_key)
+    for prev in prev_exps:
+        if not isinstance(prev, dict):
+            continue
+        k = _exp_key(prev)
+        if not any(k):
+            continue
+        new = new_exp_idx.get(k)
+        if not new:
+            # Whole-role gone — covered by bullet_count_drop check below
+            # via len(new.description)=0 vs len(prev.description)=N.
+            new = {'description': []}
+        prev_desc = [b for b in (prev.get('description') or []) if isinstance(b, str)]
+        new_desc = [b for b in (new.get('description') or []) if isinstance(b, str)]
+        where = f"experience[{prev.get('title') or ''} @ {prev.get('company') or ''}]"
+        if len(new_desc) < len(prev_desc):
+            findings.append({
+                'kind': 'bullet_count_drop', 'severity': 'blocking',
+                'where': where,
+                'prev': str(len(prev_desc)),
+                'now': str(len(new_desc)),
+                'detail': (
+                    f"Role had {len(prev_desc)} bullets in your last export; "
+                    f"this draft has {len(new_desc)}. Restore the dropped "
+                    "bullet(s) — keep their concrete content."
+                ),
+            })
+        # metric_loss: for each prev bullet, find the closest new bullet
+        # (greedy first-fit by shared metrics) and assert prev metrics ⊆ new.
+        # Greedy is fine: if a metric truly survives anywhere in the role's
+        # new bullets, the union check catches it.
+        new_metric_union: set[str] = set()
+        for nb in new_desc:
+            new_metric_union |= _bullet_numeric_claims(nb)
+        for pb in prev_desc:
+            pm = _bullet_numeric_claims(pb)
+            missing = pm - new_metric_union
+            if missing:
+                findings.append({
+                    'kind': 'metric_loss', 'severity': 'blocking',
+                    'where': where,
+                    'prev': sorted(missing),
+                    'now': '',
+                    'detail': (
+                        f"Bullet metrics {sorted(missing)} from your last "
+                        "export aren't in this draft's version of the role. "
+                        "Restore the specific number(s)."
+                    ),
+                })
+
+    # --- Projects — match by url (preferred) or canon name. ---
+    def _proj_key(p):
+        u = (p.get('url') or '').strip()
+        if u:
+            return ('url', u)
+        return ('name', _canon_pb(p.get('name')))
+
+    new_projs = resume_content.get('projects') or []
+    prev_projs = prev_content.get('projects') or []
+    new_proj_idx = _index_by(new_projs, _proj_key)
+    for prev in prev_projs:
+        if not isinstance(prev, dict):
+            continue
+        k = _proj_key(prev)
+        if not k[1]:
+            continue
+        new = new_proj_idx.get(k)
+        if not new:
+            new = {'description': []}
+        prev_desc = [b for b in (prev.get('description') or []) if isinstance(b, str)]
+        new_desc = [b for b in (new.get('description') or []) if isinstance(b, str)]
+        where = f"projects[{prev.get('name') or ''}]"
+        if len(new_desc) < len(prev_desc):
+            findings.append({
+                'kind': 'bullet_count_drop', 'severity': 'blocking',
+                'where': where,
+                'prev': str(len(prev_desc)),
+                'now': str(len(new_desc)),
+                'detail': (
+                    f"Project had {len(prev_desc)} bullets in your last "
+                    f"export; this draft has {len(new_desc)}."
+                ),
+            })
+        new_metric_union: set[str] = set()
+        for nb in new_desc:
+            new_metric_union |= _bullet_numeric_claims(nb)
+        for pb in prev_desc:
+            pm = _bullet_numeric_claims(pb)
+            missing = pm - new_metric_union
+            if missing:
+                findings.append({
+                    'kind': 'metric_loss', 'severity': 'blocking',
+                    'where': where,
+                    'prev': sorted(missing),
+                    'now': '',
+                    'detail': (
+                        f"Project metrics {sorted(missing)} from your last "
+                        "export aren't in this draft. Restore the number(s)."
+                    ),
+                })
+
+    # Persist findings (always — empty list is meaningful: "we checked").
+    vr = resume_content.setdefault('validation_report', {})
+    if isinstance(vr, dict):
+        vr['regression_findings'] = findings
+    return resume_content
+
+
+# Verbose per-item fields stripped from slim_cv before prompt embedding.
+# The actual bullet TEXT for selected items lives in v2_block (per-skill
+# JD-aligned evidence) — duplicating it here is what blew the prompt to
+# ~39k chars on real profiles. The remaining fields (title, company,
+# dates, location, industry, technologies, url) carry the metadata the
+# LLM needs to scaffold a tailored resume; bullet content is sourced
+# from v2_block.
+_EXP_BULLET_KEYS = (
+    'description', 'highlights', 'responsibilities',
+    'achievements', 'accomplishments', 'tasks', 'bullets',
+    'duties', 'summary',
+)
+_PROJ_BULLET_KEYS = (
+    'description', 'highlights', 'features',
+    'outcomes', 'deliverables', 'summary',
+)
+
+
+def _strip_bullet_fields(item: dict, bullet_keys) -> dict:
+    """Return a copy of `item` with the bullet-carrying fields dropped.
+    Falls through unchanged when `item` isn't a dict."""
+    if not isinstance(item, dict):
+        return item
+    return {k: v for k, v in item.items() if k not in bullet_keys}
+
+
+# ---- Constructive CV-block builder (Fix D, third pass) ----
+# Earlier passes tried to FILTER the full sanitized profile down — a
+# subtractive approach. On real users this still produced 34k-39k char
+# cv_blocks because the user's "kept" content was inherently large
+# (3 experiences with 12 bullets each, 4 projects, 15 certs, plus a
+# pile of keys the master profile happens to carry: github_signals,
+# linkedin_snapshot, raw_text, normalized_summary, etc.). Filter-and-
+# subtract drifts back toward the full profile whenever the master
+# schema gains a new key.
+#
+# The constructive builder below starts EMPTY and only adds:
+#   - identity / contact (small allowlist)
+#   - planner-selected skills (names only)
+#   - planner-selected experiences with metadata only (bullets live in
+#     v2_block as per-skill JD-aligned evidence)
+#   - planner-selected projects with metadata only (same reason)
+#   - planner-selected certifications (full structure — small)
+#   - education / languages (small, structured)
+# Nothing else can leak in.
+
+
+_CV_IDENTITY_KEYS = (
+    'name', 'full_name',
+    'email', 'phone', 'location',
+    'linkedin', 'website', 'github', 'portfolio',
+    'headline', 'professional_summary',
+)
+_EXP_META_KEYS = (
+    'title', 'company', 'location', 'industry',
+    'duration', 'start_date', 'end_date',
+)
+_PROJ_META_KEYS = (
+    'name', 'url', 'technologies',
+    'start_date', 'end_date',
+)
+
+
+def _exp_metadata(exp):
+    if not isinstance(exp, dict):
+        return None
+    return {k: exp[k] for k in _EXP_META_KEYS if exp.get(k)}
+
+
+def _proj_metadata(proj):
+    if not isinstance(proj, dict):
+        return None
+    return {k: proj[k] for k in _PROJ_META_KEYS if proj.get(k)}
+
+
+def _build_planner_aligned_cv(sanitized_cv: dict, plan) -> dict:
+    """Construct the prompt's CV block from the inclusion plan + a tiny
+    allowlist of identity / structured fields. Anything not explicitly
+    allowed CANNOT leak in — the function is constructive, not
+    subtractive, so future master-profile schema changes can't silently
+    re-inflate the prompt.
+
+    What this includes:
+      * identity / contact: small allowlist (name, email, phone, …)
+      * skills: ``plan.skills_to_list`` (planner names, not master skills)
+      * experiences: only at ``plan.experiences[i].profile_index``, and
+                     ONLY metadata (no bullets — v2_block has them)
+      * projects: only at ``plan.projects[i].profile_index``, metadata only
+      * certifications: only those in ``plan.certifications``, full struct
+      * education / languages: full (small, structured)
+
+    What this DROPS:
+      * unselected experiences / projects / certs
+      * every bullet-bearing field on kept items (description, highlights,
+        responsibilities, achievements, …)
+      * github_signals / scholar_signals / kaggle_signals / linkedin_snapshot
+      * raw_text / extracted_text / cv_text
+      * normalized_summary / any other catch-all key
+
+    When ``plan`` is None (v2-grounding path declined), falls back to a
+    sane minimum: metadata-only experiences + master skills/certs/edu.
+    """
+    src = sanitized_cv or {}
+    out: dict = {}
+
+    # Identity / contact (small, fixed allowlist).
+    for k in _CV_IDENTITY_KEYS:
+        v = src.get(k)
+        if v:
+            out[k] = v
+
+    # Skills — planner names if available, else master skills.
+    plan_skills = list(getattr(plan, 'skills_to_list', None) or []) if plan else []
+    if plan_skills:
+        out['skills'] = plan_skills
+    elif src.get('skills'):
+        out['skills'] = src['skills']
+
+    # Experiences — planner-selected indices, metadata only.
+    src_exps = src.get('experiences') or []
+    plan_exps = list(getattr(plan, 'experiences', None) or []) if plan else []
+    if plan_exps and isinstance(src_exps, list) and src_exps:
+        idxs = [
+            getattr(ep, 'profile_index', None) for ep in plan_exps
+        ]
+        idxs = [i for i in idxs if isinstance(i, int) and 0 <= i < len(src_exps)]
+        kept_exps = [_exp_metadata(src_exps[i]) for i in idxs]
+    elif isinstance(src_exps, list) and src_exps:
+        # No plan — keep all but metadata-only.
+        kept_exps = [_exp_metadata(e) for e in src_exps]
+    else:
+        kept_exps = []
+    kept_exps = [e for e in kept_exps if e]
+    if kept_exps:
+        out['experiences'] = kept_exps
+
+    # Projects — same shape.
+    src_projs = src.get('projects') or []
+    plan_projs = list(getattr(plan, 'projects', None) or []) if plan else []
+    if plan_projs and isinstance(src_projs, list) and src_projs:
+        idxs = [
+            getattr(pp, 'profile_index', None) for pp in plan_projs
+        ]
+        idxs = [i for i in idxs if isinstance(i, int) and 0 <= i < len(src_projs)]
+        kept_projs = [_proj_metadata(src_projs[i]) for i in idxs]
+    elif isinstance(src_projs, list) and src_projs:
+        kept_projs = [_proj_metadata(p) for p in src_projs]
+    else:
+        kept_projs = []
+    kept_projs = [p for p in kept_projs if p]
+    if kept_projs:
+        out['projects'] = kept_projs
+
+    # Certifications — planner-selected names; full structure (each
+    # entry is small: name + issuer + date + url + duration).
+    src_certs = src.get('certifications') or []
+    plan_certs = list(getattr(plan, 'certifications', None) or []) if plan else []
+    if plan_certs and isinstance(src_certs, list) and src_certs:
+        wanted = {(c or '').strip().lower() for c in plan_certs if c}
+        kept_certs = [
+            c for c in src_certs
+            if isinstance(c, dict) and (c.get('name') or '').strip().lower() in wanted
+        ]
+        # Fallback when name matching misses (case / whitespace drift):
+        # ship the planner's bare name list so at least the names appear.
+        if not kept_certs:
+            kept_certs = [{'name': n} for n in plan_certs if n]
+        if kept_certs:
+            out['certifications'] = kept_certs
+    elif isinstance(src_certs, list) and src_certs:
+        out['certifications'] = src_certs
+
+    # Education — full (small, structured).
+    edu = src.get('education')
+    if edu:
+        out['education'] = edu
+
+    # Languages — small list.
+    langs = src.get('languages')
+    if langs:
+        out['languages'] = langs
+
+    return out
+
+
+def _apply_plan_filter_to_slim_cv(slim_cv: dict, plan) -> dict:
+    """[DEPRECATED — kept for legacy tests.] Subtractive filter that
+    starts from a sanitized master profile and tries to drop fields.
+    On real users this still produced 34k-39k char outputs because
+    the kept content (bullets, signal blobs, catch-all keys) was
+    inherently large. The supersedeer is ``_build_planner_aligned_cv``,
+    which builds the block constructively from a tiny allowlist.
+
+    Why this exists: the LLM prompt previously shipped the FULL master
+    profile (all 50+ skills, 25+ certs, every experience and project
+    WITH every bullet) AND the planner's filtered selection in `v2_block`
+    separately. Real user profiles produced ~39k-char CV dumps even
+    after the index-only filter, because each kept experience carried
+    8-15 bullets at 200-1000 chars each. The bullets were already in
+    `v2_block` — redundantly burning ~20-30k tokens. The planner is the
+    single source of truth for "what belongs on THIS resume for THIS
+    job"; v2_block is the single source for "what the bullets say."
+    Honor both.
+
+    The filter:
+      - skills: replaced with `plan.skills_to_list` (ordered by the planner)
+      - experiences: kept only those at `plan.experiences[i].profile_index`,
+                     and per-experience BULLET fields stripped (sourced
+                     from v2_block at write time)
+      - projects: kept only those at `plan.projects[i].profile_index`,
+                  bullet/description fields stripped (same reason)
+      - certifications: kept only those matching `plan.certifications` by name
+      - everything else (contact, education, languages, summary): untouched
+
+    When `plan` is None (the v2-grounding path declined to produce one),
+    or `slim_cv` isn't a dict, returns `slim_cv` unchanged.
+    """
+    if plan is None or not isinstance(slim_cv, dict):
+        return slim_cv
+
+    filtered = dict(slim_cv)  # shallow copy — don't mutate caller's dict
+
+    # Skills — replace with the planner's ordered selection.
+    skills_to_list = getattr(plan, 'skills_to_list', None) or []
+    if skills_to_list:
+        filtered['skills'] = list(skills_to_list)
+
+    # Experiences — keep only the indices the planner picked, in plan
+    # order, AND strip per-experience bullet fields (bullets ship via
+    # v2_block; duplicating them was the bulk of the prompt).
+    src_exps = filtered.get('experiences') or []
+    plan_exps = getattr(plan, 'experiences', None) or []
+    if plan_exps and isinstance(src_exps, list) and src_exps:
+        idxs = [
+            getattr(ep, 'profile_index', None)
+            for ep in plan_exps
+        ]
+        idxs = [i for i in idxs if isinstance(i, int) and 0 <= i < len(src_exps)]
+        if idxs:
+            filtered['experiences'] = [
+                _strip_bullet_fields(src_exps[i], _EXP_BULLET_KEYS) for i in idxs
+            ]
+    elif isinstance(src_exps, list) and src_exps:
+        # No plan_exps but we still want to drop bullets — they're in v2_block.
+        filtered['experiences'] = [
+            _strip_bullet_fields(e, _EXP_BULLET_KEYS) for e in src_exps
+        ]
+
+    # Projects — same; metadata kept, bullets dropped.
+    src_projs = filtered.get('projects') or []
+    plan_projs = getattr(plan, 'projects', None) or []
+    if plan_projs and isinstance(src_projs, list) and src_projs:
+        idxs = [
+            getattr(pp, 'profile_index', None)
+            for pp in plan_projs
+        ]
+        idxs = [i for i in idxs if isinstance(i, int) and 0 <= i < len(src_projs)]
+        if idxs:
+            filtered['projects'] = [
+                _strip_bullet_fields(src_projs[i], _PROJ_BULLET_KEYS) for i in idxs
+            ]
+    elif isinstance(src_projs, list) and src_projs:
+        filtered['projects'] = [
+            _strip_bullet_fields(p, _PROJ_BULLET_KEYS) for p in src_projs
+        ]
+
+    # Certifications — keep only those whose name matches the plan's list.
+    src_certs = filtered.get('certifications') or []
+    plan_certs = getattr(plan, 'certifications', None) or []
+    if plan_certs and isinstance(src_certs, list) and src_certs:
+        wanted = {(c or '').strip().lower() for c in plan_certs if c}
+        kept: list = []
+        for c in src_certs:
+            if isinstance(c, dict):
+                name = (c.get('name') or '').strip().lower()
+            else:
+                name = str(c or '').strip().lower()
+            if name and name in wanted:
+                kept.append(c)
+        if kept:
+            filtered['certifications'] = kept
+
+    # Drop raw_text and any other catch-all blobs that survived earlier
+    # filtering (defensive — these are 5-20k chars of duplicated profile
+    # text on some users).
+    for blob_key in ('raw_text', 'extracted_text', 'cv_text', 'linkedin_snapshot'):
+        filtered.pop(blob_key, None)
+
+    return filtered
+
+
 def generate_resume_content(profile, job, gap_analysis, *, metadata: dict | None = None,
                             supervisor_feedback: str = "",
-                            standards_section_override: str | None = None):
+                            standards_section_override: str | None = None,
+                            previous_best: dict | None = None):
     """
     Generate a PROFESSIONAL, ATS-optimized tailored resume using LangChain
     structured output, grounded in every signal source we have for the
@@ -587,11 +1312,34 @@ def generate_resume_content(profile, job, gap_analysis, *, metadata: dict | None
     # downstream blows up — the v1 path still runs.
     v2_block, inclusion_plan = _build_v2_grounding(profile, job, gap_analysis)
 
+    # Fix-D (2026-05-31, third pass): build the prompt's CV block
+    # CONSTRUCTIVELY from the inclusion plan + a tiny identity allowlist.
+    # The two prior passes filtered the full sanitized profile and still
+    # shipped 34-39k chars because (a) the kept items each carried 8-15
+    # bullets and (b) master profiles contain catch-all keys that survive
+    # any reasonable subtractive filter. Switching to constructive — start
+    # empty, add only what's explicitly allowed — guarantees the block
+    # cannot drift back toward the full profile when the schema grows.
+    # Bullet text for kept items lives in v2_block (per-skill JD-aligned
+    # evidence); slim_cv carries metadata only.
+    slim_cv_for_prompt = _build_planner_aligned_cv(sanitized_cv, inclusion_plan)
+
     logger.info(
         "Resume generation: domain='%s' for job '%s'; evidence_block_len=%d "
-        "standards_block_len=%d v2_block_len=%d",
+        "standards_block_len=%d v2_block_len=%d cv_block_len=%d (raw=%d)",
         domain, job.title, len(evidence_context), len(standards_section),
         len(v2_block),
+        len(json.dumps(slim_cv_for_prompt, default=str)),
+        len(json.dumps(slim_cv, default=str)),
+    )
+
+    # Fix #1 — previous-best block. Built only when (a) caller passed a
+    # snapshot and (b) the snapshot's jd_identity_hash matches THIS job's
+    # current hash (JD unchanged since the last export). Placed alongside
+    # the supervisor block — same "never stripped by 413 slim-retry"
+    # exemption applies.
+    previous_best_block = _build_previous_best_block(
+        previous_best, _jd_identity_hash(job),
     )
 
     # Supervisor feedback (set by the supervised regen loop). High-salience,
@@ -624,9 +1372,10 @@ JOB DETAILS:
 - Required Skills: {', '.join(job.extracted_skills or [])}
 - Job Description:
 {jd_body}
+{previous_best_block}
 {supervisor_block}
-COMPLETE CV DATA (the candidate's authoritative resume):
-{json.dumps(slim_cv, indent=2)}
+COMPLETE CV DATA (the candidate's authoritative resume — already narrowed by the inclusion planner to the items relevant for THIS job):
+{json.dumps(slim_cv_for_prompt, indent=2)}
 
 {evidence_context}
 
@@ -715,10 +1464,8 @@ This is the difference between a tailored resume and a hallucinated one. Restruc
 - Each experience role: 3-5 bullets. Never more, never fewer if data exists.
 - Each project: 2-3 bullets max.
 - Bullet length: 1-2 lines each, roughly 15-25 words. No walls of text, no one-word bullets.
-- Structure: [Strong action verb] + [What you did] + [Measurable outcome or tool used].
-- QUANTIFY whenever the source CV has any number (%, $, users, hours, records, teams, etc). Do NOT invent numbers. If the source bullet is "Built a data pipeline" keep it qualitative — do not fabricate "40% faster".
-- Start every bullet with a DIFFERENT action verb. Never repeat the same verb in the same role.
-- Preferred action verbs by intent: Built / Designed / Implemented / Shipped / Launched (creation); Reduced / Improved / Accelerated / Cut (optimization); Led / Owned / Coordinated / Mentored (leadership); Analyzed / Investigated / Diagnosed (analysis).
+
+{BULLET_QUALITY_AND_SAFETY_RULES}
 
 === LENGTH & DENSITY ===
 - Professional summary: 2-3 sentences, 40-60 words max. No fluff.
@@ -771,12 +1518,48 @@ Make it PROFESSIONAL and ATS-OPTIMIZED.
         path applies the exact same cleanup as the happy path."""
         resume_content = _strip_schema_envelope_leaks(resume_content)
         resume_content = _ensure_profile_data_preserved(resume_content, sanitized_cv)
+        # Fix-2 (2026-06-01) — main-gen role-identity guard. The LLM can
+        # return a fabricated role (the trace caught "Banque Misr"
+        # through the regen path; the same risk exists here). Drop any
+        # returned experience/project entry whose identity doesn't
+        # match a real entry in the master profile. Log every drop so
+        # we see when the model fabricates.
+        from resumes.services.role_identity_guard import (
+            filter_experiences_to_known,
+            filter_projects_to_known,
+            log_dropped,
+        )
+        master_exps = (sanitized_cv or {}).get('experiences') or []
+        returned_exps = resume_content.get('experience') or []
+        if returned_exps and master_exps:
+            kept_exps, dropped_exps = filter_experiences_to_known(
+                returned_exps, master_exps,
+            )
+            if dropped_exps:
+                log_dropped(dropped_exps, kind='experience', surface='main-gen')
+                resume_content['experience'] = kept_exps
+        master_projs = (sanitized_cv or {}).get('projects') or []
+        returned_projs = resume_content.get('projects') or []
+        if returned_projs and master_projs:
+            kept_projs, dropped_projs = filter_projects_to_known(
+                returned_projs, master_projs,
+            )
+            if dropped_projs:
+                log_dropped(dropped_projs, kind='projects', surface='main-gen')
+                resume_content['projects'] = kept_projs
         resume_content = _apply_bullet_validator(resume_content)
         resume_content = normalize_resume(
             resume_content, plan=inclusion_plan, job=job, profile_data=sanitized_cv,
         )
         resume_content = _apply_v2_grounding_check(
             resume_content, inclusion_plan, profile, job, gap_analysis,
+        )
+        # Fix #1 — regression check against the user's last exported
+        # version (when one exists AND the JD hash matches). Findings
+        # land on validation_report['regression_findings'] for the
+        # supervised loop to read.
+        resume_content = _apply_regression_check(
+            resume_content, previous_best, current_job_hash=_jd_identity_hash(job),
         )
         # PR 4 — surface classification, plan, and retrieval metadata to
         # any caller that passes ``metadata={}``. Test harness reads these
@@ -817,6 +1600,13 @@ Make it PROFESSIONAL and ATS-OPTIMIZED.
     # 413s; slim 78.9k succeeds — default budget 85k sits between.
     from django.conf import settings as _dj_settings
     _char_budget = int(getattr(_dj_settings, 'RESUME_PROMPT_CHAR_BUDGET', 85000))
+    # Fix-B (2026-05-31): keep the un-slimmed prompt aside. The pre-slim
+    # path mutates `prompt`; if we then 413 and try to slim AGAIN in the
+    # except branch using the same `prompt` variable, .replace() runs on
+    # an already-trimmed string → saved=0 (the bug observed in dev logs).
+    # `_original_prompt` is the safety net the retry path uses.
+    _original_prompt = prompt
+    _pre_slimmed = False
     if len(prompt) > _char_budget and (v2_block or standards_section):
         _slimmed = prompt
         if v2_block:
@@ -829,6 +1619,7 @@ Make it PROFESSIONAL and ATS-OPTIMIZED.
             len(prompt), _char_budget, len(_slimmed),
         )
         prompt = _slimmed
+        _pre_slimmed = True
 
     try:
         structured_llm = get_structured_llm(ResumeContentResult, temperature=0.7, max_tokens=8192, task="resume_gen")
@@ -849,8 +1640,14 @@ Make it PROFESSIONAL and ATS-OPTIMIZED.
         # normalize_resume, so dropping the v2 block from the prompt
         # doesn't lose the selection rules — the LLM just rewrites
         # bullets without the per-skill evidence snippets to lean on.
-        if _is_token_limit_error(e) and (v2_block or standards_section):
-            slim_prompt = prompt
+        if (_is_token_limit_error(e) and (v2_block or standards_section)
+                and not _pre_slimmed):
+            # Retry slims from the ORIGINAL prompt — `prompt` is identical
+            # to `_original_prompt` here since pre-slim didn't run (the
+            # `not _pre_slimmed` guard above). When pre-slim DID run, the
+            # retry has nothing left to trim (it'd produce saved=0); fall
+            # through to the recovery / offline-fallback path instead.
+            slim_prompt = _original_prompt
             if v2_block:
                 slim_prompt = slim_prompt.replace(v2_block, '')
             if standards_section:
@@ -858,7 +1655,8 @@ Make it PROFESSIONAL and ATS-OPTIMIZED.
             logger.warning(
                 "Resume gen: token-limit hit (full=%d chars). Retrying with "
                 "v2_block + standards trimmed (slim=%d chars, saved=%d).",
-                len(prompt), len(slim_prompt), len(prompt) - len(slim_prompt),
+                len(_original_prompt), len(slim_prompt),
+                len(_original_prompt) - len(slim_prompt),
             )
             try:
                 slim_llm = get_structured_llm(
@@ -892,12 +1690,15 @@ Make it PROFESSIONAL and ATS-OPTIMIZED.
         # analysis.services.learning_path_generator.
         recovered = _recover_resume_from_failed_generation(e)
         if recovered is not None:
-            resume_content = recovered.model_dump()
-            resume_content = _ensure_profile_data_preserved(resume_content, sanitized_cv)
-            resume_content = _apply_bullet_validator(resume_content)
-            # Same Pass-B safety net on the recovery path so a tool_use_failed
-            # round-trip doesn't bypass normalization.
-            resume_content = normalize_resume(resume_content, plan=inclusion_plan, job=job, profile_data=sanitized_cv)
+            # Fix-3 (2026-06-01) — route the salvaged content through the
+            # SAME post-process pipeline as the happy path: identity
+            # guard, bullet validator, normalizer, grounding check,
+            # regression check. The prior code only ran 3 of those 6,
+            # so a recovered resume could ship with un-flagged fabricated
+            # metrics OR a phantom role. Reuse _post_process to inherit
+            # every safety net (including the FIX-2 identity guard added
+            # above).
+            resume_content = _post_process(recovered.model_dump())
             logger.info(
                 "Resume recovered from failed_generation; sections=%s",
                 list(resume_content.keys()),
@@ -919,7 +1720,23 @@ def _format_supervisor_feedback(findings) -> str:
     return "\n".join(lines)
 
 
-def generate_resume_content_supervised(profile, job, gap_analysis, *, metadata: dict | None = None):
+def _format_regression_feedback(findings) -> str:
+    """Build the regression-loss revision instruction. Capped at 8 items
+    so a pathological diff can't blow the prompt budget; aligns with
+    _format_supervisor_feedback's cap."""
+    if not findings:
+        return ""
+    lines = ["", "REGRESSION (vs your last exported version — MUST restore):"]
+    for i, f in enumerate(findings[:8], 1):
+        where = f.get('where') or ''
+        detail = f.get('detail') or ''
+        lines.append(f"{i}. [{where}] {detail}")
+    return "\n".join(lines)
+
+
+def generate_resume_content_supervised(profile, job, gap_analysis, *,
+                                        metadata: dict | None = None,
+                                        previous_best: dict | None = None):
     """generate_resume_content + an HR/CV supervisor review loop.
 
     Generate -> review (KB-grounded, render-aware) -> if blocking CONTENT issues
@@ -928,12 +1745,26 @@ def generate_resume_content_supervised(profile, job, gap_analysis, *, metadata: 
     loop (regeneration can't fix them). The review fails open, so the supervisor
     can never block a resume from shipping.
 
+    Fix #1 — the supervised loop ALSO consumes regression findings written by
+    _apply_regression_check (metric_loss, bullet_count_drop). They share the
+    SAME revision-round budget (SUPERVISOR_MAX_REVISION_ROUNDS) — there is no
+    second independent loop. When both supervisor and regression findings are
+    open in the same round, both go into the same feedback string. The shared
+    cap guarantees termination (at most cap+1 rounds; identical to today's
+    behaviour). On cap exhaustion, any remaining BLOCKING regression findings
+    are DEMOTED to severity='warning' on the shipped draft so the fix-#2
+    banner surfaces them rather than the user seeing an error.
+
     When SUPERVISOR_ENABLED is off this is a transparent pass-through to
-    generate_resume_content.
+    generate_resume_content (which still runs the regression check inline;
+    findings just don't drive a retry).
     """
     from django.conf import settings as _dj
     if not getattr(_dj, 'SUPERVISOR_ENABLED', False):
-        return generate_resume_content(profile, job, gap_analysis, metadata=metadata)
+        return generate_resume_content(
+            profile, job, gap_analysis,
+            metadata=metadata, previous_best=previous_best,
+        )
 
     # Lazy import — resume_supervisor imports helpers from this module, so a
     # top-level import here would be circular.
@@ -948,21 +1779,57 @@ def generate_resume_content_supervised(profile, job, gap_analysis, *, metadata: 
     resume_content: dict | None = None
     review = None
     rounds_run = 0
-    # Best-draft elitism: regeneration occasionally introduces *more* blocking
-    # findings than the prior draft (observed 2026-05-28 5:16 run: round 0
-    # had 2 blocking, round 1 had 4). Always retain the draft with the
-    # fewest blocking findings (tie-break: fewest total findings) so the
-    # supervisor loop is monotonically non-decreasing in quality.
+    # Best-draft elitism (Fix #3): keep the draft with the FEWEST blocking
+    # findings across rounds. Score now includes regression findings so a
+    # regen that loses a metric is treated as a regression in the same
+    # bucket as a supervisor blocker.
     best_content: dict | None = None
     best_review = None
     best_round = -1
     best_score: tuple[int, int] | None = None
+    last_regression_findings: list[dict] = []
     for round_i in range(cap + 1):
         rounds_run = round_i + 1
         resume_content = generate_resume_content(
-            profile, job, gap_analysis, metadata=metadata,
-            supervisor_feedback=feedback, standards_section_override=standards_block,
+            profile, job, gap_analysis,
+            metadata=metadata,
+            supervisor_feedback=feedback,
+            standards_section_override=standards_block,
+            previous_best=previous_best,
         )
+        # Fix-C (2026-05-31): if the main generation 413'd / errored and
+        # fell to _build_offline_fallback, the result is profile-derived
+        # boilerplate — not an LLM-tailored draft. Reviewing it with the
+        # supervisor would burn 2+ more Groq calls against the same TPM
+        # window that just rate-limited us, all to grade a non-LLM
+        # placeholder. Skip the loop entirely; ship the fallback as-is
+        # with the marker preserved so the UI can show a degraded-mode
+        # banner.
+        if isinstance(resume_content, dict) and resume_content.get('_is_fallback'):
+            logger.warning(
+                "Supervised+regression: round %d returned the offline "
+                "fallback (LLM unavailable) — skipping supervisor review "
+                "and shipping the fallback. User is in DEGRADED MODE.",
+                round_i,
+            )
+            best_content = resume_content
+            best_review = None
+            best_round = round_i
+            review = None
+            break
+        # Defensive re-run of the regression check on the supervised loop's
+        # view of the result. _post_process inside generate_resume_content
+        # already ran the check on the happy path; calling it again here is
+        # idempotent (deterministic diff + JD-hash gate = same outputs for
+        # same inputs). This makes the loop robust to a generate_resume_content
+        # that returns a dict without a populated validation_report — e.g.
+        # the offline fallback path, OR a test harness that mocks
+        # generate_resume_content.
+        if isinstance(resume_content, dict) and previous_best:
+            resume_content = _apply_regression_check(
+                resume_content, previous_best,
+                current_job_hash=_jd_identity_hash(job),
+            )
         try:
             review = review_resume(
                 resume_content, profile, job, gap_analysis, standards_block=standards_block,
@@ -971,41 +1838,137 @@ def generate_resume_content_supervised(profile, job, gap_analysis, *, metadata: 
             logger.warning("Supervisor review raised (%s); shipping current draft.", exc)
             review = None
             break
-        blocking = review.blocking_content_findings()
+        # Findings classification policy: only AUTO_FIXABLE blockers
+        # drive a regen round. NEEDS_USER_INPUT findings (unsupported
+        # metric, metric_loss, missing field, …) bypass the loop —
+        # regenerating them would fabricate or delete the user's real
+        # content. They surface as "Confirm or complete" instead.
+        from resumes.services.findings_classifier import (
+            classify_finding, BUCKET_AUTO_FIX,
+        )
+        all_blocking = review.blocking_content_findings()
+        blocking = [
+            f for f in all_blocking
+            if classify_finding('supervisor', {
+                'category': getattr(f, 'category', '') or '',
+                'severity': getattr(f, 'severity', '') or '',
+                'layer': getattr(f, 'layer', '') or '',
+            }) == BUCKET_AUTO_FIX
+        ]
+        # Pull regression findings written by _apply_regression_check inside
+        # _post_process. Severity is set deterministically:
+        #   metric_loss / bullet_count_drop → 'blocking' (must be restored)
+        #   skill_loss → 'warning'           (advisory, doesn't drive regen)
+        vr = resume_content.get('validation_report') if isinstance(resume_content, dict) else {}
+        regression_findings = list((vr or {}).get('regression_findings') or [])
+        regression_blocking = [
+            f for f in regression_findings
+            if (f.get('severity') or '').lower() == 'blocking'
+            and classify_finding('regression', f) == BUCKET_AUTO_FIX
+        ]
+        # User-input blockers that BYPASSED the loop — kept in the
+        # validation_report so the UI can surface them under "Confirm
+        # or complete" without inflating the regen round count.
+        regression_user_input = [
+            f for f in regression_findings
+            if (f.get('severity') or '').lower() == 'blocking'
+            and classify_finding('regression', f) != BUCKET_AUTO_FIX
+        ]
+        supervisor_user_input_blockers = [
+            f for f in all_blocking
+            if classify_finding('supervisor', {
+                'category': getattr(f, 'category', '') or '',
+                'severity': getattr(f, 'severity', '') or '',
+                'layer': getattr(f, 'layer', '') or '',
+            }) != BUCKET_AUTO_FIX
+        ]
+        if regression_user_input or supervisor_user_input_blockers:
+            logger.info(
+                "Supervisor round %d: %d user-input blocker(s) bypassed the "
+                "loop (regression=%d, supervisor=%d) — they will surface to "
+                "the user as 'Confirm or complete'.",
+                round_i, len(regression_user_input) + len(supervisor_user_input_blockers),
+                len(regression_user_input), len(supervisor_user_input_blockers),
+            )
+        last_regression_findings = regression_findings
         render_count = len([f for f in review.findings if f.layer == 'render'])
         logger.info(
-            "Supervisor round %d: %d findings (%d content-blocking, %d render) verdict=%s",
-            round_i, len(review.findings), len(blocking), render_count, review.verdict,
+            "Supervisor round %d: %d sup-findings (%d content-blocking, %d render) "
+            "+ %d regression-findings (%d blocking) verdict=%s",
+            round_i, len(review.findings), len(blocking), render_count,
+            len(regression_findings), len(regression_blocking), review.verdict,
         )
-        score = (len(blocking), len(review.findings))
+        # Score on COMBINED blocking count. Both finding types are
+        # high-precision (supervisor's are deal-breakers; regression's are
+        # deterministic deltas) so they get equal weight.
+        combined_blocking_count = len(blocking) + len(regression_blocking)
+        combined_total = len(review.findings) + len(regression_findings)
+        score = (combined_blocking_count, combined_total)
         if best_score is None or score < best_score:
             best_content = resume_content
             best_review = review
             best_round = round_i
             best_score = score
-        if not blocking:
+        if combined_blocking_count == 0:
             break
         if round_i >= cap:
             if best_round != round_i:
                 logger.info(
-                    "Supervisor: round cap (%d) reached; round %d regressed "
-                    "(blocking=%d findings=%d) vs round %d (blocking=%d "
-                    "findings=%d) — shipping the earlier draft.",
+                    "Supervised+regression: round cap (%d) reached; round %d "
+                    "regressed (blocking=%d total=%d) vs round %d (blocking=%d "
+                    "total=%d) — shipping the earlier draft.",
                     cap, round_i, score[0], score[1],
                     best_round, best_score[0], best_score[1],
                 )
             else:
                 logger.info(
-                    "Supervisor: round cap (%d) reached with %d content-blocking issues; shipping.",
-                    cap, len(blocking),
+                    "Supervised+regression: round cap (%d) reached with %d "
+                    "blocking issues (sup=%d, regression=%d); shipping.",
+                    cap, combined_blocking_count, len(blocking), len(regression_blocking),
                 )
             break
-        feedback = _format_supervisor_feedback(blocking)
+        # Combined feedback: supervisor findings + regression findings share
+        # ONE revision instruction. They usually align (restoring a metric
+        # IS a content fix), so emitting both together is the natural shape.
+        feedback = (
+            _format_supervisor_feedback(blocking)
+            + _format_regression_feedback(regression_blocking)
+        )
 
     # Ship the best draft observed, not necessarily the last one.
     if best_content is not None:
         resume_content = best_content
         review = best_review
+
+    if isinstance(resume_content, dict):
+        # Cap-exhaustion fallback: if blocking regression findings still
+        # stand on the SHIPPED draft (the best one), demote them to
+        # 'warning' so the fix-#2 banner surfaces them instead of the
+        # user seeing an error. Mirrors the supervisor's existing
+        # ship-with-revise-verdict behaviour on cap-hit.
+        vr_final = resume_content.setdefault('validation_report', {})
+        if isinstance(vr_final, dict):
+            shipped_regression = list((vr_final.get('regression_findings') or []))
+            demoted = 0
+            # Cap-exhaustion: only demote AUTO_FIXABLE blockers. USER_INPUT
+            # regression findings (metric_loss, bullet_count_drop) stay at
+            # blocking severity and surface to the user under "Confirm or
+            # complete" — the loop never owned them.
+            from resumes.services.findings_classifier import (
+                classify_finding as _classify, BUCKET_AUTO_FIX as _AUTOFIX,
+            )
+            for f in shipped_regression:
+                if (f.get('severity') or '').lower() == 'blocking' \
+                        and _classify('regression', f) == _AUTOFIX:
+                    f['severity'] = 'warning'
+                    demoted += 1
+            if demoted:
+                logger.info(
+                    "Supervised+regression: %d blocking regression finding(s) "
+                    "demoted to 'warning' on shipped draft (cap exhausted).",
+                    demoted,
+                )
+                vr_final['regression_findings'] = shipped_regression
 
     if review is not None and isinstance(resume_content, dict):
         all_findings = [
@@ -1013,6 +1976,34 @@ def generate_resume_content_supervised(profile, job, gap_analysis, *, metadata: 
              'location': f.location, 'issue': f.issue, 'fix': f.fix}
             for f in review.findings
         ]
+        # Cap-exhaustion fallback (supervisor side). Mirrors the regression
+        # demote above: if the loop ran the full cap and shipped a draft
+        # with AUTO_FIXABLE supervisor blockers still on it, demote them
+        # to 'warning'. The loop tried and failed — the user shouldn't
+        # see "to fix" alarm for issues the system owned. USER_INPUT
+        # supervisor blockers (category='grounding', unknown categories
+        # via fail-safe) keep their 'blocking' severity and surface
+        # under "Confirm or complete" instead.
+        from resumes.services.findings_classifier import (
+            classify_supervisor as _classify_sup, BUCKET_AUTO_FIX as _AUTOFIX_SUP,
+        )
+        sup_demoted = 0
+        for f in all_findings:
+            if (f.get('severity') or '').lower() == 'blocking' \
+                    and (f.get('layer') or 'content').lower() == 'content' \
+                    and _classify_sup(
+                        f.get('category', ''),
+                        f.get('severity', ''),
+                        f.get('layer', ''),
+                    ) == _AUTOFIX_SUP:
+                f['severity'] = 'warning'
+                sup_demoted += 1
+        if sup_demoted:
+            logger.info(
+                "Supervised+regression: %d AUTO_FIX supervisor blocker(s) "
+                "demoted to 'warning' on shipped draft (cap exhausted).",
+                sup_demoted,
+            )
         resume_content['supervisor_review'] = {
             'verdict': review.verdict,
             'summary': review.summary,
@@ -1023,6 +2014,36 @@ def generate_resume_content_supervised(profile, job, gap_analysis, *, metadata: 
         if isinstance(vr, dict):
             vr['supervisor_findings'] = all_findings
     return resume_content
+
+
+def load_previous_best_for(gap_analysis) -> dict | None:
+    """Find the most recent populated previous_best snapshot across all
+    GeneratedResume rows for this gap_analysis. Path A's generate_resume_task
+    creates a NEW row each call, so the snapshot from the prior row carries
+    forward.
+
+    Returns the JSONField dict (with 'content', 'exported_at',
+    'ats_score_at_export', 'jd_identity_hash' keys) or None when no prior
+    export exists for this (profile, job)."""
+    from resumes.models import GeneratedResume
+    try:
+        row = (
+            GeneratedResume.objects
+            .filter(gap_analysis=gap_analysis)
+            .exclude(previous_best={})
+            .exclude(previous_best=None)
+            .order_by('-created_at')
+            .first()
+        )
+    except Exception as exc:  # noqa: BLE001 — never let lookup failure break generation
+        logger.warning("load_previous_best_for: lookup failed (%s); proceeding without snapshot.", exc)
+        return None
+    if row is None:
+        return None
+    snap = row.previous_best
+    if isinstance(snap, dict) and snap.get('content'):
+        return snap
+    return None
 
 
 _SCHEMA_ENVELOPE_KEYS = frozenset(('additionalProperties', 'properties', 'type', 'items'))
@@ -1537,6 +2558,17 @@ def regenerate_section(profile, job, gap_analysis, current_content: dict, sectio
                and k not in _SIGNAL_KEYS
                and v
                and k not in ('normalized_summary', 'objective')}
+    # Fix-1a (2026-06-01) — phantom-role guard, INPUT side. When the
+    # regen target is experience or projects, the LLM must NOT see the
+    # full master list for that section. Showing both `current_content`
+    # AND the master is what let "Banque Misr" sneak through: the LLM
+    # picked a role from the master that wasn't in the in-flight resume.
+    # Strip the master block for the target section so the only roles
+    # the LLM can rewrite are the ones already on the resume.
+    if section == 'experience':
+        slim_cv.pop('experiences', None)
+    elif section == 'projects':
+        slim_cv.pop('projects', None)
     jd_body = (job.description or '')[:4000]
     evidence_context = _build_evidence_context(profile, job, gap_analysis)
 
@@ -1586,15 +2618,43 @@ def regenerate_section(profile, job, gap_analysis, current_content: dict, sectio
             "Use exact skill names from the JD where possible."
         ),
         'experience': (
-            "Rewrite ONLY the experience section's bullets. Keep titles, "
-            "companies, durations exactly as in the CV. 3-5 bullets per role, "
-            "each starting with a different action verb. Apply the evidence-"
-            "grounded enrichment rule: quantify only when a source supports it."
+            "Rewrite ONLY the experience section's bullets. The set of "
+            "roles is FIXED — exactly the entries in CURRENT RESUME "
+            "CONTENT above. Do NOT add a role; do NOT remove a role; "
+            "do NOT rename a role's company; do NOT invent a new company "
+            "(an output role with a company not in CURRENT RESUME CONTENT "
+            "is a SHIPPING DEFECT). Return the SAME entries in the SAME "
+            "ORDER with bullets rewritten.\n"
+            "3-5 bullets per role, each starting with a DIFFERENT strong "
+            "action verb.\n"
+            "EVERY bullet must follow the ACHIEVEMENT SHAPE below: lead "
+            "with the verb, state what was done briefly, end on the "
+            "concrete outcome.\n"
+            "REPLACE every weak / duty opener you see in the current "
+            "bullets — \"Contributed to …\", \"Applied … to …\", "
+            "\"Worked on …\", \"Responsible for …\", \"Developed and "
+            "evaluated …\", \"Demonstrating proficiency in …\" — with "
+            "achievement-shaped rewrites.\n"
+            "METRICS: only surface a number when it already exists in "
+            "the source for THAT SAME role. NEVER invent; NEVER move a "
+            "metric from another role to this one. If a role has no "
+            "real metric, keep the bullets qualitative."
         ),
         'projects': (
-            "Rewrite ONLY the projects section's bullets. Keep names and URLs "
-            "exactly as in the CV. 2-3 bullets per project. Apply the evidence-"
-            "grounded enrichment rule: quantify only when a source supports it."
+            "Rewrite ONLY the projects section's bullets. The set of "
+            "projects is FIXED — exactly the entries in CURRENT RESUME "
+            "CONTENT above. Do NOT add a project; do NOT remove a "
+            "project; do NOT rename a project's URL; do NOT invent a "
+            "new one. Return the SAME entries in the SAME ORDER with "
+            "bullets rewritten.\n"
+            "2-3 bullets per project, each starting with a DIFFERENT "
+            "strong action verb.\n"
+            "EVERY bullet must follow the ACHIEVEMENT SHAPE below.\n"
+            "REPLACE every weak / duty opener.\n"
+            "METRICS: only surface a number when it already exists in "
+            "the source for THAT SAME project. NEVER invent. NEVER "
+            "move a metric from one project to another — a silhouette "
+            "score on project A must NOT appear on project B."
         ),
     }
 
@@ -1607,16 +2667,19 @@ JOB DETAILS:
 - Job Description:
 {jd_body}
 
-CURRENT RESUME CONTENT (for reference; do NOT modify any section other than the target):
+CURRENT RESUME CONTENT (the single source of truth for the target section's role/project IDENTITIES — titles, companies, names, URLs come from HERE, never from CV DATA):
 {json.dumps({k: v for k, v in (current_content or {}).items() if k in ('professional_title', 'professional_summary', 'skills', 'experience', 'education', 'projects')}, indent=2, default=str)}
 
-CV DATA (authoritative source):
+CV DATA (the candidate's master profile — supplemental context only; for the target section, the role/project SET is fixed by CURRENT RESUME CONTENT above):
 {json.dumps(slim_cv, indent=2, default=str)}
 
 {evidence_context}
 
 === TARGET SECTION ===
 {instruction_for[section]}
+
+=== BULLET QUALITY + METRIC SAFETY (applies to experience and projects sections) ===
+{BULLET_QUALITY_AND_SAFETY_RULES}
 
 === EVIDENCE-GROUNDED ENRICHMENT RULE ===
 Every concrete claim must trace to a source you've been given (CV, GitHub, Scholar, Kaggle, gap analysis). Never claim a skill the gap analysis lists as MISSING. When no source supports a number, keep it qualitative.
@@ -1795,8 +2858,20 @@ def _build_offline_fallback(profile, job, raw_cv_data: dict) -> dict:
         if n:
             languages.append(n)
 
-    logger.info("Resume gen: offline fallback used for job '%s' (LLM unavailable)", getattr(job, 'title', '?'))
+    logger.warning(
+        "Resume gen: OFFLINE FALLBACK used for job '%s' — the LLM call failed "
+        "(rate-limit / 413 / timeout) and the user is getting deterministic "
+        "profile-derived content, NOT a tailored resume. The supervised loop "
+        "will skip this draft (no point reviewing a non-LLM placeholder). "
+        "Investigate the upstream Groq error in the previous log lines.",
+        getattr(job, 'title', '?'),
+    )
     return {
+        # Marker so generate_resume_content_supervised can detect this is
+        # not a real LLM-tailored result and skip the supervisor review.
+        # Stored on resume_content (which becomes GeneratedResume.content)
+        # so downstream consumers can also surface a degraded-mode banner.
+        '_is_fallback': True,
         'professional_title': title,
         'professional_summary': summary,
         'objective': (raw_cv_data.get('objective') or '').strip(),

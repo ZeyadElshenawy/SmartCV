@@ -1,6 +1,7 @@
 {# Compact profile-strength ring — needs profile_strength; renders nothing when missing. #}
 {% if profile_strength %}
 <a href="{% url 'insights' %}#profile-strength"
+   id="profile-strength-ring"
    data-profile-strength="{{ profile_strength.score }}"
    class="block rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 p-4 hover:ring-brand-300 dark:hover:ring-brand-700 transition-all">
     <div class="flex items-center gap-3">
@@ -11,26 +12,89 @@
                         fill="none" stroke-width="3"
                         class="stroke-neutral-200 dark:stroke-neutral-800"></circle>
                 <circle cx="18" cy="18" r="15.9155"
+                        id="strength-ring-arc"
                         fill="none" stroke-width="3" stroke-linecap="round"
                         stroke-dasharray="{{ profile_strength.score }},100"
-                        class="stroke-brand-600 dark:stroke-brand-400"></circle>
+                        class="stroke-brand-600 dark:stroke-brand-400"
+                        style="transition: stroke-dasharray 0.6s ease;"></circle>
             </svg>
-            <span class="absolute text-sm font-semibold text-neutral-900 dark:text-neutral-50">{{ profile_strength.score }}</span>
+            <span id="strength-ring-score"
+                  class="absolute text-sm font-semibold text-neutral-900 dark:text-neutral-50">{{ profile_strength.score }}</span>
         </span>
         <div class="min-w-0">
             <div class="text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400">
                 Profile strength
             </div>
             <div class="flex items-baseline gap-2 mt-0.5">
-                <span class="font-display text-lg leading-none text-neutral-900 dark:text-neutral-50"
+                <span id="strength-ring-tier"
+                      class="font-display text-lg leading-none text-neutral-900 dark:text-neutral-50"
                       style="font-variation-settings: 'opsz' 20;">{{ profile_strength.tier }}</span>
             </div>
             {% if profile_strength.top_actions %}
-            <p class="mt-1 text-[11px] text-neutral-500 dark:text-neutral-400 truncate">
+            <p id="strength-ring-hint" class="mt-1 text-[11px] text-neutral-500 dark:text-neutral-400 truncate">
                 {{ profile_strength.top_actions.0.label }}
             </p>
+            {% else %}
+            <p id="strength-ring-hint" class="mt-1 text-[11px] text-neutral-500 dark:text-neutral-400 truncate"></p>
             {% endif %}
         </div>
     </div>
 </a>
+
+<script>
+/**
+ * updateStrengthRing(score, tier, hint)
+ *
+ * Patches the profile-strength ring widget in-place after a signal refresh
+ * so the user sees the updated score without a full page reload.
+ * Called by each signal component's refresh() handler when the server
+ * returns a `strength` payload in the JSON response.
+ */
+window.updateStrengthRing = function(score, tier, hint) {
+    const arc   = document.getElementById('strength-ring-arc');
+    const num   = document.getElementById('strength-ring-score');
+    const label = document.getElementById('strength-ring-tier');
+    const hintEl = document.getElementById('strength-ring-hint');
+
+    if (!arc || !num || !label) return;   // widget not present on this page
+
+    // Animate the arc via the CSS transition already on the element.
+    arc.setAttribute('stroke-dasharray', `${score},100`);
+
+    // Count up the number smoothly (simple rAF counter).
+    const from = parseInt(num.textContent, 10) || 0;
+    const to   = parseInt(score, 10) || 0;
+    if (from !== to) {
+        const duration = 600;
+        const start = performance.now();
+        const step = (now) => {
+            const t = Math.min((now - start) / duration, 1);
+            const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;  // ease-in-out
+            num.textContent = Math.round(from + (to - from) * eased);
+            if (t < 1) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+    }
+
+    // Update tier label with a brief flash.
+    if (tier && label.textContent !== tier) {
+        label.style.transition = 'opacity 0.2s';
+        label.style.opacity = '0';
+        setTimeout(() => {
+            label.textContent = tier;
+            label.style.opacity = '1';
+        }, 200);
+    }
+
+    if (hintEl && hint !== undefined) hintEl.textContent = hint;
+
+    // Flash the ring card border to signal the update.
+    const card = document.getElementById('profile-strength-ring');
+    if (card) {
+        card.style.transition = 'box-shadow 0.3s ease';
+        card.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.45)';
+        setTimeout(() => { card.style.boxShadow = ''; }, 1200);
+    }
+};
+</script>
 {% endif %}

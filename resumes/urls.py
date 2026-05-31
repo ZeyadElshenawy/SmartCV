@@ -4,6 +4,11 @@ from . import views
 urlpatterns = [
     path('generate/<uuid:job_id>/', views.generate_resume_view, name='generate_resume'),
     path('api/trigger-resume/<uuid:job_id>/', views.trigger_resume_generation_api, name='trigger_resume_api'),
+    # PR audit §6.5 fix #3 — supervised in-place regen for the stale-profile /
+    # ?refresh=1 flow, behind the same async loader used by 'generate_resume'
+    # so a GET on /edit/<id>/ never blocks on a 15-90s LLM call.
+    path('regenerate/<uuid:resume_id>/', views.regenerate_resume_view, name='regenerate_resume'),
+    path('api/regenerate-resume/<uuid:resume_id>/', views.trigger_resume_regeneration_api, name='trigger_resume_regen_api'),
     path('preview/<uuid:resume_id>/', views.resume_preview_view, name='resume_preview'),
     path('edit/<uuid:resume_id>/', views.resume_edit_view, name='resume_edit'),
     path('regen/<uuid:resume_id>/<str:section>/', views.regenerate_section_view, name='regenerate_section'),

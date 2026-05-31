@@ -1,0 +1,7 @@
+{% comment %}
+Tiny per-section badge for the nav rail. Renders nothing when `counts`
+is missing or both `.blocking` and `.advisory` are zero. Blocking
+takes precedence over advisory (only one badge per section). Must be
+included with `only` to give the partial an isolated context.
+{% endcomment %}
+{% if counts.blocking %}<span aria-label="{{ counts.blocking }} blocking" class="ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300 text-[10px] font-semibold tabular-nums leading-none ring-1 ring-red-200/70 dark:ring-red-800/60">{{ counts.blocking }}</span>{% elif counts.advisory %}<span aria-label="{{ counts.advisory }} advisory" class="ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 text-[10px] font-semibold tabular-nums leading-none ring-1 ring-amber-200/70 dark:ring-amber-800/60">{{ counts.advisory }}</span>{% endif %}
