@@ -32,3 +32,7 @@ image.png
 chrome_profiles/
 storage_state/
 debug_dumps/
+
+# Local resume-output investigation dir — contains real user PII
+# (email, phone) in user.json. Must never be committed.
+improving_resume_output/
