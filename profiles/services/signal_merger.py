@@ -36,6 +36,76 @@ logger = logging.getLogger(__name__)
 # gap analyzer uses for skill reconciliation (per CLAUDE.md).
 _ORG_FUZZY_CUTOFF = 0.85
 
+# Safety cap for description bullet count. Realistic roles have 3-8
+# bullets; anything beyond this is almost certainly a pasted essay or
+# merged log spam. The planner does the real per-section selection
+# downstream — this is a rail against pathological input, not editorial
+# trimming.
+_DESCRIPTION_BULLET_CAP = 12
+
+
+def _coerce_description_to_bullets(
+    value: Any, *, where: str = "",
+) -> list[str]:
+    """Coerce a free-form description value to ``list[str]``.
+
+    The master profile's ``Experience.description`` schema is
+    ``List[str]`` (``profiles/services/schemas.py:62``) but the
+    LinkedIn scrape produces a single prose string (joined with
+    ``"\\n\\n"`` at ``profiles/services/linkedin_scraper.py:1203``).
+    Without this coercion the merger writes the string straight
+    through, and any downstream reader that iterates the value
+    (assuming List[str] per the schema) walks character by character
+    — see the 2026-06-01 trace.
+
+    Behavior:
+      - list -> kept, items stripped, empties dropped.
+      - str  -> split on ``"\\n\\n"`` (paragraph breaks) then on
+                ``"\\n"`` (bullet lines), stripped, empties dropped.
+      - None / empty / unexpected type -> [].
+
+    Safety cap: if the resulting list exceeds
+    ``_DESCRIPTION_BULLET_CAP`` items, the list is truncated to that
+    cap and a WARNING is logged naming ``where`` (the role / education
+    entry context) and the original count. The cap is intentionally
+    generous (12) — it is a guardrail against malformed input, not an
+    editorial trim. Real roles with 13+ legitimate bullets are
+    exceedingly rare; if they appear in production, raise the cap.
+
+    Generic: no profile / company / source-specific logic.
+    """
+    if value is None:
+        return []
+    if isinstance(value, list):
+        items = [
+            s.strip()
+            for s in value
+            if isinstance(s, str) and s.strip()
+        ]
+    elif isinstance(value, str):
+        items: list[str] = []
+        # Split on paragraph breaks first (mirrors the
+        # ``"\\n\\n".join(...)`` shape the scraper writes), then
+        # within each paragraph split on single newlines so any
+        # bulleted tail at the end of a LinkedIn role description is
+        # captured as separate items.
+        for block in value.split("\n\n"):
+            for line in block.split("\n"):
+                line = line.strip()
+                if line:
+                    items.append(line)
+    else:
+        return []
+
+    if len(items) > _DESCRIPTION_BULLET_CAP:
+        logger.warning(
+            "signal_merger: description for %s had %d items, capped at %d "
+            "— if real roles legitimately exceed this, revisit the cap",
+            where or "<unknown>", len(items), _DESCRIPTION_BULLET_CAP,
+        )
+        items = items[:_DESCRIPTION_BULLET_CAP]
+    return items
+
 
 def merge_signals_into_profile(profile) -> dict[str, int]:
     """Merge LinkedIn (and GitHub language) signals into the master profile.
@@ -161,7 +231,15 @@ def _merge_experiences(existing: list[dict], linkedin_exp: list[dict]) -> tuple[
                 'company': company,
                 'start_date': start,
                 'end_date': end,
-                'description': (d.get('description') or '').strip(),
+                # Coerce to List[str] (schema contract — schemas.py:62).
+                # LinkedIn's scraper emits one "\n\n"-joined string; the
+                # helper splits paragraph + line breaks. Without this,
+                # readers that iterate per the schema char-iterate the
+                # raw string — see the 2026-06-01 trace.
+                'description': _coerce_description_to_bullets(
+                    d.get('description'),
+                    where=f"experience|{company}|{title}",
+                ),
                 'highlights': [],
                 'location': (d.get('location') or '').strip(),
                 'employment_type': emp_type,
@@ -308,7 +386,17 @@ def _merge_education(existing: list[dict], linkedin_edu: list[dict]) -> tuple[li
             'institution': institution,
             'degree': (entry.get('degree') or '').strip(),
             'graduation_year': _last_year(duration),
-            'description': (entry.get('description') or '').strip(),
+            # education[i].description is undeclared in the Education
+            # schema (schemas.py:73-81) and leaks through extra='allow'
+            # as a str. Coerce to List[str] for consistency with the
+            # adjacent experience contract so future readers that
+            # iterate it don't char-iterate. (Note: this is a defensive
+            # consistency move, not a schema-enforced one — the
+            # Education schema doesn't model description at all.)
+            'description': _coerce_description_to_bullets(
+                entry.get('description'),
+                where=f"education|{institution}",
+            ),
             'source': 'linkedin',
         })
     return existing + added, len(added)

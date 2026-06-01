@@ -422,9 +422,7 @@ You MUST follow these rules:
 
 2. Extract only what is STATED in the README. Do not infer. Do not paraphrase. Do not synthesize a metric from non-metric text.
 
-3. Fact types you may emit:
-   - "project": one fact summarizing what the repo IS (a single project fact per README).
-   - "skill": each named tool/language/library/framework. evidence_quote is the substring naming it.
+3. Fact types you may emit (LIMITED — the structured profile layer already covers skills and project skeletons; do NOT emit "skill" or "project" facts here):
    - "achievement": each concrete outcome (shipped, deployed, served users, integrated). NOT a vague claim like "demonstrates ML skill".
    - "metric": each NUMBER WITH A UNIT. Set value (float) and unit (string). If the source hedges the number ("~89%", "about 200ms", "approximately", "aims to", "up to"), set hedged=true.
 
@@ -533,6 +531,23 @@ def extract_from_github_readme(
     seen_keys: set[tuple] = set()
 
     for raw in raw_facts:
+        # NARROWING (2026-06-01): the README extractor is restricted to
+        # METRIC + ACHIEVEMENT. SKILL facts come from Layer B's
+        # ``skills[]`` (deduped across all sources) and project
+        # skeletons come from Layer B's ``projects_enriched[]`` (where
+        # ``source_url`` matches this extractor's ``repo_url``, so
+        # metrics join structurally onto the same entity). Emitting
+        # skill/project from the README too would re-introduce the
+        # double-entity bug the smoke test exposed.
+        parsed_type = _parse_fact_type(getattr(raw, "type", ""))
+        if parsed_type in _README_NARROWED_OUT_TYPES:
+            logger.info(
+                "fact_extractor[github_readme]: narrowed-out fact "
+                "type=%s claim=%r (Layer B handles skills/project skeleton)",
+                parsed_type.value if parsed_type else "?",
+                (getattr(raw, "claim", "") or "")[:60],
+            )
+            continue
         fact = _build_fact_from_raw(
             raw,
             source_text=readme_text, source_tag=source_tag,
@@ -552,6 +567,11 @@ def extract_from_github_readme(
         len(facts), repo_url, reliability.value,
     )
     return facts
+
+
+# Narrowing set for the README extractor: SKILL + PROJECT come from
+# the structured-profile reader (Layer B), not from README prose.
+_README_NARROWED_OUT_TYPES: set = {FactType.SKILL, FactType.PROJECT}
 
 
 # ---------------------------------------------------------------------------
@@ -783,107 +803,31 @@ def _extract_cv_with_llm(cv_text: str) -> _CVExtraction:
 def extract_from_old_cv(
     *, cv_text: str, profile_owner: str = "",
 ) -> list[FactRecord]:
-    """Extract atomic facts from the user's uploaded CV / résumé.
+    """[DEPRECATED 2026-06-01] Use ``extract_from_structured_profile()``.
 
-    Reliability rule: ``USER_ORIGINAL`` — the CV is a self-stated
-    artifact the user owns. Metrics in CV bullets ("Reduced load time
-    40%") are still subject to the evidence guard, but their
-    reliability is the user-original tier.
+    The structured profile (``data_content['experiences']`` /
+    ``['education']`` / ``['skills']``) is the canonical CV-derived
+    metadata — written by the CV parser + LLM validator on upload
+    (see ``profiles/services/llm_validator.py``). Re-extracting from
+    ``cv_text`` here was wasteful LLM work that produced facts the
+    structured reader already covers.
 
-    Entity binding:
-      - Roles → ``cv:role|<normalized_company>|<normalized_title>``
-      - Education → ``cv:edu|<normalized_institution>|<normalized_degree>``
-      - Skills / free facts → empty entity_id (not bound to a single
-        item; metrics among free facts will be rejected by FactRecord
-        because metrics require an entity).
-    """
-    source_text = cv_text or ""
-    source_tag = "old_cv"
-    try:
-        extraction = _extract_cv_with_llm(source_text)
-    except Exception as exc:  # noqa: BLE001
-        logger.warning(
-            "fact_extractor[old_cv]: extraction failed (%s); returning no facts",
-            type(exc).__name__,
-        )
-        return []
+    Numeric evidence in CV bullets now flows through the structured
+    reader's ACHIEVEMENT facts (whose ``claim`` text carries the same
+    numbers, pooled by the v2 generator's number-grounding guard).
 
-    facts: list[FactRecord] = []
-    seen_keys: set[tuple] = set()
-    surface = "old_cv"
-
-    def _emit(raw, entity_id, entity_display):
-        fact = _build_fact_from_raw(
-            raw,
-            source_text=source_text, source_tag=source_tag,
-            entity_id=entity_id, entity_display=entity_display,
-            reliability=SourceReliability.USER_ORIGINAL,
-            surface=surface,
-        )
-        if fact is None:
-            return
-        key = (fact.type, _normalize_for_substring(fact.claim), entity_id)
-        if key in seen_keys:
-            return
-        seen_keys.add(key)
-        facts.append(fact)
-
-    # Roles. Entity itself must be substring-present in the CV (verifies
-    # the LLM didn't invent a role). Match on company OR title — either
-    # substring is enough; entity is dropped only when neither appears.
-    for role in (getattr(extraction, "roles", None) or []):
-        company = (getattr(role, "company", "") or "").strip()
-        title = (getattr(role, "title", "") or "").strip()
-        c_ok = bool(company) and _evidence_in_source(company, source_text)
-        t_ok = bool(title) and _evidence_in_source(title, source_text)
-        if not (c_ok or t_ok):
-            logger.warning(
-                "fact_extractor[old_cv]: dropped invented role (neither "
-                "company nor title found in CV): company=%r title=%r",
-                company, title,
-            )
-            continue
-        entity_id = "cv:role|{c}|{t}".format(
-            c=_normalize_entity_token(company),
-            t=_normalize_entity_token(title),
-        )
-        entity_display = f"{title} @ {company}".strip(" @")
-        for raw in (getattr(role, "facts", None) or []):
-            _emit(raw, entity_id, entity_display)
-
-    # Education entities. Same substring check on institution / degree.
-    for edu in (getattr(extraction, "education", None) or []):
-        institution = (getattr(edu, "institution", "") or "").strip()
-        degree = (getattr(edu, "degree", "") or "").strip()
-        i_ok = bool(institution) and _evidence_in_source(institution, source_text)
-        d_ok = bool(degree) and _evidence_in_source(degree, source_text)
-        if not (i_ok or d_ok):
-            logger.warning(
-                "fact_extractor[old_cv]: dropped invented education entry: "
-                "institution=%r degree=%r",
-                institution, degree,
-            )
-            continue
-        entity_id = "cv:edu|{i}|{d}".format(
-            i=_normalize_entity_token(institution),
-            d=_normalize_entity_token(degree),
-        )
-        entity_display = f"{degree} @ {institution}".strip(" @")
-        for raw in (getattr(edu, "facts", None) or []):
-            _emit(raw, entity_id, entity_display)
-
-    # Free facts — skills, etc. No entity binding; metric facts here
-    # are rejected by FactRecord (metric requires non-empty entity_id),
-    # which is the desired behavior — a "metric" floating in the CV
-    # without a role context can't be safely cited.
-    for raw in (getattr(extraction, "free_facts", None) or []):
-        _emit(raw, entity_id="", entity_display="")
-
+    Signature kept for back-compat; the dispatch registry still routes
+    ``source_type='old_cv'`` here. Returns ``[]`` and logs a single
+    deprecation note. The internal ``_extract_cv_with_llm`` /
+    ``_CVExtraction`` helpers are preserved for tests that exercise
+    the historic prompt shape."""
     logger.info(
-        "fact_extractor[old_cv]: extracted %d fact(s) from CV (owner=%r)",
-        len(facts), profile_owner,
+        "fact_extractor[old_cv]: deprecated path — returning [] "
+        "(use extract_from_structured_profile() to read Layer B "
+        "metadata). cv_text len=%d profile_owner=%r",
+        len(cv_text or ""), profile_owner,
     )
-    return facts
+    return []
 
 
 # ===========================================================================
@@ -1417,59 +1361,417 @@ def _extract_linkedin_with_llm(snapshot: str) -> _LinkedInExtraction:
 def extract_from_linkedin(
     *, profile_url: str, profile_text: str, metadata: Optional[dict] = None,
 ) -> list[FactRecord]:
-    """Extract atomic facts from a LinkedIn profile snapshot.
+    """[DEPRECATED 2026-06-01] Use ``extract_from_structured_profile()``.
 
-    Reliability rule: ``USER_ORIGINAL`` — LinkedIn content is
-    self-stated. Skills, headlines, experience descriptions, and
-    certifications are typed by the user.
+    LinkedIn metadata (skills, experience entries, certifications) is
+    folded into ``data_content`` by
+    ``profiles/services/signal_merger.py`` and read by the structured
+    reader. Re-extracting from ``linkedin_signals`` prose with an LLM
+    was redundant — the structured reader covers it without an LLM
+    call.
 
-    Entity binding: this extractor currently emits free-floating
-    facts (no role-grouping). Metric facts will be rejected by
-    FactRecord (no entity_id), which is the desired behavior — a
-    floating metric on LinkedIn is ambiguous.
+    Signature kept for back-compat; the dispatch registry still routes
+    ``source_type='linkedin'`` here. Returns ``[]`` and logs a single
+    deprecation note. The internal ``_extract_linkedin_with_llm`` /
+    ``_LinkedInExtraction`` helpers are preserved for tests that
+    exercise the historic prompt shape."""
+    logger.info(
+        "fact_extractor[linkedin]: deprecated path — returning [] "
+        "(use extract_from_structured_profile() to read Layer B "
+        "metadata). profile_url=%r snapshot len=%d",
+        profile_url, len(profile_text or ""),
+    )
+    return []
 
-    FUTURE TASK (not implemented here, deliberately flagged):
-      Cross-check LinkedIn claims against the uploaded CV for
-      consistency — "Senior Engineer" on LinkedIn while the CV says
-      "Intern" should surface as a regression-style finding so the
-      user sees the conflict before sending. This belongs in the
-      v2 planner or a dedicated consistency-checker; the extractor
-      stays focused on per-source extraction.
+
+# ===========================================================================
+# Structured-profile reader (Layer B) — the NEW primary metadata input.
+#
+# The structured profile is what ``profiles/services/llm_validator.py``
+# writes to ``UserProfile.data_content`` after CV parsing, augmented by
+# ``profiles/services/signal_merger.py`` (LinkedIn / GitHub additions)
+# and ``profiles/services/profile_rebuilder.py`` (projects_enriched).
+# v1's resume generator (``resumes/services/resume_generator.py:1249``)
+# consumes this layer exclusively.
+#
+# This reader is the v2 metadata path: it pulls roles/education/
+# credentials/skills/projects directly from the parsed arrays — no LLM
+# call, no evidence-quote substring guard (for parsed metadata the
+# entity IS the fact; there is no prose to substring-match). The
+# Layer-A README extractor above stays narrowed to METRIC + ACHIEVEMENT,
+# producing the evidence-grounded numeric facts that THIS reader does
+# not. Together they cover the input surface that the old multi-source
+# LLM extraction stack used to.
+# ===========================================================================
+
+
+def extract_from_structured_profile(*, data_content: dict) -> list[FactRecord]:
+    """Emit FactRecords directly from Layer B (the structured profile).
+
+    Layer B is the canonical normalized profile that v1's
+    ``resume_generator`` consumes exclusively. Its structured arrays
+    (experiences/education/certifications/skills/projects_enriched)
+    are already deduped across CV + LinkedIn + GitHub by the
+    signal_merger. This reader emits one FactRecord per parsed entity
+    so the v2 planner / generator can read from the same canonical
+    layer that v1 reads.
+
+    Calls NO LLM. Runs NO evidence-quote substring guard — for parsed
+    metadata the entity is the fact, and Layer B's bullet text is
+    LLM-RESTRUCTURED (per ``llm_validator.VALIDATION_SYSTEM_PROMPT``),
+    NOT verbatim source text, so substring-grounding against it would
+    be misleading. To keep that distinction visible in the store,
+    structurally-sourced facts carry ``source='structured_profile'``
+    (or ``'structured_profile:<sub>'`` for projects).
+
+    Reliability: every structured entry maps to ``USER_ORIGINAL``.
+    Layer B's per-entry ``source`` field (``'cv'`` / ``'linkedin'`` /
+    ``'github'`` / manual edits) is self-stated or parser-derived in
+    every current case; a future task can downgrade specific sources
+    if needed.
+
+    Coverage:
+      - ``experiences[]``            -> ROLE + ACHIEVEMENT per bullet
+      - ``education[]``              -> EDUCATION
+      - ``certifications[]``         -> CREDENTIAL
+      - ``skills[]``                 -> SKILL (entity-less per
+        cross-source dedup policy)
+      - ``projects_enriched[]`` (or
+        ``projects[]`` fallback)     -> PROJECT + ACHIEVEMENT per
+        bullet. ``entity_id`` is the project's URL (``source_url``
+        from ``EnrichedProject``) so README metrics from
+        ``extract_from_github_readme`` JOIN onto the same entity.
+
+    Metrics are NOT emitted from this reader — they live in Layer A's
+    verbatim source text (README excerpts, raw_text) and require the
+    substring-grounding guard the narrowed README extractor provides.
     """
-    source_text = profile_text or ""
-    source_tag = "linkedin"
-    try:
-        extraction = _extract_linkedin_with_llm(source_text)
-    except Exception as exc:  # noqa: BLE001
-        logger.warning(
-            "fact_extractor[linkedin]: extraction failed (%s); returning no facts",
-            type(exc).__name__,
-        )
+    if not isinstance(data_content, dict):
         return []
-
     facts: list[FactRecord] = []
-    seen_keys: set[tuple] = set()
-    surface = "linkedin"
+    seen_ids: set[str] = set()
 
-    for raw in (getattr(extraction, "facts", None) or []):
-        fact = _build_fact_from_raw(
-            raw,
-            source_text=source_text, source_tag=source_tag,
-            entity_id="", entity_display="",
-            reliability=SourceReliability.USER_ORIGINAL,
-            surface=surface,
+    def _emit(fr: FactRecord) -> None:
+        if fr.id in seen_ids:
+            return
+        seen_ids.add(fr.id)
+        facts.append(fr)
+
+    # --- experiences[] -> ROLE + ACHIEVEMENT --------------------------------
+    for exp in (data_content.get("experiences") or []):
+        if not isinstance(exp, dict):
+            continue
+        title = (exp.get("title") or "").strip()
+        company = (exp.get("company") or "").strip()
+        if not (title or company):
+            continue
+        entity_id = "cv:role|{c}|{t}".format(
+            c=_normalize_entity_token(company),
+            t=_normalize_entity_token(title),
         )
-        if fact is None:
+        entity_display = f"{title} @ {company}".strip(" @")
+        start = (exp.get("start_date") or "").strip()
+        end = (exp.get("end_date") or "").strip()
+        date_range = ""
+        if start and end:
+            date_range = f"{start} - {end}"
+        elif end:
+            date_range = end
+        elif start:
+            date_range = start
+        role_evidence = entity_display + (f" — {date_range}" if date_range else "")
+        role_claim = title + (f" at {company}" if company else "")
+        try:
+            _emit(FactRecord(
+                id=_gen_fact_id(
+                    "structured_profile", entity_id,
+                    FactType.ROLE.value, role_claim,
+                ),
+                type=FactType.ROLE,
+                claim=role_claim,
+                entity_id=entity_id,
+                entity_display=entity_display,
+                source="structured_profile",
+                source_reliability=SourceReliability.USER_ORIGINAL,
+                evidence_quote=role_evidence,
+            ))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "fact_extractor[structured_profile]: ROLE rejected (%s) "
+                "for entity=%r", type(exc).__name__, entity_display,
+            )
             continue
-        key = (fact.type, _normalize_for_substring(fact.claim), fact.entity_id)
-        if key in seen_keys:
+        # Defensive read-side guard (mirrors v1's
+        # resume_generator.py:2908 pattern): if a future writer drifts
+        # back to emitting description as a string, this guard ensures
+        # we split on newlines into a sensible list rather than
+        # char-iterating the string. The signal_merger's
+        # _coerce_description_to_bullets is the load-bearing fix at
+        # the cause; this is defense-in-depth.
+        raw_desc = exp.get("description") or []
+        if isinstance(raw_desc, str):
+            raw_desc = [
+                line.strip()
+                for line in raw_desc.split("\n")
+                if line.strip()
+            ]
+        for bullet in raw_desc:
+            if not isinstance(bullet, str):
+                continue
+            bullet = bullet.strip()
+            if not bullet:
+                continue
+            try:
+                _emit(FactRecord(
+                    id=_gen_fact_id(
+                        "structured_profile", entity_id,
+                        FactType.ACHIEVEMENT.value, bullet,
+                    ),
+                    type=FactType.ACHIEVEMENT,
+                    claim=bullet,
+                    entity_id=entity_id,
+                    entity_display=entity_display,
+                    source="structured_profile",
+                    source_reliability=SourceReliability.USER_ORIGINAL,
+                    evidence_quote=bullet,
+                ))
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "fact_extractor[structured_profile]: ACHIEVEMENT "
+                    "rejected (%s) bullet=%r",
+                    type(exc).__name__, bullet[:80],
+                )
+
+    # --- education[] -> EDUCATION ------------------------------------------
+    for edu in (data_content.get("education") or []):
+        if not isinstance(edu, dict):
             continue
-        seen_keys.add(key)
-        facts.append(fact)
+        institution = (edu.get("institution") or "").strip()
+        degree = (edu.get("degree") or "").strip()
+        if not (institution or degree):
+            continue
+        entity_id = "cv:edu|{i}|{d}".format(
+            i=_normalize_entity_token(institution),
+            d=_normalize_entity_token(degree),
+        )
+        field = (edu.get("field") or "").strip()
+        year = (
+            edu.get("graduation_year") or edu.get("year") or ""
+        )
+        if not isinstance(year, str):
+            year = str(year)
+        year = year.strip()
+        gpa = (edu.get("gpa") or "").strip()
+        parts: list[str] = []
+        if degree:
+            parts.append(degree)
+        if field:
+            parts.append(f"in {field}")
+        if institution:
+            parts.append(f"at {institution}")
+        if year:
+            parts.append(f"({year})")
+        claim = " ".join(parts) or f"{degree} {institution}".strip()
+        evidence = claim + (f"; GPA {gpa}" if gpa else "")
+        try:
+            _emit(FactRecord(
+                id=_gen_fact_id(
+                    "structured_profile", entity_id,
+                    FactType.EDUCATION.value, claim,
+                ),
+                type=FactType.EDUCATION,
+                claim=claim,
+                entity_id=entity_id,
+                entity_display=f"{degree} @ {institution}".strip(" @"),
+                source="structured_profile",
+                source_reliability=SourceReliability.USER_ORIGINAL,
+                evidence_quote=evidence,
+            ))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "fact_extractor[structured_profile]: EDUCATION rejected "
+                "(%s) claim=%r", type(exc).__name__, claim[:80],
+            )
+
+    # --- certifications[] -> CREDENTIAL ------------------------------------
+    for cert in (data_content.get("certifications") or []):
+        if not isinstance(cert, dict):
+            continue
+        name = (cert.get("name") or "").strip()
+        if not name:
+            continue
+        issuer = (cert.get("issuer") or "").strip()
+        date = (cert.get("date") or "").strip()
+        entity_id = "cv:cred|{n}|{i}".format(
+            n=_normalize_entity_token(name),
+            i=_normalize_entity_token(issuer),
+        )
+        claim = name + (f" — {issuer}" if issuer else "")
+        evidence = claim + (f" ({date})" if date else "")
+        try:
+            _emit(FactRecord(
+                id=_gen_fact_id(
+                    "structured_profile", entity_id,
+                    FactType.CREDENTIAL.value, claim,
+                ),
+                type=FactType.CREDENTIAL,
+                claim=claim,
+                entity_id=entity_id,
+                entity_display=name,
+                source="structured_profile",
+                source_reliability=SourceReliability.USER_ORIGINAL,
+                evidence_quote=evidence,
+            ))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "fact_extractor[structured_profile]: CREDENTIAL rejected "
+                "(%s) name=%r", type(exc).__name__, name,
+            )
+
+    # --- skills[] -> SKILL (entity-less, cross-source-dedup policy) --------
+    skills_seen: set[str] = set()
+    for s in (data_content.get("skills") or []):
+        name = ""
+        if isinstance(s, str):
+            name = s.strip()
+        elif isinstance(s, dict):
+            name = (s.get("name") or "").strip()
+        if not name:
+            continue
+        key = _normalize_for_substring(name)
+        if key in skills_seen:
+            continue
+        skills_seen.add(key)
+        try:
+            _emit(FactRecord(
+                id=_gen_fact_id(
+                    "structured_profile", "",
+                    FactType.SKILL.value, name,
+                ),
+                type=FactType.SKILL,
+                claim=name,
+                entity_id="",
+                entity_display="",
+                source="structured_profile",
+                source_reliability=SourceReliability.USER_ORIGINAL,
+                evidence_quote=name,
+            ))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "fact_extractor[structured_profile]: SKILL rejected (%s) "
+                "name=%r", type(exc).__name__, name,
+            )
+
+    # --- projects -> PROJECT + ACHIEVEMENT ---------------------------------
+    # Prefer projects_enriched (has source_url, which matches the
+    # GitHub README extractor's entity_id, so README metrics join
+    # onto the same project entity). Fall back to projects[] for
+    # profiles where the enricher hasn't run yet.
+    enriched = data_content.get("projects_enriched") or []
+    base_projects = data_content.get("projects") or []
+    project_rows: list[dict] = []
+    if enriched:
+        for ep in enriched:
+            if not isinstance(ep, dict):
+                continue
+            project_rows.append({
+                "name": (ep.get("name") or "").strip(),
+                "url": (ep.get("source_url") or "").strip(),
+                "tech": ep.get("tech_stack") or [],
+                "summary": (ep.get("summary") or "").strip(),
+                "bullets": ep.get("bullets") or [],
+                "source": (ep.get("source") or "structured").strip(),
+            })
+    else:
+        for p in base_projects:
+            if not isinstance(p, dict):
+                continue
+            project_rows.append({
+                "name": (p.get("name") or "").strip(),
+                "url": (p.get("url") or "").strip(),
+                "tech": p.get("technologies") or [],
+                "summary": "",
+                "bullets": p.get("description") or [],
+                "source": (p.get("source") or "cv").strip(),
+            })
+
+    # Dedup by entity_id so the SAME project listed in both
+    # projects_enriched and projects collapses to ONE entity — the
+    # structural fix for the double-SmartCV bug the smoke test
+    # exposed.
+    seen_project_entities: set[str] = set()
+    for row in project_rows:
+        name = row["name"]
+        url = row["url"]
+        if not name and not url:
+            continue
+        entity_id = url or ("project:" + _normalize_entity_token(name))
+        if entity_id in seen_project_entities:
+            continue
+        seen_project_entities.add(entity_id)
+        entity_display = name or url
+        tech_list = [
+            t for t in row["tech"]
+            if isinstance(t, str) and t.strip()
+        ]
+        tech_str = ", ".join(tech_list)
+        summary = row["summary"] or name
+        claim = (summary or name) + (
+            f" (tech: {tech_str})" if tech_str else ""
+        )
+        evidence = (
+            summary + (f" Tech: {tech_str}." if tech_str else "")
+        ) or name
+        source_tag = "structured_profile:" + (row["source"] or "project")
+        try:
+            _emit(FactRecord(
+                id=_gen_fact_id(
+                    source_tag, entity_id, FactType.PROJECT.value, claim,
+                ),
+                type=FactType.PROJECT,
+                claim=claim,
+                entity_id=entity_id,
+                entity_display=entity_display,
+                source=source_tag,
+                source_reliability=SourceReliability.USER_ORIGINAL,
+                evidence_quote=evidence,
+            ))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "fact_extractor[structured_profile]: PROJECT rejected "
+                "(%s) name=%r", type(exc).__name__, name,
+            )
+            continue
+        for bullet in row["bullets"]:
+            if not isinstance(bullet, str):
+                continue
+            bullet = bullet.strip()
+            if not bullet:
+                continue
+            try:
+                _emit(FactRecord(
+                    id=_gen_fact_id(
+                        source_tag, entity_id,
+                        FactType.ACHIEVEMENT.value, bullet,
+                    ),
+                    type=FactType.ACHIEVEMENT,
+                    claim=bullet,
+                    entity_id=entity_id,
+                    entity_display=entity_display,
+                    source=source_tag,
+                    source_reliability=SourceReliability.USER_ORIGINAL,
+                    evidence_quote=bullet,
+                ))
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "fact_extractor[structured_profile]: project "
+                    "ACHIEVEMENT rejected (%s) bullet=%r",
+                    type(exc).__name__, bullet[:80],
+                )
 
     logger.info(
-        "fact_extractor[linkedin]: extracted %d fact(s) from profile %r",
-        len(facts), profile_url,
+        "fact_extractor[structured_profile]: emitted %d fact(s) from "
+        "Layer B (no LLM, no evidence-quote guard).", len(facts),
     )
     return facts
 
@@ -1485,6 +1787,7 @@ EXTRACTORS = {
     "kaggle": extract_from_kaggle,
     "scholar": extract_from_scholar,
     "linkedin": extract_from_linkedin,
+    "structured_profile": extract_from_structured_profile,
 }
 
 
