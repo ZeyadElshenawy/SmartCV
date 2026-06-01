@@ -3872,3 +3872,63 @@ class SupervisorReviewSchemaTests(SimpleTestCase):
         self.assertEqual(len(r.blocking_content_findings()), 1)
         self.assertEqual(r.blocking_content_findings()[0].issue, 'keep')
         self.assertEqual(len(r.all_blocking()), 2)  # both blockings, any layer
+
+
+# ============================================================
+# README cap (raised 2026-06-01 for v2 fact-extractor)
+# ============================================================
+
+
+class ReadmeExcerptCapTests(SimpleTestCase):
+    """The cap was raised from 3000 → 20000 chars so v2's evidence-
+    quote guard sees the whole meaningful README, not just the intro.
+    Truncation still happens past the new cap and is logged."""
+
+    def _b64(self, text):
+        import base64
+        return base64.b64encode(text.encode('utf-8')).decode('ascii')
+
+    def test_readme_between_old_and_new_cap_is_fully_captured(self):
+        """A 10k-char README — well past the OLD 3000 cap but under
+        the NEW 20000 cap — must be captured in full now."""
+        from unittest.mock import patch
+        from profiles.services.github_aggregator import _fetch_repo_readme
+        body = "## Architecture\n" + ("x" * 9_900)   # ~10k chars
+        self.assertGreater(len(body), 3000)
+        self.assertLess(len(body), 20000)
+        with patch(
+            'profiles.services.github_aggregator._get',
+            return_value={'content': self._b64(body), 'encoding': 'base64'},
+        ):
+            out = _fetch_repo_readme(object(), 'zeyad/example')
+        self.assertEqual(out, body)
+        self.assertNotIn('…', out, "README under new cap should not be truncated")
+
+    def test_readme_past_new_cap_is_truncated_and_logged(self):
+        """A 50k-char README exceeds the 20k cap — truncate AND emit
+        the structured info log so we can spot real repos hitting the
+        ceiling later."""
+        from unittest.mock import patch
+        from profiles.services.github_aggregator import (
+            _fetch_repo_readme, _README_EXCERPT_CAP,
+        )
+        body = "y" * 50_000
+        with patch(
+            'profiles.services.github_aggregator._get',
+            return_value={'content': self._b64(body), 'encoding': 'base64'},
+        ), self.assertLogs('profiles.services.github_aggregator', level='INFO') as cap:
+            out = _fetch_repo_readme(object(), 'zeyad/huge-readme')
+        # Truncated at the cap (+1 ellipsis char).
+        self.assertEqual(len(out), _README_EXCERPT_CAP + 1)
+        self.assertTrue(out.endswith('…'))
+        # Structured log line emitted.
+        self.assertTrue(
+            any('zeyad/huge-readme' in line and 'truncated at cap' in line
+                for line in cap.output),
+            f"expected truncation log; got {cap.output!r}",
+        )
+
+    def test_readme_cap_constant_is_20000(self):
+        """Pin the cap so an accidental revert is caught."""
+        from profiles.services.github_aggregator import _README_EXCERPT_CAP
+        self.assertEqual(_README_EXCERPT_CAP, 20_000)
