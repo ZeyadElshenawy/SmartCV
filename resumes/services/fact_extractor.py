@@ -267,22 +267,33 @@ def _normalize_entity_token(s: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-_CLASSIFY_PROMPT = """You are classifying a GitHub repository as ORIGINAL WORK or TUTORIAL/COURSE-FOLLOWING.
+_CLASSIFY_PROMPT = """You are classifying a GitHub repository as ORIGINAL WORK or TUTORIAL/COURSE-FOLLOWING / DERIVED.
 
-TUTORIAL signals (treat the repo as tutorial-derived when ANY apply):
-- The README says "following along with", "based on the course", "from the tutorial", "guided project", "walkthrough".
-- A named course / platform is mentioned: DataCamp, Coursera, Udemy, Udacity, Kaggle Learn, fast.ai, freeCodeCamp, "Andrew Ng", "CS229", "ng-mlspecialization", similar.
-- Repo name itself signals a course: e.g. "datacamp-projects", "andrew-ng-cnn", "coursera-ml".
-- The work is a re-implementation of a paper's published method without novel modification.
-- Notebook(s) read as a step-by-step walkthrough rather than an investigation.
+You are STRICT and SKEPTICAL by default. The cost of mislabeling a course repo as "original" (overclaim on a resume → reader catches the candidate inflating) far exceeds the cost of underselling a real original project. When in doubt, classify as "unsure" → the system maps that to tutorial-derived.
 
-ORIGINAL signals:
-- Custom architecture or novel dataset.
-- "I built", "I designed", "we shipped"; clear personal ownership of decisions.
-- Production deployment, paying users, or non-trivial scale.
-- README explains DESIGN choices, not just steps.
+STRONG TUTORIAL / DERIVED signals (any one of these is decisive — classify TUTORIAL):
+- "following along with …", "based on the course / book", "from the tutorial", "walkthrough", "guided project", "as taught in", "from the bootcamp".
+- A named course or platform: DataCamp, Coursera, Udemy, Udacity, Kaggle Learn, fast.ai, freeCodeCamp, edX, Pluralsight, LinkedIn Learning, "Andrew Ng", "Stanford CS229", "CS231n", "Hands-On Machine Learning" (book), "Deep Learning Specialization", "ng-mlspecialization", any "Specialization" name.
+- Repo name patterns that signal a course: "datacamp-…", "coursera-…", "udemy-…", "andrew-ng-…", "ng-…specialization", "<book-name>-exercises", "<course-code>-…" (e.g. CS231n).
+- Re-implementation of a published paper's method without explicit novel modification, OR notebook(s) that read as step-by-step "do exactly these cells" rather than an open investigation.
+- Repo metadata `is_fork: true` (this repo is a fork of someone else's — the work isn't the candidate's original output).
+- A "Case Study" or "Project N" framing common to course curricula, especially when paired with a public-dataset name (Titanic / Iris / IBM HR / Mall Customers / Boston Housing).
 
-When you cannot tell, return "unsure". The system defaults "unsure" to tutorial-derived — that is the safer label and is correct policy; DO NOT guess "original" when you are not confident.
+WEAK TUTORIAL signals (combine with at least one other signal before classifying TUTORIAL — not decisive alone):
+- The project is purely "applied X technique to <famous public dataset>" with no original problem framing.
+- The README is a step-by-step "how I did this" rather than "what I built and why".
+
+ORIGINAL signals (positive evidence of the candidate's own work):
+- A custom architecture, a novel dataset the candidate collected/scraped, or a problem framed by the candidate (not a textbook problem).
+- "I built / designed / shipped …", clear ownership of decisions and tradeoffs.
+- Production deployment, real users, an integration with another service, a non-trivial scale signal.
+- README explains DESIGN choices (why this stack, why this model) — not just steps.
+- A test suite the candidate authored, a CI pipeline, an architecture diagram of the candidate's own design.
+
+FAIL-SAFE (load-bearing — read this twice):
+- Strong tutorial signal present  → "tutorial"
+- Clear original signals AND no tutorial signals  → "original"
+- Mixed, weak, or unclear signals → "unsure" (the system maps "unsure" → tutorial-derived). NEVER guess "original" when you are not confident; the safer default is "unsure". A polished README alone is NOT an original signal — many course repos have polished READMEs.
 
 REPO METADATA:
 {metadata_block}
@@ -293,21 +304,84 @@ README:
 Return:
 {{
   "classification": "original" | "tutorial" | "unsure",
-  "reasoning": "<one sentence>"
+  "reasoning": "<one sentence — name the specific signal>"
 }}
 """
+
+
+def _coerce_fork_flag(metadata: dict):
+    """Return True if metadata clearly says this repo is a fork.
+    Accepts ``is_fork``, ``fork`` (the native GitHub API field name),
+    or ``fork_of`` (a non-empty source-repo pointer). Returns None when
+    the field is absent so the caller can fall back to prose signals."""
+    if not isinstance(metadata, dict):
+        return None
+    for k in ("is_fork", "fork"):
+        v = metadata.get(k)
+        if isinstance(v, bool):
+            return v
+    fork_of = metadata.get("fork_of")
+    if fork_of:  # non-empty string / dict → derived from another repo
+        return True
+    return None
 
 
 def _classify_repo_with_llm(
     readme_text: str, metadata: dict
 ) -> _RepoClassification:
-    """LLM call for the original-vs-tutorial classification. Isolated in
-    its own function so tests can mock the network round-trip cleanly."""
+    """Classification entry point.
+
+    Two-stage:
+      1. **Deterministic short-circuit** on fork status. If
+         ``metadata['is_fork']`` (or ``fork``, or a non-empty
+         ``fork_of``) is True, return ``tutorial`` immediately — a
+         fork of someone else's repo cannot be the candidate's
+         original work, regardless of the README's polish. No LLM
+         call needed (saves a Groq round-trip).
+      2. **LLM judgment** on README prose + repo metadata for
+         everything else, with the strengthened prompt above. The
+         prompt is biased toward "unsure" when signals are mixed;
+         "unsure" maps to tutorial-derived downstream
+         (``_reliability_from_classification``).
+
+    Fork-flag coverage: ``github_aggregator.RepoSnapshot`` does NOT
+    currently capture the per-repo ``fork: bool`` field from the
+    GitHub REST API. The aggregator's source at
+    ``profiles/services/github_aggregator.py:188`` has a
+    commented-out filter ``# repos = [r for r in repos if not r.get('fork')]``
+    that proves the API exposes the boolean — extending RepoSnapshot
+    to store it is a one-line aggregator change that would plug into
+    the short-circuit above immediately. Until then this function
+    falls back to prose-only classification when metadata is silent
+    about fork status."""
+    if _coerce_fork_flag(metadata) is True:
+        logger.info(
+            "fact_extractor: classifier short-circuited on is_fork=True "
+            "→ tutorial_derived (no LLM call)"
+        )
+        return _RepoClassification(
+            classification="tutorial",
+            reasoning="metadata.is_fork=True (forked repo — not candidate's original work)",
+        )
     metadata_lines = []
-    for k in ("repo_url", "name", "language", "stars", "forks", "fork_of"):
+    fork_seen = False
+    for k in ("repo_url", "name", "language", "stars", "forks",
+              "fork_of", "is_fork", "fork", "description"):
         v = metadata.get(k)
-        if v is not None and v != "":
-            metadata_lines.append(f"- {k}: {v}")
+        if v is None or v == "":
+            continue
+        if k in ("is_fork", "fork"):
+            fork_seen = True
+        metadata_lines.append(f"- {k}: {v}")
+    if not fork_seen:
+        # One DEBUG-level note per call when the aggregator hasn't
+        # captured fork status. Quiet (DEBUG) so production logs aren't
+        # spammed; visible if someone goes looking.
+        logger.debug(
+            "fact_extractor: classifier metadata lacks `is_fork` field "
+            "(github_aggregator.RepoSnapshot doesn't store it yet); "
+            "relying on prose signals only."
+        )
     metadata_block = "\n".join(metadata_lines) or "(none provided)"
     prompt = _CLASSIFY_PROMPT.format(
         metadata_block=metadata_block,
@@ -478,6 +552,158 @@ def extract_from_github_readme(
         len(facts), repo_url, reliability.value,
     )
     return facts
+
+
+# ---------------------------------------------------------------------------
+# Profile-README rebinding — when a fact extracted from {user}/{user}
+# unambiguously references a specific repo (e.g. a badge URL containing
+# the repo name), rebind the fact to THAT repo's entity_id so the v2
+# generator's metrics_for(<repo>) sees it. Unambiguous-match only:
+# never guess.
+# ---------------------------------------------------------------------------
+
+
+_REPO_NAME_BOUNDARY = re.compile(r"[A-Za-z0-9_.-]+")
+
+
+def _unambiguous_repo_match(text: str, known_repos: list[dict]) -> Optional[dict]:
+    """Return the SINGLE known repo whose name or URL appears in
+    ``text``. Returns None when:
+      - no known repo matches, OR
+      - more than one known repo matches (ambiguous — do not guess).
+
+    Match rules (in priority order, but used together to decide
+    "matches" vs "no match"):
+      - URL substring: any known repo's ``url`` appearing in ``text``
+        is a strong signal.
+      - Repo-name word-boundary: the repo's ``name`` (e.g. "SmartCV")
+        appearing as a standalone token in ``text``. The character
+        class ``[A-Za-z0-9_.-]+`` is used as the boundary so a
+        sub-string of a longer identifier doesn't count.
+
+    Returns the matched repo dict or None. The caller is responsible
+    for actually performing the rebind."""
+    if not text or not known_repos:
+        return None
+    haystack = text.lower()
+    matched: list[dict] = []
+    for repo in known_repos:
+        if not isinstance(repo, dict):
+            continue
+        url = (repo.get("url") or "").lower().strip()
+        name = (repo.get("name") or "").strip()
+        if not name:
+            continue
+        if url and url in haystack:
+            matched.append(repo)
+            continue
+        # Word-boundary match on the repo name. Using a custom boundary
+        # so e.g. "SmartCV" inside "SmartCV-clone" still counts as a
+        # match (good for "/SmartCV#section"-style URLs), but "SmartCV"
+        # inside "MySmartCVDemo" does NOT (would be a false positive).
+        pattern = re.compile(
+            rf"(?<![A-Za-z0-9]){re.escape(name)}(?![A-Za-z0-9])",
+            re.IGNORECASE,
+        )
+        if pattern.search(text):
+            matched.append(repo)
+    # De-dupe (a repo can match both via URL and via name).
+    seen_urls = set()
+    unique: list[dict] = []
+    for r in matched:
+        u = (r.get("url") or r.get("name") or "").lower()
+        if u and u not in seen_urls:
+            seen_urls.add(u)
+            unique.append(r)
+    if len(unique) != 1:
+        return None
+    return unique[0]
+
+
+def _rebind_fact_to_repo(fact: FactRecord, target_repo: dict) -> FactRecord:
+    """Return a new FactRecord identical to ``fact`` except for
+    ``entity_id`` / ``entity_display`` swapped to ``target_repo``.
+    Skill facts keep ``entity_id=""`` (the cross-source-dedup policy
+    — never bound to a single entity)."""
+    if fact.type == FactType.SKILL:
+        return fact   # policy: skills aren't entity-bound
+    target_url = (target_repo.get("url") or "").strip()
+    target_display = (
+        target_repo.get("display_name")
+        or target_repo.get("name")
+        or target_url
+    )
+    if not target_url:
+        return fact
+    return fact.model_copy(update={
+        "entity_id": target_url,
+        "entity_display": target_display,
+    })
+
+
+def rebind_profile_readme_facts(
+    facts: list[FactRecord], known_repos: list[dict],
+) -> list[FactRecord]:
+    """Rebind facts extracted from a {user}/{user} profile README to
+    the specific repo they unambiguously reference.
+
+    Many profile READMEs contain badges that link to a specific repo
+    (e.g. ``[![Tests](.../tests-337%20passing)](.../SmartCV#tests)``).
+    Without rebinding, those facts sit on the profile-README entity
+    and a downstream ``store.metrics_for("<SmartCV URL>")`` query
+    won't see them — they're stranded.
+
+    For each fact:
+      - Inspect ``evidence_quote`` + ``claim`` for a known-repo
+        reference (URL substring or repo-name word-boundary).
+      - If EXACTLY ONE known repo matches → rebind ``entity_id`` to
+        that repo's URL.
+      - If ZERO or MULTIPLE repos match → leave the fact on its
+        original entity. The unambiguous-match guard is the same
+        safety principle as the role-identity guard in v1: never
+        guess onto an entity.
+
+    SKILL facts are exempt — they're already entity-less per the
+    cross-source-dedup policy.
+
+    Arguments:
+      facts: the list returned by ``extract_from_github_readme`` for
+        the profile README.
+      known_repos: list of ``{url, name, display_name?}`` dicts —
+        the user's own top_repos.
+
+    Returns: a NEW list of FactRecords (rebound where applicable);
+    the input list is not mutated."""
+    if not known_repos:
+        return list(facts)
+    out: list[FactRecord] = []
+    rebound_count = 0
+    for fact in facts:
+        if fact.type == FactType.SKILL:
+            out.append(fact)
+            continue
+        text = (fact.evidence_quote or "") + " " + (fact.claim or "")
+        target = _unambiguous_repo_match(text, known_repos)
+        if target is None:
+            out.append(fact)
+            continue
+        rebound = _rebind_fact_to_repo(fact, target)
+        if rebound.entity_id != fact.entity_id:
+            rebound_count += 1
+            logger.info(
+                "fact_extractor[github_readme]: rebound profile-README "
+                "fact to repo %r (claim=%r)",
+                target.get("name") or target.get("url"),
+                fact.claim[:80],
+            )
+        out.append(rebound)
+    if rebound_count:
+        logger.info(
+            "fact_extractor[github_readme]: rebound %d profile-README "
+            "fact(s) to specific repos via unambiguous match.",
+            rebound_count,
+        )
+    return out
 
 
 # ---------------------------------------------------------------------------
