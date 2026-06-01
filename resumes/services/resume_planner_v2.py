@@ -156,6 +156,17 @@ DEFAULT_SECTION_CAPS = {
 DEFAULT_PER_SKILL_MENTION_CAP = 3
 
 
+# Per-entity cap for the experience section. Without this cap, a
+# single verbose role can consume the entire ``caps['experience']``
+# budget and starve real subsequent roles — a real job going missing
+# is a real defect. Setting this to 4 yields balanced allocation in
+# the common 2-3 role case (default budget 12 ÷ 3 ≈ 4) while still
+# matching what a recruiter expects per role (3-5 bullets). This is
+# an ALLOCATION-fairness cap; the generator still writes only
+# grounded bullets. Configurable per call via build_plan kwarg.
+DEFAULT_PER_ENTITY_EXPERIENCE_CAP = 4
+
+
 # Reliability rank — copied logic from FactStore to avoid coupling the
 # planner to the store's private map. Higher wins.
 _RELIABILITY_RANK = {
@@ -956,6 +967,7 @@ def build_plan(
     job_description: str = "",
     section_caps: Optional[dict[str, int]] = None,
     per_skill_mention_cap: int = DEFAULT_PER_SKILL_MENTION_CAP,
+    per_entity_experience_cap: int = DEFAULT_PER_ENTITY_EXPERIENCE_CAP,
     today_ym: Optional[tuple[int, int]] = None,
 ) -> PlanResult:
     """Build the structured plan from a populated FactStore + a JD.
@@ -1165,8 +1177,20 @@ def build_plan(
         )
         slot_facts: list[FactAllocation] = []
         hedged_any = role.hedged
+        # Per-entity cap — a single verbose role cannot monopolize
+        # the section budget. The cap is on ALLOCATED facts, not on
+        # the ranked-children pool size, so the highest-ranked facts
+        # for each role still win the slots.
+        per_entity_used = 0
         for fact in ranked_children:
             if used >= exp_budget:
+                break
+            if per_entity_used >= per_entity_experience_cap:
+                notes.append(
+                    f"experience[{eid}]: hit per-entity cap "
+                    f"({per_entity_experience_cap}); remaining facts "
+                    f"yielded to next role"
+                )
                 break
             overflow = mention_counter.would_overflow(fact)
             if overflow:
@@ -1184,6 +1208,7 @@ def build_plan(
             mention_counter.record(fact)
             hedged_any = hedged_any or fact.hedged
             used += 1
+            per_entity_used += 1
         # Metric facts at this entity — pulled via the SAFETY accessor.
         # If the resolver merged additional entity_ids into this
         # entity, union their metrics too. The accessor's
