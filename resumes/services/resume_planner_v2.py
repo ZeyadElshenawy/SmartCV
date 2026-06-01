@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import logging
 import re
+from difflib import SequenceMatcher
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -501,6 +502,411 @@ def _role_end_yearmonth(
 
 
 # ---------------------------------------------------------------------------
+# Same-entity cross-section conflict resolver.
+#
+# The same real-world entity can arrive as facts of DIFFERENT TYPES
+# from different sources. A multi-month training program might be a
+# ROLE fact (scraped from LinkedIn's experience section) AND a
+# CREDENTIAL fact (parsed from the CV's "courses" list). Without
+# intervention, that program appears in TWO sections of the resume:
+# experience AND certifications. The resolver:
+#
+#   1. DETECTS same-entity duplicates across types (conservative
+#      org+name match; ambiguous matches stay separate, mirroring the
+#      profile-README rebind / role-identity-guard principle).
+#   2. SCORES the merged cluster's EXPERIENCE SUBSTANCE on four
+#      signals: duration, org relationship, deliverables, applied
+#      language.
+#   3. CHOOSES the section: >=2 signals → experience (real work);
+#      0-1 signals → certifications (genuinely thin OR truly
+#      ambiguous middle → conservative default to NOT inflate to a
+#      job). The two-signal threshold is intentional anti-timidity:
+#      an entity with real substance (e.g. duration + org +
+#      deliverable) MUST land in experience even if one source
+#      labelled it a "course"/"track"/"certificate".
+#   4. EMITS one entity in the chosen section; the other-section
+#      anchors are SUPPRESSED so the entity surfaces once, not twice.
+#
+# General: no profile/entity-name hardcoding. Match thresholds align
+# with signal_merger's existing entity dedup (canonical name + 0.85
+# fuzzy ratio).
+# ---------------------------------------------------------------------------
+
+
+# Cert-issuer platforms — when an org matches one of these, that
+# platform name doesn't count as an "org relationship" substance
+# signal. A DataCamp / Coursera "issuer" is administrative metadata,
+# not an employer / training-initiative affiliation. Canonical form:
+# alphanumeric-only, lowercase.
+_CERT_PLATFORM_TOKENS: set[str] = {
+    "coursera", "udemy", "datacamp", "edx", "linkedinlearning",
+    "kagglelearn", "fastai", "udacity", "pluralsight", "codecademy",
+    "freecodecamp", "mooc", "youtube",
+}
+
+
+# Distinctive-token filter for cross-type name matching. Strips
+# stopwords + generic cert/program scaffolding words so the overlap
+# check focuses on real entity-naming tokens. "Python" / "DEPI" /
+# "Capstone" survive; "course" / "completion" / "the" don't.
+_NAME_STOPWORDS: set[str] = {
+    # Functional stopwords.
+    "and", "or", "the", "an", "for", "with", "by", "from", "into",
+    "as", "is", "are", "be", "of", "in", "on", "at", "to",
+    # Generic cert / program scaffolding.
+    "completion", "certificate", "certified", "training", "program",
+    "course", "fundamentals", "introduction", "intro", "basics",
+    "level", "tier", "track", "associate", "professional",
+}
+
+
+# Substance regexes. Conservative — they fire on clear signal words,
+# not on weak hints.
+_DATE_RANGE_RE = re.compile(
+    r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|"
+    r"Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sept?(?:ember)?|Oct(?:ober)?|"
+    r"Nov(?:ember)?|Dec(?:ember)?|20\d{2}|19\d{2})\s*"
+    r"(?:[-–—]|to|until|through)\s*"
+    r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|"
+    r"Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sept?(?:ember)?|Oct(?:ober)?|"
+    r"Nov(?:ember)?|Dec(?:ember)?|20\d{2}|19\d{2}|present|now|"
+    r"current(?:ly)?)",
+    re.IGNORECASE,
+)
+_DELIVERABLE_TOKENS_RE = re.compile(
+    r"\b(?:capstone|pipeline|deliverable|delivered|shipped|deployed|"
+    r"prototype|implementation|integration|end[-\s]to[-\s]end)\b",
+    re.IGNORECASE,
+)
+_APPLIED_VERBS_RE = re.compile(
+    r"\b(?:built|developed|deployed|analyzed|engineered|designed|"
+    r"implemented|shipped|architected|automated|spearheaded|crafted|"
+    r"led|created|trained|fine[-\s]tuned)\b",
+    re.IGNORECASE,
+)
+_DISTINCTIVE_TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
+
+
+def _canonical_alnum(text: str) -> str:
+    """Lowercase, strip non-alphanumeric. Mirrors signal_merger's
+    canonicalization for entity keys."""
+    return re.sub(r"[^a-z0-9]+", "", (text or "").lower())
+
+
+def _distinctive_tokens(text: str) -> set[str]:
+    """Tokens for cross-type name-overlap matching. Length >= 3,
+    stopwords + scaffolding words stripped, lowercase."""
+    return {
+        t for t in (m.group(0).lower()
+                    for m in _DISTINCTIVE_TOKEN_RE.finditer(text or ""))
+        if len(t) >= 3 and t not in _NAME_STOPWORDS
+    }
+
+
+def _extract_org(fact: FactRecord) -> str:
+    """Best-effort org extraction from an anchor fact.
+
+    The structured-profile reader builds entity_display in known
+    shapes — for ROLE/EDUCATION as ``"<lhs> @ <rhs>"`` (where rhs is
+    the org), and for CREDENTIAL as ``"<name>"`` with the issuer
+    appended to claim after ``" — "``. Falls back to entity_display
+    when no separator present.
+    """
+    disp = (fact.entity_display or "").strip()
+    if fact.type == FactType.CREDENTIAL:
+        # CREDENTIAL claims carry the issuer: ``"<name> — <issuer>"``.
+        c = fact.claim or ""
+        for sep in (" — ", " - ", " – "):
+            if sep in c:
+                return c.split(sep, 1)[1].strip()
+        return disp
+    # ROLE / EDUCATION: split on the entity_display separator.
+    if " @ " in disp:
+        return disp.split(" @ ", 1)[1].strip()
+    return disp
+
+
+def _is_cert_platform(org_canon: str) -> bool:
+    """``True`` iff the canonical org token names a known cert /
+    course platform (not a real employer / training initiative)."""
+    if not org_canon:
+        return False
+    if org_canon in _CERT_PLATFORM_TOKENS:
+        return True
+    # Catch ``"linkedinlearningacademy"`` etc.
+    for tok in _CERT_PLATFORM_TOKENS:
+        if tok in org_canon and len(tok) >= 6:
+            return True
+    return False
+
+
+_RESOLVER_ANCHOR_TYPES = {
+    FactType.ROLE, FactType.CREDENTIAL, FactType.EDUCATION,
+}
+
+
+def _same_entity(a: FactRecord, b: FactRecord) -> bool:
+    """Conservative cross-type same-entity decision.
+
+    Returns ``True`` iff:
+      - the two anchors are of DIFFERENT types (same-type dedup is
+        the signal_merger's job and already ran upstream), AND
+      - their canonical orgs match (exact or SequenceMatcher ratio
+        >= 0.85 — the same threshold signal_merger uses for entity
+        dedup), AND
+      - either:
+          * they share at least one distinctive name token (length
+            >= 3, not stopword / scaffolding), OR
+          * their full canonical name strings have SequenceMatcher
+            ratio >= 0.85.
+
+    Returns ``False`` whenever any signal is missing — ambiguous
+    matches stay separate. This mirrors the unambiguous-match
+    principle the profile-README rebinder uses ("never guess").
+    """
+    if a.type == b.type:
+        return False
+    if a.type not in _RESOLVER_ANCHOR_TYPES:
+        return False
+    if b.type not in _RESOLVER_ANCHOR_TYPES:
+        return False
+    org_a = _canonical_alnum(_extract_org(a))
+    org_b = _canonical_alnum(_extract_org(b))
+    if not org_a or not org_b:
+        return False
+    if org_a != org_b:
+        if SequenceMatcher(None, org_a, org_b).ratio() < 0.85:
+            return False
+    # Org matched. Now require name overlap to avoid collapsing two
+    # unrelated artifacts from the SAME issuer (e.g. two different
+    # DataCamp courses share the issuer but are different courses).
+    name_a = (a.entity_display or "") + " " + (a.claim or "")
+    name_b = (b.entity_display or "") + " " + (b.claim or "")
+    tokens_a = _distinctive_tokens(name_a)
+    tokens_b = _distinctive_tokens(name_b)
+    if tokens_a & tokens_b:
+        return True
+    canon_a = _canonical_alnum(name_a)
+    canon_b = _canonical_alnum(name_b)
+    if not canon_a or not canon_b:
+        return False
+    return SequenceMatcher(None, canon_a, canon_b).ratio() >= 0.85
+
+
+def _evidence_text_for_cluster(
+    cluster: list[FactRecord], store: FactStore,
+) -> str:
+    """Combined searchable text for a merged cluster: every anchor's
+    claim + evidence_quote, plus every child fact at any of the
+    cluster's entity_ids."""
+    parts: list[str] = []
+    seen_ids: set[str] = set()
+    for anchor in cluster:
+        if anchor.id in seen_ids:
+            continue
+        seen_ids.add(anchor.id)
+        parts.append(anchor.claim or "")
+        parts.append(anchor.evidence_quote or "")
+        for child in store.by_entity(anchor.entity_id or ""):
+            if child.id in seen_ids:
+                continue
+            seen_ids.add(child.id)
+            parts.append(child.claim or "")
+            parts.append(child.evidence_quote or "")
+    return " ".join(p for p in parts if p)
+
+
+def _score_substance(
+    cluster: list[FactRecord], store: FactStore,
+) -> tuple[dict[str, bool], str]:
+    """Compute the four experience-substance signals for a merged
+    cluster.
+
+    Signals:
+      - ``duration``: a multi-month/year date range present anywhere
+        in the cluster's combined text.
+      - ``org_relationship``: at least one anchor's org is a real
+        affiliation (not a cert-issuer platform).
+      - ``deliverables``: deliverable nouns (capstone, pipeline,
+        shipped, deployed, prototype, end-to-end) anywhere.
+      - ``applied_language``: action verbs (built, developed,
+        deployed, engineered, ...) — distinct from "completed" /
+        "studied" / "attended".
+
+    Returns ``(signals, rationale_prefix)`` — the rationale prefix
+    names which signals fired so a downstream reader can audit the
+    decision."""
+    text = _evidence_text_for_cluster(cluster, store)
+    signals = {
+        "duration": bool(_DATE_RANGE_RE.search(text)),
+        "org_relationship": False,
+        "deliverables": bool(_DELIVERABLE_TOKENS_RE.search(text)),
+        "applied_language": bool(_APPLIED_VERBS_RE.search(text)),
+    }
+    for anchor in cluster:
+        org_canon = _canonical_alnum(_extract_org(anchor))
+        if org_canon and not _is_cert_platform(org_canon):
+            signals["org_relationship"] = True
+            break
+    fired = sorted(k for k, v in signals.items() if v)
+    rationale_prefix = (
+        f"substance signals fired: {fired} ({len(fired)} of 4). "
+    )
+    return signals, rationale_prefix
+
+
+def _decide_section(signals: dict[str, bool]) -> str:
+    """Substance-based section decision.
+
+    - **>=2 signals → ``"experience"``** (real work; anti-timidity).
+    - **0-1 signals → ``"certifications"``** (genuinely thin / truly
+      ambiguous middle → conservative default to NOT inflate to a
+      job). Underclaiming a substantial multi-month program by
+      burying it in a cert line is a real failure; the threshold of
+      2 keeps the bar low enough to surface substance without
+      promoting a bare certificate."""
+    fired = sum(1 for v in signals.values() if v)
+    return "experience" if fired >= 2 else "certifications"
+
+
+class _ResolvedEntity(BaseModel):
+    """One cluster's resolution. Internal to the planner — does NOT
+    appear in the public ``PlanResult`` shape, but its decisions are
+    surfaced via the chosen section's ``EntityAllocation.rationale``
+    / the plan's ``notes``."""
+    model_config = ConfigDict(extra="forbid")
+    primary_anchor_id: str
+    primary_entity_id: str
+    primary_entity_display: str
+    primary_anchor_type: FactType
+    merged_anchor_ids: set[str]
+    merged_entity_ids: set[str]
+    chosen_section: str
+    signals_fired: list[str]
+    rationale: str
+
+
+_SECTION_FOR_TYPE: dict[FactType, str] = {
+    FactType.ROLE: "experience",
+    FactType.CREDENTIAL: "certifications",
+    FactType.EDUCATION: "education",
+}
+
+
+def _resolve_cross_section_conflicts(
+    store: FactStore, valid_ids: set[str],
+) -> tuple[list[_ResolvedEntity], dict[str, str]]:
+    """Find same-entity facts of different anchor types and decide
+    which section the merged entity should land in.
+
+    Returns ``(resolved, suppressed)``:
+      - ``resolved`` — one ``_ResolvedEntity`` per cross-type
+        cluster, telling the section allocator which anchor wins
+        and where.
+      - ``suppressed`` — ``fact_id -> chosen_section`` for the
+        NON-primary anchors of each cluster. A suppressed anchor's
+        natural section (its type's section) must SKIP that fact
+        so the entity appears once (in the chosen section), not
+        twice.
+    """
+    candidates = [
+        f for f in store.all()
+        if f.id in valid_ids and f.type in _RESOLVER_ANCHOR_TYPES
+    ]
+
+    # Greedy clustering — walk the candidate list, place each fact in
+    # the first cluster that contains a matching member, otherwise
+    # start a new cluster. Conservative match (_same_entity) keeps
+    # transitive closure honest enough for this scale (typical resume
+    # has < 30 anchors).
+    clusters: list[list[FactRecord]] = []
+    for fact in candidates:
+        placed = False
+        for cluster in clusters:
+            if any(_same_entity(fact, c) for c in cluster):
+                cluster.append(fact)
+                placed = True
+                break
+        if not placed:
+            clusters.append([fact])
+
+    resolved: list[_ResolvedEntity] = []
+    suppressed: dict[str, str] = {}
+
+    for cluster in clusters:
+        types_present = {c.type for c in cluster}
+        if len(types_present) < 2:
+            # Single-type cluster — nothing to resolve; allocators
+            # handle it via the usual path.
+            continue
+
+        signals, rationale_prefix = _score_substance(cluster, store)
+        chosen = _decide_section(signals)
+
+        # Pick the primary anchor:
+        #   1. Prefer one whose natural section IS the chosen section.
+        #   2. Then highest reliability (PLATFORM_VERIFIED >
+        #      USER_ORIGINAL > ...).
+        #   3. Then most children at its entity_id (richer evidence).
+        #   4. Stable tiebreak on fact id.
+        preferred_type_pool = [
+            c for c in cluster
+            if _SECTION_FOR_TYPE.get(c.type) == chosen
+        ]
+        if preferred_type_pool:
+            primary_pool = preferred_type_pool
+        else:
+            # Promotion case: chosen section has no native anchor in
+            # this cluster (e.g. all-credential cluster scored as
+            # experience). Promote the strongest non-native anchor.
+            primary_pool = list(cluster)
+        primary = max(
+            primary_pool,
+            key=lambda c: (
+                _RELIABILITY_RANK.get(c.source_reliability, 0),
+                sum(
+                    1 for f in store.by_entity(c.entity_id or "")
+                    if f.id in valid_ids
+                ),
+                c.id,
+            ),
+        )
+
+        rationale = (
+            rationale_prefix
+            + f"chose section={chosen!r} "
+              f"(>=2 signals -> experience, else certifications). "
+            + f"primary={primary.type.value} "
+              f"{(primary.entity_display or primary.claim)!r} "
+              f"(reliability={primary.source_reliability.value}). "
+            + f"merged with anchors: "
+              f"{sorted(c.type.value for c in cluster if c.id != primary.id)}."
+        )
+        resolved.append(_ResolvedEntity(
+            primary_anchor_id=primary.id,
+            primary_entity_id=primary.entity_id or "",
+            primary_entity_display=(
+                primary.entity_display or primary.claim
+            ),
+            primary_anchor_type=primary.type,
+            merged_anchor_ids={c.id for c in cluster},
+            merged_entity_ids={c.entity_id for c in cluster if c.entity_id},
+            chosen_section=chosen,
+            signals_fired=[k for k, v in signals.items() if v],
+            rationale=rationale,
+        ))
+
+        # Suppress the non-primary anchors in their natural section
+        # so the entity surfaces ONCE, in the chosen section.
+        for c in cluster:
+            if c.id == primary.id:
+                continue
+            suppressed[c.id] = chosen
+
+    return resolved, suppressed
+
+
+# ---------------------------------------------------------------------------
 # build_plan — the main entry point.
 # ---------------------------------------------------------------------------
 
@@ -596,6 +1002,36 @@ def build_plan(
     sections: dict[str, SectionPlan] = {}
     notes: list[str] = []
 
+    # ---- Cross-section conflict resolver ----
+    # Detect same-entity duplicates across anchor types (ROLE /
+    # CREDENTIAL / EDUCATION) and decide which section the merged
+    # entity belongs to by EXPERIENCE SUBSTANCE. Non-primary anchors
+    # of each merged cluster are SUPPRESSED in their natural section
+    # so the entity surfaces once, not twice. ``promoted_by_section``
+    # lets a chosen section pick up anchors whose natural section was
+    # different (e.g. a CREDENTIAL anchor promoted to experience).
+    resolved_entities, suppressed_anchors = (
+        _resolve_cross_section_conflicts(store, valid_ids)
+    )
+    promoted_by_section: dict[str, list[_ResolvedEntity]] = {
+        "experience": [], "certifications": [], "education": [],
+    }
+    resolver_rationale_by_anchor: dict[str, str] = {}
+    for re_ in resolved_entities:
+        # The primary anchor's NATURAL section might or might not be
+        # the chosen one. When they DIFFER, the primary is "promoted"
+        # — the chosen section consumes it as an entity.
+        natural = _SECTION_FOR_TYPE.get(re_.primary_anchor_type)
+        if natural != re_.chosen_section:
+            promoted_by_section[re_.chosen_section].append(re_)
+        resolver_rationale_by_anchor[re_.primary_anchor_id] = re_.rationale
+        notes.append(
+            f"resolver: merged {len(re_.merged_anchor_ids)} anchor(s) "
+            f"into one entity → section={re_.chosen_section!r}; "
+            f"primary={re_.primary_entity_display!r}; "
+            f"{re_.rationale}"
+        )
+
     # ---- SKILLS section ----
     skill_facts = [f for f in all_valid if f.type == FactType.SKILL]
     ranked_skills = _ranked(
@@ -650,7 +1086,22 @@ def build_plan(
 
     # ---- EXPERIENCE section ----
     # Role-anchored entities, reverse-chronological by parsed end date.
-    role_anchors = [f for f in all_valid if f.type == FactType.ROLE]
+    # The resolver may have:
+    #   (a) suppressed a ROLE anchor (it got merged into a cluster
+    #       whose section is certifications — skip it here), or
+    #   (b) promoted a non-ROLE anchor (a CREDENTIAL/EDUCATION
+    #       cluster scored as experience — surface it here as an
+    #       entity).
+    role_anchors = [
+        f for f in all_valid
+        if f.type == FactType.ROLE
+        and suppressed_anchors.get(f.id) != "certifications"
+        and suppressed_anchors.get(f.id) != "education"
+    ]
+    for promoted in promoted_by_section["experience"]:
+        promoted_fact = store.get(promoted.primary_anchor_id)
+        if promoted_fact is not None and promoted_fact.id in valid_ids:
+            role_anchors.append(promoted_fact)
     if today_ym is None:
         import datetime as _dt
         d = _dt.date.today()
@@ -663,6 +1114,13 @@ def build_plan(
             -_role_end_yearmonth(r, today_ym)[1],
         )
     )
+    # Map primary_anchor_id -> _ResolvedEntity for quick lookup so the
+    # entity allocator can pull children from the WHOLE merged
+    # cluster (a promoted CREDENTIAL's children + the role's
+    # children, etc.) when this role was the result of resolution.
+    resolver_by_primary: dict[str, _ResolvedEntity] = {
+        re_.primary_anchor_id: re_ for re_ in resolved_entities
+    }
     experience_entities: list[EntityAllocation] = []
     exp_budget = caps["experience"]
     used = 0
@@ -673,11 +1131,33 @@ def build_plan(
         if not eid:
             continue
         # Pull the role's children (achievements + metrics + anything
-        # else at the same entity_id, excluding the role anchor itself).
-        children_all = store.by_entity(eid)
-        children = [f for f in children_all
-                    if f.id != role.id and f.id in valid_ids
-                    and f.type != FactType.METRIC]
+        # else at the same entity_id, excluding the role anchor
+        # itself). If the resolver merged this role with anchors at
+        # OTHER entity_ids, union those entity_ids' children too —
+        # so the merged entity's bullets surface together.
+        resolved_for_role = resolver_by_primary.get(role.id)
+        entity_ids_for_children = {eid}
+        if resolved_for_role is not None:
+            entity_ids_for_children |= resolved_for_role.merged_entity_ids
+        children_all: list[FactRecord] = []
+        seen_child_ids: set[str] = set()
+        for ent_id in entity_ids_for_children:
+            for f in store.by_entity(ent_id):
+                if f.id in seen_child_ids:
+                    continue
+                seen_child_ids.add(f.id)
+                children_all.append(f)
+        merged_anchor_ids = (
+            resolved_for_role.merged_anchor_ids
+            if resolved_for_role is not None
+            else {role.id}
+        )
+        children = [
+            f for f in children_all
+            if f.id not in merged_anchor_ids
+            and f.id in valid_ids
+            and f.type != FactType.METRIC
+        ]
         ranked_children = _ranked(
             children,
             must_have_terms=must_have_terms,
@@ -705,20 +1185,34 @@ def build_plan(
             hedged_any = hedged_any or fact.hedged
             used += 1
         # Metric facts at this entity — pulled via the SAFETY accessor.
-        # No metric from another entity can appear here. Filter to valid.
-        metric_ids = [
-            m.id for m in store.metrics_for(eid) if m.id in valid_ids
-        ]
+        # If the resolver merged additional entity_ids into this
+        # entity, union their metrics too. The accessor's
+        # cross-entity isolation still holds: each call only returns
+        # the metrics bound to the specific entity_id queried.
+        metric_ids: list[str] = []
+        seen_metric_ids: set[str] = set()
+        for ent_id in entity_ids_for_children:
+            for m in store.metrics_for(ent_id):
+                if m.id in valid_ids and m.id not in seen_metric_ids:
+                    seen_metric_ids.add(m.id)
+                    metric_ids.append(m.id)
         if any(store.get(mid).hedged for mid in metric_ids if store.get(mid)):
             hedged_any = True
+        # Rationale picks up the resolver's substance-decision note
+        # when this entity came from a cross-section merge.
+        resolver_note = resolver_rationale_by_anchor.get(role.id, "")
+        rationale_str = _rationale_for(
+            role, "experience", extras=f"anchor entity={eid}",
+        )
+        if resolver_note:
+            rationale_str += f"; resolver: {resolver_note}"
         experience_entities.append(EntityAllocation(
             entity_id=eid,
             entity_display=role.entity_display or eid,
             anchor_fact_id=role.id,
             facts=slot_facts,
             metric_fact_ids=metric_ids,
-            rationale=_rationale_for(role, "experience",
-                                     extras=f"anchor entity={eid}"),
+            rationale=rationale_str,
             hedged_any=hedged_any,
         ))
     sections["experience"] = SectionPlan(
@@ -803,7 +1297,15 @@ def build_plan(
     )
 
     # ---- EDUCATION section ----
-    edu_facts = [f for f in all_valid if f.type == FactType.EDUCATION]
+    # Suppress EDUCATION anchors that got merged into a non-education
+    # cluster (e.g. an entry that's also a ROLE and scored as
+    # experience).
+    edu_facts = [
+        f for f in all_valid
+        if f.type == FactType.EDUCATION
+        and suppressed_anchors.get(f.id) != "experience"
+        and suppressed_anchors.get(f.id) != "certifications"
+    ]
     ranked_edu = _ranked(
         edu_facts,
         must_have_terms=must_have_terms,
@@ -820,9 +1322,17 @@ def build_plan(
     sections["education"] = SectionPlan(section="education", facts=edu_alloc)
 
     # ---- CERTIFICATIONS section ----
-    # Platform-verified credentials outrank others for the same slot
-    # by virtue of the reliability rank in _final_rank.
-    cred_facts = [f for f in all_valid if f.type == FactType.CREDENTIAL]
+    # Suppress CREDENTIAL anchors that got merged into a non-cert
+    # cluster (the typical case: a credential whose substance scored
+    # high enough to land in experience). Platform-verified
+    # credentials outrank others for the same slot by virtue of the
+    # reliability rank in _final_rank.
+    cred_facts = [
+        f for f in all_valid
+        if f.type == FactType.CREDENTIAL
+        and suppressed_anchors.get(f.id) != "experience"
+        and suppressed_anchors.get(f.id) != "education"
+    ]
     ranked_creds = _ranked(
         cred_facts,
         must_have_terms=must_have_terms,

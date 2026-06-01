@@ -556,3 +556,432 @@ class PlanShapeIntegrationTests(SimpleTestCase):
         # Lexical scorer is what v1 of the planner uses; the field
         # documents this so a consumer can tell.
         self.assertIn("lexical", plan.ranking_method)
+
+
+# ===========================================================================
+# Same-entity cross-section conflict resolver. General feature for all
+# users — no profile / entity-name hardcoding.
+# ===========================================================================
+
+
+class SameEntityCrossSectionResolverTests(SimpleTestCase):
+    """The resolver finds same-entity duplicates across anchor types
+    (ROLE / CREDENTIAL / EDUCATION), merges them into ONE entity, and
+    chooses its section by EXPERIENCE SUBSTANCE rather than the source
+    label."""
+
+    def _store_with(self, *facts) -> FactStore:
+        s = FactStore()
+        for f in facts:
+            s.add(f)
+        return s
+
+    def test_substantive_program_lands_in_experience_not_certs(self):
+        """A training program that arrives as both a ROLE (LinkedIn)
+        AND a CREDENTIAL (CV course list) with strong name match +
+        duration + deliverable → ONE entity in EXPERIENCE, NOT in
+        certifications. Rationale names the substance signals."""
+        role = _fact(
+            id="r1", type_=FactType.ROLE,
+            claim="AI & Data Science Trainee at AcmeTrack",
+            evidence="AI & Data Science Trainee @ AcmeTrack — Jun 2025 - Dec 2025",
+            entity_id="cv:role|acmetrack|ai & data science trainee",
+            entity_display="AI & Data Science Trainee @ AcmeTrack",
+            source="structured_profile",
+        )
+        role_ach = _fact(
+            id="r1-a1", type_=FactType.ACHIEVEMENT,
+            claim="Built and deployed a capstone pipeline end-to-end.",
+            evidence="Built and deployed a capstone pipeline end-to-end.",
+            entity_id=role.entity_id,
+            entity_display=role.entity_display,
+            source="structured_profile",
+        )
+        cred = _fact(
+            id="c1", type_=FactType.CREDENTIAL,
+            claim="AcmeTrack AI & Data Science Program — AcmeTrack",
+            evidence="AcmeTrack AI & Data Science Program — AcmeTrack (2025)",
+            entity_id="cv:cred|acmetrack ai & data science program|acmetrack",
+            entity_display="AcmeTrack AI & Data Science Program",
+            source="structured_profile",
+        )
+        store = self._store_with(role, role_ach, cred)
+        plan = build_plan(store)
+        # ---- EXPERIENCE: merged entity present ----
+        exp = plan.sections["experience"]
+        self.assertEqual(len(exp.entities), 1)
+        exp_entity = exp.entities[0]
+        self.assertEqual(exp_entity.entity_id, role.entity_id)
+        self.assertIn(
+            role_ach.id, {a.fact_id for a in exp_entity.facts},
+        )
+        # Resolver rationale surfaces on the entity allocation.
+        self.assertIn("resolver", exp_entity.rationale)
+        self.assertIn("duration", exp_entity.rationale)
+        self.assertIn("deliverables", exp_entity.rationale)
+        # ---- CERTIFICATIONS: CREDENTIAL suppressed ----
+        cert_fact_ids = {
+            a.fact_id for a in plan.sections["certifications"].facts
+        }
+        self.assertNotIn(
+            cred.id, cert_fact_ids,
+            "merged CREDENTIAL must NOT also appear in certifications "
+            "— this is the load-bearing 'one entity, one section' rule",
+        )
+
+    def test_thin_certificate_stays_in_certifications(self):
+        """A bare CREDENTIAL with no duration / deliverable /
+        applied verbs / real-org affiliation → 0 signals → certs.
+        Conservative default."""
+        cred = _fact(
+            id="c1", type_=FactType.CREDENTIAL,
+            claim="Python Fundamentals — Udemy",
+            evidence="Python Fundamentals — Udemy",
+            entity_id="cv:cred|python fundamentals|udemy",
+            entity_display="Python Fundamentals",
+            source="structured_profile",
+        )
+        store = self._store_with(cred)
+        plan = build_plan(store)
+        cert_ids = {a.fact_id for a in plan.sections["certifications"].facts}
+        self.assertIn(cred.id, cert_ids)
+        self.assertEqual(plan.sections["experience"].entities, [])
+
+    def test_truly_ambiguous_middle_defaults_to_certifications(self):
+        """ONE signal fires (cert-platform org, no duration, no
+        deliverable, one borderline applied verb) → conservative
+        default to certifications. Don't promote a borderline cert
+        to a job."""
+        role = _fact(
+            id="r1", type_=FactType.ROLE,
+            claim="Learner",
+            evidence="Learner @ Coursera",
+            entity_id="cv:role|coursera|learner course",
+            entity_display="Learner Course @ Coursera",
+            source="structured_profile",
+        )
+        cred = _fact(
+            id="c1", type_=FactType.CREDENTIAL,
+            claim="Learner Course — Coursera",
+            evidence="Designed exercises completed.",
+            entity_id="cv:cred|learner course|coursera",
+            entity_display="Learner Course",
+            source="structured_profile",
+        )
+        store = self._store_with(role, cred)
+        plan = build_plan(store)
+        # Not promoted to experience — at most one anchor survives,
+        # and it does so in certifications.
+        self.assertEqual(plan.sections["experience"].entities, [])
+
+    def test_substantial_program_called_certificate_lands_in_experience(self):
+        """ANTI-TIMIDITY: an entity with real substance (duration +
+        real-org affiliation + capstone deliverable + applied verbs)
+        must land in EXPERIENCE even when one source labelled it a
+        'certificate'. Burying a substantial multi-month program in
+        the cert line is a real failure the resolver protects
+        against."""
+        cred = _fact(
+            id="c1", type_=FactType.CREDENTIAL,
+            claim="National AI Initiative — Ministry of Innovation",
+            evidence=(
+                "National AI Initiative — Ministry of Innovation "
+                "(Jun 2024 - Dec 2024). Built and deployed a capstone "
+                "pipeline; engineered the data flow end-to-end."
+            ),
+            entity_id="cv:cred|national ai initiative|ministry of innovation",
+            entity_display="National AI Initiative",
+            source="structured_profile",
+        )
+        role = _fact(
+            id="r1", type_=FactType.ROLE,
+            claim="Trainee at Ministry of Innovation",
+            evidence=(
+                "Trainee @ Ministry of Innovation — Jun 2024 - Dec 2024"
+            ),
+            entity_id="cv:role|ministry of innovation|trainee",
+            entity_display="Trainee @ Ministry of Innovation",
+            source="structured_profile",
+        )
+        store = self._store_with(role, cred)
+        plan = build_plan(store)
+        exp_entities = plan.sections["experience"].entities
+        self.assertEqual(
+            len(exp_entities), 1,
+            "substantial program must land in experience, "
+            "even if one source labelled it a certificate",
+        )
+        cert_ids = {a.fact_id for a in plan.sections["certifications"].facts}
+        self.assertNotIn(
+            cred.id, cert_ids,
+            "anti-timidity: don't bury substance in the cert line",
+        )
+
+    def test_weak_name_overlap_does_not_merge(self):
+        """Two cross-type entities with WEAK name overlap (e.g.
+        different programs from the same cert platform) must STAY
+        SEPARATE. Conservative match avoids collapsing unrelated
+        artifacts even when they share the same issuer."""
+        c_python = _fact(
+            id="c1", type_=FactType.CREDENTIAL,
+            claim="Python Programming — DataCamp",
+            evidence="Python Programming — DataCamp",
+            entity_id="cv:cred|python programming|datacamp",
+            entity_display="Python Programming",
+            source="structured_profile",
+        )
+        c_sql = _fact(
+            id="c2", type_=FactType.CREDENTIAL,
+            claim="SQL Analysis — DataCamp",
+            evidence="SQL Analysis — DataCamp",
+            entity_id="cv:cred|sql analysis|datacamp",
+            entity_display="SQL Analysis",
+            source="structured_profile",
+        )
+        store = self._store_with(c_python, c_sql)
+        plan = build_plan(store)
+        cert_ids = {a.fact_id for a in plan.sections["certifications"].facts}
+        # Both survive — no wrong collapse. (Same-type pair is never
+        # subject to resolver merging anyway — resolver only acts on
+        # cross-type clusters — but this asserts the end-state.)
+        self.assertIn(c_python.id, cert_ids)
+        self.assertIn(c_sql.id, cert_ids)
+        self.assertEqual(plan.sections["experience"].entities, [])
+
+    def test_entity_appears_in_exactly_one_section(self):
+        """End-to-end: after resolution, no merged anchor fact
+        appears in two sections (the load-bearing 'one entity, one
+        section' invariant)."""
+        role = _fact(
+            id="r1", type_=FactType.ROLE,
+            claim="AI Engineer at OrgCo",
+            evidence="AI Engineer @ OrgCo — Jan 2024 - Dec 2024",
+            entity_id="cv:role|orgco|ai engineer",
+            entity_display="AI Engineer @ OrgCo",
+            source="structured_profile",
+        )
+        role_ach = _fact(
+            id="r1-a1", type_=FactType.ACHIEVEMENT,
+            claim="Built and shipped the production ML pipeline.",
+            evidence="Built and shipped the production ML pipeline.",
+            entity_id=role.entity_id,
+            entity_display=role.entity_display,
+            source="structured_profile",
+        )
+        cred = _fact(
+            id="c1", type_=FactType.CREDENTIAL,
+            claim="AI Engineer Programme — OrgCo",
+            evidence="AI Engineer Programme — OrgCo (Jan 2024 - Dec 2024)",
+            entity_id="cv:cred|ai engineer programme|orgco",
+            entity_display="AI Engineer Programme",
+            source="structured_profile",
+        )
+        store = self._store_with(role, role_ach, cred)
+        plan = build_plan(store)
+        seen_by_section: dict[str, set[str]] = {}
+        for name, sec in plan.sections.items():
+            seen_by_section[name] = (
+                {a.fact_id for a in sec.facts}
+                | {e.anchor_fact_id for e in sec.entities}
+            )
+        for fact_id in (role.id, cred.id):
+            in_sections = [
+                n for n, ids in seen_by_section.items() if fact_id in ids
+            ]
+            self.assertLessEqual(
+                len(in_sections), 1,
+                f"fact {fact_id!r} appeared in {in_sections!r} — "
+                f"must be in at most one section",
+            )
+
+    def test_no_cross_type_conflict_is_unaffected(self):
+        """Regression: a plan with no cross-type duplicates produces
+        the same allocations as before — the resolver is inert when
+        no cluster has multiple types."""
+        r = _fact(
+            id="r1", type_=FactType.ROLE,
+            claim="Engineer at OrgX",
+            evidence="Engineer @ OrgX — 2023 - 2024",
+            entity_id="cv:role|orgx|engineer",
+            entity_display="Engineer @ OrgX",
+            source="structured_profile",
+        )
+        c = _fact(
+            id="c1", type_=FactType.CREDENTIAL,
+            claim="AWS Solutions Architect — Amazon",
+            evidence="AWS Solutions Architect — Amazon (2023)",
+            entity_id="cv:cred|aws solutions architect|amazon",
+            entity_display="AWS Solutions Architect",
+            source="structured_profile",
+        )
+        e = _fact(
+            id="e1", type_=FactType.EDUCATION,
+            claim="BSc CS at Tech University",
+            evidence="BSc CS @ Tech University (2022)",
+            entity_id="cv:edu|tech university|bsc cs",
+            entity_display="BSc CS @ Tech University",
+            source="structured_profile",
+        )
+        store = self._store_with(r, c, e)
+        plan = build_plan(store)
+        self.assertEqual(
+            [ent.anchor_fact_id for ent in plan.sections["experience"].entities],
+            [r.id],
+        )
+        self.assertIn(
+            c.id, {a.fact_id for a in plan.sections["certifications"].facts},
+        )
+        self.assertIn(
+            e.id, {a.fact_id for a in plan.sections["education"].facts},
+        )
+        self.assertFalse(
+            any(n.startswith("resolver:") for n in plan.notes),
+            f"resolver should be inert; got notes={plan.notes!r}",
+        )
+
+    def test_resolver_logs_substance_rationale(self):
+        """plan.notes carries the resolver's per-cluster rationale
+        (which signals fired, why this section). Required for
+        explainability / future debug."""
+        role = _fact(
+            id="r1", type_=FactType.ROLE,
+            claim="AI Engineer at OrgCo",
+            evidence="AI Engineer @ OrgCo — Jan 2024 - Dec 2024",
+            entity_id="cv:role|orgco|ai engineer",
+            entity_display="AI Engineer @ OrgCo",
+            source="structured_profile",
+        )
+        role_ach = _fact(
+            id="r1-a1", type_=FactType.ACHIEVEMENT,
+            claim="Built the production pipeline end-to-end.",
+            evidence="Built the production pipeline end-to-end.",
+            entity_id=role.entity_id,
+            entity_display=role.entity_display,
+            source="structured_profile",
+        )
+        cred = _fact(
+            id="c1", type_=FactType.CREDENTIAL,
+            claim="AI Engineer Programme — OrgCo",
+            evidence="AI Engineer Programme — OrgCo (Jan 2024 - Dec 2024)",
+            entity_id="cv:cred|ai engineer programme|orgco",
+            entity_display="AI Engineer Programme",
+            source="structured_profile",
+        )
+        store = self._store_with(role, role_ach, cred)
+        plan = build_plan(store)
+        resolver_notes = [n for n in plan.notes if n.startswith("resolver:")]
+        self.assertEqual(len(resolver_notes), 1)
+        note = resolver_notes[0]
+        self.assertIn("substance signals fired", note)
+        self.assertIn("section='experience'", note)
+
+
+class ResolverHelperUnitTests(SimpleTestCase):
+    """Direct unit coverage of the resolver's matching + substance
+    primitives — keeps threshold tuning honest as the codebase
+    evolves."""
+
+    def test_same_entity_matches_strong_overlap(self):
+        from resumes.services.resume_planner_v2 import _same_entity
+        a = _fact(
+            id="r1", type_=FactType.ROLE,
+            claim="AI Trainee at AcmeTrack",
+            evidence="AI Trainee @ AcmeTrack — 2024",
+            entity_id="cv:role|acmetrack|ai trainee",
+            entity_display="AI Trainee @ AcmeTrack",
+        )
+        b = _fact(
+            id="c1", type_=FactType.CREDENTIAL,
+            claim="AcmeTrack AI Track — AcmeTrack",
+            evidence="AcmeTrack AI Track — AcmeTrack",
+            entity_id="cv:cred|acmetrack ai track|acmetrack",
+            entity_display="AcmeTrack AI Track",
+        )
+        self.assertTrue(_same_entity(a, b))
+
+    def test_same_entity_rejects_same_type(self):
+        """Same-type dedup is the signal_merger's job; the resolver
+        never collapses ROLE×ROLE or CRED×CRED."""
+        from resumes.services.resume_planner_v2 import _same_entity
+        a = _fact(
+            id="r1", type_=FactType.ROLE,
+            claim="X at Y",
+            entity_id="cv:role|y|x",
+            entity_display="X @ Y",
+            evidence="X @ Y",
+        )
+        b = _fact(
+            id="r2", type_=FactType.ROLE,
+            claim="X at Y",
+            entity_id="cv:role|y|x",
+            entity_display="X @ Y",
+            evidence="X @ Y",
+        )
+        self.assertFalse(_same_entity(a, b))
+
+    def test_same_entity_rejects_unrelated_orgs(self):
+        from resumes.services.resume_planner_v2 import _same_entity
+        a = _fact(
+            id="r1", type_=FactType.ROLE,
+            claim="Engineer at AcmeCo",
+            entity_id="cv:role|acmeco|engineer",
+            entity_display="Engineer @ AcmeCo",
+            evidence="Engineer @ AcmeCo",
+        )
+        b = _fact(
+            id="c1", type_=FactType.CREDENTIAL,
+            claim="AI Cert — BetaCorp",
+            entity_id="cv:cred|ai cert|betacorp",
+            entity_display="AI Cert",
+            evidence="AI Cert — BetaCorp",
+        )
+        self.assertFalse(_same_entity(a, b))
+
+    def test_decide_section_threshold(self):
+        from resumes.services.resume_planner_v2 import _decide_section
+        # 2+ signals → experience.
+        self.assertEqual(
+            _decide_section({
+                "duration": True, "org_relationship": True,
+                "deliverables": False, "applied_language": False,
+            }),
+            "experience",
+        )
+        self.assertEqual(
+            _decide_section({
+                "duration": True, "org_relationship": True,
+                "deliverables": True, "applied_language": True,
+            }),
+            "experience",
+        )
+        # 1 signal (ambiguous middle) → certifications conservative.
+        self.assertEqual(
+            _decide_section({
+                "duration": False, "org_relationship": True,
+                "deliverables": False, "applied_language": False,
+            }),
+            "certifications",
+        )
+        # 0 signals → certifications.
+        self.assertEqual(
+            _decide_section({
+                "duration": False, "org_relationship": False,
+                "deliverables": False, "applied_language": False,
+            }),
+            "certifications",
+        )
+
+    def test_cert_platform_org_does_not_count_as_relationship(self):
+        """A 'DataCamp' / 'Coursera' issuer is administrative
+        metadata, not an org relationship. Real employers / training
+        initiatives do count."""
+        from resumes.services.resume_planner_v2 import (
+            _is_cert_platform, _canonical_alnum,
+        )
+        self.assertTrue(_is_cert_platform(_canonical_alnum("DataCamp")))
+        self.assertTrue(_is_cert_platform(_canonical_alnum("Coursera")))
+        self.assertTrue(_is_cert_platform(_canonical_alnum("Udemy")))
+        self.assertFalse(_is_cert_platform(_canonical_alnum("AcmeCo")))
+        self.assertFalse(
+            _is_cert_platform(_canonical_alnum("Ministry of Innovation")),
+        )
