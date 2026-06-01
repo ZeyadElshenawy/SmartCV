@@ -1861,6 +1861,267 @@ class SignalMergerTests(SimpleTestCase):
         self.assertIn('Go', names)
 
 
+class DescriptionCoercionHelperTests(SimpleTestCase):
+    """The ``_coerce_description_to_bullets`` helper turns a free-form
+    description value into the ``List[str]`` shape that
+    ``Experience.description`` documents (schemas.py:62). General — no
+    profile-specific logic; the inputs are shapes any LinkedIn scrape
+    can produce."""
+
+    def test_multiparagraph_string_splits_on_paragraph_and_line_breaks(self):
+        """The shape LinkedIn's scraper produces: paragraphs joined by
+        ``"\\n\\n"`` plus a bulleted tail joined by single ``"\\n"``."""
+        from profiles.services.signal_merger import (
+            _coerce_description_to_bullets,
+        )
+        s = (
+            "First paragraph of the role summary.\n\n"
+            "Second paragraph with another sentence.\n\n"
+            "Key activities:\n"
+            "• Bullet one.\n"
+            "• Bullet two."
+        )
+        out = _coerce_description_to_bullets(s, where="experience|A|B")
+        self.assertEqual(out, [
+            "First paragraph of the role summary.",
+            "Second paragraph with another sentence.",
+            "Key activities:",
+            "• Bullet one.",
+            "• Bullet two.",
+        ])
+
+    def test_single_paragraph_string_becomes_one_item(self):
+        from profiles.services.signal_merger import (
+            _coerce_description_to_bullets,
+        )
+        s = "One coherent paragraph of normal length about the role."
+        out = _coerce_description_to_bullets(s)
+        self.assertEqual(out, [s])
+
+    def test_already_a_list_passes_through_cleaned(self):
+        from profiles.services.signal_merger import (
+            _coerce_description_to_bullets,
+        )
+        out = _coerce_description_to_bullets([
+            "  Built X.  ", "", "Shipped Y.", None, "   ",
+        ])
+        self.assertEqual(out, ["Built X.", "Shipped Y."])
+
+    def test_none_and_empty_inputs(self):
+        from profiles.services.signal_merger import (
+            _coerce_description_to_bullets,
+        )
+        self.assertEqual(_coerce_description_to_bullets(None), [])
+        self.assertEqual(_coerce_description_to_bullets(""), [])
+        self.assertEqual(_coerce_description_to_bullets([]), [])
+        self.assertEqual(_coerce_description_to_bullets({"x": 1}), [])
+        self.assertEqual(_coerce_description_to_bullets(42), [])
+
+    def test_no_char_iteration_on_long_string(self):
+        """REGRESSION: a 1443-char string with no separators must NOT
+        produce 1443 single-character bullets (the 2026-06-01 bug)."""
+        from profiles.services.signal_merger import (
+            _coerce_description_to_bullets,
+        )
+        s = "A" * 1443  # one giant blob, no separators
+        out = _coerce_description_to_bullets(s)
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0], "A" * 1443)
+        for item in out:
+            self.assertGreater(
+                len(item), 1,
+                "char iteration regression — split produced 1-char items",
+            )
+
+    def test_over_cap_truncates_and_logs(self):
+        """Pathological input (15 newline-separated lines) → capped at
+        12, WARNING logged naming the role context."""
+        from profiles.services.signal_merger import (
+            _coerce_description_to_bullets, _DESCRIPTION_BULLET_CAP,
+        )
+        self.assertEqual(_DESCRIPTION_BULLET_CAP, 12)
+        s = "\n".join(f"Bullet {i}" for i in range(15))
+        with self.assertLogs(
+            "profiles.services.signal_merger", level="WARNING",
+        ) as cap:
+            out = _coerce_description_to_bullets(
+                s, where="experience|FooCo|Engineer",
+            )
+        self.assertEqual(len(out), 12)
+        self.assertTrue(
+            any("capped at 12" in line and "FooCo" in line
+                for line in cap.output),
+            f"expected cap warning naming the role; got {cap.output!r}",
+        )
+
+    def test_at_cap_does_not_truncate(self):
+        from profiles.services.signal_merger import (
+            _coerce_description_to_bullets,
+        )
+        s = "\n".join(f"B{i}" for i in range(12))
+        out = _coerce_description_to_bullets(s)
+        self.assertEqual(len(out), 12)
+
+
+class SignalMergerDescriptionCoercionTests(SimpleTestCase):
+    """End-to-end: the merger's experience and education write paths
+    produce List[str] descriptions even when the scraper emitted a
+    string. Volunteering's contract (Optional[str]) is left alone."""
+
+    def _profile(self, data):
+        class _P:
+            def __init__(self, d): self.data_content = d
+            def save(self, **kw): pass
+        return _P(data)
+
+    def test_experience_description_becomes_list_str(self):
+        from profiles.services.signal_merger import merge_signals_into_profile
+        profile = self._profile({
+            'experiences': [],
+            'linkedin_signals': {
+                'scraped': True, 'error': None,
+                'experience': [{
+                    'company_name': 'AcmeCo',
+                    'employment_type': 'Full-time',
+                    'designations': [{
+                        'designation': 'Engineer',
+                        'duration': 'Jan 2024 - Dec 2024',
+                        'location': 'Cairo',
+                        'description': (
+                            "Built the analytics pipeline end to end.\n\n"
+                            "Highlights:\n"
+                            "• Reduced query latency by 40%.\n"
+                            "• Mentored two junior engineers."
+                        ),
+                    }],
+                }],
+            },
+        })
+        merge_signals_into_profile(profile)
+        exp = profile.data_content['experiences'][0]
+        # Load-bearing assertion: description is a list now.
+        self.assertIsInstance(exp['description'], list)
+        self.assertEqual(len(exp['description']), 4)
+        self.assertIn("Built the analytics pipeline end to end.",
+                      exp['description'])
+        self.assertIn("• Reduced query latency by 40%.",
+                      exp['description'])
+
+    def test_education_description_becomes_list_str(self):
+        from profiles.services.signal_merger import merge_signals_into_profile
+        profile = self._profile({
+            'education': [],
+            'linkedin_signals': {
+                'scraped': True, 'error': None,
+                'education': [{
+                    'college': 'King Salman International University',
+                    'degree': 'BSc Computer Science',
+                    'duration': '2022 - 2026',
+                    'description': (
+                        "Coursework: ML, NLP, distributed systems.\n"
+                        "Capstone: AI-powered career assistant."
+                    ),
+                }],
+            },
+        })
+        merge_signals_into_profile(profile)
+        edu = profile.data_content['education'][0]
+        self.assertIsInstance(edu['description'], list)
+        self.assertEqual(edu['description'], [
+            "Coursework: ML, NLP, distributed systems.",
+            "Capstone: AI-powered career assistant.",
+        ])
+
+    def test_volunteering_description_left_as_string(self):
+        """``ItemDetailed.description`` declares ``Optional[str]``
+        (schemas.py:136). Don't impose List[str] there — respect the
+        declared contract."""
+        from profiles.services.signal_merger import merge_signals_into_profile
+        profile = self._profile({
+            'volunteer_experience': [],
+            'linkedin_signals': {
+                'scraped': True, 'error': None,
+                'volunteering': [{
+                    'organization': 'Local Food Bank',
+                    'role': 'Volunteer',
+                    'duration': '2023',
+                    'cause': 'Hunger Relief',
+                    'description': (
+                        "Sorted donations.\n"
+                        "Drove the delivery van on weekends."
+                    ),
+                }],
+            },
+        })
+        merge_signals_into_profile(profile)
+        vol = profile.data_content['volunteer_experience'][0]
+        # UNCHANGED — still a string per the schema's contract.
+        self.assertIsInstance(vol['description'], str)
+        self.assertIn("Sorted donations.", vol['description'])
+
+    def test_pathological_description_capped_with_warning(self):
+        from profiles.services.signal_merger import (
+            merge_signals_into_profile,
+        )
+        long_desc = "\n".join(
+            f"Achievement number {i}: did the thing." for i in range(15)
+        )
+        profile = self._profile({
+            'experiences': [],
+            'linkedin_signals': {
+                'scraped': True, 'error': None,
+                'experience': [{
+                    'company_name': 'BigCo',
+                    'designations': [{
+                        'designation': 'Architect',
+                        'duration': '2023 - 2024',
+                        'location': '',
+                        'description': long_desc,
+                    }],
+                }],
+            },
+        })
+        with self.assertLogs(
+            "profiles.services.signal_merger", level="WARNING",
+        ) as cap:
+            merge_signals_into_profile(profile)
+        exp = profile.data_content['experiences'][0]
+        self.assertEqual(len(exp['description']), 12)
+        self.assertTrue(
+            any("capped at 12" in line for line in cap.output),
+            f"expected cap warning; got {cap.output!r}",
+        )
+
+    def test_already_list_input_preserved(self):
+        """If a future caller hands the merger a list-shaped
+        description (e.g. signal_merger run on already-coerced data),
+        it must round-trip cleanly."""
+        from profiles.services.signal_merger import merge_signals_into_profile
+        profile = self._profile({
+            'experiences': [],
+            'linkedin_signals': {
+                'scraped': True, 'error': None,
+                'experience': [{
+                    'company_name': 'ListCo',
+                    'designations': [{
+                        'designation': 'Manager',
+                        'duration': '2024',
+                        'location': '',
+                        'description': [
+                            "Hired the team.",
+                            "Shipped the product.",
+                        ],
+                    }],
+                }],
+            },
+        })
+        merge_signals_into_profile(profile)
+        exp = profile.data_content['experiences'][0]
+        self.assertEqual(exp['description'], [
+            "Hired the team.", "Shipped the product.",
+        ])
+
+
 class LinkedinScraperSectionTests(SimpleTestCase):
     """Parser-side coverage for sections that don't talk to Selenium.
 

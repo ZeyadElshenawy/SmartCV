@@ -11,7 +11,13 @@ load-bearing properties:
        "aims to" patterns even when the LLM forgot to flag them.
     4. Extracted facts integrate with FactStore (dedup, metrics_for
        binding) end to end.
-    5. The four stub source types raise NotImplementedError.
+    5. Post-narrowing (2026-06-01) the README extractor emits ONLY
+       METRIC + ACHIEVEMENT; SKILL and PROJECT come from the
+       structured-profile reader, not from README prose.
+    6. The structured-profile reader emits facts from Layer B
+       without LLM calls and without the substring-grounding guard.
+    7. The old CV and LinkedIn LLM extractors are deprecated stubs
+       (return [], log a deprecation note, never call the LLM).
 """
 
 from unittest.mock import patch
@@ -195,15 +201,23 @@ def _build_extraction(*items):
 
 
 class GitHubReadmeOriginalRepoTests(SimpleTestCase):
-    """The happy path: a clearly-original repo with a real metric."""
+    """The happy path: a clearly-original repo with a real metric.
+
+    Post-narrowing (2026-06-01) the README extractor emits ONLY
+    METRIC + ACHIEVEMENT facts — SKILL and PROJECT come from the
+    structured-profile reader. The LLM is mocked to return all five
+    historic fact types; the test verifies skill/project are
+    narrowed out and the remaining two land correctly bound."""
 
     def setUp(self):
         self.cls = _RepoClassification(classification="original", reasoning="")
         self.extraction = _build_extraction(
+            # Filtered out by the post-narrowing _README_NARROWED_OUT_TYPES set:
             ("project", "Healthcare-prediction app built with Flask and MLflow.",
              None, None, "A healthcare prediction app built with Flask and tracked in MLflow."),
             ("skill", "Flask", None, None, "built with Flask"),
             ("skill", "MLflow", None, None, "tracked in MLflow"),
+            # Kept:
             ("achievement", "Shipped end-to-end pipeline ingestion through serving.",
              None, None, "End-to-end pipeline: data ingestion, preprocessing, model training, and serving via Flask."),
             ("metric", "0.89 ROC-AUC on held-out validation set.",
@@ -217,18 +231,17 @@ class GitHubReadmeOriginalRepoTests(SimpleTestCase):
                 repo_url=REPO_URL, repo_display=REPO_DISPLAY,
                 readme_text=README_ORIGINAL,
             )
-        self.assertEqual(len(facts), 5)
+        # 2 facts: the achievement + the metric. SKILL + PROJECT
+        # from the README are filtered out (Layer B handles them).
+        self.assertEqual(len(facts), 2)
+        kept_types = sorted(f.type.value for f in facts)
+        self.assertEqual(kept_types, ["achievement", "metric"])
         for f in facts:
             self.assertEqual(f.source, "github_readme:zeyad/healthcare-prediction-depi")
             self.assertEqual(f.source_reliability, SourceReliability.USER_ORIGINAL)
-            # Policy: SKILL facts are profile-level (entity_id="").
-            # Non-SKILL facts stay bound to the repo URL.
-            if f.type == FactType.SKILL:
-                self.assertEqual(f.entity_id, "")
-                self.assertEqual(f.entity_display, "")
-            else:
-                self.assertEqual(f.entity_id, REPO_URL)
-                self.assertEqual(f.entity_display, REPO_DISPLAY)
+            # Both ACHIEVEMENT + METRIC stay bound to the repo URL.
+            self.assertEqual(f.entity_id, REPO_URL)
+            self.assertEqual(f.entity_display, REPO_DISPLAY)
 
     def test_metric_is_bound_to_repo_url_with_value_and_unit(self):
         with patch.object(fx, "_classify_repo_with_llm", return_value=self.cls), \
@@ -293,12 +306,20 @@ class GitHubReadmeFabricationGuardTests(SimpleTestCase):
             )
         self.assertEqual(facts, [])
 
-    def test_invented_skill_dropped(self):
+    def test_invented_achievement_dropped(self):
+        """Post-narrowing replacement for the old skill-fabrication
+        test: the README extractor only emits METRIC + ACHIEVEMENT, so
+        the fabrication guard is exercised against ACHIEVEMENT facts
+        here. An invented achievement whose quote isn't in the source
+        is dropped; a real one stays."""
         cls = _RepoClassification(classification="original", reasoning="")
-        # README doesn't mention PyTorch — the LLM hallucinates it.
         extraction = _build_extraction(
-            ("skill", "Flask", None, None, "built with Flask"),
-            ("skill", "PyTorch", None, None, "implemented in PyTorch"),   # fabricated
+            # Real achievement — substring of README_ORIGINAL.
+            ("achievement", "Production-deployed for DEPI cohort.",
+             None, None, "Production-deployed for the DEPI cohort."),
+            # Fabricated — quote not in source.
+            ("achievement", "Won industry award.",
+             None, None, "Won the 2024 Best ML Project award"),
         )
         with patch.object(fx, "_classify_repo_with_llm", return_value=cls), \
              patch.object(fx, "_extract_facts_with_llm", return_value=extraction):
@@ -307,7 +328,7 @@ class GitHubReadmeFabricationGuardTests(SimpleTestCase):
                 readme_text=README_ORIGINAL,
             )
         self.assertEqual(len(facts), 1)
-        self.assertEqual(facts[0].claim, "Flask")
+        self.assertEqual(facts[0].claim, "Production-deployed for DEPI cohort.")
 
 
 class GitHubReadmeClassificationTests(SimpleTestCase):
@@ -351,9 +372,13 @@ class GitHubReadmeClassificationTests(SimpleTestCase):
 
     def test_classifier_exception_falls_back_to_tutorial_derived(self):
         """Network blip / Groq 500 / parsing failure → tutorial_derived,
-        not a crashed extraction."""
+        not a crashed extraction. Uses an ACHIEVEMENT (post-narrowing
+        kept type) so the assertion focuses on classifier-fallback
+        behavior, not narrowing."""
         extraction = _build_extraction(
-            ("skill", "Flask", None, None, "built with Flask"),
+            ("achievement", "Shipped end-to-end pipeline.",
+             None, None,
+             "End-to-end pipeline: data ingestion, preprocessing, model training, and serving via Flask."),
         )
         def _raise(*_a, **_kw):
             raise RuntimeError("groq blew up")
@@ -431,7 +456,9 @@ class GitHubReadmeShapeFiltersTests(SimpleTestCase):
         cls = _RepoClassification(classification="original", reasoning="")
         extraction = _build_extraction(
             ("invented_type", "X", None, None, "built with Flask"),
-            ("skill", "Flask", None, None, "built with Flask"),
+            # ACHIEVEMENT survives narrowing; SKILL would be filtered out.
+            ("achievement", "Built with Flask.",
+             None, None, "built with Flask"),
         )
         with patch.object(fx, "_classify_repo_with_llm", return_value=cls), \
              patch.object(fx, "_extract_facts_with_llm", return_value=extraction):
@@ -440,7 +467,7 @@ class GitHubReadmeShapeFiltersTests(SimpleTestCase):
                 readme_text=README_ORIGINAL,
             )
         self.assertEqual(len(facts), 1)
-        self.assertEqual(facts[0].type, FactType.SKILL)
+        self.assertEqual(facts[0].type, FactType.ACHIEVEMENT)
 
     def test_extraction_exception_returns_empty_not_crash(self):
         cls = _RepoClassification(classification="original", reasoning="")
@@ -465,12 +492,16 @@ class ExtractIntoStoreIntegrationTests(SimpleTestCase):
     def test_facts_added_to_store_and_metric_bound_via_metrics_for(self):
         """End-to-end: extract from a real-shape README mock, the store
         receives the facts, and metrics_for(repo_url) returns ONLY this
-        repo's metric — never another."""
+        repo's metric — never another. Post-narrowing the README
+        extractor emits only the metric (the project and skill the
+        LLM returned are filtered out)."""
         cls = _RepoClassification(classification="original", reasoning="")
         extraction = _build_extraction(
+            # Filtered: project + skill (Layer B owns these).
             ("project", "Healthcare-prediction app built with Flask and MLflow.",
              None, None, "A healthcare prediction app built with Flask and tracked in MLflow."),
             ("skill", "Flask", None, None, "built with Flask"),
+            # Kept: metric.
             ("metric", "0.89 ROC-AUC on held-out validation set.",
              0.89, "ROC-AUC", "Achieved 0.89 ROC-AUC on the held-out validation set."),
         )
@@ -482,7 +513,8 @@ class ExtractIntoStoreIntegrationTests(SimpleTestCase):
                 repo_url=REPO_URL, repo_display=REPO_DISPLAY,
                 readme_text=README_ORIGINAL,
             )
-        self.assertEqual(len(store), 3)
+        # Only the metric survives.
+        self.assertEqual(len(store), 1)
         metrics = store.metrics_for(REPO_URL)
         self.assertEqual(len(metrics), 1)
         self.assertEqual(metrics[0].value, 0.89)
@@ -492,10 +524,13 @@ class ExtractIntoStoreIntegrationTests(SimpleTestCase):
     def test_running_extraction_twice_dedups(self):
         """Idempotency: re-extracting the same README adds zero new
         records to the store (stable hash ids + (type, claim,
-        entity_id) dedup collapse re-additions)."""
+        entity_id) dedup collapse re-additions). Uses an
+        ACHIEVEMENT + METRIC (post-narrowing surviving types)."""
         cls = _RepoClassification(classification="original", reasoning="")
         extraction = _build_extraction(
-            ("skill", "Flask", None, None, "built with Flask"),
+            ("achievement", "Shipped end-to-end pipeline.",
+             None, None,
+             "End-to-end pipeline: data ingestion, preprocessing, model training, and serving via Flask."),
             ("metric", "0.89 ROC-AUC on held-out validation set.",
              0.89, "ROC-AUC", "Achieved 0.89 ROC-AUC on the held-out validation set."),
         )
@@ -529,181 +564,69 @@ class DispatchTests(SimpleTestCase):
 
 
 # ===========================================================================
-# old_cv extractor — self-stated CV, USER_ORIGINAL reliability.
+# old_cv extractor — DEPRECATED (2026-06-01). Metadata is now read
+# directly from Layer B (the structured profile) by
+# extract_from_structured_profile; re-extracting from raw_text via LLM
+# was redundant. The signature is preserved for back-compat and returns
+# [] with one deprecation log line.
 # ===========================================================================
 
 
-class OldCvExtractorTests(SimpleTestCase):
+class OldCvExtractorDeprecationTests(SimpleTestCase):
+    """The CV extractor is deprecated in favor of the structured-profile
+    reader. These tests pin the deprecation behavior: the function
+    returns [], logs an INFO-level deprecation note naming the
+    replacement, and does NOT call any LLM."""
 
     CV_TEXT = (
         "ZEYAD ELSHENAWY\n"
         "AI Trainee, DEPI — Jun 2025 - Dec 2025\n"
-        "Built a healthcare-prediction pipeline; shipped to the DEPI cohort.\n"
         "Reduced nightly data load by 6 hours.\n"
-        "\n"
-        "IT Intern, Almansour Automotive — 2023\n"
-        "Built ingest pipeline for the SAP team.\n"
-        "\n"
-        "EDUCATION\n"
-        "BSc Computer Science, KSIU — 2027 (expected)\n"
-        "\n"
-        "SKILLS\n"
-        "Python, SQL, Pandas, Flask, MLflow\n"
     )
 
-    def _build_cv_extraction(self):
-        from resumes.services.fact_extractor import (
-            _CVExtraction, _CVRole, _CVEducation,
+    def test_returns_empty_list(self):
+        from resumes.services.fact_extractor import extract_from_old_cv
+        facts = extract_from_old_cv(
+            cv_text=self.CV_TEXT, profile_owner="Zeyad",
         )
-        return _CVExtraction(
-            roles=[
-                _CVRole(
-                    company="DEPI", title="AI Trainee",
-                    facts=[
-                        _ExtractedFactRaw(
-                            type="achievement",
-                            claim="Shipped healthcare-prediction pipeline to DEPI cohort.",
-                            evidence_quote="shipped to the DEPI cohort",
-                            value=None, unit=None,
-                        ),
-                        _ExtractedFactRaw(
-                            type="metric",
-                            claim="Reduced nightly data load by 6 hours.",
-                            evidence_quote="Reduced nightly data load by 6 hours",
-                            value=6.0, unit="hours",
-                        ),
-                    ],
-                ),
-                _CVRole(
-                    company="Almansour Automotive", title="IT Intern",
-                    facts=[
-                        _ExtractedFactRaw(
-                            type="achievement",
-                            claim="Built ingest pipeline for SAP team.",
-                            evidence_quote="Built ingest pipeline for the SAP team",
-                            value=None, unit=None,
-                        ),
-                    ],
-                ),
-            ],
-            education=[
-                _CVEducation(
-                    institution="KSIU", degree="BSc Computer Science",
-                    facts=[
-                        _ExtractedFactRaw(
-                            type="education",
-                            claim="BSc Computer Science from KSIU.",
-                            evidence_quote="BSc Computer Science, KSIU",
-                            value=None, unit=None,
-                        ),
-                    ],
-                ),
-            ],
-            free_facts=[
-                _ExtractedFactRaw(
-                    type="skill", claim="Python",
-                    evidence_quote="Python, SQL, Pandas",
-                    value=None, unit=None,
-                ),
-            ],
-        )
+        self.assertEqual(facts, [])
 
-    def test_roles_education_and_skills_extracted_with_correct_binding(self):
-        from resumes.services.fact_extractor import (
-            _normalize_entity_token, extract_from_old_cv,
-        )
-        ext = self._build_cv_extraction()
-        with patch.object(fx, "_extract_cv_with_llm", return_value=ext):
-            facts = extract_from_old_cv(cv_text=self.CV_TEXT, profile_owner="Zeyad")
-        # All facts user_original.
-        for f in facts:
-            self.assertEqual(f.source_reliability, SourceReliability.USER_ORIGINAL)
-            self.assertEqual(f.source, "old_cv")
-        # Role entity bindings.
-        depi_eid = "cv:role|{}|{}".format(
-            _normalize_entity_token("DEPI"), _normalize_entity_token("AI Trainee"),
-        )
-        almansour_eid = "cv:role|{}|{}".format(
-            _normalize_entity_token("Almansour Automotive"),
-            _normalize_entity_token("IT Intern"),
-        )
-        depi_facts = [f for f in facts if f.entity_id == depi_eid]
-        self.assertEqual(len(depi_facts), 2)
-        # Metric correctly bound to DEPI, not the other role.
-        depi_metric = [f for f in depi_facts if f.type == FactType.METRIC][0]
-        self.assertEqual(depi_metric.value, 6.0)
-        self.assertEqual(depi_metric.unit, "hours")
-        # Almansour role has its achievement.
-        self.assertTrue(any(f.entity_id == almansour_eid for f in facts))
-        # Education entity.
-        edu = [f for f in facts if "cv:edu|" in f.entity_id]
-        self.assertEqual(len(edu), 1)
-        # Free skill — no entity binding.
-        skills = [f for f in facts if f.type == FactType.SKILL]
-        self.assertEqual(len(skills), 1)
-        self.assertEqual(skills[0].entity_id, "")
-
-    def test_fact_with_evidence_not_in_cv_is_dropped(self):
-        """Same fabrication-guard rule that protects the GitHub
-        extractor — applies to CVs too. The LLM can hallucinate from
-        a CV just as easily as from a README."""
-        from resumes.services.fact_extractor import (
-            _CVExtraction, _CVRole, extract_from_old_cv,
-        )
-        ext = _CVExtraction(
-            roles=[
-                _CVRole(
-                    company="DEPI", title="AI Trainee",
-                    facts=[
-                        # real bullet — present in source
-                        _ExtractedFactRaw(
-                            type="achievement",
-                            claim="Real bullet.",
-                            evidence_quote="shipped to the DEPI cohort",
-                            value=None, unit=None,
-                        ),
-                        # fabricated — quote not in source
-                        _ExtractedFactRaw(
-                            type="metric",
-                            claim="99% accuracy.",
-                            evidence_quote="Achieved 99% accuracy on production",
-                            value=99.0, unit="%",
-                        ),
-                    ],
-                ),
-            ],
-            education=[], free_facts=[],
-        )
-        with patch.object(fx, "_extract_cv_with_llm", return_value=ext):
+    def test_does_not_call_llm(self):
+        """The whole point of the deprecation is to stop paying for an
+        LLM round-trip. Mock get_structured_llm to crash if invoked —
+        the function MUST not touch it."""
+        from resumes.services.fact_extractor import extract_from_old_cv
+        with patch.object(
+            fx, "get_structured_llm",
+            side_effect=AssertionError(
+                "deprecated path must not call the LLM"),
+        ):
             facts = extract_from_old_cv(cv_text=self.CV_TEXT)
-        self.assertEqual(len(facts), 1)
-        self.assertEqual(facts[0].claim, "Real bullet.")
+        self.assertEqual(facts, [])
 
-    def test_invented_role_is_dropped_entirely(self):
-        """Entity verification: a role whose company AND title are
-        absent from the CV is dropped — all its facts go with it."""
-        from resumes.services.fact_extractor import (
-            _CVExtraction, _CVRole, extract_from_old_cv,
+    def test_logs_deprecation_note_naming_replacement(self):
+        from resumes.services.fact_extractor import extract_from_old_cv
+        with self.assertLogs(
+            "resumes.services.fact_extractor", level="INFO",
+        ) as cap:
+            extract_from_old_cv(cv_text=self.CV_TEXT)
+        # The log must name the replacement so a future reader (or a
+        # grep) knows where to look.
+        self.assertTrue(
+            any(
+                "deprecated" in line.lower()
+                and "extract_from_structured_profile" in line
+                for line in cap.output
+            ),
+            f"expected a deprecation log naming the replacement; "
+            f"got {cap.output!r}",
         )
-        ext = _CVExtraction(
-            roles=[
-                _CVRole(
-                    # Neither company nor title appear in CV_TEXT.
-                    company="Banque Misr", title="Banking Analyst",
-                    facts=[
-                        _ExtractedFactRaw(
-                            type="achievement", claim="Phantom achievement.",
-                            evidence_quote="Built ingest pipeline for the SAP team",
-                            value=None, unit=None,
-                        ),
-                    ],
-                ),
-            ],
-            education=[], free_facts=[],
-        )
-        with patch.object(fx, "_extract_cv_with_llm", return_value=ext):
-            facts = extract_from_old_cv(cv_text=self.CV_TEXT)
-        # Whole role dropped — including its (substring-valid) fact.
+
+    def test_dispatch_via_extract_facts_still_works(self):
+        """The dispatch registry continues to route 'old_cv' here —
+        no caller code that used the registry path breaks."""
+        from resumes.services.fact_extractor import extract_facts
+        facts = extract_facts("old_cv", cv_text=self.CV_TEXT)
         self.assertEqual(facts, [])
 
 
@@ -1111,67 +1034,65 @@ class ScholarExtractorTests(SimpleTestCase):
 # ===========================================================================
 
 
-class LinkedInExtractorTests(SimpleTestCase):
+class LinkedInExtractorDeprecationTests(SimpleTestCase):
+    """The LinkedIn extractor is deprecated in favor of the
+    structured-profile reader — signal_merger already folds LinkedIn
+    skills/experience/certifications into data_content. These tests
+    pin the deprecation behavior."""
 
     SNAPSHOT = (
         "Zeyad Elshenawy — Junior data scientist focused on ML production.\n"
         "Skills: Python, SQL, Pandas, Flask.\n"
-        "Experience:\n"
-        "  AI Trainee at DEPI — Jun 2025 - Dec 2025\n"
-        "  IT Intern at Almansour Automotive — 2023\n"
-        "Certifications: AI Associate Level | Machine Learning.\n"
     )
 
-    def _build_linkedin_extraction(self):
-        from resumes.services.fact_extractor import _LinkedInExtraction
-        return _LinkedInExtraction(facts=[
-            _ExtractedFactRaw(
-                type="skill", claim="Python",
-                evidence_quote="Python, SQL, Pandas, Flask",
-                value=None, unit=None,
-            ),
-            _ExtractedFactRaw(
-                type="credential", claim="AI Associate Level | Machine Learning",
-                evidence_quote="AI Associate Level | Machine Learning",
-                value=None, unit=None,
-            ),
-        ])
-
-    def test_self_stated_facts_are_user_original(self):
+    def test_returns_empty_list(self):
         from resumes.services.fact_extractor import extract_from_linkedin
-        with patch.object(fx, "_extract_linkedin_with_llm",
-                          return_value=self._build_linkedin_extraction()):
-            facts = extract_from_linkedin(
-                profile_url="https://linkedin.com/in/zeyad",
-                profile_text=self.SNAPSHOT,
-            )
-        self.assertEqual(len(facts), 2)
-        for f in facts:
-            self.assertEqual(f.source_reliability, SourceReliability.USER_ORIGINAL)
-            self.assertEqual(f.source, "linkedin")
-
-    def test_fabrication_guard_drops_invented_skill(self):
-        from resumes.services.fact_extractor import (
-            _LinkedInExtraction, extract_from_linkedin,
+        facts = extract_from_linkedin(
+            profile_url="https://linkedin.com/in/zeyad",
+            profile_text=self.SNAPSHOT,
         )
-        ext = _LinkedInExtraction(facts=[
-            _ExtractedFactRaw(
-                type="skill", claim="Python",
-                evidence_quote="Python, SQL, Pandas, Flask", value=None, unit=None,
-            ),
-            _ExtractedFactRaw(
-                type="skill", claim="Rust",
-                evidence_quote="systems programming in Rust",  # not in snapshot
-                value=None, unit=None,
-            ),
-        ])
-        with patch.object(fx, "_extract_linkedin_with_llm", return_value=ext):
+        self.assertEqual(facts, [])
+
+    def test_does_not_call_llm(self):
+        from resumes.services.fact_extractor import extract_from_linkedin
+        with patch.object(
+            fx, "get_structured_llm",
+            side_effect=AssertionError(
+                "deprecated path must not call the LLM"),
+        ):
             facts = extract_from_linkedin(
                 profile_url="https://linkedin.com/in/zeyad",
                 profile_text=self.SNAPSHOT,
             )
-        self.assertEqual(len(facts), 1)
-        self.assertEqual(facts[0].claim, "Python")
+        self.assertEqual(facts, [])
+
+    def test_logs_deprecation_note_naming_replacement(self):
+        from resumes.services.fact_extractor import extract_from_linkedin
+        with self.assertLogs(
+            "resumes.services.fact_extractor", level="INFO",
+        ) as cap:
+            extract_from_linkedin(
+                profile_url="https://linkedin.com/in/zeyad",
+                profile_text=self.SNAPSHOT,
+            )
+        self.assertTrue(
+            any(
+                "deprecated" in line.lower()
+                and "extract_from_structured_profile" in line
+                for line in cap.output
+            ),
+            f"expected a deprecation log naming the replacement; "
+            f"got {cap.output!r}",
+        )
+
+    def test_dispatch_via_extract_facts_still_works(self):
+        from resumes.services.fact_extractor import extract_facts
+        facts = extract_facts(
+            "linkedin",
+            profile_url="https://linkedin.com/in/zeyad",
+            profile_text=self.SNAPSHOT,
+        )
+        self.assertEqual(facts, [])
 
 
 # ===========================================================================
@@ -1622,46 +1543,661 @@ class RebindProfileReadmeFactsTests(SimpleTestCase):
 
 
 class CrossSourceDedupTests(SimpleTestCase):
-    """Same skill from CV (user_original) and from a tutorial GitHub repo
-    (tutorial_derived) collapses to ONE fact in the store. Higher
-    reliability (user_original) wins — already proven at the store
-    level, this test wires the extractors into it end to end."""
+    """Same skill emitted by the structured-profile reader and by a
+    second source path collapses to ONE fact in the store. Higher
+    reliability (USER_ORIGINAL) wins.
 
-    CV_TEXT = "SKILLS\nPython, SQL, Pandas\n"
-    README = "Following along with the DataCamp Python tutorial. Built with Python."
+    Post-narrowing (2026-06-01), the README extractor no longer emits
+    SKILL facts (Layer B owns them), so the multi-source path is
+    intra-structured-profile here. The store-level dedup behavior is
+    unchanged and is what's being exercised."""
 
-    def test_cv_user_original_wins_over_tutorial_github(self):
+    def test_duplicate_skill_in_structured_profile_dedups_in_store(self):
+        """skills[] listed twice (e.g. CV + LinkedIn merged) → ONE
+        SKILL fact in the store. The reader's intra-source dedup
+        ensures we never construct the duplicate to begin with, and
+        the store's (type, claim, entity_id) dedup is the safety
+        net."""
         from resumes.services.fact_extractor import (
-            _CVExtraction, _ExtractionResult, _RepoClassification,
+            extract_into_store, extract_from_structured_profile,
         )
-        cv_ext = _CVExtraction(roles=[], education=[], free_facts=[
-            _ExtractedFactRaw(
-                type="skill", claim="Python",
-                evidence_quote="Python, SQL, Pandas", value=None, unit=None,
-            ),
-        ])
-        github_ext = _ExtractionResult(facts=[
-            _ExtractedFactRaw(
-                type="skill", claim="Python",
-                evidence_quote="Built with Python", value=None, unit=None,
-            ),
-        ])
+        data_content = {
+            "experiences": [],
+            "education": [],
+            "certifications": [],
+            "skills": ["Python", "python", "PYTHON"],
+            "projects_enriched": [],
+            "projects": [],
+        }
         store = FactStore()
-        # Tutorial GitHub repo first — tutorial_derived enters.
-        with patch.object(fx, "_classify_repo_with_llm",
-                          return_value=_RepoClassification(classification="tutorial")), \
-             patch.object(fx, "_extract_facts_with_llm", return_value=github_ext):
-            extract_into_store(
-                store, "github_readme",
-                repo_url="https://github.com/zeyad/datacamp-python",
-                repo_display="DataCamp Python", readme_text=self.README,
+        extract_into_store(
+            store, "structured_profile", data_content=data_content,
+        )
+        skills = [f for f in store.all() if f.type == FactType.SKILL]
+        self.assertEqual(
+            len(skills), 1,
+            f"duplicate skill listings must collapse; got {[s.claim for s in skills]}",
+        )
+        # All three would have been USER_ORIGINAL anyway — the
+        # surviving record is user_original.
+        self.assertEqual(
+            skills[0].source_reliability, SourceReliability.USER_ORIGINAL,
+        )
+        # Direct-call path emits the same one record.
+        direct = extract_from_structured_profile(data_content=data_content)
+        direct_skills = [f for f in direct if f.type == FactType.SKILL]
+        self.assertEqual(len(direct_skills), 1)
+
+
+# ===========================================================================
+# Structured-profile reader (Layer B): no LLM, no substring guard,
+# entity metadata pulled directly from the parsed dict.
+# ===========================================================================
+
+
+def _data_content_sample():
+    """Realistic Layer-B sample (the shape llm_validator writes)."""
+    return {
+        "experiences": [
+            {
+                "title": "AI Trainee",
+                "company": "DEPI",
+                "start_date": "Jun 2025",
+                "end_date": "Dec 2025",
+                "source": "cv",
+                "description": [
+                    "Built a healthcare-prediction pipeline; shipped to the DEPI cohort.",
+                    "Reduced nightly data load by 6 hours.",
+                ],
+            },
+            {
+                "title": "IT Intern",
+                "company": "Almansour Automotive",
+                "start_date": "2023",
+                "end_date": "2023",
+                "source": "linkedin",
+                "description": ["Built ingest pipeline for the SAP team."],
+            },
+        ],
+        "education": [
+            {
+                "degree": "BSc Computer Science",
+                "institution": "KSIU",
+                "field": "Computer Science",
+                "graduation_year": "2027",
+                "gpa": "3.7",
+                "source": "cv",
+            },
+        ],
+        "certifications": [
+            {
+                "name": "AI Associate Level",
+                "issuer": "Huawei",
+                "date": "2025",
+                "source": "linkedin",
+            },
+        ],
+        "skills": ["Python", "SQL", "Pandas", "Flask", "MLflow"],
+        "projects_enriched": [
+            {
+                "name": "SmartCV",
+                "summary": "AI-powered career assistant with gap analysis.",
+                "tech_stack": ["Django", "Groq", "PostgreSQL"],
+                "bullets": [
+                    "Implemented end-to-end resume tailoring pipeline.",
+                    "Shipped LinkedIn scraping with Selenium.",
+                ],
+                "source": "github",
+                "source_id": "zeyad/SmartCV",
+                "source_url": "https://github.com/zeyad/SmartCV",
+            },
+        ],
+        "projects": [],
+    }
+
+
+class StructuredProfileReaderTests(SimpleTestCase):
+    """Direct reads from Layer B — no LLM, no substring guard."""
+
+    def test_experiences_emit_role_plus_achievement_per_bullet(self):
+        from resumes.services.fact_extractor import (
+            _normalize_entity_token, extract_from_structured_profile,
+        )
+        facts = extract_from_structured_profile(
+            data_content=_data_content_sample(),
+        )
+        roles = [f for f in facts if f.type == FactType.ROLE]
+        self.assertEqual(len(roles), 2)
+        depi_eid = "cv:role|{}|{}".format(
+            _normalize_entity_token("DEPI"),
+            _normalize_entity_token("AI Trainee"),
+        )
+        almansour_eid = "cv:role|{}|{}".format(
+            _normalize_entity_token("Almansour Automotive"),
+            _normalize_entity_token("IT Intern"),
+        )
+        self.assertSetEqual(
+            {r.entity_id for r in roles}, {depi_eid, almansour_eid},
+        )
+        # ACHIEVEMENT facts are bound to the role entity_id.
+        depi_achievements = [
+            f for f in facts
+            if f.type == FactType.ACHIEVEMENT and f.entity_id == depi_eid
+        ]
+        self.assertEqual(len(depi_achievements), 2)
+        almansour_achievements = [
+            f for f in facts
+            if f.type == FactType.ACHIEVEMENT and f.entity_id == almansour_eid
+        ]
+        self.assertEqual(len(almansour_achievements), 1)
+
+    def test_role_evidence_carries_date_range_for_planner(self):
+        """The planner's reverse-chrono sort reads end-dates out of
+        the ROLE fact's evidence_quote. The reader must carry them."""
+        from resumes.services.fact_extractor import extract_from_structured_profile
+        facts = extract_from_structured_profile(
+            data_content=_data_content_sample(),
+        )
+        depi = [
+            f for f in facts
+            if f.type == FactType.ROLE and "DEPI" in f.entity_display
+        ][0]
+        # Whichever exact format we chose, both dates must appear.
+        self.assertIn("Jun 2025", depi.evidence_quote)
+        self.assertIn("Dec 2025", depi.evidence_quote)
+
+    def test_education_facts_have_canonical_entity_id(self):
+        from resumes.services.fact_extractor import (
+            _normalize_entity_token, extract_from_structured_profile,
+        )
+        facts = extract_from_structured_profile(
+            data_content=_data_content_sample(),
+        )
+        edu = [f for f in facts if f.type == FactType.EDUCATION]
+        self.assertEqual(len(edu), 1)
+        expected = "cv:edu|{}|{}".format(
+            _normalize_entity_token("KSIU"),
+            _normalize_entity_token("BSc Computer Science"),
+        )
+        self.assertEqual(edu[0].entity_id, expected)
+        self.assertIn("KSIU", edu[0].claim)
+        self.assertIn("BSc Computer Science", edu[0].claim)
+        # GPA carried into the evidence string.
+        self.assertIn("3.7", edu[0].evidence_quote)
+
+    def test_certifications_emit_credential_fact(self):
+        from resumes.services.fact_extractor import extract_from_structured_profile
+        facts = extract_from_structured_profile(
+            data_content=_data_content_sample(),
+        )
+        creds = [f for f in facts if f.type == FactType.CREDENTIAL]
+        self.assertEqual(len(creds), 1)
+        self.assertIn("AI Associate Level", creds[0].claim)
+        self.assertIn("Huawei", creds[0].claim)
+
+    def test_skills_are_clean_names_entity_less(self):
+        """Critical: the structured reader emits skills as just the
+        NAME (no "has a skill in X" verbose sentences from a
+        LinkedIn-style extractor)."""
+        from resumes.services.fact_extractor import extract_from_structured_profile
+        facts = extract_from_structured_profile(
+            data_content=_data_content_sample(),
+        )
+        skills = [f for f in facts if f.type == FactType.SKILL]
+        self.assertSetEqual(
+            {s.claim for s in skills},
+            {"Python", "SQL", "Pandas", "Flask", "MLflow"},
+        )
+        for s in skills:
+            self.assertEqual(
+                s.entity_id, "",
+                "skills are entity-less by cross-source dedup policy",
             )
-        # Then the CV — user_original should upgrade the existing entry.
-        with patch.object(fx, "_extract_cv_with_llm", return_value=cv_ext):
-            extract_into_store(store, "old_cv", cv_text=self.CV_TEXT)
-        self.assertEqual(len(store), 1,
-                         "same skill from two sources should dedup-collapse")
-        survivor = store.all()[0]
-        self.assertEqual(survivor.source_reliability,
-                         SourceReliability.USER_ORIGINAL,
-                         "higher-reliability source must win the dedup tiebreak")
+            # Defensive: no verbose sentence templates.
+            self.assertNotIn("has a skill in", s.claim)
+            self.assertNotIn(" is skilled", s.claim)
+
+    def test_skills_dict_form_normalizes_to_name(self):
+        """Layer B's skills[] may be a list of dicts (Skill schema
+        form) — the reader must handle both string and dict shapes."""
+        from resumes.services.fact_extractor import extract_from_structured_profile
+        facts = extract_from_structured_profile(data_content={
+            "skills": [{"name": "Python", "proficiency": "advanced"},
+                       {"name": "Rust"}],
+        })
+        skills = [f for f in facts if f.type == FactType.SKILL]
+        self.assertSetEqual(
+            {s.claim for s in skills}, {"Python", "Rust"},
+        )
+
+    def test_projects_enriched_emit_project_with_url_entity_id(self):
+        """The PROJECT entity_id IS the repo URL — same key the
+        narrowed README extractor uses, so metrics JOIN onto the
+        structured project."""
+        from resumes.services.fact_extractor import extract_from_structured_profile
+        facts = extract_from_structured_profile(
+            data_content=_data_content_sample(),
+        )
+        projects = [f for f in facts if f.type == FactType.PROJECT]
+        self.assertEqual(len(projects), 1)
+        self.assertEqual(
+            projects[0].entity_id, "https://github.com/zeyad/SmartCV",
+        )
+        self.assertEqual(projects[0].entity_display, "SmartCV")
+        # Project bullets land as ACHIEVEMENTS bound to the same
+        # project entity.
+        proj_achievements = [
+            f for f in facts
+            if f.type == FactType.ACHIEVEMENT
+            and f.entity_id == "https://github.com/zeyad/SmartCV"
+        ]
+        self.assertEqual(len(proj_achievements), 2)
+
+    def test_reliability_is_user_original_for_all_layer_b_facts(self):
+        """Every Layer-B-derived fact maps to USER_ORIGINAL. Layer B's
+        sources (cv / linkedin / github / manual) are all self-
+        stated/parser-derived; the simple-and-honest mapping is the
+        spec."""
+        from resumes.services.fact_extractor import extract_from_structured_profile
+        facts = extract_from_structured_profile(
+            data_content=_data_content_sample(),
+        )
+        for f in facts:
+            self.assertEqual(
+                f.source_reliability, SourceReliability.USER_ORIGINAL,
+                f"fact {f.type.value!r}/{f.entity_id!r} got "
+                f"{f.source_reliability.value!r}, expected user_original",
+            )
+
+    def test_source_tag_is_structured_profile(self):
+        """The source field must be 'structured_profile' (or the
+        'structured_profile:<sub>' form for projects) so a future
+        reader can distinguish facts that bypassed the substring
+        guard from facts that ran it."""
+        from resumes.services.fact_extractor import extract_from_structured_profile
+        facts = extract_from_structured_profile(
+            data_content=_data_content_sample(),
+        )
+        for f in facts:
+            self.assertTrue(
+                f.source.startswith("structured_profile"),
+                f"unexpected source tag: {f.source!r}",
+            )
+
+    def test_no_llm_call(self):
+        """The structured reader is a parsed-dict reader; if it tries
+        to call the LLM the mock raises and the test fails."""
+        from resumes.services.fact_extractor import extract_from_structured_profile
+        with patch.object(
+            fx, "get_structured_llm",
+            side_effect=AssertionError(
+                "structured reader must NOT call the LLM"),
+        ):
+            facts = extract_from_structured_profile(
+                data_content=_data_content_sample(),
+            )
+        # Sanity — facts came out, the call just didn't go through
+        # the LLM.
+        self.assertGreater(len(facts), 0)
+
+    def test_empty_or_invalid_data_content_returns_empty(self):
+        from resumes.services.fact_extractor import extract_from_structured_profile
+        self.assertEqual(
+            extract_from_structured_profile(data_content={}), [],
+        )
+        self.assertEqual(
+            extract_from_structured_profile(data_content=None), [],
+        )
+        self.assertEqual(
+            extract_from_structured_profile(
+                data_content="not a dict"),
+            [],
+        )
+
+    def test_projects_fallback_to_projects_when_enriched_missing(self):
+        """If projects_enriched is absent (enricher hasn't run), the
+        reader falls back to projects[] using the `url` field as
+        entity_id."""
+        from resumes.services.fact_extractor import extract_from_structured_profile
+        facts = extract_from_structured_profile(data_content={
+            "projects": [
+                {
+                    "name": "SmartCV",
+                    "url": "https://github.com/zeyad/SmartCV",
+                    "technologies": ["Django", "Groq"],
+                    "description": ["Bullet one."],
+                    "source": "cv",
+                },
+            ],
+        })
+        projects = [f for f in facts if f.type == FactType.PROJECT]
+        self.assertEqual(len(projects), 1)
+        self.assertEqual(
+            projects[0].entity_id, "https://github.com/zeyad/SmartCV",
+        )
+
+    def test_dispatch_via_extract_facts(self):
+        """The dispatch registry routes 'structured_profile' to the
+        reader."""
+        from resumes.services.fact_extractor import extract_facts
+        facts = extract_facts(
+            "structured_profile",
+            data_content=_data_content_sample(),
+        )
+        self.assertGreater(len(facts), 0)
+
+
+# ===========================================================================
+# Project join — Layer B project + Layer A README metric land on the
+# SAME entity_id; metrics_for() returns the metric.
+# ===========================================================================
+
+
+class StructuredAndReadmeJoinTests(SimpleTestCase):
+    """Confirms the load-bearing architectural choice: a project from
+    Layer B's projects_enriched (entity_id = source_url) and a metric
+    from the narrowed README extractor (entity_id = repo_url) share
+    the SAME entity_id when they reference the same repo. The store's
+    metrics_for(<URL>) returns the metric — that's the bridge that
+    lets the v2 generator cite README numbers in the structured
+    project's bullets."""
+
+    REPO_URL = "https://github.com/zeyad/SmartCV"
+    README = (
+        "# SmartCV\n"
+        "AI-powered career assistant. The supervisor pass enforces "
+        "337 passing tests in CI.\n"
+    )
+
+    def test_structured_project_and_readme_metric_join_on_same_entity(self):
+        from resumes.services.fact_extractor import (
+            extract_from_github_readme, extract_from_structured_profile,
+        )
+        data_content = {
+            "projects_enriched": [
+                {
+                    "name": "SmartCV",
+                    "summary": "AI career assistant.",
+                    "tech_stack": ["Django"],
+                    "bullets": [],
+                    "source": "github",
+                    "source_id": "zeyad/SmartCV",
+                    "source_url": self.REPO_URL,
+                },
+            ],
+        }
+        # Structured reader emits the PROJECT.
+        structured_facts = extract_from_structured_profile(
+            data_content=data_content,
+        )
+        # Narrowed README extractor emits the METRIC.
+        cls = _RepoClassification(classification="original", reasoning="")
+        ext = _build_extraction(
+            ("metric", "337 passing tests in CI.",
+             337.0, "tests",
+             "337 passing tests in CI"),
+        )
+        with patch.object(fx, "_classify_repo_with_llm", return_value=cls), \
+             patch.object(fx, "_extract_facts_with_llm", return_value=ext):
+            readme_facts = extract_from_github_readme(
+                repo_url=self.REPO_URL, repo_display="SmartCV",
+                readme_text=self.README,
+            )
+
+        # Both lists have the SmartCV entity at the same entity_id.
+        proj = [f for f in structured_facts if f.type == FactType.PROJECT][0]
+        metric = [f for f in readme_facts if f.type == FactType.METRIC][0]
+        self.assertEqual(proj.entity_id, self.REPO_URL)
+        self.assertEqual(metric.entity_id, self.REPO_URL)
+        self.assertEqual(proj.entity_id, metric.entity_id)
+
+        # Merge into a FactStore. metrics_for(<repo URL>) returns the
+        # metric — i.e. the JOIN works end-to-end.
+        store = FactStore()
+        store.add_many(structured_facts)
+        store.add_many(readme_facts)
+        joined_metrics = store.metrics_for(self.REPO_URL)
+        self.assertEqual(len(joined_metrics), 1)
+        self.assertEqual(joined_metrics[0].value, 337.0)
+        self.assertEqual(joined_metrics[0].unit, "tests")
+
+    def test_smartcv_appears_as_one_project_entity_not_two(self):
+        """Regression for the double-SmartCV bug from the v2 smoke run.
+        The structured reader emits ONE PROJECT fact per source_url —
+        even if the same project shows up in both projects_enriched
+        and projects[]."""
+        from resumes.services.fact_extractor import extract_from_structured_profile
+        data_content = {
+            "projects_enriched": [
+                {
+                    "name": "SmartCV",
+                    "summary": "AI career assistant.",
+                    "tech_stack": [],
+                    "bullets": [],
+                    "source": "github",
+                    "source_url": self.REPO_URL,
+                },
+            ],
+            # The same project also listed in the derived projects[]
+            # array (this is the historic shape that caused two
+            # entities in the smoke run).
+            "projects": [
+                {
+                    "name": "SmartCV",
+                    "url": self.REPO_URL,
+                    "technologies": ["Django"],
+                    "description": [],
+                    "source": "cv",
+                },
+            ],
+        }
+        facts = extract_from_structured_profile(data_content=data_content)
+        projects = [f for f in facts if f.type == FactType.PROJECT]
+        # Spec: projects_enriched wins (it has source_url). Fallback to
+        # projects[] only fires when enriched is empty. So we expect
+        # exactly one PROJECT fact for SmartCV.
+        self.assertEqual(
+            len(projects), 1,
+            f"SmartCV must appear as ONE project entity, got "
+            f"{[(p.entity_id, p.entity_display) for p in projects]}",
+        )
+        self.assertEqual(projects[0].entity_id, self.REPO_URL)
+
+
+# ===========================================================================
+# README narrowing: SKILL + PROJECT facts from README prose are
+# filtered out post-LLM; METRIC + ACHIEVEMENT survive.
+# ===========================================================================
+
+
+class GitHubReadmeNarrowingTests(SimpleTestCase):
+    """Pin the narrowing: even if the LLM returns SKILL + PROJECT
+    facts (a likely failure mode of the new prompt), the code-side
+    filter removes them. The substring guard still runs on whatever
+    survives the type filter."""
+
+    def test_skill_and_project_from_readme_are_filtered_out(self):
+        cls = _RepoClassification(classification="original", reasoning="")
+        # LLM returns one of each fact type. After narrowing, only
+        # achievement + metric must survive.
+        ext = _build_extraction(
+            ("project", "Some project description.",
+             None, None, "A healthcare prediction app built with Flask and tracked in MLflow."),
+            ("skill", "Flask", None, None, "built with Flask"),
+            ("skill", "MLflow", None, None, "tracked in MLflow"),
+            ("achievement", "Production-deployed for DEPI cohort.",
+             None, None, "Production-deployed for the DEPI cohort."),
+            ("metric", "0.89 ROC-AUC on held-out validation set.",
+             0.89, "ROC-AUC",
+             "Achieved 0.89 ROC-AUC on the held-out validation set."),
+        )
+        with patch.object(fx, "_classify_repo_with_llm", return_value=cls), \
+             patch.object(fx, "_extract_facts_with_llm", return_value=ext):
+            facts = extract_from_github_readme(
+                repo_url=REPO_URL, repo_display=REPO_DISPLAY,
+                readme_text=README_ORIGINAL,
+            )
+        # Only achievement + metric survive.
+        kept_types = sorted(f.type.value for f in facts)
+        self.assertEqual(kept_types, ["achievement", "metric"])
+        self.assertNotIn(FactType.SKILL, {f.type for f in facts})
+        self.assertNotIn(FactType.PROJECT, {f.type for f in facts})
+
+    def test_narrowing_logs_a_filtered_note_per_drop(self):
+        """For traceability — narrowed-out facts log so future debug
+        can see what the README extractor declined to emit."""
+        cls = _RepoClassification(classification="original", reasoning="")
+        ext = _build_extraction(
+            ("skill", "Flask", None, None, "built with Flask"),
+            ("metric", "0.89 ROC-AUC on held-out validation set.",
+             0.89, "ROC-AUC",
+             "Achieved 0.89 ROC-AUC on the held-out validation set."),
+        )
+        with patch.object(fx, "_classify_repo_with_llm", return_value=cls), \
+             patch.object(fx, "_extract_facts_with_llm", return_value=ext), \
+             self.assertLogs("resumes.services.fact_extractor",
+                             level="INFO") as cap:
+            extract_from_github_readme(
+                repo_url=REPO_URL, repo_display=REPO_DISPLAY,
+                readme_text=README_ORIGINAL,
+            )
+        self.assertTrue(
+            any("narrowed-out fact" in line and "skill" in line.lower()
+                for line in cap.output),
+            f"expected a narrowed-out drop log; got {cap.output!r}",
+        )
+
+    def test_substring_guard_still_runs_on_metric_facts(self):
+        """The narrowing doesn't disable the existing fabrication
+        guard for the surviving fact types. An invented number is
+        still dropped."""
+        cls = _RepoClassification(classification="original", reasoning="")
+        ext = _build_extraction(
+            # Real (in source).
+            ("metric", "0.89 ROC-AUC on held-out validation set.",
+             0.89, "ROC-AUC",
+             "Achieved 0.89 ROC-AUC on the held-out validation set."),
+            # Fabricated (not in source).
+            ("metric", "99% accuracy",
+             99.0, "%", "Achieved 99% accuracy on the test set"),
+        )
+        with patch.object(fx, "_classify_repo_with_llm", return_value=cls), \
+             patch.object(fx, "_extract_facts_with_llm", return_value=ext):
+            facts = extract_from_github_readme(
+                repo_url=REPO_URL, repo_display=REPO_DISPLAY,
+                readme_text=README_ORIGINAL,
+            )
+        self.assertEqual(len(facts), 1)
+        self.assertEqual(facts[0].value, 0.89)
+
+    def test_readme_prompt_no_longer_lists_skill_or_project(self):
+        """The prompt itself should steer the LLM away from emitting
+        skill/project (the code-side filter is the safety net, but
+        the prompt should match)."""
+        from resumes.services.fact_extractor import _EXTRACT_PROMPT
+        # Negative: the historic "skill" / "project" enumerations are
+        # gone from the type-list section. We check by looking for
+        # the explicit do-not-emit note + the explanation pointing
+        # at the structured-profile layer.
+        lower = _EXTRACT_PROMPT.lower()
+        self.assertIn("do not emit", lower)
+        self.assertIn("structured profile layer", lower)
+        # And no enumerated "project: " / "skill: " bullet remains.
+        self.assertNotIn('- "project":', _EXTRACT_PROMPT)
+        self.assertNotIn('- "skill":', _EXTRACT_PROMPT)
+
+
+# ===========================================================================
+# Defensive reader guard — if a future writer drifts back to emitting
+# experience.description as a string (the load-bearing fix is in
+# signal_merger._coerce_description_to_bullets), the v2 structured
+# reader must NOT char-iterate the string. Mirrors v1's existing
+# isinstance(str) guard at resume_generator.py:2908.
+# ===========================================================================
+
+
+class StructuredReaderStringDescriptionGuardTests(SimpleTestCase):
+
+    def test_string_description_is_split_not_char_iterated(self):
+        """Regression: a 1443-char string with no separators must
+        produce AT MOST one ACHIEVEMENT, not 1443."""
+        from resumes.services.fact_extractor import (
+            extract_from_structured_profile,
+        )
+        big = "A" * 1443  # no separators -> split gives one item
+        facts = extract_from_structured_profile(data_content={
+            "experiences": [{
+                "title": "Engineer",
+                "company": "AcmeCo",
+                "start_date": "2024",
+                "end_date": "2024",
+                # Defensive scenario: the cause-side coercion didn't
+                # run for some reason and we still see a raw string.
+                "description": big,
+            }],
+        })
+        achievements = [
+            f for f in facts
+            if f.type == FactType.ACHIEVEMENT
+        ]
+        # At most one achievement — never 1443. No single-char facts.
+        self.assertLessEqual(len(achievements), 1)
+        for f in achievements:
+            self.assertGreater(
+                len(f.claim), 1,
+                "char-iteration regression — reader emitted 1-char "
+                "achievement facts from a string description",
+            )
+
+    def test_multiline_string_description_splits_on_newlines(self):
+        """Same guard pattern as v1's resume_generator.py:2908 — when
+        a string sneaks through, split on newlines into a sensible
+        list rather than walking characters."""
+        from resumes.services.fact_extractor import (
+            extract_from_structured_profile,
+        )
+        facts = extract_from_structured_profile(data_content={
+            "experiences": [{
+                "title": "Engineer",
+                "company": "AcmeCo",
+                "start_date": "2024",
+                "end_date": "2024",
+                "description": (
+                    "Shipped the analytics pipeline.\n"
+                    "Reduced query latency by 40%.\n"
+                    "Mentored two junior engineers."
+                ),
+            }],
+        })
+        achievement_claims = sorted(
+            f.claim for f in facts if f.type == FactType.ACHIEVEMENT
+        )
+        self.assertEqual(achievement_claims, [
+            "Mentored two junior engineers.",
+            "Reduced query latency by 40%.",
+            "Shipped the analytics pipeline.",
+        ])
+
+    def test_list_description_still_works(self):
+        """Non-regression: the normal CV-validated path (description
+        as List[str]) keeps working — the guard is an isinstance
+        check that doesn't disturb list inputs."""
+        from resumes.services.fact_extractor import (
+            extract_from_structured_profile,
+        )
+        facts = extract_from_structured_profile(data_content={
+            "experiences": [{
+                "title": "Engineer",
+                "company": "AcmeCo",
+                "start_date": "2024",
+                "end_date": "2024",
+                "description": [
+                    "Built X.",
+                    "Shipped Y.",
+                ],
+            }],
+        })
+        achievement_claims = sorted(
+            f.claim for f in facts if f.type == FactType.ACHIEVEMENT
+        )
+        self.assertEqual(achievement_claims, ["Built X.", "Shipped Y."])
