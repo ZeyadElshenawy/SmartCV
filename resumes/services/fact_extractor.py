@@ -418,7 +418,21 @@ _EXTRACT_PROMPT = """You are extracting ATOMIC FACTS from a GitHub README so the
 
 You MUST follow these rules:
 
-1. For each fact, your `evidence_quote` MUST be a VERBATIM substring of the README (a continuous span of text that actually appears, case-insensitive and whitespace-tolerant). Your output will be programmatically verified against the README; any fact whose evidence_quote is NOT a substring of the source will be DROPPED.
+1. EVIDENCE_QUOTE COMPLIANCE (load-bearing — read this twice):
+   - `evidence_quote` MUST be copied VERBATIM as a CONTIGUOUS SPAN from the README text below. Same characters, same word order, same punctuation. NO paraphrase. NO reordering. NO summarizing. NO rephrasing into a sentence the README does not contain.
+   - Quote the MINIMAL exact span that contains the metric or claim. Shorter quotes that exactly match the source are preferable to longer ones you have to "fix up".
+   - If you cannot find a metric stated verbatim in the README, DO NOT emit that metric fact. A number that is not verbatim-groundable MUST be dropped — that is the correct behavior, not a failure.
+   - Your output is programmatically verified by a substring check (case-insensitive, whitespace-tolerant only). Paraphrases FAIL this check and the fact is DROPPED. Be exact.
+
+   EXAMPLES — given README text: ``silhouette peaks at k=3 (0.351)``
+     ✓ CORRECT: evidence_quote="silhouette peaks at k=3 (0.351)"
+     ✓ CORRECT: evidence_quote="k=3 (0.351)"
+     ✓ CORRECT: evidence_quote="0.351"
+     ✗ WRONG (paraphrased):  evidence_quote="silhouette score of 0.351 for k=3"
+     ✗ WRONG (reordered):    evidence_quote="k=3 silhouette 0.351"
+     ✗ WRONG (synthesized):  evidence_quote="The silhouette score for k=3 is 0.351."
+
+   Same rule for percentages, currencies, counts: copy the substring that actually appears.
 
 2. Extract only what is STATED in the README. Do not infer. Do not paraphrase. Do not synthesize a metric from non-metric text.
 

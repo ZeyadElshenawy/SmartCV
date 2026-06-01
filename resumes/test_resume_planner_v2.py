@@ -985,3 +985,131 @@ class ResolverHelperUnitTests(SimpleTestCase):
         self.assertFalse(
             _is_cert_platform(_canonical_alnum("Ministry of Innovation")),
         )
+
+
+# ===========================================================================
+# Per-entity experience cap — a verbose role can't monopolize the
+# experience-section budget and starve other real roles.
+# ===========================================================================
+
+
+class PerEntityExperienceCapTests(SimpleTestCase):
+    """The experience section's budget is the SECTION cap; without a
+    per-entity sub-cap, role #1's many bullets eat the whole budget
+    and roles #2 / #3 starve. The per-entity cap distributes the
+    budget so every role with content gets a fair share."""
+
+    def _store_with(self, *facts) -> FactStore:
+        s = FactStore()
+        for f in facts:
+            s.add(f)
+        return s
+
+    def _role(self, *, idx: int, end_year: int, n_bullets: int):
+        """Build a ROLE + n_bullets ACHIEVEMENT facts at a fresh
+        entity_id. ``end_year`` controls reverse-chrono order
+        (higher = more recent)."""
+        company = f"OrgCo-{idx}"
+        title = f"Role-{idx}"
+        entity_id = f"cv:role|orgco-{idx}|role-{idx}"
+        entity_display = f"Role-{idx} @ OrgCo-{idx}"
+        role = _fact(
+            id=f"role{idx}", type_=FactType.ROLE,
+            claim=f"Role-{idx} at OrgCo-{idx}",
+            evidence=f"{entity_display} — Jan {end_year} - Dec {end_year}",
+            entity_id=entity_id, entity_display=entity_display,
+            source="structured_profile",
+        )
+        bullets = [
+            _fact(
+                id=f"b{idx}-{j}", type_=FactType.ACHIEVEMENT,
+                claim=f"Bullet {idx}.{j}: did the thing.",
+                evidence=f"Bullet {idx}.{j}: did the thing.",
+                entity_id=entity_id, entity_display=entity_display,
+                source="structured_profile",
+            )
+            for j in range(n_bullets)
+        ]
+        return [role] + bullets
+
+    def test_per_entity_cap_distributes_budget_fairly(self):
+        """3 roles with bullet counts 8/4/2 and per-entity cap of 4:
+        each role caps at 4 (or its own bullet count if smaller),
+        ALL 3 roles present in allocation (none starved to zero),
+        reverse-chronological order preserved."""
+        # End years: 2025 > 2024 > 2023 so reverse-chron gives 1, 2, 3.
+        store = self._store_with(*(
+            self._role(idx=1, end_year=2025, n_bullets=8)
+            + self._role(idx=2, end_year=2024, n_bullets=4)
+            + self._role(idx=3, end_year=2023, n_bullets=2)
+        ))
+        plan = build_plan(
+            store,
+            per_entity_experience_cap=4,
+            section_caps={"experience": 12},
+        )
+        ents = plan.sections["experience"].entities
+        # All 3 roles present — none starved.
+        self.assertEqual(
+            len(ents), 3,
+            f"all 3 roles must land in experience; got {[e.entity_display for e in ents]}",
+        )
+        # Reverse-chrono: role1 (2025) → role2 (2024) → role3 (2023).
+        self.assertEqual(
+            [e.anchor_fact_id for e in ents],
+            ["role1", "role2", "role3"],
+        )
+        # Per-entity cap holds: role1 gets 4 (capped from 8), role2
+        # gets 4 (its actual bullet count), role3 gets 2 (its actual
+        # bullet count).
+        counts = {e.anchor_fact_id: len(e.facts) for e in ents}
+        self.assertEqual(counts["role1"], 4,
+                         "role1's 8 bullets must be capped at 4")
+        self.assertEqual(counts["role2"], 4)
+        self.assertEqual(counts["role3"], 2)
+        # Total facts allocated ≤ section budget.
+        self.assertLessEqual(sum(counts.values()), 12)
+
+    def test_single_role_with_many_bullets_capped_at_per_entity_cap(self):
+        """Even a single role doesn't get to spend the whole section
+        budget — the per-entity cap holds. (The budget remains
+        available for other roles in future merges.)"""
+        store = self._store_with(*self._role(idx=1, end_year=2025, n_bullets=10))
+        plan = build_plan(
+            store,
+            per_entity_experience_cap=4,
+            section_caps={"experience": 12},
+        )
+        ents = plan.sections["experience"].entities
+        self.assertEqual(len(ents), 1)
+        self.assertEqual(
+            len(ents[0].facts), 4,
+            "single role with 10 bullets must be capped at 4 — even "
+            "when section budget could fit more",
+        )
+
+    def test_per_entity_cap_default_is_documented_constant(self):
+        """The default cap is exposed for inspection / config; the
+        module-level constant is the documented source of truth."""
+        from resumes.services.resume_planner_v2 import (
+            DEFAULT_PER_ENTITY_EXPERIENCE_CAP,
+        )
+        # Pin the value — 4 is the documented default; changing it
+        # should be a deliberate decision visible in a diff.
+        self.assertEqual(DEFAULT_PER_ENTITY_EXPERIENCE_CAP, 4)
+
+    def test_per_entity_cap_records_a_note_when_truncating(self):
+        """For diagnostic visibility, the planner should record a
+        note when a role's children get truncated by the per-entity
+        cap so a future debug session can see WHICH role hit it."""
+        store = self._store_with(*self._role(idx=1, end_year=2025, n_bullets=10))
+        plan = build_plan(
+            store,
+            per_entity_experience_cap=3,
+            section_caps={"experience": 12},
+        )
+        # At least one note names the per-entity cap.
+        self.assertTrue(
+            any("per-entity cap" in n for n in plan.notes),
+            f"expected a per-entity-cap note; got {plan.notes!r}",
+        )

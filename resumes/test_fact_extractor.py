@@ -2108,6 +2108,149 @@ class GitHubReadmeNarrowingTests(SimpleTestCase):
 
 
 # ===========================================================================
+# README prompt — verbatim-contiguous-span evidence_quote discipline.
+# The substring guard stays exactly as strict; this just teaches the
+# LLM to comply so genuinely-source-grounded metrics stop being
+# dropped on paraphrase.
+# ===========================================================================
+
+
+class ReadmePromptVerbatimDisciplineTests(SimpleTestCase):
+    """Pin the prompt instruction that pushes the extractor toward
+    EXACT-substring evidence_quotes. The strict substring guard is
+    unchanged — this is an extractor-discipline fix, not a guard
+    weakening."""
+
+    def test_prompt_demands_verbatim_contiguous_span(self):
+        from resumes.services.fact_extractor import _EXTRACT_PROMPT
+        lower = _EXTRACT_PROMPT.lower()
+        # Core directive — "verbatim contiguous span" (or variants).
+        self.assertIn("verbatim", lower)
+        self.assertIn("contiguous span", lower)
+        # Explicit rule: drop ungroundable metrics. This is the new
+        # bit — the prompt now tells the LLM that dropping the
+        # metric is CORRECT when it can't be quoted verbatim.
+        self.assertTrue(
+            "not verbatim-groundable must be dropped" in lower
+            or "do not emit that metric fact" in lower,
+            f"prompt should instruct dropping ungroundable metrics; "
+            f"got:\n{_EXTRACT_PROMPT}",
+        )
+
+    def test_prompt_includes_verbatim_examples(self):
+        """The instruction is much more effective with concrete
+        contrast examples (correct vs paraphrased / reordered /
+        synthesized). Assert at least one such example is present."""
+        from resumes.services.fact_extractor import _EXTRACT_PROMPT
+        # Look for the prose-paired contrast we wrote.
+        self.assertIn("paraphrased", _EXTRACT_PROMPT.lower())
+        self.assertIn("reordered", _EXTRACT_PROMPT.lower())
+
+
+class EvidenceGuardUnchangedTests(SimpleTestCase):
+    """Regression: the substring guard's STRICTNESS is unchanged.
+
+    This is a behavior-pin test — not a source-code snapshot — so
+    benign whitespace edits to the function don't trip it but ANY
+    loosening of the substring semantics does. The Fix-B prompt
+    change is supposed to push the LLM toward verbatim quotes; if
+    someone in the future loosens the guard to "fix" paraphrase
+    drops, these tests will fail."""
+
+    def test_paraphrased_quote_still_dropped(self):
+        """A paraphrase that swaps word order is NOT a substring and
+        MUST be rejected by the guard."""
+        from resumes.services.fact_extractor import _evidence_in_source
+        source = "silhouette peaks at k=3 (0.351)"
+        # Reordered / paraphrased — same words, wrong order.
+        self.assertFalse(_evidence_in_source(
+            "silhouette score of 0.351 for k=3", source,
+        ))
+        self.assertFalse(_evidence_in_source(
+            "k=3 silhouette 0.351", source,
+        ))
+        # Synthesized into a sentence the source doesn't contain.
+        self.assertFalse(_evidence_in_source(
+            "The silhouette score for k=3 is 0.351.", source,
+        ))
+
+    def test_verbatim_substring_still_passes(self):
+        """An exact contiguous span — even just the metric token —
+        passes the guard. This is the path the strengthened prompt
+        steers the LLM toward."""
+        from resumes.services.fact_extractor import _evidence_in_source
+        source = "silhouette peaks at k=3 (0.351)"
+        # Minimal exact spans.
+        self.assertTrue(_evidence_in_source("0.351", source))
+        self.assertTrue(_evidence_in_source("k=3 (0.351)", source))
+        self.assertTrue(_evidence_in_source(
+            "silhouette peaks at k=3 (0.351)", source,
+        ))
+        # Case-insensitive + whitespace-tolerant (existing
+        # permissiveness — also unchanged).
+        self.assertTrue(_evidence_in_source(
+            "SILHOUETTE\n   peaks\tat k=3 (0.351)", source,
+        ))
+
+    def test_verbatim_quote_survives_extractor_pipeline(self):
+        """End-to-end: a mocked LLM returning a VERBATIM quote yields
+        a surviving metric fact (the discipline-fix's intended
+        path)."""
+        cls = _RepoClassification(classification="original", reasoning="")
+        ext = _build_extraction(
+            ("metric", "Silhouette peaks at k=3 (0.351).",
+             0.351, "silhouette",
+             "silhouette peaks at k=3 (0.351)"),  # verbatim span
+        )
+        readme_text = (
+            "## Customer Segmentation\n"
+            "Used RFM features; silhouette peaks at k=3 (0.351) for "
+            "the chosen clustering.\n"
+        )
+        with patch.object(fx, "_classify_repo_with_llm", return_value=cls), \
+             patch.object(fx, "_extract_facts_with_llm", return_value=ext):
+            facts = extract_from_github_readme(
+                repo_url="https://github.com/z/seg",
+                repo_display="seg",
+                readme_text=readme_text,
+            )
+        self.assertEqual(len(facts), 1)
+        self.assertEqual(facts[0].value, 0.351)
+
+    def test_paraphrased_quote_still_dropped_through_extractor(self):
+        """End-to-end: the SAME metric value but with a paraphrased
+        evidence_quote → still DROPPED by the unchanged guard. This
+        proves the guard's strictness is untouched even though the
+        prompt now nudges the LLM toward verbatim quotes."""
+        cls = _RepoClassification(classification="original", reasoning="")
+        ext = _build_extraction(
+            # Real number, but the LLM rephrased the evidence into a
+            # sentence the README does not contain.
+            ("metric", "Silhouette score 0.351 at k=3.",
+             0.351, "silhouette",
+             "The silhouette score for k=3 is 0.351."),  # paraphrased
+        )
+        readme_text = (
+            "## Customer Segmentation\n"
+            "Used RFM features; silhouette peaks at k=3 (0.351) for "
+            "the chosen clustering.\n"
+        )
+        with patch.object(fx, "_classify_repo_with_llm", return_value=cls), \
+             patch.object(fx, "_extract_facts_with_llm", return_value=ext):
+            facts = extract_from_github_readme(
+                repo_url="https://github.com/z/seg",
+                repo_display="seg",
+                readme_text=readme_text,
+            )
+        # Guard strict; paraphrase rejected; 0 facts survive.
+        self.assertEqual(
+            facts, [],
+            "guard must still reject paraphrased evidence — Fix B is "
+            "an extractor-discipline change, NOT a guard loosening",
+        )
+
+
+# ===========================================================================
 # Defensive reader guard — if a future writer drifts back to emitting
 # experience.description as a string (the load-bearing fix is in
 # signal_merger._coerce_description_to_bullets), the v2 structured
