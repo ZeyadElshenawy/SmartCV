@@ -969,6 +969,8 @@ def build_plan(
     per_skill_mention_cap: int = DEFAULT_PER_SKILL_MENTION_CAP,
     per_entity_experience_cap: int = DEFAULT_PER_ENTITY_EXPERIENCE_CAP,
     today_ym: Optional[tuple[int, int]] = None,
+    classification=None,
+    kb_chunks: Optional[list] = None,
 ) -> PlanResult:
     """Build the structured plan from a populated FactStore + a JD.
 
@@ -1003,6 +1005,65 @@ def build_plan(
         )
 
     caps = {**DEFAULT_SECTION_CAPS, **(section_caps or {})}
+
+    # KB calibration (optional; structure-only — never overrides
+    # fact ranking).
+    #
+    # Precedence:
+    #   1. explicit ``section_caps`` kwarg from caller  (highest)
+    #   2. seniority calibration table (when classification supplies a
+    #      known seniority and the caller did NOT pass section_caps
+    #      for that key)
+    #   3. DEFAULT_SECTION_CAPS                          (fallback)
+    #
+    # CONSERVATIVE FALLBACK: when ``classification`` is None or its
+    # seniority is unknown/missing, NO calibration overrides apply —
+    # we run on DEFAULT_SECTION_CAPS to avoid distorting allocation
+    # on a misclassification.
+    if classification is not None:
+        try:
+            from resumes.services.kb_integration import (
+                seniority_calibration, split_kb_chunks,
+            )
+            seniority = getattr(classification, "seniority", "") or ""
+            overrides = seniority_calibration(seniority)
+            if overrides:
+                # Only apply overrides for caps the caller did NOT
+                # explicitly pin via ``section_caps``.
+                explicit_keys = set((section_caps or {}).keys())
+                applied: dict[str, int] = {}
+                for key, value in overrides.items():
+                    if key in explicit_keys:
+                        continue
+                    if caps.get(key) != value:
+                        applied[key] = value
+                        caps[key] = value
+                if applied:
+                    logger.info(
+                        "resume_planner_v2: KB seniority calibration "
+                        "(seniority=%r) overrode caps: %s",
+                        seniority, applied,
+                    )
+            # Surface KB calibration-chunk titles in notes for
+            # explainability (advisory only — the cap-adjust above
+            # is what actually fires).
+            if kb_chunks:
+                calibration_chunks, _ = split_kb_chunks(kb_chunks)
+                if calibration_chunks:
+                    titles = [
+                        getattr(c, "title", None) or getattr(c, "kb_id", "")
+                        for c in calibration_chunks
+                    ]
+                    logger.info(
+                        "resume_planner_v2: KB calibration chunks "
+                        "in-scope (advisory): %s", titles,
+                    )
+        except Exception as exc:  # noqa: BLE001 — KB integration is nice-to-have
+            logger.warning(
+                "resume_planner_v2: KB calibration skipped (%s)",
+                type(exc).__name__,
+            )
+
     must = job_must_have_skills or []
     nice = job_nice_to_have_skills or []
     must_have_terms = [t for t in must if t]
@@ -1013,6 +1074,26 @@ def build_plan(
     all_valid = _filter_valid(store.all(), valid_ids)
     sections: dict[str, SectionPlan] = {}
     notes: list[str] = []
+
+    # Surface KB calibration in plan.notes (advisory; the cap-
+    # adjustment above is what actually drove allocation).
+    if classification is not None and kb_chunks:
+        try:
+            from resumes.services.kb_integration import split_kb_chunks
+            calibration_chunks, _phr = split_kb_chunks(kb_chunks)
+            if calibration_chunks:
+                titles = [
+                    getattr(c, "title", None) or getattr(c, "kb_id", "")
+                    for c in calibration_chunks
+                ]
+                notes.append(
+                    "kb_calibration: "
+                    f"seniority={getattr(classification, 'seniority', '')!r} "
+                    f"primary_role={getattr(classification, 'primary_role', '')!r}; "
+                    f"calibration chunks in scope: {titles}"
+                )
+        except Exception:  # noqa: BLE001
+            pass
 
     # ---- Cross-section conflict resolver ----
     # Detect same-entity duplicates across anchor types (ROLE /
