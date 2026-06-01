@@ -306,6 +306,7 @@ def _fact_brief(f: FactRecord) -> str:
 
 def _bullet_prompt(
     *, role_hint: str, facts: list[FactRecord], regen_feedback: str = "",
+    writing_rules_block: str = "",
 ) -> str:
     facts_block = "\n".join(_fact_brief(f) for f in facts) or "(no facts)"
     feedback = ""
@@ -317,9 +318,21 @@ def _bullet_prompt(
             "Remove any number you can't trace to a fact. A qualitative "
             "bullet without numbers is acceptable.\n"
         )
+    # KB writing rules — labeled-boundary section. The header
+    # explicitly tells the LLM these are general resume conventions,
+    # NOT facts about the candidate. Empty string when no KB chunks
+    # were pre-fetched, so the section drops cleanly. Number-lock
+    # downstream is byte-for-byte unchanged: even if a KB rule
+    # contains an example number, that number isn't in
+    # _allowed_numbers_from_facts(facts), so the bullet still fails
+    # the guard.
+    writing_rules = (
+        f"\n{writing_rules_block}\n\n" if writing_rules_block else ""
+    )
     return (
         f"You are writing ONE resume bullet for {role_hint}. Use the facts below.\n"
-        f"{_BULLET_QUALITY_RULES}\n\n"
+        f"{_BULLET_QUALITY_RULES}\n"
+        f"{writing_rules}"
         f"FACTS (the ONLY content + numbers you may draw from):\n{facts_block}\n"
         f"{feedback}\n"
         "Return JUST the bullet text — one line, no quotes, no bullet character, "
@@ -335,15 +348,26 @@ def _generate_one_bullet(
     facts: list[FactRecord],
     allowed_numbers: set[float],
     events: list[FabricationEvent],
+    writing_rules_block: str = "",
 ) -> Optional[GeneratedBullet]:
     """Generate one bullet, run the number guard, regenerate once on
     failure, drop on persistent failure.
 
     Returns ``None`` when the bullet was dropped — caller skips it.
     Mutates ``events`` to record every fabrication catch.
+
+    ``writing_rules_block`` is the labeled-boundary phrasing-rules
+    section (KB chunks formatted via
+    ``kb_integration.format_writing_rules_block``); pass empty string
+    to disable. It influences PHRASING only — ``allowed_numbers``
+    still comes exclusively from the supplied ``facts``, so the
+    number-lock can't be bypassed by a rule that contains a number.
     """
     # --- First attempt ---
-    text = _llm_call(_bullet_prompt(role_hint=role_hint, facts=facts))
+    text = _llm_call(_bullet_prompt(
+        role_hint=role_hint, facts=facts,
+        writing_rules_block=writing_rules_block,
+    ))
     bad = _ungrounded_numbers(text, allowed_numbers)
     if not bad:
         hedged = any(f.hedged for f in facts)
@@ -369,7 +393,8 @@ def _generate_one_bullet(
     )
     text2 = _llm_call(
         _bullet_prompt(role_hint=role_hint, facts=facts,
-                       regen_feedback=regen_feedback),
+                       regen_feedback=regen_feedback,
+                       writing_rules_block=writing_rules_block),
     )
     bad2 = _ungrounded_numbers(text2, allowed_numbers)
     if not bad2:
@@ -484,6 +509,7 @@ def _generate_summary(
     job_title: str,
     job_company: str,
     events: list[FabricationEvent],
+    writing_rules_block: str = "",
 ) -> GeneratedSection:
     """Summary: one short paragraph drawing on the plan's marquee facts.
     Single LLM call; same number guard."""
@@ -499,6 +525,7 @@ def _generate_summary(
         section="summary", entity_id="",
         role_hint=role_hint, facts=facts,
         allowed_numbers=allowed, events=events,
+        writing_rules_block=writing_rules_block,
     )
     return GeneratedSection(
         section="summary",
@@ -514,6 +541,7 @@ def _generate_entity_bullets(
     section: str,
     job_title: str,
     events: list[FabricationEvent],
+    writing_rules_block: str = "",
 ) -> EntityBlock:
     """One role/project's bullets. Each child fact-allocation
     generates ONE bullet; the entity's metrics are merged into the
@@ -553,6 +581,7 @@ def _generate_entity_bullets(
             section=section, entity_id=entity.entity_id,
             role_hint=role_hint, facts=facts_for_bullet,
             allowed_numbers=allowed, events=events,
+            writing_rules_block=writing_rules_block,
         )
         if b is not None:
             bullets.append(b)
@@ -564,6 +593,7 @@ def _generate_entity_bullets(
                 section=section, entity_id=entity.entity_id,
                 role_hint=role_hint, facts=facts_for_bullet,
                 allowed_numbers=allowed, events=events,
+                writing_rules_block=writing_rules_block,
             )
             if b is not None:
                 bullets.append(b)
@@ -579,11 +609,13 @@ def _generate_entity_bullets(
 def _generate_experience(
     store: FactStore, section: SectionPlan,
     *, job_title: str, events: list[FabricationEvent],
+    writing_rules_block: str = "",
 ) -> GeneratedSection:
     blocks = [
         _generate_entity_bullets(
             store, ent, section="experience",
             job_title=job_title, events=events,
+            writing_rules_block=writing_rules_block,
         )
         for ent in section.entities
     ]
@@ -593,11 +625,13 @@ def _generate_experience(
 def _generate_projects(
     store: FactStore, section: SectionPlan,
     *, job_title: str, events: list[FabricationEvent],
+    writing_rules_block: str = "",
 ) -> GeneratedSection:
     blocks = [
         _generate_entity_bullets(
             store, ent, section="projects",
             job_title=job_title, events=events,
+            writing_rules_block=writing_rules_block,
         )
         for ent in section.entities
     ]
@@ -615,6 +649,7 @@ def generate_resume_v2(
     *,
     job_title: str = "",
     job_company: str = "",
+    kb_chunks: Optional[list] = None,
 ) -> GeneratedResumeV2:
     """Render the plan into prose.
 
@@ -623,18 +658,58 @@ def generate_resume_v2(
         every fact id the plan references).
       plan: structured allocations from ``resume_planner_v2.build_plan``.
       job_title / job_company: framing for the summary's role hint.
+      kb_chunks: pre-fetched KB chunks from
+        ``kb_integration.prefetch_kb_for_pipeline``. When non-empty,
+        the PHRASING chunks (bullet_pattern / banned_pattern /
+        action_verb / ats_rule / mena_context) are formatted into the
+        per-bullet prompt under a labeled "WRITING RULES" boundary.
+        When ``None`` / empty, the generator runs exactly as it does
+        without KB integration — KB is nice-to-have, never load-
+        bearing.
 
     Returns: ``GeneratedResumeV2`` with per-section prose + a
     ``fabrication_events`` log of any numbers the guard caught.
+
+    INTEGRITY NOTE: ``allowed_numbers`` is built ONLY from supplied
+    facts (see ``_allowed_numbers_from_facts``) — KB text never
+    enters it. Even if a KB rule contains an example number, that
+    number cannot enter a bullet's allowed pool, so the number-lock
+    drops any KB-sourced number in generated output. The boundary
+    is enforced structurally, not just labelled in the prompt.
     """
     events: list[FabricationEvent] = []
     sections: dict[str, GeneratedSection] = {}
+
+    # Build the labelled-boundary writing-rules block ONCE per run.
+    # Empty string when kb_chunks is None / empty — the per-bullet
+    # prompt drops the block cleanly.
+    writing_rules_block = ""
+    if kb_chunks:
+        try:
+            from resumes.services.kb_integration import (
+                format_writing_rules_block, split_kb_chunks,
+            )
+            _calibration, phrasing = split_kb_chunks(kb_chunks)
+            writing_rules_block = format_writing_rules_block(phrasing)
+            logger.info(
+                "resume_generator_v2: KB writing rules in scope "
+                "(%d phrasing chunk(s), %d chars).",
+                len(phrasing), len(writing_rules_block),
+            )
+        except Exception as exc:  # noqa: BLE001 — KB is nice-to-have
+            logger.warning(
+                "resume_generator_v2: KB writing-rules assembly failed "
+                "(%s); proceeding without KB rules.",
+                type(exc).__name__,
+            )
+            writing_rules_block = ""
 
     summary = plan.sections.get("summary")
     if summary is not None:
         sections["summary"] = _generate_summary(
             store, summary,
             job_title=job_title, job_company=job_company, events=events,
+            writing_rules_block=writing_rules_block,
         )
 
     skills = plan.sections.get("skills")
@@ -645,12 +720,14 @@ def generate_resume_v2(
     if experience is not None:
         sections["experience"] = _generate_experience(
             store, experience, job_title=job_title, events=events,
+            writing_rules_block=writing_rules_block,
         )
 
     projects = plan.sections.get("projects")
     if projects is not None:
         sections["projects"] = _generate_projects(
             store, projects, job_title=job_title, events=events,
+            writing_rules_block=writing_rules_block,
         )
 
     edu = plan.sections.get("education")
