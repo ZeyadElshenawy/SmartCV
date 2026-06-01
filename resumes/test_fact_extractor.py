@@ -1371,6 +1371,256 @@ class ScholarStarvedBlobTests(SimpleTestCase):
                          SourceReliability.PLATFORM_VERIFIED)
 
 
+# ===========================================================================
+# Fix-1 (2026-06-01): stronger classification — fork short-circuit +
+# beefed-up prose tells. General signals, no repo names hardcoded.
+# ===========================================================================
+
+
+class ClassifierForkShortCircuitTests(SimpleTestCase):
+    """When metadata says is_fork=True, classification is deterministic
+    → tutorial_derived without an LLM call. Saves a Groq round-trip
+    and removes the risk of an LLM mis-judging a polished forked
+    README as "original"."""
+
+    def test_is_fork_true_returns_tutorial_without_calling_llm(self):
+        from resumes.services.fact_extractor import _classify_repo_with_llm
+        # If the LLM were called, this would crash (no get_structured_llm
+        # mock). The short-circuit must NOT call it.
+        with patch.object(fx, "get_structured_llm",
+                          side_effect=AssertionError("LLM must not be called")):
+            cls = _classify_repo_with_llm(
+                "Some polished README.",
+                metadata={"is_fork": True, "name": "any-repo"},
+            )
+        self.assertEqual(cls.classification, "tutorial")
+
+    def test_fork_native_field_name_also_short_circuits(self):
+        """GitHub's API uses `fork: bool` natively. Accept both
+        `is_fork` and `fork`."""
+        from resumes.services.fact_extractor import _classify_repo_with_llm
+        with patch.object(fx, "get_structured_llm",
+                          side_effect=AssertionError("LLM must not be called")):
+            cls = _classify_repo_with_llm("X", metadata={"fork": True})
+        self.assertEqual(cls.classification, "tutorial")
+
+    def test_fork_of_pointer_short_circuits(self):
+        """A non-empty ``fork_of`` (the source repo) is just as
+        decisive as a boolean."""
+        from resumes.services.fact_extractor import _classify_repo_with_llm
+        with patch.object(fx, "get_structured_llm",
+                          side_effect=AssertionError("LLM must not be called")):
+            cls = _classify_repo_with_llm(
+                "X", metadata={"fork_of": "upstream/repo"},
+            )
+        self.assertEqual(cls.classification, "tutorial")
+
+    def test_is_fork_false_does_NOT_short_circuit(self):
+        """A non-fork repo proceeds to LLM classification — must call
+        the LLM. We mock the LLM to return 'original' to confirm the
+        short-circuit isn't firing erroneously."""
+        from resumes.services.fact_extractor import _classify_repo_with_llm
+
+        class _StubLLM:
+            def invoke(self, prompt):
+                return _RepoClassification(
+                    classification="original", reasoning="ok",
+                )
+        with patch.object(fx, "get_structured_llm", return_value=_StubLLM()):
+            cls = _classify_repo_with_llm(
+                "Polished README.", metadata={"is_fork": False},
+            )
+        self.assertEqual(cls.classification, "original")
+
+
+class ClassifierPromptSignalCoverageTests(SimpleTestCase):
+    """The prompt must enumerate the GENERAL tutorial tells the
+    smoke test exposed (course platforms, "following along", etc.).
+    These are GENERAL signals, no profile-specific or repo-name
+    hardcoding."""
+
+    def test_strong_tutorial_signals_listed_in_prompt(self):
+        from resumes.services.fact_extractor import _CLASSIFY_PROMPT
+        # Course / platform names.
+        for token in ("DataCamp", "Coursera", "Udemy", "Kaggle Learn",
+                      "fast.ai", "Andrew Ng", "CS231n"):
+            self.assertIn(token, _CLASSIFY_PROMPT,
+                          f"prompt missing course/platform tell: {token!r}")
+        # "Following along" / "walkthrough" patterns.
+        for phrase in ("following along", "walkthrough", "guided project",
+                       "as taught in", "bootcamp"):
+            self.assertIn(phrase, _CLASSIFY_PROMPT,
+                          f"prompt missing language tell: {phrase!r}")
+        # Fork signal.
+        self.assertIn("is_fork", _CLASSIFY_PROMPT,
+                      "prompt missing fork-status tell")
+
+    def test_fail_safe_to_unsure_documented_in_prompt(self):
+        from resumes.services.fact_extractor import _CLASSIFY_PROMPT
+        # The prompt explicitly steers ambiguous → 'unsure', not 'original'.
+        self.assertIn("unsure", _CLASSIFY_PROMPT)
+        self.assertIn("polished README alone is NOT an original signal",
+                      _CLASSIFY_PROMPT.lower(),
+                      ) if False else None  # case-insensitive variant
+        # Lenient match (the prompt's wording, not the test's):
+        self.assertTrue(
+            "polished README alone is NOT an original signal" in _CLASSIFY_PROMPT
+            or "polished readme alone is not an original signal" in _CLASSIFY_PROMPT.lower(),
+            "prompt should warn against 'polished README → original'",
+        )
+
+
+# ===========================================================================
+# Fix-2 (2026-06-01): profile-README rebinding.
+# ===========================================================================
+
+
+class RebindProfileReadmeFactsTests(SimpleTestCase):
+    """A fact extracted from {user}/{user}'s profile README that
+    unambiguously references a specific repo should bind to THAT
+    repo's entity. Ambiguous / missing references stay on the
+    profile-README entity — never guess."""
+
+    KNOWN_REPOS = [
+        {"name": "SmartCV",
+         "url": "https://github.com/zeyad/smartcv",
+         "display_name": "SmartCV"},
+        {"name": "healthcare-prediction-depi",
+         "url": "https://github.com/zeyad/healthcare-prediction-depi",
+         "display_name": "Healthcare Prediction (DEPI)"},
+        {"name": "BookShop",
+         "url": "https://github.com/zeyad/BookShop",
+         "display_name": "BookShop"},
+    ]
+    PROFILE_URL = "https://github.com/zeyad/zeyad"
+
+    def _profile_fact(self, **kw):
+        defaults = {
+            "id": "pf1",
+            "type": FactType.METRIC,
+            "claim": "337 passing tests",
+            "value": 337.0, "unit": "tests",
+            "entity_id": self.PROFILE_URL,
+            "entity_display": "zeyad (profile README)",
+            "source": "github_readme:zeyad/zeyad",
+            "source_reliability": SourceReliability.USER_ORIGINAL,
+            "evidence_quote": "tests-337%20passing",
+        }
+        defaults.update(kw)
+        from resumes.services.fact_store import FactRecord
+        return FactRecord(**defaults)
+
+    def test_unambiguous_url_match_rebinds_to_repo(self):
+        from resumes.services.fact_extractor import rebind_profile_readme_facts
+        # Badge URL points unambiguously at SmartCV.
+        fact = self._profile_fact(
+            evidence_quote="[![Tests](badge.svg)](https://github.com/zeyad/smartcv#tests)",
+        )
+        out = rebind_profile_readme_facts([fact], self.KNOWN_REPOS)
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0].entity_id, "https://github.com/zeyad/smartcv")
+        self.assertEqual(out[0].entity_display, "SmartCV")
+        # The metric value/unit/claim survives the rebind.
+        self.assertEqual(out[0].value, 337.0)
+        self.assertEqual(out[0].unit, "tests")
+        self.assertEqual(out[0].claim, "337 passing tests")
+
+    def test_unambiguous_name_word_boundary_rebinds(self):
+        """Bare repo name in the evidence (no URL) — word-boundary match
+        rebinds. 'SmartCV' appearing as a standalone token is enough."""
+        from resumes.services.fact_extractor import rebind_profile_readme_facts
+        fact = self._profile_fact(
+            claim="SmartCV passes 337 tests",
+            evidence_quote="My project SmartCV: 337 passing tests",
+        )
+        out = rebind_profile_readme_facts([fact], self.KNOWN_REPOS)
+        self.assertEqual(out[0].entity_id, "https://github.com/zeyad/smartcv")
+
+    def test_no_match_leaves_fact_on_profile_entity(self):
+        """A metric with no clear repo reference STAYS on the
+        profile-README entity. Never guess."""
+        from resumes.services.fact_extractor import rebind_profile_readme_facts
+        fact = self._profile_fact(
+            claim="50+ open-source contributions",
+            evidence_quote="Made 50+ contributions across the OSS ecosystem.",
+        )
+        out = rebind_profile_readme_facts([fact], self.KNOWN_REPOS)
+        # Entity unchanged.
+        self.assertEqual(out[0].entity_id, self.PROFILE_URL)
+        self.assertEqual(out[0].entity_display, "zeyad (profile README)")
+
+    def test_multiple_matches_leaves_fact_on_profile_entity(self):
+        """Two known repos referenced in the same evidence → ambiguous
+        → DON'T rebind. The unambiguous-match guard is the safety
+        principle ("never guess onto an entity")."""
+        from resumes.services.fact_extractor import rebind_profile_readme_facts
+        fact = self._profile_fact(
+            evidence_quote=(
+                "Worked on SmartCV and BookShop in the same week."
+            ),
+        )
+        out = rebind_profile_readme_facts([fact], self.KNOWN_REPOS)
+        self.assertEqual(out[0].entity_id, self.PROFILE_URL,
+                         "ambiguous match must NOT rebind")
+
+    def test_substring_inside_longer_identifier_does_not_match(self):
+        """Word-boundary check: 'SmartCV' inside 'MySmartCVDemo' must
+        NOT count as a match — that's a different identifier."""
+        from resumes.services.fact_extractor import rebind_profile_readme_facts
+        fact = self._profile_fact(
+            evidence_quote="My latest project MySmartCVDemoApp has 100 stars.",
+        )
+        out = rebind_profile_readme_facts([fact], self.KNOWN_REPOS)
+        self.assertEqual(out[0].entity_id, self.PROFILE_URL)
+
+    def test_skill_facts_are_never_rebound(self):
+        """SKILL facts are entity-less by policy (cross-source dedup).
+        Rebinding would break that — verify they pass through unchanged."""
+        from resumes.services.fact_extractor import rebind_profile_readme_facts
+        from resumes.services.fact_store import FactRecord
+        fact = FactRecord(
+            id="skill1", type=FactType.SKILL, claim="Python",
+            evidence_quote="Built SmartCV in Python",
+            source="github_readme:zeyad/zeyad",
+            source_reliability=SourceReliability.USER_ORIGINAL,
+            entity_id="",   # already empty (SKILL policy)
+        )
+        out = rebind_profile_readme_facts([fact], self.KNOWN_REPOS)
+        self.assertEqual(out[0].entity_id, "",
+                         "SKILL facts are never bound to an entity")
+
+    def test_empty_known_repos_is_a_noop(self):
+        """No catalogue → no rebinds. Idempotent fast path."""
+        from resumes.services.fact_extractor import rebind_profile_readme_facts
+        fact = self._profile_fact()
+        out = rebind_profile_readme_facts([fact], [])
+        self.assertEqual(out[0].entity_id, self.PROFILE_URL)
+
+    def test_unambiguous_match_helper_unit(self):
+        from resumes.services.fact_extractor import _unambiguous_repo_match
+        # URL match — single repo.
+        repo = _unambiguous_repo_match(
+            "see https://github.com/zeyad/smartcv#tests",
+            self.KNOWN_REPOS,
+        )
+        self.assertEqual(repo["name"], "SmartCV")
+        # Word-boundary name match.
+        repo = _unambiguous_repo_match(
+            "BookShop is my e-commerce demo", self.KNOWN_REPOS,
+        )
+        self.assertEqual(repo["name"], "BookShop")
+        # Multiple matches → None.
+        repo = _unambiguous_repo_match(
+            "Both SmartCV and BookShop matter", self.KNOWN_REPOS,
+        )
+        self.assertIsNone(repo)
+        # No match → None.
+        repo = _unambiguous_repo_match(
+            "Some unrelated text", self.KNOWN_REPOS,
+        )
+        self.assertIsNone(repo)
+
+
 class CrossSourceDedupTests(SimpleTestCase):
     """Same skill from CV (user_original) and from a tutorial GitHub repo
     (tutorial_derived) collapses to ONE fact in the store. Higher
