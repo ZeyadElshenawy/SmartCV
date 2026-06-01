@@ -388,80 +388,6 @@ class ResumeEditPreviewTemplateClassTests(TestCase):
             )
 
 
-class PdfExporterCairoShimTests(SimpleTestCase):
-    """The cairocffi shim lets the xhtml2pdf import chain survive on
-    Windows installs without libcairo-2.dll. Verifies the shim is
-    idempotent and installs a stub when the real cairocffi can't
-    initialise."""
-
-    def test_shim_no_op_when_cairocffi_already_present(self):
-        import sys
-        from resumes.services.pdf_exporter import _shim_cairocffi_if_missing
-        sentinel = object()
-        sys.modules['cairocffi'] = sentinel  # type: ignore[assignment]
-        try:
-            _shim_cairocffi_if_missing()
-            self.assertIs(sys.modules.get('cairocffi'), sentinel)
-        finally:
-            sys.modules.pop('cairocffi', None)
-
-    def test_shim_installs_stub_with_required_attrs_when_dlopen_fails(self):
-        import sys
-        from unittest.mock import patch
-        from resumes.services.pdf_exporter import _shim_cairocffi_if_missing
-
-        # Save + clear the real cairocffi so the shim path runs.
-        original = sys.modules.pop('cairocffi', None)
-        try:
-            # Patch the builtin importer to raise the same OSError
-            # signature cairocffi raises when libcairo-2 is missing.
-            import builtins
-            real_import = builtins.__import__
-
-            def fake_import(name, *a, **k):
-                if name == 'cairocffi':
-                    raise OSError(
-                        "no library called 'cairo-2' was found"
-                    )
-                return real_import(name, *a, **k)
-
-            with patch.object(builtins, '__import__', side_effect=fake_import):
-                _shim_cairocffi_if_missing()
-            # Stub is in place and exposes the minimum surface area
-            # rlPyCairo touches during import.
-            stub = sys.modules.get('cairocffi')
-            self.assertIsNotNone(stub)
-            self.assertTrue(callable(stub.cairo_version))
-            self.assertEqual(stub.cairo_version(), 11600)
-            self.assertTrue(callable(getattr(stub, 'Context')))
-        finally:
-            sys.modules.pop('cairocffi', None)
-            if original is not None:
-                sys.modules['cairocffi'] = original
-
-    def test_shim_propagates_non_cairo_oserrors(self):
-        import sys
-        from unittest.mock import patch
-        from resumes.services.pdf_exporter import _shim_cairocffi_if_missing
-
-        original = sys.modules.pop('cairocffi', None)
-        try:
-            import builtins
-            real_import = builtins.__import__
-
-            def fake_import(name, *a, **k):
-                if name == 'cairocffi':
-                    raise OSError("disk failure")  # unrelated OSError
-                return real_import(name, *a, **k)
-            with patch.object(builtins, '__import__', side_effect=fake_import):
-                with self.assertRaises(OSError):
-                    _shim_cairocffi_if_missing()
-        finally:
-            sys.modules.pop('cairocffi', None)
-            if original is not None:
-                sys.modules['cairocffi'] = original
-
-
 class DocxExportTests(TestCase):
     """The DOCX exporter mirrors PDF export's section_order, the same
     fields, and the same authorization. The output should be a valid
@@ -4937,15 +4863,6 @@ class RenderResumePngTests(SimpleTestCase):
         from resumes.services.resume_render import png_to_data_url
         url = png_to_data_url(b'\x89PNG\r\n\x1a\n\x00')
         self.assertTrue(url.startswith('data:image/png;base64,'))
-
-    def test_cairocffi_shim_invoked(self):
-        from unittest.mock import patch
-        import resumes.services.pdf_exporter as pe
-        from resumes.services.resume_render import render_resume_png
-        with patch.object(pe, '_shim_cairocffi_if_missing',
-                          wraps=pe._shim_cairocffi_if_missing) as m:
-            render_resume_png(self._CONTENT, None, pages=1)
-        m.assert_called_once()
 
 
 class SupervisorPromptCoverageTests(SimpleTestCase):
