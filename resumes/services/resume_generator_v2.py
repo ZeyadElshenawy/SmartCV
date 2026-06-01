@@ -349,12 +349,20 @@ def _generate_one_bullet(
     allowed_numbers: set[float],
     events: list[FabricationEvent],
     writing_rules_block: str = "",
+    regen_feedback: str = "",
 ) -> Optional[GeneratedBullet]:
     """Generate one bullet, run the number guard, regenerate once on
     failure, drop on persistent failure.
 
     Returns ``None`` when the bullet was dropped — caller skips it.
     Mutates ``events`` to record every fabrication catch.
+
+    ``regen_feedback`` is REVIEW-DRIVEN feedback the v2 review/regen
+    loop passes when re-generating a flagged bullet (e.g. "bullet
+    starts with banned opening 'Utilized' — FIX: lead with a strong
+    action verb"). When empty, the first attempt runs unchanged.
+    The internal number-guard regen builds its own feedback string on
+    its second attempt — both can be active.
 
     ``writing_rules_block`` is the labeled-boundary phrasing-rules
     section (KB chunks formatted via
@@ -367,6 +375,7 @@ def _generate_one_bullet(
     text = _llm_call(_bullet_prompt(
         role_hint=role_hint, facts=facts,
         writing_rules_block=writing_rules_block,
+        regen_feedback=regen_feedback,
     ))
     bad = _ungrounded_numbers(text, allowed_numbers)
     if not bad:
