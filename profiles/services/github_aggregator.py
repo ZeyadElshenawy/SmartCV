@@ -272,17 +272,25 @@ def fetch_github_snapshot(username_or_url: str, top_n: int = 6) -> GithubSnapsho
     return snapshot
 
 
-_README_EXCERPT_CAP = 3000
+# Raised 2026-06-01 from 3000 → 20000 chars after the v2 fact-extractor
+# trace showed the prior cap silently elided ~half of typical README
+# bodies (benchmark tables, architecture sections), starving the v2
+# evidence-quote guard. 20k chars covers intro + features + architecture
+# + a benchmark table comfortably — everything a resume bullet draws on
+# — while keeping a hard upper bound so a 200KB README can't bloat
+# data_content. The blob is stored on JSONField (no server-side string-
+# size assumption breaks); the only cost is a slightly larger row.
+_README_EXCERPT_CAP = 20000
 
 
 def _fetch_repo_readme(session: requests.Session, full_name: str) -> Optional[str]:
-    """Fetch a repo's README and return the first ~3000 chars of markdown.
+    """Fetch a repo's README and return the markdown body, capped at
+    ``_README_EXCERPT_CAP`` chars.
 
     `full_name` is the GitHub `{owner}/{repo}` slug. Returns None when the
     repo has no README, the fetch fails, or the content can't be decoded.
-    Capping at 3000 chars keeps the enrichment prompt token-bounded —
-    enough to surface the introduction + feature list, which is what the
-    LLM needs to write specific bullets.
+    Truncation past the cap is logged so we can spot real repos hitting
+    the ceiling and revisit the cap later.
     """
     if not full_name or '/' not in full_name:
         return None
@@ -300,7 +308,14 @@ def _fetch_repo_readme(session: requests.Session, full_name: str) -> Optional[st
     if not text:
         return None
     if len(text) > _README_EXCERPT_CAP:
+        original_len = len(text)
         text = text[:_README_EXCERPT_CAP].rstrip() + '…'
+        logger.info(
+            "github_aggregator: README for %s truncated at cap "
+            "(original=%d chars, cap=%d). If real repos keep hitting "
+            "this, revisit _README_EXCERPT_CAP.",
+            full_name, original_len, _README_EXCERPT_CAP,
+        )
     return text
 
 
