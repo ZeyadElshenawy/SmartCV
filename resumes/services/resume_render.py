@@ -3,9 +3,9 @@
 The supervisor reviews a freshly-generated resume BEFORE it's persisted as a
 ``GeneratedResume``, so we can't reuse ``pdf_exporter.generate_pdf`` (which
 takes a model instance). This mirrors that render — same templates, same
-section-order resolution, same cairocffi shim — but works from the raw dict,
+section-order resolution, same WeasyPrint engine — but works from the raw dict,
 then rasterizes the PDF to PNG with PyMuPDF (already installed). Reusing the
-xhtml2pdf path renders the *actual shipped artifact* and avoids the
+WeasyPrint path renders the *actual shipped artifact* and avoids the
 undetected-chromedriver launch fragility a headless-screenshot path would add.
 """
 from __future__ import annotations
@@ -32,11 +32,8 @@ def render_resume_png(
     as "no image" and degrades to a text-only review rather than failing the
     whole resume pipeline.
     """
-    from resumes.services.pdf_exporter import _shim_cairocffi_if_missing
-    _shim_cairocffi_if_missing()
-
     from django.template.loader import render_to_string
-    from xhtml2pdf import pisa
+    from weasyprint import HTML
     # Local import — resumes.views imports services, so import lazily to avoid
     # a circular import at module load (same pattern as pdf_exporter).
     from resumes.views import RESUME_SECTION_KEYS, DEFAULT_SECTION_ORDER
@@ -58,11 +55,7 @@ def render_resume_png(
         "section_order": section_order,
     })
 
-    pdf_buf = io.BytesIO()
-    status = pisa.CreatePDF(html_string, dest=pdf_buf)
-    if status.err:
-        raise RuntimeError(f"xhtml2pdf failed to render resume: {status.err}")
-    pdf_bytes = pdf_buf.getvalue()
+    pdf_bytes = HTML(string=html_string).write_pdf()
 
     import fitz  # PyMuPDF
 
