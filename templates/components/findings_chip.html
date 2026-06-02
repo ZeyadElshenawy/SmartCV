@@ -1,82 +1,222 @@
 {% comment %}
-Single source of truth for the inline finding chip.
+3-bucket findings chip — Pillar 4 findings-UX rebuild + click-through audit fixes.
 
-Pass `annotations` (a list), `section_key` (str), and either nothing
-(section-level chips) or `item_idx` (int, item-level chips).
+Per finding bucket, renders a small ALWAYS-VISIBLE card (no
+click-to-expand) with: bucket label + count + plain-language items
+(deduped) + the ONE action button for that bucket. The card sits
+in-flow so it never overlaps form fields below.
 
-ALWAYS include with the `only` keyword — gives the partial an isolated
-context, which sidesteps the test-client signal-copy stack growth that
-broke the prior pass. See also: the recursion-root-cause report.
+Dark-mode: card uses neutral-900 in dark, neutral-50 in light, with
+the bucket accent (amber / red / neutral) only on the LEFT BORDER and
+the label text. The body bg is neutral so text stays legible —
+matches the dark UI tokens used elsewhere in edit.html.
 
-POPOVER POSITIONING (2026-05-31 fix — three symptoms, one cause):
-The chip lives inside `<section class="… overflow-hidden …">`, so any
-absolutely-positioned descendant gets clipped at the section's bounds.
-That single ancestor clip produced:
-  C1  popover off the left edge → left half cut off
-  C2  popover overlapping the textarea below → bottom line cut off
-  C3  popover squeezed into a one-word-per-line strip
-Fix: teleport the popover to <body> with `<template x-teleport>`,
-position it with `position: fixed` + computed top/left from the
-trigger's getBoundingClientRect(), clamp to viewport (8px padding),
-flip above if it would overflow the bottom, and give it a stable
-width band (min 260px / w 320px / max 360px). Z-index 120 sits above
-the form controls (which top out at z-30 via focus rings).
-
-The chip's color treatment is keyed on `ann.bucket`, not `ann.tier`:
-  - bucket=auto_fix + tier=blocking → red "to fix"
-  - bucket=user_input                → sky "Only you can verify these"
-  - otherwise                        → amber "worth a second look"
-Treatment unchanged — only geometry was wrong.
+Bucket → label → action:
+  auto_fix   → "Can auto-fix"     → [Fix it]    (wired to the propose-fix API)
+  user_input → "Needs your input" → Informational chip — NO Fix it button
+  advisory   → "Suggestion"       → [Dismiss]
 {% endcomment %}
 {% if annotations and section_key %}
 {% for ann in annotations %}
 {% if ann.section == section_key %}
-{% if item_idx is None and ann.anchor_kind == "section" %}
-<span class="relative inline-block" x-data="{
-  open: false,
-  top: 0,
-  left: 0,
-  toggle() {
-    this.open = !this.open;
-    if (this.open) this.$nextTick(() => this.reposition());
-  },
-  reposition() {
-    const trig = this.$refs.trigger; const pop = this.$refs.pop;
-    if (!trig || !pop) return;
-    const r = trig.getBoundingClientRect();
-    const pw = pop.offsetWidth || 320; const ph = pop.offsetHeight || 180;
-    const pad = 8;
-    let left = r.left;
-    if (left + pw > window.innerWidth - pad) left = window.innerWidth - pw - pad;
-    if (left < pad) left = pad;
-    let top = r.bottom + 6;
-    if (top + ph > window.innerHeight - pad) top = Math.max(pad, r.top - ph - 6);
-    this.top = top; this.left = left;
-  }
-}" @click.away="open = false" @keydown.escape.window="open = false" @resize.window.debounce.150ms="if (open) reposition()" @scroll.window.passive="if (open) reposition()" data-finding-anchor="{{ ann.anchor_target }}" data-finding-tier="{{ ann.tier }}" data-finding-bucket="{{ ann.bucket }}" data-finding-kind="{{ ann.anchor_kind }}"><button type="button" x-ref="trigger" @click.stop="toggle()" aria-haspopup="dialog" :aria-expanded="open ? 'true' : 'false'" class="inline-flex items-center gap-1.5 h-6 px-2 rounded-md text-[11px] font-medium tabular-nums {% if ann.bucket == 'user_input' %}bg-sky-50 dark:bg-sky-950/40 text-sky-800 dark:text-sky-300 ring-1 ring-sky-200/80 dark:ring-sky-800/60 hover:bg-sky-100{% elif ann.bucket == 'auto_fix' and ann.tier == 'blocking' %}bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-800/60 hover:bg-red-100{% else %}bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 ring-1 ring-amber-200/80 dark:ring-amber-800/60 hover:bg-amber-100{% endif %}"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full {% if ann.bucket == 'user_input' %}bg-sky-500{% elif ann.bucket == 'auto_fix' and ann.tier == 'blocking' %}bg-red-500{% else %}bg-amber-500{% endif %}"></span><span>{{ ann.count }}</span><span class="opacity-70">{% if ann.bucket == 'user_input' %}to confirm{% elif ann.bucket == 'auto_fix' and ann.tier == 'blocking' %}to fix{% else %}to review{% endif %}</span></button><template x-teleport="body"><div x-ref="pop" x-show="open" x-cloak role="dialog" :style="`top: ${top}px; left: ${left}px;`" class="fixed z-[120] min-w-[260px] w-[320px] max-w-[min(360px,calc(100vw-1rem))] rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 shadow-[0_12px_32px_-8px_rgba(15,23,42,0.25)] p-4 space-y-2.5"><p class="text-[11px] uppercase tracking-[0.14em] font-medium {% if ann.bucket == 'user_input' %}text-sky-700 dark:text-sky-300{% elif ann.bucket == 'auto_fix' and ann.tier == 'blocking' %}text-red-700 dark:text-red-300{% else %}text-amber-700 dark:text-amber-300{% endif %}">{% if ann.bucket == 'user_input' %}Only you can verify these{% elif ann.bucket == 'auto_fix' and ann.tier == 'blocking' %}{{ ann.tier|title }} — on the whole section{% else %}Worth a second look — on the whole section{% endif %}</p><ul class="space-y-2 text-sm leading-snug">{% for item in ann.items|slice:":3" %}<li class="break-words"><strong class="font-medium">{{ item.label }}</strong>{% if item.detail %} <span class="text-neutral-600 dark:text-neutral-400">— {{ item.detail }}</span>{% endif %}{% if item.token %} <code class="ml-1 px-1 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-[11px] font-mono">{{ item.token }}</code>{% endif %}</li>{% endfor %}{% if ann.count > 3 %}<li class="text-neutral-500 dark:text-neutral-400 italic">and {{ ann.count|add:"-3" }} more</li>{% endif %}</ul></div></template></span>
-{% elif item_idx is not None and ann.anchor_kind == "item" and ann.item_idx == item_idx %}
-<span class="relative inline-block" x-data="{
-  open: false,
-  top: 0,
-  left: 0,
-  toggle() {
-    this.open = !this.open;
-    if (this.open) this.$nextTick(() => this.reposition());
-  },
-  reposition() {
-    const trig = this.$refs.trigger; const pop = this.$refs.pop;
-    if (!trig || !pop) return;
-    const r = trig.getBoundingClientRect();
-    const pw = pop.offsetWidth || 320; const ph = pop.offsetHeight || 180;
-    const pad = 8;
-    let left = r.left;
-    if (left + pw > window.innerWidth - pad) left = window.innerWidth - pw - pad;
-    if (left < pad) left = pad;
-    let top = r.bottom + 6;
-    if (top + ph > window.innerHeight - pad) top = Math.max(pad, r.top - ph - 6);
-    this.top = top; this.left = left;
-  }
-}" @click.away="open = false" @keydown.escape.window="open = false" @resize.window.debounce.150ms="if (open) reposition()" @scroll.window.passive="if (open) reposition()" data-finding-anchor="{{ ann.anchor_target }}" data-finding-tier="{{ ann.tier }}" data-finding-bucket="{{ ann.bucket }}" data-finding-kind="{{ ann.anchor_kind }}"><button type="button" x-ref="trigger" @click.stop="toggle()" aria-haspopup="dialog" :aria-expanded="open ? 'true' : 'false'" class="inline-flex items-center gap-1.5 h-6 px-2 rounded-md text-[11px] font-medium tabular-nums {% if ann.bucket == 'user_input' %}bg-sky-50 dark:bg-sky-950/40 text-sky-800 dark:text-sky-300 ring-1 ring-sky-200/80 dark:ring-sky-800/60 hover:bg-sky-100{% elif ann.bucket == 'auto_fix' and ann.tier == 'blocking' %}bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-800/60 hover:bg-red-100{% else %}bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 ring-1 ring-amber-200/80 dark:ring-amber-800/60 hover:bg-amber-100{% endif %}"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full {% if ann.bucket == 'user_input' %}bg-sky-500{% elif ann.bucket == 'auto_fix' and ann.tier == 'blocking' %}bg-red-500{% else %}bg-amber-500{% endif %}"></span><span>{{ ann.count }}</span><span class="opacity-70">{% if ann.bucket == 'user_input' %}to confirm{% elif ann.bucket == 'auto_fix' and ann.tier == 'blocking' %}to fix{% else %}to review{% endif %}</span></button><template x-teleport="body"><div x-ref="pop" x-show="open" x-cloak role="dialog" :style="`top: ${top}px; left: ${left}px;`" class="fixed z-[120] min-w-[260px] w-[320px] max-w-[min(360px,calc(100vw-1rem))] rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 shadow-[0_12px_32px_-8px_rgba(15,23,42,0.25)] p-4 space-y-2.5"><p class="text-[11px] uppercase tracking-[0.14em] font-medium {% if ann.bucket == 'user_input' %}text-sky-700 dark:text-sky-300{% elif ann.bucket == 'auto_fix' and ann.tier == 'blocking' %}text-red-700 dark:text-red-300{% else %}text-amber-700 dark:text-amber-300{% endif %}">{% if ann.bucket == 'user_input' %}Only you can verify these{% elif ann.bucket == 'auto_fix' and ann.tier == 'blocking' %}{{ ann.tier|title }} — on this {% if ann.section == "experience" %}role{% elif ann.section == "projects" %}project{% else %}item{% endif %}{% else %}Worth a second look — on this {% if ann.section == "experience" %}role{% elif ann.section == "projects" %}project{% else %}item{% endif %}{% endif %}</p><ul class="space-y-2 text-sm leading-snug">{% for item in ann.items|slice:":3" %}<li class="break-words"><strong class="font-medium">{{ item.label }}</strong>{% if item.detail %} <span class="text-neutral-600 dark:text-neutral-400">— {{ item.detail }}</span>{% endif %}{% if item.token %} <code class="ml-1 px-1 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-[11px] font-mono">{{ item.token }}</code>{% endif %}</li>{% endfor %}{% if ann.count > 3 %}<li class="text-neutral-500 dark:text-neutral-400 italic">and {{ ann.count|add:"-3" }} more</li>{% endif %}</ul></div></template></span>
+{% if item_idx is None and ann.anchor_kind == "section" or item_idx is not None and ann.item_idx == item_idx and ann.anchor_kind == "item" or item_idx is not None and ann.item_idx == item_idx and ann.anchor_kind == "bullet" %}
+<div class="findings-card mt-2 mb-2 rounded-lg ring-1 p-3 space-y-2 text-sm
+            relative
+            {% if ann.bucket == 'auto_fix' %}bg-white dark:bg-neutral-900 ring-amber-300/70 dark:ring-amber-700/60 border-l-4 border-amber-500
+            {% elif ann.bucket == 'user_input' %}bg-white dark:bg-neutral-900 ring-red-300/70 dark:ring-red-800/60 border-l-4 border-red-500
+            {% else %}bg-white dark:bg-neutral-900 ring-neutral-200 dark:ring-neutral-800 border-l-4 border-neutral-400 dark:border-neutral-600{% endif %}"
+     data-finding-bucket="{{ ann.bucket }}"
+     data-finding-section="{{ ann.section }}"
+     data-finding-kind="{{ ann.anchor_kind }}"
+     data-finding-tier="{{ ann.tier }}"
+     data-finding-anchor="{{ ann.anchor_target }}"
+     x-data="{
+        busy: false, error: '', proposal: null,
+        resumeId: '{{ resume_id|default:'' }}',
+        bucket: '{{ ann.bucket }}',
+        section: '{{ ann.section }}',
+        itemIdx: {{ ann.item_idx|default:'null' }},
+        async fixIt(findingId) {
+          if (!findingId || !this.resumeId) {
+            this.error = 'Cannot resolve finding id.'; return;
+          }
+          this.busy = true; this.error = ''; this.proposal = null;
+          try {
+            const csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+            const r = await fetch(
+              `/resumes/api/findings/${this.resumeId}/fix/${findingId}/`,
+              {method: 'POST', headers: {
+                 'X-CSRFToken': csrf ? csrf.value : '',
+                 'Content-Type': 'application/json',
+               }},
+            );
+            const data = await r.json();
+            if (data.code === 'guard_dropped') {
+              this.error = 'The number guard dropped the regenerated bullet. Try a different finding or edit inline.';
+            } else if (data.error) {
+              this.error = data.error;
+            } else if (data.proposed_text) {
+              this.proposal = data;
+            } else {
+              this.error = 'Unexpected response.';
+            }
+          } catch (e) {
+            this.error = 'Network error — please retry.';
+          } finally {
+            this.busy = false;
+          }
+        },
+        async accept() {
+          if (!this.proposal) return;
+          this.busy = true;
+          try {
+            const csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+            const r = await fetch(
+              `/resumes/api/findings/${this.resumeId}/accept/`,
+              {method: 'POST', headers: {
+                 'X-CSRFToken': csrf ? csrf.value : '',
+                 'Content-Type': 'application/json',
+               },
+               body: JSON.stringify({
+                 section: this.proposal.section,
+                 item_idx: this.proposal.item_idx,
+                 bullet_idx: this.proposal.bullet_idx,
+                 new_text: this.proposal.proposed_text,
+               })},
+            );
+            if (r.ok) {
+              location.reload();
+            } else {
+              this.error = 'Save failed.';
+            }
+          } catch (e) {
+            this.error = 'Network error — please retry.';
+          } finally {
+            this.busy = false;
+          }
+        },
+        reject() { this.proposal = null; this.error = ''; },
+     }">
+  {% comment %}Header row — bucket label + real count badge (NOT 0).{% endcomment %}
+  <div class="flex items-start gap-2">
+    <span class="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded text-[11px] font-semibold tabular-nums
+                 {% if ann.bucket == 'auto_fix' %}bg-amber-500 text-white
+                 {% elif ann.bucket == 'user_input' %}bg-red-500 text-white
+                 {% else %}bg-neutral-500 text-white{% endif %}">
+      {{ ann.count }}
+    </span>
+    <span class="text-[11px] uppercase tracking-[0.14em] font-medium
+                 {% if ann.bucket == 'auto_fix' %}text-amber-700 dark:text-amber-300
+                 {% elif ann.bucket == 'user_input' %}text-red-700 dark:text-red-300
+                 {% else %}text-neutral-700 dark:text-neutral-300{% endif %}">
+      {% if ann.bucket == 'auto_fix' %}Suggested rewrite{% elif ann.bucket == 'user_input' %}Needs your input{% else %}Suggestion{% endif %}
+    </span>
+  </div>
+  {% comment %}Items list — plain-language instruction per item.
+  Renders item.plain_message (set server-side by
+  enrich_annotations_with_plain_messages). No rule_id leak.{% endcomment %}
+  <ul class="space-y-1 leading-snug text-neutral-800 dark:text-neutral-100">
+    {% for item in ann.items|slice:":3" %}
+    <li class="break-words">
+      <span>{{ item.plain_message|default:"This needs a look — the reviewer flagged it." }}</span>
+      {% if item.dup_count and item.dup_count > 1 %}<span class="text-neutral-500 dark:text-neutral-400 text-xs ml-1">(×{{ item.dup_count }})</span>{% endif %}
+    </li>
+    {% endfor %}
+    {% if ann.items|length > 3 %}<li class="text-neutral-500 dark:text-neutral-400 italic text-xs">and {{ ann.items|length|add:"-3" }} more</li>{% endif %}
+  </ul>
+  {% comment %}The ONE action button per bucket — ALWAYS visible.{% endcomment %}
+  <div class="flex items-center gap-2 pt-1">
+    {% if ann.bucket == 'auto_fix' %}
+      {% comment %}Per-item Fix-it buttons: one button per displayed
+      item (deduped). Each button targets the underlying finding id so
+      the propose-fix endpoint can locate the specific bullet.{% endcomment %}
+      {% for item in ann.items|slice:":3" %}
+      <button type="button" data-action="fix-it"
+              data-finding-id="{{ item.finding_id }}"
+              @click.stop="fixIt('{{ item.finding_id }}')"
+              :disabled="busy"
+              class="inline-flex items-center justify-center h-7 px-3 rounded-md text-xs font-semibold
+                     bg-amber-600 hover:bg-amber-700 text-white
+                     disabled:opacity-50 disabled:cursor-not-allowed">
+        <span x-show="!busy">Suggest a rewrite{% if ann.items|length > 1 %} {{ forloop.counter }}{% endif %}</span>
+        <span x-show="busy" x-cloak>Generating…</span>
+      </button>
+      {% endfor %}
+    {% elif ann.bucket == 'user_input' %}
+      <span data-action="add-confirm"
+            class="inline-flex items-center h-7 px-3 rounded-md text-xs font-medium
+                   bg-red-100 dark:bg-red-950/40 text-red-800 dark:text-red-200
+                   ring-1 ring-red-200/80 dark:ring-red-800/60">
+        Add or Confirm in the field above
+      </span>
+    {% else %}
+      <button type="button" data-action="dismiss"
+              @click.stop="$el.closest('.findings-card').style.display='none'"
+              class="inline-flex items-center justify-center h-7 px-3 rounded-md text-xs font-medium
+                     ring-1 ring-neutral-300 dark:ring-neutral-700
+                     text-neutral-700 dark:text-neutral-200
+                     bg-white dark:bg-neutral-800
+                     hover:bg-neutral-100 dark:hover:bg-neutral-700">
+        Dismiss
+      </button>
+    {% endif %}
+  </div>
+  {% comment %}Honesty framing — the rewrite is a PROPOSAL, not auto-applied.
+  Renders only for the auto_fix bucket (where the action is "Suggest a
+  rewrite"). Keeps the user's mental model honest.{% endcomment %}
+  {% if ann.bucket == 'auto_fix' %}
+  <p class="text-[11px] italic text-neutral-600 dark:text-neutral-400">
+    We'll suggest a grounded rewrite — you choose whether to use it.
+  </p>
+  {% endif %}
+  {% comment %}Fix-it proposal panel — before / after / Accept / Reject.
+  Uses the SAME dark tokens as the chip card (bg-white / dark:bg-neutral-900,
+  amber ring + left accent border) so the panel is visually consistent and
+  fully legible on the editor's dark UI. WAS dims to neutral-400 in both
+  modes (clearly "the old version"); NOW is full contrast
+  (neutral-900 / dark:neutral-100).{% endcomment %}
+  <div x-show="proposal" x-cloak
+       class="mt-2 rounded-md ring-1 p-2.5 space-y-2 text-xs
+              bg-white dark:bg-neutral-900
+              ring-amber-300/70 dark:ring-amber-700/60
+              border-l-4 border-amber-500">
+    <div>
+      <p class="text-[10px] uppercase tracking-[0.14em] font-medium
+                text-amber-700 dark:text-amber-300 mb-0.5">Was</p>
+      <p class="text-neutral-500 dark:text-neutral-400 line-through"
+         x-text="proposal && proposal.original_text"></p>
+    </div>
+    <div>
+      <p class="text-[10px] uppercase tracking-[0.14em] font-medium
+                text-amber-700 dark:text-amber-300 mb-0.5">Now</p>
+      <p class="text-neutral-900 dark:text-neutral-100 font-medium"
+         x-text="proposal && proposal.proposed_text"></p>
+    </div>
+    <div class="flex items-center gap-2 pt-1">
+      <button type="button" data-action="accept"
+              @click.stop="accept()"
+              :disabled="busy"
+              class="inline-flex items-center justify-center h-7 px-3 rounded-md text-xs font-semibold
+                     bg-emerald-600 hover:bg-emerald-700 text-white
+                     dark:bg-emerald-500 dark:hover:bg-emerald-400
+                     disabled:opacity-50">
+        Accept
+      </button>
+      <button type="button" data-action="reject"
+              @click.stop="reject()"
+              :disabled="busy"
+              class="inline-flex items-center justify-center h-7 px-3 rounded-md text-xs font-medium
+                     ring-1 ring-neutral-300 dark:ring-neutral-700
+                     text-neutral-700 dark:text-neutral-200
+                     bg-white dark:bg-neutral-800
+                     hover:bg-neutral-100 dark:hover:bg-neutral-700
+                     disabled:opacity-50">
+        Reject
+      </button>
+    </div>
+  </div>
+  <p x-show="error" x-cloak class="text-xs text-red-700 dark:text-red-300" x-text="error"></p>
+</div>
 {% endif %}
 {% endif %}
 {% endfor %}

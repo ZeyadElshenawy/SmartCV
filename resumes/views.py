@@ -593,7 +593,11 @@ def resume_edit_view(request, resume_id):
     # findings are computed elsewhere; this presenter only translates them
     # into a human-readable summary the template renders.
     from .services.findings_presenter import build_review_summary
-    review_summary = build_review_summary(resume.content, resume.validation_report)
+    from .services.findings_ux import enrich_annotations_with_plain_messages
+    review_summary = enrich_annotations_with_plain_messages(
+        build_review_summary(resume.content, resume.validation_report),
+        resume_content=resume.content,
+    )
 
     return render(request, 'resumes/edit.html', {
         'resume': resume,
@@ -1005,13 +1009,319 @@ def resume_list_view(request):
 def resume_delete_view(request, resume_id):
     """Delete a tailored resume"""
     resume = get_object_or_404(GeneratedResume, id=resume_id)
-    
+
     # Security: Ensure only the owner can delete it
     if resume.gap_analysis.job.user != request.user:
         raise Http404("Not authorized")
-        
+
     if request.method == 'POST':
         resume.delete()
         return redirect('resume_list')
-        
+
     return redirect('resume_list')
+
+
+# ---------------------------------------------------------------------------
+# Findings UX endpoints — list / propose-fix / accept-fix.
+#
+# The "Fix it" path routes through resume_reviewer_v2._regenerate_v2_bullet
+# → resume_generator_v2._generate_one_bullet, the SAME guarded primitive
+# the supervised loop uses. It NEVER calls regenerate_section (v1 path
+# with no number-lock). Refuses to "fix" NEEDS_USER_INPUT findings —
+# regenerating those would invite fabrication, the very thing the
+# classifier's fail-safe is designed to prevent.
+# ---------------------------------------------------------------------------
+
+
+@login_required
+@require_GET
+def resume_findings_api(request, resume_id):
+    """Return the resume's review findings classified into the 3 buckets
+    (auto_fix / user_input / advisory) with user-facing plain-language
+    copy. The internal rule_id vocabulary never reaches the response."""
+    resume = get_object_or_404(GeneratedResume, id=resume_id)
+    if resume.gap_analysis.job.user != request.user:
+        raise Http404
+    from .services.findings_ux import build_buckets_for_ui
+    buckets = build_buckets_for_ui(resume)
+    return JsonResponse(buckets)
+
+
+def _bullet_at_location(content: dict, location: dict):
+    """Resolve a finding's location → (parent_list, bullet_index,
+    container_key) tuple. Returns (None, None, None) when the location
+    doesn't point at a bullet the UI can rewrite."""
+    section = (location or {}).get("section") or ""
+    item_idx = (location or {}).get("item_idx")
+    bullet_idx = (location or {}).get("bullet_idx")
+    if section == "summary":
+        # Summary is a single string; the editor treats it as one bullet.
+        return None, None, "summary"
+    if section in ("experience", "projects") and isinstance(item_idx, int):
+        items = (content or {}).get(section) or []
+        if 0 <= item_idx < len(items):
+            item = items[item_idx]
+            desc = item.get("description") or []
+            if isinstance(bullet_idx, int) and 0 <= bullet_idx < len(desc):
+                return desc, bullet_idx, section
+    return None, None, None
+
+
+def _facts_for_bullet_from_profile(profile_data: dict, section: str, item: dict):
+    """Build a per-bullet FactStore by re-extracting from the structured
+    profile, then filter to facts whose entity matches the parent item.
+
+    Matching is by display string: any fact whose ``entity_display``
+    contains the item's title or company is admitted. Falls back to
+    every fact when no match is found (lenient — allows the regen the
+    widest grounded number pool, which is still strictly grounded
+    since extract_into_store only emits source-backed facts)."""
+    from resumes.services.fact_store import FactStore
+    from resumes.services.fact_extractor import extract_into_store
+    store = FactStore()
+    extract_into_store(store, "structured_profile", data_content=profile_data or {})
+    title = (item.get("title") or "").strip().lower()
+    company = (item.get("company") or "").strip().lower()
+    matched = []
+    for f in store.all():
+        disp = (f.entity_display or "").lower()
+        if (title and title in disp) or (company and company in disp):
+            matched.append(f)
+    return matched or list(store.all())
+
+
+@login_required
+@require_POST
+def resume_propose_fix_api(request, resume_id, finding_id):
+    """Generate a regen PROPOSAL for an AUTO_FIXABLE finding.
+
+    Routes through ``_regenerate_v2_bullet`` → ``_generate_one_bullet``
+    (the SAME guarded primitive the reviewer uses). The number-lock,
+    KB writing rules, and banned-openings re-check all fire — the
+    fix-it endpoint cannot bypass them.
+
+    Does NOT persist. Returns the proposal so the UI can show
+    before/after for the user to Accept or Reject.
+
+    Refuses to fix NEEDS_USER_INPUT / ADVISORY findings — those are
+    user-judgement calls; regenerating them would fabricate.
+    """
+    resume = get_object_or_404(GeneratedResume, id=resume_id)
+    if resume.gap_analysis.job.user != request.user:
+        raise Http404
+
+    from .services.findings_ux import build_buckets_for_ui, find_finding_by_id
+
+    buckets = build_buckets_for_ui(resume)
+    finding = find_finding_by_id(buckets, finding_id)
+    if finding is None:
+        return JsonResponse(
+            {"error": "Finding not found.", "code": "not_found"},
+            status=404,
+        )
+    if finding.get("bucket") != "auto_fix" or not finding.get("fixable"):
+        return JsonResponse(
+            {"error": "This finding needs your input — can't be auto-fixed.",
+             "code": "not_fixable",
+             "bucket": finding.get("bucket")},
+            status=400,
+        )
+
+    content = resume.content or {}
+    parent_list, bullet_idx, kind = _bullet_at_location(content, finding.get("location"))
+    if kind is None:
+        return JsonResponse(
+            {"error": "Couldn't locate the bullet — try regenerating the section.",
+             "code": "location_unresolved"},
+            status=400,
+        )
+
+    # Summary regen — `_generate_summary` itself is just a wrapper
+    # around `_generate_one_bullet` (resume_generator_v2.py:524-549),
+    # so the same guarded primitive applies: number-lock fires on the
+    # rewrite against an `allowed_numbers` pool built from the user's
+    # actual facts.
+    if kind == "summary":
+        original_text = (content.get("professional_summary") or "").strip()
+        if not original_text:
+            return JsonResponse(
+                {"error": "No summary text to rewrite.", "code": "no_summary"},
+                status=400,
+            )
+        try:
+            profile = UserProfile.objects.get(user=request.user)
+        except UserProfile.DoesNotExist:
+            return JsonResponse(
+                {"error": "Profile missing — can't ground a regen.",
+                 "code": "no_profile"},
+                status=400,
+            )
+        from resumes.services.fact_store import FactStore
+        from resumes.services.fact_extractor import extract_into_store
+        store = FactStore()
+        extract_into_store(store, "structured_profile",
+                           data_content=profile.data_content or {})
+        facts = list(store.all())
+        if not facts:
+            return JsonResponse(
+                {"error": "No grounded facts available for a summary rewrite.",
+                 "code": "no_facts"},
+                status=400,
+            )
+        from resumes.services.resume_generator_v2 import (
+            _generate_one_bullet, _allowed_numbers_from_facts,
+        )
+        allowed_numbers = _allowed_numbers_from_facts(facts)
+        job_title = getattr(resume.gap_analysis.job, "title", "") or ""
+        job_company = getattr(resume.gap_analysis.job, "company", "") or ""
+        role_hint = (
+            f"the professional summary for a {job_title} role"
+            + (f" at {job_company}" if job_company else "")
+        )
+        events = []
+        new_bullet = _generate_one_bullet(
+            section="summary",
+            entity_id="",
+            role_hint=role_hint,
+            facts=facts,
+            allowed_numbers=allowed_numbers,
+            events=events,
+            writing_rules_block="",
+            regen_feedback=(finding.get("message") or ""),
+        )
+        if new_bullet is None:
+            return JsonResponse(
+                {"error": "The number guard dropped the regenerated summary — "
+                          "try again or edit inline.",
+                 "code": "guard_dropped",
+                 "fabrication_events": [
+                     {"action": e.action,
+                      "ungrounded_numbers": list(e.ungrounded_numbers)}
+                     for e in events
+                 ]},
+                status=200,
+            )
+        return JsonResponse({
+            "finding_id":    finding_id,
+            "section":       "summary",
+            "item_idx":      None,
+            "bullet_idx":    None,
+            "original_text": original_text,
+            "proposed_text": getattr(new_bullet, "text", "") or "",
+            "persisted":     False,
+        })
+
+    original_text = parent_list[bullet_idx]
+
+    # Re-derive the bullet's grounded facts from the structured profile.
+    try:
+        profile = UserProfile.objects.get(user=request.user)
+    except UserProfile.DoesNotExist:
+        return JsonResponse(
+            {"error": "Profile missing — can't ground a regen.",
+             "code": "no_profile"},
+            status=400,
+        )
+    section = finding["location"]["section"]
+    item = (content.get(section) or [])[finding["location"]["item_idx"]]
+    facts = _facts_for_bullet_from_profile(profile.data_content or {}, section, item)
+    if not facts:
+        return JsonResponse(
+            {"error": "No grounded facts available for this bullet's parent role.",
+             "code": "no_facts"},
+            status=400,
+        )
+
+    # Call the SAME guarded path the reviewer uses.
+    from resumes.services.resume_generator_v2 import (
+        _generate_one_bullet, _allowed_numbers_from_facts, GeneratedBullet,
+    )
+    allowed_numbers = _allowed_numbers_from_facts(facts)
+    role_hint = f"a {section} entry: {(item.get('title') or '')} @ {(item.get('company') or '')}"
+    events = []
+    new_bullet = _generate_one_bullet(
+        section=section,
+        entity_id="",
+        role_hint=role_hint,
+        facts=facts,
+        allowed_numbers=allowed_numbers,
+        events=events,
+        writing_rules_block="",  # editor-driven regen runs without KB block
+        regen_feedback=(finding.get("message") or ""),
+    )
+    if new_bullet is None:
+        return JsonResponse(
+            {"error": "The number guard dropped the regenerated bullet — try again or edit inline.",
+             "code": "guard_dropped",
+             "fabrication_events": [
+                 {"action": e.action, "ungrounded_numbers": list(e.ungrounded_numbers)}
+                 for e in events
+             ]},
+            status=200,  # not an error — informative outcome
+        )
+    new_text = getattr(new_bullet, "text", None) or ""
+    return JsonResponse({
+        "finding_id": finding_id,
+        "section":     section,
+        "item_idx":    finding["location"]["item_idx"],
+        "bullet_idx":  bullet_idx,
+        "original_text": original_text,
+        "proposed_text": new_text,
+        "persisted":   False,
+    })
+
+
+@login_required
+@require_POST
+def resume_accept_fix_api(request, resume_id):
+    """Persist a user-accepted regen proposal into resume.content.
+
+    Body (JSON):
+        {section, item_idx, bullet_idx, new_text}
+
+    Validates the location lives in the resume, then writes. Does NOT
+    re-run any LLM call — strictly persists the user's choice. Caller
+    is the editor JS after the user clicked Accept on a proposal
+    returned by ``resume_propose_fix_api``.
+    """
+    resume = get_object_or_404(GeneratedResume, id=resume_id)
+    if resume.gap_analysis.job.user != request.user:
+        raise Http404
+    try:
+        body = json.loads((request.body or b"").decode("utf-8") or "{}")
+    except (ValueError, UnicodeDecodeError):
+        return JsonResponse({"error": "Invalid JSON body."}, status=400)
+    section    = body.get("section")
+    item_idx   = body.get("item_idx")
+    bullet_idx = body.get("bullet_idx")
+    new_text   = body.get("new_text")
+    if not isinstance(new_text, str) or not new_text.strip():
+        return JsonResponse({"error": "new_text required."}, status=400)
+    content = resume.content or {}
+    # Summary accept — write to professional_summary, not into a
+    # description array.
+    if section == "summary":
+        content["professional_summary"] = new_text.strip()
+        resume.content = content
+        resume.save(update_fields=["content"])
+        return JsonResponse({"persisted": True, "section": "summary"})
+
+    parent_list, parent_bullet_idx, kind = _bullet_at_location(
+        content,
+        {"section": section, "item_idx": item_idx, "bullet_idx": bullet_idx},
+    )
+    if kind is None or parent_list is None:
+        return JsonResponse(
+            {"error": "Bullet location not found in this resume."},
+            status=400,
+        )
+    parent_list[parent_bullet_idx] = new_text.strip()
+    # Re-assign the section to ensure the JSONB field tracks the change.
+    items = list(content.get(section) or [])
+    items[item_idx] = dict(items[item_idx])
+    items[item_idx]["description"] = parent_list
+    content[section] = items
+    resume.content = content
+    resume.save(update_fields=["content"])
+    return JsonResponse({"persisted": True, "section": section,
+                         "item_idx": item_idx, "bullet_idx": bullet_idx})

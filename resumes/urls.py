@@ -26,4 +26,12 @@ urlpatterns = [
     # NEW: Resume Management
     path('history/', views.resume_list_view, name='resume_list'),
     path('delete/<uuid:resume_id>/', views.resume_delete_view, name='resume_delete'),
+
+    # Findings UX — 3-bucket list + guarded "Fix it" proposal/accept.
+    path('api/findings/<uuid:resume_id>/',
+         views.resume_findings_api, name='resume_findings_api'),
+    path('api/findings/<uuid:resume_id>/fix/<str:finding_id>/',
+         views.resume_propose_fix_api, name='resume_propose_fix_api'),
+    path('api/findings/<uuid:resume_id>/accept/',
+         views.resume_accept_fix_api, name='resume_accept_fix_api'),
 ]

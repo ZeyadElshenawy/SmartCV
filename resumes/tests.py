@@ -10128,3 +10128,1865 @@ class RegenSwapGuardTests(SimpleTestCase):
         self.assertFalse(demoted_utilized,
                          "clean regen should NOT appear in demoted")
 
+
+# ---------------------------------------------------------------------------
+# Findings UX — 3 buckets + plain-language copy + guarded "Fix it" flow.
+# The Fix-it endpoint routes through _generate_one_bullet (the SAME
+# guarded primitive the reviewer uses). Number-lock + banned-openings
+# still fire. Refuses to fix NEEDS_USER_INPUT / ADVISORY findings.
+# ---------------------------------------------------------------------------
+
+
+class FindingsUxPlainCopyTests(SimpleTestCase):
+    """User-facing copy MUST be plain language — no rule_id, no
+    internal vocabulary leaks. The fail-safe (unknown → user_input)
+    survives the helper module."""
+
+    def test_plain_message_for_known_rules(self):
+        from resumes.services.findings_ux import _plain_message
+        m = _plain_message("A1_banned_phrase")
+        self.assertIn("Utilized", m)  # uses the recruiter-recognizable verb
+        self.assertNotIn("A1_", m)
+        self.assertNotIn("rule_id", m.lower())
+
+    def test_plain_message_for_unsupported_metric(self):
+        from resumes.services.findings_ux import _plain_message
+        m = _plain_message("unsupported_metric")
+        self.assertIn("number", m.lower())
+        self.assertNotIn("unsupported_metric", m.lower())
+
+    def test_unknown_rule_falls_back_to_generic_review_text(self):
+        from resumes.services.findings_ux import _plain_message, message_is_jargon_free
+        m = _plain_message("totally_unknown_rule_X23")
+        self.assertTrue(message_is_jargon_free(m))
+        self.assertIn("look", m.lower())  # "needs a look"
+
+    def test_message_is_jargon_free_detects_rule_id_leak(self):
+        from resumes.services.findings_ux import message_is_jargon_free
+        # Negative cases.
+        self.assertFalse(message_is_jargon_free("Inside-out opener — fix it"))
+        self.assertFalse(message_is_jargon_free("A1_banned_phrase: change verb"))
+        self.assertFalse(message_is_jargon_free("auto_fix needed for this row"))
+        # Positive cases.
+        self.assertTrue(message_is_jargon_free("Open with what you built, not 'Utilized'."))
+        self.assertTrue(message_is_jargon_free("Confirm this number against your source."))
+
+
+class FindingsUxBucketBuilderTests(SimpleTestCase):
+    """build_buckets_for_ui flattens the validation report into 3
+    buckets with stable ids and plain-language messages."""
+
+    def _resume(self, validation_report, content=None):
+        from types import SimpleNamespace
+        return SimpleNamespace(
+            content=content or {"experience": [
+                {"title": "Engineer", "company": "Acme",
+                 "description": ["Utilized AWS to build the thing."]},
+            ]},
+            validation_report=validation_report,
+        )
+
+    def test_three_buckets_returned(self):
+        from resumes.services.findings_ux import build_buckets_for_ui
+        vr = {"findings": [
+            {"rule_id": "A1_banned_phrase", "severity": "error",
+             "location": "experience[0].description[0]",
+             "issue": "bullet starts with 'Utilized'"},
+            {"rule_id": "B1_quantification", "severity": "warn",
+             "location": "experience[0].description",
+             "issue": "no metric on the role"},
+        ]}
+        b = build_buckets_for_ui(self._resume(vr))
+        self.assertIn("auto_fix", b)
+        self.assertIn("user_input", b)
+        self.assertIn("advisory", b)
+        self.assertIn("counts", b)
+        # auto_fix: the banned-phrase finding.
+        self.assertGreaterEqual(len(b["auto_fix"]), 1)
+        af = b["auto_fix"][0]
+        self.assertEqual(af["bucket"], "auto_fix")
+        self.assertEqual(af["label"], "Suggested rewrite")
+        self.assertEqual(af["color"], "amber")
+        self.assertEqual(af["action"], "Suggest a rewrite")
+        self.assertTrue(af["fixable"])
+        # user_input: the quantification finding (needs the user's number).
+        self.assertGreaterEqual(len(b["user_input"]), 1)
+        ui = b["user_input"][0]
+        self.assertEqual(ui["bucket"], "user_input")
+        self.assertEqual(ui["label"], "Needs your input")
+        self.assertEqual(ui["action"], "Add/Confirm")
+        self.assertFalse(ui["fixable"])
+
+    def test_finding_ids_are_stable_across_calls(self):
+        from resumes.services.findings_ux import build_buckets_for_ui
+        vr = {"findings": [
+            {"rule_id": "A1_banned_phrase", "severity": "error",
+             "location": "experience[0].description[0]",
+             "issue": "x"},
+        ]}
+        first = build_buckets_for_ui(self._resume(vr))
+        second = build_buckets_for_ui(self._resume(vr))
+        self.assertEqual(
+            first["auto_fix"][0]["id"], second["auto_fix"][0]["id"],
+            "finding id should be deterministic across calls",
+        )
+
+    def test_user_facing_messages_have_no_rule_id_leak(self):
+        from resumes.services.findings_ux import (
+            build_buckets_for_ui, message_is_jargon_free,
+        )
+        vr = {"findings": [
+            {"rule_id": "A1_banned_phrase", "severity": "error",
+             "location": "experience[0].description[0]", "issue": "x"},
+            {"rule_id": "A7_demonstrating_closer", "severity": "error",
+             "location": "experience[0].description[0]", "issue": "y"},
+            {"rule_id": "B1_quantification", "severity": "warn",
+             "location": "experience[0].description", "issue": "z"},
+        ]}
+        b = build_buckets_for_ui(self._resume(vr))
+        for bucket_key in ("auto_fix", "user_input", "advisory"):
+            for f in b[bucket_key]:
+                self.assertTrue(
+                    message_is_jargon_free(f["message"]),
+                    f"jargon leak in {bucket_key} message: {f['message']!r}",
+                )
+
+    def test_find_finding_by_id_round_trip(self):
+        from resumes.services.findings_ux import (
+            build_buckets_for_ui, find_finding_by_id,
+        )
+        vr = {"findings": [
+            {"rule_id": "A1_banned_phrase", "severity": "error",
+             "location": "experience[0].description[0]", "issue": "x"},
+        ]}
+        b = build_buckets_for_ui(self._resume(vr))
+        target = b["auto_fix"][0]
+        got = find_finding_by_id(b, target["id"])
+        self.assertEqual(got, target)
+        self.assertIsNone(find_finding_by_id(b, "deadbeefdeadbeef"))
+
+
+class _FindingsApiTestBase(TestCase):
+    """Common DB fixtures for the endpoint tests."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from django.contrib.auth import get_user_model
+        from jobs.models import Job
+        from analysis.models import GapAnalysis
+        from resumes.models import GeneratedResume
+        from profiles.models import UserProfile
+
+        U = get_user_model()
+        cls.user = U.objects.create_user(
+            username="fux@example.com", email="fux@example.com",
+            password="x",
+        )
+        cls.profile = UserProfile.objects.create(
+            user=cls.user,
+            data_content={
+                "experiences": [{
+                    "title": "Engineer", "company": "Acme",
+                    "start_date": "Jan 2024", "end_date": "Dec 2024",
+                    "description": ["Built a thing."],
+                }],
+                "projects": [], "skills": ["Python"], "certifications": [],
+            },
+        )
+        cls.job = Job.objects.create(
+            user=cls.user, title="Software Engineer",
+            company="TestCo", description="Engineer JD",
+        )
+        cls.gap = GapAnalysis.objects.create(
+            user=cls.user, job=cls.job, similarity_score=0.5,
+        )
+        cls.resume = GeneratedResume.objects.create(
+            gap_analysis=cls.gap,
+            content={
+                "experience": [{
+                    "title": "Engineer", "company": "Acme",
+                    "description": ["Utilized AWS to build the thing."],
+                }],
+            },
+            validation_report={
+                "findings": [
+                    {"rule_id": "A1_banned_phrase", "severity": "error",
+                     "location": "experience[0].description[0]",
+                     "issue": "bullet starts with 'Utilized'"},
+                    {"rule_id": "B1_quantification", "severity": "warn",
+                     "location": "experience[0].description",
+                     "issue": "no metric"},
+                ],
+            },
+        )
+
+    def setUp(self):
+        self.client.force_login(self.user)
+
+
+class FindingsApiListTests(_FindingsApiTestBase):
+    """GET /api/findings/<id>/ returns the 3-bucket JSON."""
+
+    def test_findings_endpoint_returns_three_buckets(self):
+        from django.urls import reverse
+        resp = self.client.get(
+            reverse("resume_findings_api", args=[self.resume.id]),
+        )
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        for k in ("auto_fix", "user_input", "advisory", "counts"):
+            self.assertIn(k, data)
+        self.assertGreaterEqual(len(data["auto_fix"]), 1)
+        self.assertGreaterEqual(len(data["user_input"]), 1)
+        # Each finding carries id / bucket / message / fixable / location.
+        af = data["auto_fix"][0]
+        for k in ("id", "bucket", "label", "color", "action",
+                  "message", "fixable", "location"):
+            self.assertIn(k, af)
+
+    def test_user_input_findings_are_not_fixable(self):
+        from django.urls import reverse
+        resp = self.client.get(
+            reverse("resume_findings_api", args=[self.resume.id]),
+        )
+        data = resp.json()
+        for f in data["user_input"]:
+            self.assertFalse(
+                f["fixable"],
+                "user_input finding incorrectly marked fixable",
+            )
+            self.assertEqual(f["action"], "Add/Confirm")
+
+    def test_other_user_gets_404(self):
+        from django.contrib.auth import get_user_model
+        from django.urls import reverse
+        other = get_user_model().objects.create_user(
+            username="other@example.com", email="other@example.com",
+            password="x",
+        )
+        self.client.force_login(other)
+        resp = self.client.get(
+            reverse("resume_findings_api", args=[self.resume.id]),
+        )
+        self.assertEqual(resp.status_code, 404)
+
+
+class FindingsApiProposeFixTests(_FindingsApiTestBase):
+    """POST /api/findings/<id>/fix/<finding_id>/ — guarded regen."""
+
+    def _af_finding_id(self):
+        from django.urls import reverse
+        resp = self.client.get(
+            reverse("resume_findings_api", args=[self.resume.id]),
+        )
+        af = resp.json()["auto_fix"]
+        self.assertTrue(af)
+        # Pick the bullet-located one (location.bullet_idx not None).
+        for f in af:
+            if f["location"]["bullet_idx"] is not None:
+                return f["id"]
+        return af[0]["id"]
+
+    def _user_input_finding_id(self):
+        from django.urls import reverse
+        resp = self.client.get(
+            reverse("resume_findings_api", args=[self.resume.id]),
+        )
+        ui = resp.json()["user_input"]
+        self.assertTrue(ui)
+        return ui[0]["id"]
+
+    def test_fix_routes_through_generate_one_bullet(self):
+        """The endpoint MUST call _generate_one_bullet — the same
+        guarded primitive the reviewer uses. Mock it to assert."""
+        from unittest.mock import patch
+        from django.urls import reverse
+        from resumes.services.resume_generator_v2 import GeneratedBullet
+
+        def fake_gen(**kwargs):
+            return GeneratedBullet(text="Shipped a deployment pipeline.",
+                                   fact_ids=["x"])
+        with patch(
+            "resumes.services.resume_generator_v2._generate_one_bullet",
+            side_effect=fake_gen,
+        ) as m:
+            finding_id = self._af_finding_id()
+            resp = self.client.post(reverse(
+                "resume_propose_fix_api",
+                args=[self.resume.id, finding_id],
+            ))
+        self.assertEqual(resp.status_code, 200, resp.content)
+        m.assert_called()
+        body = resp.json()
+        self.assertEqual(body["proposed_text"],
+                         "Shipped a deployment pipeline.")
+        self.assertFalse(body.get("persisted", True),
+                         "proposal must NOT be persisted at this stage")
+
+    def test_fix_never_calls_v1_regenerate_section(self):
+        """v1's regenerate_section is the unguarded path — the fix-it
+        endpoint MUST never reach it."""
+        from unittest.mock import patch
+        from django.urls import reverse
+        from resumes.services.resume_generator_v2 import GeneratedBullet
+
+        def fake_gen(**kwargs):
+            return GeneratedBullet(text="Cut latency by 18%.", fact_ids=["x"])
+
+        def boom_v1(*args, **kwargs):
+            raise AssertionError(
+                "fix-it endpoint reached v1 regenerate_section — "
+                "this path lacks the number-lock guard.",
+            )
+
+        finding_id = self._af_finding_id()
+        with patch(
+            "resumes.services.resume_generator_v2._generate_one_bullet",
+            side_effect=fake_gen,
+        ), patch(
+            "resumes.services.resume_generator.regenerate_section",
+            side_effect=boom_v1,
+        ):
+            resp = self.client.post(reverse(
+                "resume_propose_fix_api",
+                args=[self.resume.id, finding_id],
+            ))
+        self.assertEqual(resp.status_code, 200, resp.content)
+
+    def test_integrity_number_lock_drops_ungrounded_regen(self):
+        """If the mocked LLM produces a number not in the bullet's
+        facts pool, _generate_one_bullet's number guard drops it. The
+        endpoint reports 'guard_dropped'; no ungrounded number reaches
+        the proposal."""
+        from unittest.mock import patch
+        from django.urls import reverse
+
+        # _llm_call is the lowest-level call inside _generate_one_bullet.
+        # Mock it to return a number not in the facts.
+        def fake_llm(prompt):
+            return "Shipped a 99% reduction in CPU usage."
+
+        finding_id = self._af_finding_id()
+        with patch(
+            "resumes.services.resume_generator_v2._llm_call",
+            side_effect=fake_llm,
+        ):
+            resp = self.client.post(reverse(
+                "resume_propose_fix_api",
+                args=[self.resume.id, finding_id],
+            ))
+        self.assertEqual(resp.status_code, 200, resp.content)
+        body = resp.json()
+        # Number guard fired and dropped both the first attempt and the
+        # internal regen — endpoint reports guard_dropped with the
+        # fabrication events.
+        self.assertEqual(body.get("code"), "guard_dropped")
+        self.assertGreaterEqual(
+            len(body.get("fabrication_events") or []), 1,
+            "expected the number guard to log fabrication events",
+        )
+        # The proposed_text key must NOT be set (no proposal returned).
+        self.assertNotIn("proposed_text", body)
+
+    def test_fix_refused_on_user_input_finding(self):
+        """A user-input finding cannot be auto-fixed (regenerating it
+        would fabricate). Endpoint refuses with code=not_fixable."""
+        from unittest.mock import patch
+        from django.urls import reverse
+
+        def boom_gen(**kwargs):
+            raise AssertionError(
+                "endpoint should refuse the fix BEFORE reaching the regen",
+            )
+
+        with patch(
+            "resumes.services.resume_generator_v2._generate_one_bullet",
+            side_effect=boom_gen,
+        ):
+            ui_id = self._user_input_finding_id()
+            resp = self.client.post(reverse(
+                "resume_propose_fix_api",
+                args=[self.resume.id, ui_id],
+            ))
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json().get("code"), "not_fixable")
+
+    def test_unknown_finding_id_returns_404_not_found(self):
+        from django.urls import reverse
+        resp = self.client.post(reverse(
+            "resume_propose_fix_api",
+            args=[self.resume.id, "0" * 16],
+        ))
+        self.assertEqual(resp.status_code, 404)
+
+
+class FindingsApiAcceptTests(_FindingsApiTestBase):
+    """POST /api/findings/<id>/accept/ persists the user-approved
+    text. No LLM call, no regen — pure persistence."""
+
+    def test_accept_persists_new_bullet(self):
+        import json
+        from django.urls import reverse
+        body = {
+            "section": "experience",
+            "item_idx": 0,
+            "bullet_idx": 0,
+            "new_text": "Shipped a deployment pipeline that cut release time 18%.",
+        }
+        resp = self.client.post(
+            reverse("resume_accept_fix_api", args=[self.resume.id]),
+            data=json.dumps(body),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertTrue(resp.json().get("persisted"))
+        self.resume.refresh_from_db()
+        self.assertEqual(
+            self.resume.content["experience"][0]["description"][0],
+            body["new_text"],
+        )
+
+    def test_accept_rejects_missing_new_text(self):
+        import json
+        from django.urls import reverse
+        resp = self.client.post(
+            reverse("resume_accept_fix_api", args=[self.resume.id]),
+            data=json.dumps({
+                "section": "experience", "item_idx": 0,
+                "bullet_idx": 0, "new_text": "",
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_accept_rejects_bad_location(self):
+        import json
+        from django.urls import reverse
+        resp = self.client.post(
+            reverse("resume_accept_fix_api", args=[self.resume.id]),
+            data=json.dumps({
+                "section": "experience", "item_idx": 99,
+                "bullet_idx": 0, "new_text": "x",
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+
+class FindingsChipTemplateTests(TestCase):
+    """The findings_chip.html component renders the 3 buckets with
+    consistent labels + actions. No rule_id appears in the rendered
+    output."""
+
+    def _render(self, annotations, section_key="experience", item_idx=None):
+        from django.template.loader import render_to_string
+        from django.template import engines
+        # Build a tiny wrapper template that includes the chip with
+        # the `only` keyword to mirror real call sites.
+        engine = engines["django"]
+        if item_idx is None:
+            tpl = engine.from_string(
+                '{% include "components/findings_chip.html" '
+                'with annotations=annotations section_key=section_key only %}'
+            )
+        else:
+            tpl = engine.from_string(
+                '{% include "components/findings_chip.html" '
+                'with annotations=annotations section_key=section_key '
+                'item_idx=item_idx only %}'
+            )
+        return tpl.render({
+            "annotations": annotations,
+            "section_key": section_key,
+            "item_idx": item_idx,
+        })
+
+    def test_auto_fix_chip_renders_fix_it_action(self):
+        ann = {
+            "bucket": "auto_fix", "section": "experience",
+            "anchor_kind": "section", "item_idx": None,
+            "count": 1,
+            "items": [{"label": "Banned opener",
+                       "detail": "lead with the system or outcome"}],
+        }
+        html = self._render([ann], "experience")
+        self.assertIn("Suggested rewrite", html)
+        self.assertIn("Suggest a rewrite", html)
+        self.assertIn('data-action="fix-it"', html)
+        self.assertNotIn("Needs your input", html)
+
+    def test_user_input_chip_renders_add_confirm_and_no_fix_it(self):
+        ann = {
+            "bucket": "user_input", "section": "experience",
+            "anchor_kind": "section", "item_idx": None,
+            "count": 1,
+            "items": [{"label": "Confirm metric",
+                       "detail": "verify the 18% figure"}],
+        }
+        html = self._render([ann], "experience")
+        self.assertIn("Needs your input", html)
+        self.assertIn("Add or Confirm", html)
+        self.assertNotIn('data-action="fix-it"', html,
+                         "user_input chip MUST NOT render a Fix it action")
+
+    def test_advisory_chip_renders_dismiss(self):
+        ann = {
+            "bucket": "advisory", "section": "skills",
+            "anchor_kind": "section", "item_idx": None,
+            "count": 1,
+            "items": [{"label": "Polish suggestion", "detail": "tighten"}],
+        }
+        html = self._render([ann], "skills")
+        self.assertIn("Suggestion", html)
+        self.assertIn('data-action="dismiss"', html)
+        self.assertNotIn('data-action="fix-it"', html)
+
+    def test_no_rule_id_or_internal_jargon_in_rendered_chip(self):
+        """The rendered chip MUST NOT contain any internal rule_id /
+        BUCKET_/ phrasing. The `label` field passed in by the caller
+        is allowed to be domain-language ('Banned opener'); the
+        forbidden leaks are the internal IDs like 'A1_banned_phrase'."""
+        ann = {
+            "bucket": "auto_fix", "section": "experience",
+            "anchor_kind": "section", "item_idx": None,
+            "count": 1,
+            "items": [{"label": "Banned opener", "detail": "rewrite"}],
+        }
+        html = self._render([ann], "experience")
+        for forbidden in (
+            "A1_banned_phrase", "A2_action_verb_start", "A3_duty_opener",
+            "A4_inside_out", "A5_length", "A6_em_dash",
+            "A7_demonstrating_closer", "B1_quantification",
+            "rule_id", "BUCKET_AUTO_FIX",
+        ):
+            self.assertNotIn(forbidden, html,
+                             f"chip leaked internal token: {forbidden!r}")
+
+    def test_chip_does_not_use_x_teleport_to_body_overlay(self):
+        """The redesign replaces the dark <template x-teleport='body'>
+        overlay with an inline hint card. Assert the overlay markup is
+        gone."""
+        ann = {
+            "bucket": "auto_fix", "section": "experience",
+            "anchor_kind": "section", "item_idx": None,
+            "count": 1,
+            "items": [{"label": "x", "detail": "y"}],
+        }
+        html = self._render([ann], "experience")
+        self.assertNotIn('x-teleport="body"', html,
+                         "the dark-overlay teleport pattern was removed")
+        self.assertNotIn('position: fixed', html,
+                         "the inline hint is in flow, not fixed-position overlay")
+
+
+# ---------------------------------------------------------------------------
+# Findings-UX click-through fixes (BUG 1-7 from the audit).
+# ---------------------------------------------------------------------------
+
+
+class FindingsCountBadgeTests(SimpleTestCase):
+    """BUG 2 — the count badge must reflect the REAL finding count
+    for the bucket-in-section, not 0. Enrichment recomputes ann.count
+    from the deduped items so the chip's badge can't silently render 0."""
+
+    def test_enrichment_sets_count_to_real_item_total(self):
+        from resumes.services.findings_ux import (
+            enrich_annotations_with_plain_messages,
+        )
+        rs = {"annotations": [{
+            "section": "experience", "bucket": "auto_fix",
+            "anchor_kind": "section", "item_idx": None, "tier": "blocking",
+            "items": [
+                {"kind": "A1_banned_phrase", "label": "x", "detail": "a"},
+                {"kind": "A1_banned_phrase", "label": "x", "detail": "b"},
+                {"kind": "A7_demonstrating_closer", "label": "y", "detail": "c"},
+            ],
+        }]}
+        out = enrich_annotations_with_plain_messages(rs)
+        ann = out["annotations"][0]
+        # Two distinct kinds × counts → badge = 3 (1 dedup-counted A1 + 1 A7).
+        self.assertEqual(ann["count"], 3)
+        self.assertEqual(len(ann["items"]), 2,
+                         "duplicate items should collapse to one row")
+        # The collapsed row carries dup_count = 2.
+        a1_row = next(it for it in ann["items"] if it["kind"] == "A1_banned_phrase")
+        self.assertEqual(a1_row["dup_count"], 2)
+
+    def test_chip_badge_renders_real_count_not_zero(self):
+        from django.template import engines
+        engine = engines["django"]
+        tpl = engine.from_string(
+            '{% include "components/findings_chip.html" '
+            'with annotations=annotations section_key=section_key only %}'
+        )
+        ann = {
+            "bucket": "auto_fix", "section": "experience",
+            "anchor_kind": "section", "item_idx": None,
+            "count": 4,
+            "items": [{"label": "x", "detail": "y",
+                       "plain_message": "Open with what you built."}],
+        }
+        html = tpl.render({"annotations": [ann], "section_key": "experience"})
+        # Visible badge shows the real number, not a 0 from a bogus
+        # template filter chain.
+        self.assertIn(">4<", html.replace("\n", "").replace(" ", ""))
+        self.assertNotIn(">0<", html.replace("\n", "").replace(" ", ""))
+
+
+class FindingsPlainCopyJargonScrubTests(SimpleTestCase):
+    """BUG 3 — the rendered message must contain none of the rule-NAME
+    phrases (inside-out, structural variation, quantification, etc.) —
+    not just rule_id codes."""
+
+    def test_all_internal_phrases_are_caught_by_jargon_check(self):
+        from resumes.services.findings_ux import message_is_jargon_free
+        for bad in (
+            "Fix the inside-out summary opener",
+            "This bullet lacks structural variation",
+            "Add quantification to this role",
+            "Banned phrase in opener pattern",
+            "Action verb start missing",
+            "Verb diversity is low",
+            "Buzzword saturation",
+            "Em-dash inside the bullet",
+            "Demonstrating closer at the end",
+        ):
+            self.assertFalse(
+                message_is_jargon_free(bad),
+                f"jargon check should flag rule-name phrase {bad!r}",
+            )
+
+    def test_each_known_rule_maps_to_jargon_free_plain_copy(self):
+        from resumes.services.findings_ux import (
+            _PLAIN_MESSAGES, message_is_jargon_free,
+        )
+        for rule, msg in _PLAIN_MESSAGES.items():
+            self.assertTrue(
+                message_is_jargon_free(msg),
+                f"{rule}: plain message contains internal vocabulary: {msg!r}",
+            )
+
+    def test_specific_plain_copy_for_bug3_callouts(self):
+        from resumes.services.findings_ux import _plain_message
+        m_a4 = _plain_message("A4_inside_out_summary")
+        # "inside-out" must NOT appear.
+        self.assertNotIn("inside-out", m_a4.lower())
+        self.assertIn("Open with", m_a4)
+        m_b3 = _plain_message("B3_structure_variation")
+        self.assertNotIn("structural variation", m_b3.lower())
+        self.assertIn("vary", m_b3.lower())
+        m_b1 = _plain_message("B1_quantification")
+        self.assertNotIn("quantification", m_b1.lower())
+        self.assertIn("number", m_b1.lower())
+
+    def test_enrichment_scrubs_residual_rule_name_phrases(self):
+        """If the plain-message map missed a key, the enrichment swaps
+        in a generic fallback rather than leaking the rule name."""
+        from resumes.services.findings_ux import (
+            enrich_annotations_with_plain_messages,
+        )
+        rs = {"annotations": [{
+            "section": "experience", "bucket": "auto_fix",
+            "anchor_kind": "section", "tier": "blocking",
+            "items": [{
+                "kind": "totally_unknown_rule",
+                "label": "Inside-out summary opener with structural variation",
+                "detail": "needs quantification",
+            }],
+        }]}
+        out = enrich_annotations_with_plain_messages(rs)
+        plain = out["annotations"][0]["items"][0]["plain_message"]
+        for bad in ("inside-out", "structural variation", "quantification"):
+            self.assertNotIn(bad, plain.lower())
+
+
+class FindingsChipButtonRenderingTests(TestCase):
+    """BUG 4 — auto_fix chips MUST render a Fix-it button. user_input
+    and advisory MUST NOT."""
+
+    def _render(self, annotations, section_key="experience"):
+        from django.template import engines
+        engine = engines["django"]
+        tpl = engine.from_string(
+            '{% include "components/findings_chip.html" '
+            'with annotations=annotations section_key=section_key only %}'
+        )
+        return tpl.render({"annotations": annotations, "section_key": section_key})
+
+    def test_auto_fix_chip_always_renders_fix_it_button(self):
+        ann = {
+            "bucket": "auto_fix", "section": "experience",
+            "anchor_kind": "section", "item_idx": None, "count": 1,
+            "items": [{"plain_message": "Open with what you built.",
+                       "finding_id": "abc123"}],
+        }
+        html = self._render([ann])
+        self.assertIn('data-action="fix-it"', html)
+        self.assertIn('data-finding-id="abc123"', html)
+        # The button must not be gated by an `x-show="open"` wrapper
+        # that defaults to false (BUG 4 root cause).
+        # Heuristic: between the `data-finding-bucket="auto_fix"` open
+        # and the `data-action="fix-it"` token, no `x-show="open"`.
+        i_bucket = html.find('data-finding-bucket="auto_fix"')
+        i_btn = html.find('data-action="fix-it"', i_bucket)
+        between = html[i_bucket:i_btn]
+        self.assertNotIn('x-show="open"', between,
+                         "Fix it button must not be hidden behind a "
+                         "click-to-expand state (BUG 4)")
+
+    def test_user_input_chip_renders_no_fix_it_button(self):
+        ann = {
+            "bucket": "user_input", "section": "experience",
+            "anchor_kind": "section", "item_idx": None, "count": 1,
+            "items": [{"plain_message": "Confirm this number.",
+                       "finding_id": "xyz789"}],
+        }
+        html = self._render([ann])
+        self.assertNotIn('data-action="fix-it"', html,
+                         "user_input chips must never expose Fix it")
+        self.assertIn('data-action="add-confirm"', html)
+
+    def test_advisory_chip_renders_dismiss_not_fix_it(self):
+        ann = {
+            "bucket": "advisory", "section": "skills",
+            "anchor_kind": "section", "item_idx": None, "count": 1,
+            "items": [{"plain_message": "Optional polish.",
+                       "finding_id": "p1"}],
+        }
+        html = self._render([ann], "skills")
+        self.assertNotIn('data-action="fix-it"', html)
+        self.assertIn('data-action="dismiss"', html)
+
+
+class FindingsChipDarkModeTests(SimpleTestCase):
+    """BUG 1 — chip styles include dark-mode pairs for every visible
+    surface (bg, text, ring). Light-only classes would leave the card
+    illegible on the editor's dark theme."""
+
+    def _render(self, bucket):
+        from django.template import engines
+        engine = engines["django"]
+        tpl = engine.from_string(
+            '{% include "components/findings_chip.html" '
+            'with annotations=annotations section_key=section_key only %}'
+        )
+        ann = {
+            "bucket": bucket, "section": "experience",
+            "anchor_kind": "section", "item_idx": None, "count": 1,
+            "items": [{"plain_message": "Test message.",
+                       "finding_id": "id1"}],
+        }
+        return tpl.render({"annotations": [ann], "section_key": "experience"})
+
+    def test_each_bucket_has_dark_mode_bg_and_text_tokens(self):
+        for bucket in ("auto_fix", "user_input", "advisory"):
+            html = self._render(bucket)
+            # Dark-mode background on the card.
+            self.assertIn("dark:bg-neutral-900", html,
+                          f"{bucket} card missing dark-mode bg token")
+            # Dark-mode text on the items list.
+            self.assertIn("dark:text-neutral-100", html,
+                          f"{bucket} items missing dark-mode text token")
+
+    def test_card_uses_accent_left_border_not_white_fill(self):
+        """The accent color goes on the left border + label only —
+        the body bg stays neutral so dark-mode text remains legible."""
+        for bucket, accent in (
+            ("auto_fix",   "amber"),
+            ("user_input", "red"),
+            ("advisory",   "neutral"),
+        ):
+            html = self._render(bucket)
+            self.assertIn(f"border-{accent}-", html.replace("dark:border-", ""),
+                          f"{bucket} missing the accent border")
+
+
+class FindingsChipDedupeTests(SimpleTestCase):
+    """BUG 5 — within a single chip, identical findings collapse to one
+    row with a (×N) suffix instead of three repeated lines."""
+
+    def test_duplicate_items_collapse_into_one_row(self):
+        from resumes.services.findings_ux import (
+            enrich_annotations_with_plain_messages,
+        )
+        rs = {"annotations": [{
+            "section": "projects", "bucket": "user_input",
+            "anchor_kind": "section", "item_idx": None, "tier": "advisory",
+            "items": [
+                {"kind": "B1_quantification", "label": "Q", "detail": "p1"},
+                {"kind": "B1_quantification", "label": "Q", "detail": "p2"},
+                {"kind": "B1_quantification", "label": "Q", "detail": "p3"},
+            ],
+        }]}
+        out = enrich_annotations_with_plain_messages(rs)
+        items = out["annotations"][0]["items"]
+        self.assertEqual(len(items), 1,
+                         "3 identical findings should collapse to 1 row")
+        self.assertEqual(items[0]["dup_count"], 3)
+
+    def test_chip_renders_dedup_count_suffix(self):
+        from django.template import engines
+        engine = engines["django"]
+        tpl = engine.from_string(
+            '{% include "components/findings_chip.html" '
+            'with annotations=annotations section_key=section_key only %}'
+        )
+        ann = {
+            "bucket": "user_input", "section": "experience",
+            "anchor_kind": "section", "item_idx": None,
+            "count": 3,
+            "items": [{"plain_message": "Add a number to this role.",
+                       "finding_id": "x", "dup_count": 3}],
+        }
+        html = tpl.render({"annotations": [ann], "section_key": "experience"})
+        self.assertIn("×3", html,
+                      "duplicate row should render its count as (×N)")
+
+
+class FindingsChipSyncBannerAutoDismissTests(TestCase):
+    """BUG 6 — the sync banner now auto-dismisses via x-init + setTimeout."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from django.contrib.auth import get_user_model
+        from jobs.models import Job
+        from analysis.models import GapAnalysis
+        from resumes.models import GeneratedResume
+        U = get_user_model()
+        cls.user = U.objects.create_user(
+            username="sb@example.com", email="sb@example.com", password="x",
+        )
+        cls.job = Job.objects.create(user=cls.user, title="X",
+                                     company="Y", description="z")
+        cls.gap = GapAnalysis.objects.create(
+            user=cls.user, job=cls.job, similarity_score=0.5,
+        )
+        cls.resume = GeneratedResume.objects.create(
+            gap_analysis=cls.gap,
+            content={"professional_summary": "x"},
+            validation_report={},
+        )
+
+    def setUp(self):
+        self.client.force_login(self.user)
+
+    def test_sync_banner_has_auto_dismiss_timer(self):
+        from django.urls import reverse
+        # Set the session flag the view consumes.
+        session = self.client.session
+        session[f"resume_synced_{self.resume.id}"] = True
+        session.save()
+        resp = self.client.get(reverse("resume_edit", args=[self.resume.id]))
+        body = resp.content.decode("utf-8", errors="ignore")
+        self.assertIn("Synced from your master profile", body)
+        # Auto-dismiss timer is present via x-init + setTimeout.
+        self.assertIn("setTimeout(() => visible = false", body,
+                      "sync banner missing auto-dismiss timer (BUG 6)")
+
+
+class FindingsChipOverlapTests(SimpleTestCase):
+    """BUG 7 — the chip card must be in-flow, not absolutely positioned
+    over form fields."""
+
+    def test_chip_is_in_flow_not_absolute(self):
+        from django.template import engines
+        engine = engines["django"]
+        tpl = engine.from_string(
+            '{% include "components/findings_chip.html" '
+            'with annotations=annotations section_key=section_key only %}'
+        )
+        ann = {
+            "bucket": "auto_fix", "section": "experience",
+            "anchor_kind": "section", "item_idx": None, "count": 1,
+            "items": [{"plain_message": "x", "finding_id": "x"}],
+        }
+        html = tpl.render({"annotations": [ann], "section_key": "experience"})
+        # No absolute/fixed positioning on the card itself — the chip
+        # is supposed to push content down, not overlay it.
+        self.assertNotIn("position: absolute", html)
+        self.assertNotIn("position: fixed", html)
+        self.assertNotIn('class="absolute', html.replace('class="absolute inset-x', '___SKIP___'))
+        # The teleport-to-body pattern is gone.
+        self.assertNotIn('x-teleport="body"', html)
+
+
+class FindingsFixItRoundTripTests(TestCase):
+    """End-to-end: render the editor → extract a real finding_id from
+    the chip's data-finding-id attribute → POST to the propose-fix
+    endpoint with that id → assert it resolves to a proposal (NOT
+    'Cannot resolve finding id' / 404 'not_found').
+
+    Catches the render-vs-lookup id mismatch the isolated chip / API
+    tests didn't surface — the bug that motivated this fix:
+
+      * chip rendered with `only` template-include → `resume.id`
+        wasn't in scope → `resumeId` in the chip's x-data was the
+        empty string → JS guard refused to call the endpoint;
+      * a separate concern: enrichment-side hash had `.strip()` on
+        `kind`, lookup-side didn't — any whitespace drift would have
+        produced different ids on the two paths.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        from django.contrib.auth import get_user_model
+        from jobs.models import Job
+        from analysis.models import GapAnalysis
+        from resumes.models import GeneratedResume
+        from profiles.models import UserProfile
+
+        U = get_user_model()
+        cls.user = U.objects.create_user(
+            username="rt@example.com", email="rt@example.com", password="x",
+        )
+        cls.profile = UserProfile.objects.create(
+            user=cls.user,
+            data_content={
+                "experiences": [{
+                    "title": "Engineer", "company": "Acme",
+                    "start_date": "Jan 2024", "end_date": "Dec 2024",
+                    "description": ["Built a thing."],
+                }],
+                "projects": [], "skills": ["Python"],
+                "certifications": [],
+            },
+        )
+        cls.job = Job.objects.create(
+            user=cls.user, title="Software Engineer",
+            company="TestCo", description="Engineer JD",
+        )
+        cls.gap = GapAnalysis.objects.create(
+            user=cls.user, job=cls.job, similarity_score=0.5,
+        )
+        cls.resume = GeneratedResume.objects.create(
+            gap_analysis=cls.gap,
+            content={
+                "professional_summary": "Engineer with thinginess.",
+                "experience": [{
+                    "title": "Engineer", "company": "Acme",
+                    "description": ["Utilized AWS to build the thing."],
+                }],
+            },
+            validation_report={"findings": [
+                {"rule_id": "A1_banned_phrase", "severity": "error",
+                 "location": "experience[0].description[0]",
+                 "issue": "bullet starts with 'Utilized'"},
+            ]},
+        )
+
+    def setUp(self):
+        self.client.force_login(self.user)
+
+    def _extract_finding_ids(self, html):
+        """Pull all data-finding-id values out of the rendered HTML.
+        Skips empty values (would indicate a chip-render miss)."""
+        import re
+        ids = re.findall(r'data-finding-id="([^"]+)"', html)
+        return [i for i in ids if i.strip()]
+
+    def _extract_resume_id(self, html):
+        """Pull the chip's resumeId out of the rendered Alpine x-data."""
+        import re
+        m = re.search(r"resumeId:\s*'([^']*)'", html)
+        return m.group(1) if m else None
+
+    def test_chip_emits_non_empty_resume_id(self):
+        """Regression for the original bug — resume.id was '' because
+        the include used `only` and didn't pass resume_id through."""
+        from django.urls import reverse
+        resp = self.client.get(reverse("resume_edit", args=[self.resume.id]))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode("utf-8")
+        rid = self._extract_resume_id(html)
+        self.assertEqual(rid, str(self.resume.id),
+                         f"chip's resumeId should be the resume UUID, got {rid!r}")
+
+    def test_chip_emits_non_empty_finding_ids(self):
+        """If the enrichment runs and emits ids, the chip should
+        render them — empty values mean the round-trip fails before
+        the user even clicks."""
+        from django.urls import reverse
+        resp = self.client.get(reverse("resume_edit", args=[self.resume.id]))
+        html = resp.content.decode("utf-8")
+        ids = self._extract_finding_ids(html)
+        self.assertTrue(ids, "chip rendered no data-finding-id values "
+                             "— enrichment didn't reach the chip")
+        for fid in ids:
+            self.assertRegex(fid, r"^[0-9a-f]{16}$",
+                             f"finding_id should be a 16-char hex hash, got {fid!r}")
+
+    def test_round_trip_render_then_propose_fix_resolves_id(self):
+        """The big one: render the editor, grab a real finding_id from
+        the rendered chip, POST it to the propose-fix endpoint, and
+        assert the endpoint RESOLVES the id (not 404 'not_found').
+
+        Mocks _generate_one_bullet so no Groq call happens — the test
+        only verifies the id-routing seam."""
+        from unittest.mock import patch
+        from django.urls import reverse
+        from resumes.services.resume_generator_v2 import GeneratedBullet
+
+        # 1. Render the editor.
+        resp = self.client.get(reverse("resume_edit", args=[self.resume.id]))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode("utf-8")
+
+        # 2. Extract the resume id + at least one finding id from the
+        #    rendered HTML.
+        rid = self._extract_resume_id(html)
+        self.assertEqual(rid, str(self.resume.id))
+        finding_ids = self._extract_finding_ids(html)
+        self.assertTrue(finding_ids)
+
+        # 3. Identify the auto_fix finding id we expect to be fixable
+        #    by re-deriving it the same way the chip does — via the
+        #    enriched annotations. Then assert the FIRST emitted id
+        #    matches an auto_fix id (the chip renders auto_fix chips
+        #    with Fix-it buttons; user_input / advisory chips don't).
+        from resumes.services.findings_ux import (
+            build_buckets_for_ui, find_finding_by_id,
+        )
+        buckets = build_buckets_for_ui(self.resume)
+        auto_fix_ids = {f["id"] for f in buckets["auto_fix"]}
+        self.assertTrue(auto_fix_ids,
+                        "no auto_fix findings — fixture didn't produce one")
+        candidate = next((fid for fid in finding_ids if fid in auto_fix_ids), None)
+        self.assertIsNotNone(
+            candidate,
+            "no rendered finding_id matches a build_buckets_for_ui id — "
+            "render-side and lookup-side hashes are drifting again",
+        )
+
+        # 4. POST to the propose-fix endpoint with that exact id.
+        def fake_gen(**kwargs):
+            return GeneratedBullet(text="Shipped X via AWS Lambda.",
+                                   fact_ids=["x"])
+        with patch(
+            "resumes.services.resume_generator_v2._generate_one_bullet",
+            side_effect=fake_gen,
+        ):
+            resp = self.client.post(reverse(
+                "resume_propose_fix_api",
+                args=[self.resume.id, candidate],
+            ))
+
+        # 5. The endpoint MUST resolve the id (not 404 'not_found') and
+        #    return a proposal (not 'not_fixable').
+        self.assertEqual(resp.status_code, 200,
+                         f"propose-fix endpoint should resolve the chip-emitted "
+                         f"id ({candidate!r}); got status {resp.status_code} "
+                         f"body={resp.content!r}")
+        body = resp.json()
+        self.assertNotEqual(body.get("code"), "not_found",
+                            "endpoint returned 'not_found' — id mismatch "
+                            "between chip-render and endpoint lookup")
+        self.assertNotEqual(body.get("code"), "not_fixable")
+        self.assertIn("proposed_text", body)
+        self.assertFalse(body.get("persisted", True),
+                         "proposal must NOT be persisted at this stage")
+
+    def test_round_trip_under_kind_whitespace_drift(self):
+        """Defensive — if the upstream presenter ever emits a kind with
+        stray whitespace, render-vs-lookup hashes must still match
+        because both sides .strip() the kind before hashing."""
+        from resumes.services.findings_ux import (
+            _stable_finding_id,
+            enrich_annotations_with_plain_messages,
+            build_buckets_for_ui,
+            find_finding_by_id,
+        )
+        # Simulate the presenter emitting a kind with stray whitespace
+        # by constructing the annotation directly.
+        from types import SimpleNamespace
+        rs = {"annotations": [{
+            "section": "experience",
+            "bucket": "auto_fix",
+            "anchor_kind": "item",
+            "item_idx": 0,
+            "bullet_idx": 0,
+            "tier": "blocking",
+            "items": [{
+                "kind": "  A1_banned_phrase  ",   # ← stray whitespace
+                "label": "x",
+                "detail": "y",
+            }],
+        }]}
+        enriched = enrich_annotations_with_plain_messages(rs)
+        emitted_id = enriched["annotations"][0]["items"][0]["finding_id"]
+
+        # Now build buckets from a stub resume whose validation_report
+        # gives the SAME annotation shape.
+        # (Direct id-computation parity is what we're after — call
+        # _stable_finding_id with the same raw inputs and verify
+        # equality.)
+        from_lookup = _stable_finding_id("auto_fix", {
+            "section": "experience",
+            "item_idx": 0,
+            "bullet_idx": 0,
+            "kind": "  A1_banned_phrase  ".strip(),
+        })
+        self.assertEqual(
+            emitted_id, from_lookup,
+            "render-side and lookup-side hashes must match even with "
+            "whitespace in kind",
+        )
+
+
+# ---------------------------------------------------------------------------
+# Philosophy B, honestly labeled.
+#   1. "Can auto-fix" → "Suggested rewrite"; "Fix it" → "Suggest a rewrite".
+#      Honesty framing in the chip.
+#   2. Summary fix unblocked — _generate_summary is itself a wrapper
+#      around _generate_one_bullet, so the same number-lock fires.
+#   3. Skills supervisor findings reclassified to USER_INPUT (no LLM
+#      regen path exists for skills).
+# ---------------------------------------------------------------------------
+
+
+class FindingsAutoFixHonestRelabelTests(SimpleTestCase):
+    """The auto_fix bucket's label + action now read as a PROPOSAL,
+    not a self-applying fix. Tests against BUCKET_META so future
+    chip rewrites can't silently regress the copy."""
+
+    def test_bucket_meta_label_is_suggested_rewrite(self):
+        from resumes.services.findings_ux import BUCKET_META, BUCKET_AUTO_FIX
+        meta = BUCKET_META[BUCKET_AUTO_FIX]
+        self.assertEqual(meta["label"], "Suggested rewrite")
+        self.assertEqual(meta["action"], "Suggest a rewrite")
+        self.assertEqual(meta["color"], "amber")
+        self.assertTrue(meta["fixable"])
+
+    def test_chip_header_renders_suggested_rewrite_not_can_auto_fix(self):
+        from django.template import engines
+        engine = engines["django"]
+        tpl = engine.from_string(
+            '{% include "components/findings_chip.html" '
+            'with annotations=annotations section_key=section_key only %}'
+        )
+        ann = {"bucket": "auto_fix", "section": "experience",
+               "anchor_kind": "section", "item_idx": None, "count": 1,
+               "items": [{"plain_message": "x", "finding_id": "id1"}]}
+        html = tpl.render({"annotations": [ann], "section_key": "experience"})
+        self.assertIn("Suggested rewrite", html)
+        self.assertNotIn("Can auto-fix", html)
+
+    def test_chip_button_label_is_suggest_a_rewrite(self):
+        from django.template import engines
+        engine = engines["django"]
+        tpl = engine.from_string(
+            '{% include "components/findings_chip.html" '
+            'with annotations=annotations section_key=section_key only %}'
+        )
+        ann = {"bucket": "auto_fix", "section": "experience",
+               "anchor_kind": "section", "item_idx": None, "count": 1,
+               "items": [{"plain_message": "x", "finding_id": "id1"}]}
+        html = tpl.render({"annotations": [ann], "section_key": "experience"})
+        self.assertIn("Suggest a rewrite", html)
+        self.assertIn('data-action="fix-it"', html)
+
+    def test_chip_renders_honesty_framing_for_auto_fix_only(self):
+        """The 'we'll suggest a grounded rewrite — you choose' helper
+        line renders for auto_fix; NOT for user_input or advisory."""
+        from django.template import engines
+        engine = engines["django"]
+        tpl = engine.from_string(
+            '{% include "components/findings_chip.html" '
+            'with annotations=annotations section_key=section_key only %}'
+        )
+
+        def render(bucket):
+            return tpl.render({"annotations": [{
+                "bucket": bucket, "section": "experience",
+                "anchor_kind": "section", "item_idx": None, "count": 1,
+                "items": [{"plain_message": "x", "finding_id": "id1"}],
+            }], "section_key": "experience"})
+
+        framing = "you choose whether to use it"
+        self.assertIn(framing, render("auto_fix"))
+        self.assertNotIn(framing, render("user_input"))
+        self.assertNotIn(framing, render("advisory"))
+
+
+class FindingsSummaryFixRoundTripTests(TestCase):
+    """The summary endpoint used to refuse with code=summary_not_supported.
+    It now routes through _generate_one_bullet — the same guarded
+    primitive the per-bullet fix uses, the same one _generate_summary
+    itself wraps. End-to-end test: render → scrape → POST → assert
+    proposal + integrity."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from django.contrib.auth import get_user_model
+        from jobs.models import Job
+        from analysis.models import GapAnalysis
+        from resumes.models import GeneratedResume
+        from profiles.models import UserProfile
+
+        U = get_user_model()
+        cls.user = U.objects.create_user(
+            username="srt@example.com", email="srt@example.com",
+            password="x",
+        )
+        cls.profile = UserProfile.objects.create(
+            user=cls.user,
+            data_content={
+                "experiences": [{
+                    "title": "Engineer", "company": "Acme",
+                    "start_date": "Jan 2024", "end_date": "Dec 2024",
+                    "description": ["Built a thing."],
+                }],
+                "projects": [], "skills": ["Python"],
+                "certifications": [],
+            },
+        )
+        cls.job = Job.objects.create(
+            user=cls.user, title="Software Engineer",
+            company="TestCo", description="Engineer JD",
+        )
+        cls.gap = GapAnalysis.objects.create(
+            user=cls.user, job=cls.job, similarity_score=0.5,
+        )
+        cls.resume = GeneratedResume.objects.create(
+            gap_analysis=cls.gap,
+            content={
+                "professional_summary":
+                    "Engineer with over 4 years of experience.",
+                "experience": [{"title": "Engineer", "company": "Acme",
+                                "description": ["Built a thing."]}],
+            },
+            validation_report={"findings": [
+                # Maps to A4_inside_out_summary -> auto_fix, on section
+                # "professional_summary" which the presenter normalises
+                # to "summary".
+                {"rule_id": "A4_inside_out_summary", "severity": "error",
+                 "location": "professional_summary",
+                 "issue": "Opens with 'with over…' — inside-out."},
+            ]},
+        )
+
+    def setUp(self):
+        self.client.force_login(self.user)
+
+    def _summary_finding_id(self):
+        from resumes.services.findings_ux import build_buckets_for_ui
+        b = build_buckets_for_ui(self.resume)
+        for f in b["auto_fix"]:
+            if f["location"].get("section") == "summary":
+                return f["id"]
+        return None
+
+    def test_summary_round_trip_returns_proposal_not_summary_not_supported(self):
+        from unittest.mock import patch
+        from django.urls import reverse
+        from resumes.services.resume_generator_v2 import GeneratedBullet
+
+        finding_id = self._summary_finding_id()
+        self.assertIsNotNone(
+            finding_id,
+            "no auto_fix summary finding in the fixture — bucket "
+            "routing changed?",
+        )
+
+        def fake_gen(**kwargs):
+            return GeneratedBullet(
+                text="Built data pipelines that cut ETL latency.",
+                fact_ids=["x"],
+            )
+
+        with patch(
+            "resumes.services.resume_generator_v2._generate_one_bullet",
+            side_effect=fake_gen,
+        ) as m:
+            resp = self.client.post(reverse(
+                "resume_propose_fix_api",
+                args=[self.resume.id, finding_id],
+            ))
+        self.assertEqual(resp.status_code, 200, resp.content)
+        body = resp.json()
+        self.assertNotEqual(body.get("code"), "summary_not_supported",
+                            "summary fix still refused — Change 2 didn't land")
+        self.assertNotEqual(body.get("code"), "not_found")
+        self.assertEqual(body.get("section"), "summary")
+        self.assertIn("proposed_text", body)
+        self.assertFalse(body.get("persisted", True),
+                         "proposal must NOT be persisted at this stage")
+        # The guarded primitive WAS called.
+        m.assert_called()
+        # And called with section="summary" — proving the right path.
+        kwargs = m.call_args.kwargs
+        self.assertEqual(kwargs.get("section"), "summary")
+        self.assertGreater(
+            len(kwargs.get("facts") or []), 0,
+            "summary regen must receive a grounded facts pool",
+        )
+
+    def test_summary_integrity_number_lock_drops_ungrounded(self):
+        """If the mocked LLM returns a number not in the summary's
+        facts pool, the number guard fires twice (initial + internal
+        regen) and drops. Endpoint reports code=guard_dropped with
+        fabrication events."""
+        from unittest.mock import patch
+        from django.urls import reverse
+
+        # Mock the lowest-level LLM call so the REAL number guard runs.
+        def fake_llm(prompt):
+            return "Shipped a 99.9% improvement in cycle time."
+
+        finding_id = self._summary_finding_id()
+        with patch(
+            "resumes.services.resume_generator_v2._llm_call",
+            side_effect=fake_llm,
+        ):
+            resp = self.client.post(reverse(
+                "resume_propose_fix_api",
+                args=[self.resume.id, finding_id],
+            ))
+        self.assertEqual(resp.status_code, 200, resp.content)
+        body = resp.json()
+        self.assertEqual(body.get("code"), "guard_dropped",
+                         f"number-lock must drop the ungrounded summary regen; "
+                         f"got {body!r}")
+        self.assertGreaterEqual(
+            len(body.get("fabrication_events") or []), 1,
+            "expected the number guard to log fabrication events",
+        )
+        self.assertNotIn("proposed_text", body,
+                         "no proposal should reach the UI when the guard drops")
+
+    def test_summary_accept_persists_to_professional_summary(self):
+        import json
+        from django.urls import reverse
+        new = "Built data pipelines that cut ETL latency by half."
+        resp = self.client.post(
+            reverse("resume_accept_fix_api", args=[self.resume.id]),
+            data=json.dumps({"section": "summary", "item_idx": None,
+                             "bullet_idx": None, "new_text": new}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertTrue(resp.json().get("persisted"))
+        self.resume.refresh_from_db()
+        self.assertEqual(self.resume.content["professional_summary"], new)
+
+
+class FindingsSkillsClassificationTests(SimpleTestCase):
+    """A supervisor finding with category=skills now routes to
+    USER_INPUT — no Fix-it button is offered (since there's no LLM
+    skills regen)."""
+
+    def test_supervisor_skills_classification_is_user_input(self):
+        from resumes.services.findings_classifier import (
+            classify_supervisor, BUCKET_USER_INPUT,
+        )
+        bucket = classify_supervisor("skills", severity="blocking",
+                                     layer="content")
+        self.assertEqual(
+            bucket, BUCKET_USER_INPUT,
+            "skills supervisor findings must route to user_input — no "
+            "LLM regen path exists for skills",
+        )
+
+    def test_supervisor_summary_still_auto_fix(self):
+        """Sanity check that we only touched skills, not summary."""
+        from resumes.services.findings_classifier import (
+            classify_supervisor, BUCKET_AUTO_FIX,
+        )
+        self.assertEqual(
+            classify_supervisor("summary", severity="blocking",
+                                layer="content"),
+            BUCKET_AUTO_FIX,
+        )
+
+    def test_skills_finding_renders_no_fix_it_button(self):
+        from django.template import engines
+        engine = engines["django"]
+        tpl = engine.from_string(
+            '{% include "components/findings_chip.html" '
+            'with annotations=annotations section_key=section_key only %}'
+        )
+        ann = {"bucket": "user_input", "section": "skills",
+               "anchor_kind": "section", "item_idx": None, "count": 1,
+               "items": [{"plain_message": "Confirm the skill list.",
+                          "finding_id": "k1"}]}
+        html = tpl.render({"annotations": [ann], "section_key": "skills"})
+        self.assertNotIn('data-action="fix-it"', html,
+                         "skills chip must not expose Fix-it")
+        self.assertIn('data-action="add-confirm"', html)
+
+
+class FindingsProposalPanelDarkModeTests(SimpleTestCase):
+    """The WAS / NOW proposal panel (rendered after the user clicks
+    "Suggest a rewrite") must use the SAME dark tokens the chip card
+    uses, so it's legible on the editor's dark UI. The original panel
+    used bg-amber-50 / dark:bg-amber-950/30 — a cream-tinted surface
+    that read as near-white on dark."""
+
+    def _render_auto_fix_chip(self):
+        from django.template import engines
+        engine = engines["django"]
+        tpl = engine.from_string(
+            '{% include "components/findings_chip.html" '
+            'with annotations=annotations section_key=section_key only %}'
+        )
+        ann = {"bucket": "auto_fix", "section": "experience",
+               "anchor_kind": "section", "item_idx": None, "count": 1,
+               "items": [{"plain_message": "Open with what you built.",
+                          "finding_id": "id1"}]}
+        return tpl.render({"annotations": [ann], "section_key": "experience"})
+
+    def _proposal_panel_slice(self, html):
+        """Return the panel markup between `x-show="proposal"` and its
+        closing div so assertions don't pick up the chip-card classes."""
+        start = html.find('x-show="proposal"')
+        self.assertGreater(start, 0, "no proposal panel in rendered HTML")
+        end = html.find('x-show="error"', start)
+        return html[start:end] if end > 0 else html[start:]
+
+    def test_panel_uses_chip_card_neutral_dark_bg_not_amber_cream(self):
+        """The panel was bg-amber-50 dark:bg-amber-950/30 — a cream
+        background that read as 'light cream' on the dark UI. Replaced
+        with bg-white dark:bg-neutral-900 (the chip card's pattern).
+        The amber stays on the LEFT BORDER + label only."""
+        panel = self._proposal_panel_slice(self._render_auto_fix_chip())
+        self.assertIn("bg-white", panel)
+        self.assertIn("dark:bg-neutral-900", panel)
+        # The cream-amber backgrounds are gone.
+        self.assertNotIn("bg-amber-50", panel,
+                         "panel still uses the cream bg-amber-50 — "
+                         "the original dark-mode bug")
+        self.assertNotIn("dark:bg-amber-950", panel)
+
+    def test_panel_has_amber_left_border_and_ring(self):
+        """Accent stays on the left border + ring, matching chip card."""
+        panel = self._proposal_panel_slice(self._render_auto_fix_chip())
+        self.assertIn("border-l-4", panel)
+        self.assertIn("border-amber-500", panel)
+        self.assertIn("ring-amber-300/70", panel)
+        self.assertIn("dark:ring-amber-700/60", panel)
+
+    def test_panel_was_text_legible_in_both_modes(self):
+        """WAS region: dimmer than NOW (it's the OLD version) but
+        readable on the dark bg — neutral-500 / dark:neutral-400."""
+        panel = self._proposal_panel_slice(self._render_auto_fix_chip())
+        self.assertIn("text-neutral-500", panel)
+        self.assertIn("dark:text-neutral-400", panel)
+        self.assertIn("line-through", panel)
+
+    def test_panel_now_text_full_contrast_in_both_modes(self):
+        """NOW region: full contrast — text-neutral-900 / dark:text-neutral-100,
+        same as the chip card body text."""
+        panel = self._proposal_panel_slice(self._render_auto_fix_chip())
+        self.assertIn("text-neutral-900", panel)
+        self.assertIn("dark:text-neutral-100", panel)
+        self.assertIn("font-medium", panel)
+
+    def test_panel_was_now_labels_use_amber_accent(self):
+        """The Was / Now labels carry the amber accent (matches the
+        chip card's section label coloring)."""
+        panel = self._proposal_panel_slice(self._render_auto_fix_chip())
+        self.assertIn("text-amber-700", panel)
+        self.assertIn("dark:text-amber-300", panel)
+
+    def test_accept_button_has_dark_mode_variant(self):
+        """Accept stays green; the dark variant brightens slightly so
+        the contrast against dark:bg-neutral-900 reads cleanly."""
+        panel = self._proposal_panel_slice(self._render_auto_fix_chip())
+        self.assertIn('data-action="accept"', panel)
+        self.assertIn("bg-emerald-600", panel)
+        self.assertIn("dark:bg-emerald-500", panel)
+        self.assertIn("Accept", panel)
+
+    def test_reject_button_has_dark_mode_tokens(self):
+        """Reject keeps the neutral pattern matching the chip's
+        Dismiss button styling."""
+        panel = self._proposal_panel_slice(self._render_auto_fix_chip())
+        self.assertIn('data-action="reject"', panel)
+        self.assertIn("dark:ring-neutral-700", panel)
+        self.assertIn("dark:text-neutral-200", panel)
+        self.assertIn("dark:bg-neutral-800", panel)
+        self.assertIn("Reject", panel)
+
+
+# ---------------------------------------------------------------------------
+# FIX 1 — Summary synthesis prompt. _bullet_prompt now branches on
+# section: summary gets a 2-3 sentence positioning prompt; bullets keep
+# the 15-25 word single-line copy. Number-lock + banned-openings stay
+# byte-for-byte (only the prompt copy differs).
+# ---------------------------------------------------------------------------
+
+
+class SummaryPromptSynthesisTests(SimpleTestCase):
+    """The summary prompt now positions the candidate across the
+    facts (2-3 sentences, ~50-80 words). The bullet prompt is
+    unchanged. Both still feed _generate_one_bullet so the number
+    guard and banned-openings chain apply identically."""
+
+    def _summary_prompt(self):
+        from resumes.services.resume_generator_v2 import _bullet_prompt
+        return _bullet_prompt(
+            role_hint="the professional summary for a Data Scientist role at Acme",
+            facts=[],
+            section="summary",
+        )
+
+    def _bullet_prompt(self):
+        from resumes.services.resume_generator_v2 import _bullet_prompt
+        return _bullet_prompt(
+            role_hint="an experience entry: 'Engineer @ Acme'",
+            facts=[],
+            section="experience",
+        )
+
+    def test_summary_prompt_contains_synthesis_directive(self):
+        p = self._summary_prompt()
+        self.assertIn("PROFESSIONAL SUMMARY", p)
+        self.assertIn("Synthesize ACROSS the facts", p)
+        # 2-3 sentence shape called out.
+        self.assertIn("2-3 sentence", p)
+        # Length budget different from bullets.
+        self.assertIn("50-80 words", p)
+
+    def test_summary_prompt_does_not_carry_bullet_copy(self):
+        """The summary path must NOT carry the bullet's one-line
+        framing — that was the root cause of the thin summary."""
+        p = self._summary_prompt()
+        self.assertNotIn("writing ONE resume bullet", p)
+        self.assertNotIn("15-25 words", p)
+        self.assertNotIn("one line, no quotes", p)
+        # Bullet ACHIEVEMENT SHAPE block is also gone.
+        self.assertNotIn("ACHIEVEMENT SHAPE", p)
+        self.assertIn("POSITIONING SHAPE", p)
+
+    def test_bullet_prompt_unchanged_for_non_summary_sections(self):
+        """The bullet path keeps its original copy — the summary
+        branch must not leak into per-bullet generation."""
+        p = self._bullet_prompt()
+        self.assertIn("writing ONE resume bullet", p)
+        self.assertIn("ACHIEVEMENT SHAPE", p)
+        self.assertIn("15-25 words", p)
+        self.assertIn("one line, no quotes", p)
+        # Summary copy must NOT have leaked into the bullet path.
+        self.assertNotIn("PROFESSIONAL SUMMARY", p)
+        self.assertNotIn("POSITIONING SHAPE", p)
+        self.assertNotIn("Synthesize ACROSS", p)
+
+    def test_summary_prompt_keeps_forbidden_openings_block(self):
+        """The banned-openings discipline still applies to the summary
+        (sourced from the canonical banned_openings module)."""
+        from resumes.services.banned_openings import BANNED_OPENINGS
+        p = self._summary_prompt()
+        self.assertIn("FORBIDDEN OPENINGS", p)
+        for banned in BANNED_OPENINGS:
+            self.assertIn(banned, p.lower())
+
+    def test_summary_prompt_keeps_numbers_policy(self):
+        """The number-lock prompt copy is still in the summary prompt
+        so the LLM knows it can't invent figures."""
+        p = self._summary_prompt()
+        self.assertIn("NUMBERS POLICY", p)
+        self.assertIn("invented numbers will be DROPPED", p)
+
+
+class SummaryNumberGuardIntegrityTests(SimpleTestCase):
+    """Integrity: the summary path uses a different prompt but the
+    SAME guarded primitive. A summary regen whose mocked LLM tries
+    an ungrounded number is dropped by _ungrounded_numbers — exactly
+    as for a bullet."""
+
+    def _build_one_fact(self):
+        from resumes.services.fact_store import (
+            FactRecord, FactType, SourceReliability,
+        )
+        return FactRecord(
+            id="f1", type=FactType.ACHIEVEMENT,
+            claim="shipped X for 5,110 users",
+            value=5110.0, unit="",
+            entity_id="ent-x", entity_display="Engineer @ Acme",
+            source="cv", source_reliability=SourceReliability.USER_ORIGINAL,
+            evidence_quote="shipped X for 5,110 users",
+        )
+
+    def test_summary_drops_ungrounded_number_via_existing_guard(self):
+        from unittest.mock import patch
+        from resumes.services.resume_generator_v2 import (
+            _generate_one_bullet, _allowed_numbers_from_facts,
+        )
+        facts = [self._build_one_fact()]
+        allowed = _allowed_numbers_from_facts(facts)
+        events = []
+
+        # The LLM "summarizes" with a fabricated 99% figure not in facts.
+        with patch("resumes.services.resume_generator_v2._llm_call",
+                   side_effect=lambda prompt:
+                   "Senior engineer with 99% throughput gains across the stack."):
+            out = _generate_one_bullet(
+                section="summary", entity_id="",
+                role_hint="the professional summary for X",
+                facts=facts, allowed_numbers=allowed, events=events,
+            )
+
+        self.assertIsNone(out,
+                          "summary number-lock must drop the ungrounded "
+                          "first + regen attempts the same way bullets do")
+        # And the dropped event was logged with action='dropped'.
+        actions = [e.action for e in events]
+        self.assertIn("dropped", actions)
+
+    def test_summary_prompt_passed_through_to_llm_when_section_is_summary(self):
+        """End-to-end shape check: when section='summary' the LLM
+        receives the synthesis prompt, not the bullet prompt."""
+        from unittest.mock import patch
+        from resumes.services.resume_generator_v2 import (
+            _generate_one_bullet, _allowed_numbers_from_facts,
+        )
+        facts = [self._build_one_fact()]
+        allowed = _allowed_numbers_from_facts(facts)
+        captured = {}
+
+        def fake_llm(prompt):
+            captured.setdefault("prompts", []).append(prompt)
+            return "Lead engineer focused on payments. Built systems that scaled."
+
+        with patch("resumes.services.resume_generator_v2._llm_call",
+                   side_effect=fake_llm):
+            _generate_one_bullet(
+                section="summary", entity_id="",
+                role_hint="the professional summary for X",
+                facts=facts, allowed_numbers=allowed, events=[],
+            )
+        prompts = captured.get("prompts") or []
+        self.assertTrue(prompts, "LLM was never called")
+        self.assertIn("PROFESSIONAL SUMMARY", prompts[0])
+        self.assertNotIn("writing ONE resume bullet", prompts[0])
+
+
+# ---------------------------------------------------------------------------
+# FIX 2 — Stop advisory chips echoing the resume's own content.
+# Render-side guard on supervisor `detail`: empty OR > 200 chars →
+# fall back to a generic stub. Real critiques (tweet-length) pass through.
+# ---------------------------------------------------------------------------
+
+
+class SupervisorEchoGuardContentSubstringTests(SimpleTestCase):
+    """The supervisor-detail echo guard is CONTENT-SUBSTRING based,
+    NOT length-based. A finding whose `detail` overlaps with the
+    resume's prose (summary / experience / projects descriptions) in
+    either direction is SUPPRESSED — the annotation drops the item.
+    Genuine critiques, even long ones, pass through verbatim."""
+
+    REAL_SUMMARY = (
+        "Engineer with over four years of building data pipelines "
+        "at scale, leading on retention models, and partnering with "
+        "product on growth experiments across regions."
+    )
+
+    def _enrich(self, detail, *, content=None):
+        """Returns (plain_message, ann_was_dropped) — plain_message is
+        None if the annotation was dropped entirely (every item
+        suppressed)."""
+        from resumes.services.findings_ux import (
+            enrich_annotations_with_plain_messages,
+        )
+        rs = {"annotations": [{
+            "section": "summary",
+            "bucket": "advisory",
+            "anchor_kind": "section",
+            "tier": "advisory",
+            "item_idx": None,
+            "items": [{"kind": "supervisor", "label": "x", "detail": detail}],
+        }]}
+        out = enrich_annotations_with_plain_messages(rs, resume_content=content)
+        anns = out.get("annotations") or []
+        if not anns:
+            return None, True
+        items = anns[0].get("items") or []
+        if not items:
+            return None, True
+        return items[0]["plain_message"], False
+
+    def test_regression_case_echo_of_real_summary_is_suppressed(self):
+        """THE MOTIVATING REGRESSION — a supervisor finding whose
+        ``detail`` is the actual ~180-char summary text the resume
+        carries. The length-based guard let this through; the
+        substring guard suppresses it."""
+        content = {"professional_summary": self.REAL_SUMMARY}
+        # Detail length is well under any reasonable critique threshold.
+        self.assertLessEqual(len(self.REAL_SUMMARY), 200,
+                             "fixture must be a realistic ~180-char echo")
+        plain, dropped = self._enrich(self.REAL_SUMMARY, content=content)
+        self.assertTrue(dropped,
+                        "echo of summary text must be suppressed, not rendered")
+
+    def test_detail_substring_of_experience_bullet_is_suppressed(self):
+        bullet = ("Shipped a real-time fraud-detection model in 14 weeks; "
+                  "reduced charge-back disputes by 22%.")
+        content = {"experience": [{"description": [bullet]}]}
+        # A finding quoting most of the bullet.
+        echo = "shipped a real-time fraud-detection model in 14 weeks"
+        plain, dropped = self._enrich(echo, content=content)
+        self.assertTrue(dropped,
+                        "echo of an experience bullet must be suppressed")
+
+    def test_detail_substring_of_project_description_is_suppressed(self):
+        content = {"projects": [{"description":
+                                 ["Built a Streamlit dashboard for RFM analysis."]}]}
+        echo = "built a streamlit dashboard for rfm analysis"
+        plain, dropped = self._enrich(echo, content=content)
+        self.assertTrue(dropped)
+
+    def test_corpus_substring_of_detail_also_suppressed(self):
+        """Detail wraps content — supervisor said 'The summary <SUMMARY> is too
+        passive', the embedded section text triggers suppression."""
+        content = {"professional_summary": "Junior engineer focused on RAG."}
+        detail = ("The summary 'Junior engineer focused on RAG.' is too "
+                  "passive and reads as junior framing.")
+        # corpus is a substring of detail
+        plain, dropped = self._enrich(detail, content=content)
+        self.assertTrue(dropped)
+
+    def test_genuine_long_critique_not_in_content_is_RENDERED(self):
+        """OVER-SUPPRESSION GUARD: a 250+ char real critique that is
+        NOT in the resume must pass through verbatim. Length must NOT
+        be the echo signal."""
+        critique = (
+            "The professional summary is missing a level marker — there's no "
+            "'Senior' or 'Lead' positioning the candidate, and the focus "
+            "areas in the second sentence aren't tied to the JD's listed "
+            "must-haves (deep learning, NLP). Rewrite to lead with the "
+            "level + the JD's top two skill themes synthesized from "
+            "the candidate's strongest projects."
+        )
+        self.assertGreater(len(critique), 250,
+                           "fixture must be a long critique to prove length "
+                           "isn't suppressing real advice")
+        # Realistic resume content the critique does NOT echo.
+        content = {"professional_summary":
+                   "Engineer with 4 years experience.",
+                   "experience": [{"description":
+                                   ["Built ETL pipelines on AWS."]}]}
+        plain, dropped = self._enrich(critique, content=content)
+        self.assertFalse(dropped, "long genuine critiques must NOT be suppressed")
+        self.assertEqual(plain, critique)
+
+    def test_short_genuine_critique_renders_verbatim(self):
+        content = {"professional_summary": "Engineer with 4 years experience."}
+        plain, dropped = self._enrich(
+            "Summary stops mid-sentence.", content=content,
+        )
+        self.assertFalse(dropped)
+        self.assertEqual(plain, "Summary stops mid-sentence.")
+
+    def test_empty_detail_uses_fallback_stub(self):
+        from resumes.services.findings_ux import _SUPERVISOR_ECHO_FALLBACK
+        for empty in ("", "   "):
+            plain, dropped = self._enrich(empty)
+            self.assertFalse(dropped, "empty detail uses stub, not drop")
+            self.assertEqual(plain, _SUPERVISOR_ECHO_FALLBACK)
+
+    def test_no_resume_content_disables_echo_check_safely(self):
+        """If the caller didn't pass resume_content, the corpus is
+        empty and the substring check returns False for everything —
+        details pass through verbatim. Backward-compat for callers
+        that don't have content (unit tests, etc.)."""
+        plain, dropped = self._enrich(
+            self.REAL_SUMMARY, content=None,
+        )
+        self.assertFalse(dropped)
+        self.assertEqual(plain, self.REAL_SUMMARY)
+
+    def test_non_supervisor_findings_untouched_by_echo_guard(self):
+        """The guard is supervisor-only. A bullet rule with a long
+        detail still maps via _PLAIN_MESSAGES."""
+        from resumes.services.findings_ux import (
+            enrich_annotations_with_plain_messages,
+            _SUPERVISOR_ECHO_FALLBACK,
+        )
+        rs = {"annotations": [{
+            "section": "experience", "bucket": "auto_fix",
+            "anchor_kind": "section", "tier": "blocking",
+            "items": [{"kind": "A1_banned_phrase", "label": "x",
+                       "detail": "x" * 500}],
+        }]}
+        out = enrich_annotations_with_plain_messages(
+            rs, resume_content={"experience": [{"description": ["x" * 500]}]},
+        )
+        plain = out["annotations"][0]["items"][0]["plain_message"]
+        self.assertNotEqual(plain, _SUPERVISOR_ECHO_FALLBACK)
+        self.assertIn("Utilized", plain)
+
+    def test_length_constant_is_gone(self):
+        """Pin the absence of any length-based gate so a future
+        refactor can't slip one back in."""
+        import resumes.services.findings_ux as fu
+        self.assertFalse(
+            hasattr(fu, "_SUPERVISOR_DETAIL_MAX_LEN"),
+            "_SUPERVISOR_DETAIL_MAX_LEN must be removed — length plays "
+            "no role in the echo signal",
+        )
+        import inspect
+        src = inspect.getsource(fu.enrich_annotations_with_plain_messages)
+        # No length comparison ON DETAIL in the echo branch. The match
+        # itself can be sized (see _MIN_ECHO_OVERLAP_CHARS), but that's
+        # a quality check on the overlap, not a filter on detail.
+        self.assertNotIn("len(detail) >", src)
+        self.assertNotIn("len(detail) <", src)
+
+    def test_trivial_overlap_does_not_suppress(self):
+        """Regression: a tiny corpus (e.g. a single-character
+        professional_summary like 's') used to substring-match into
+        every detail that contained that letter, suppressing genuine
+        critiques. The minimum-overlap rule prevents incidental
+        single-character matches."""
+        content = {"professional_summary": "s"}
+        critique = "Summary stops mid-sentence."
+        plain, dropped = self._enrich(critique, content=content)
+        self.assertFalse(
+            dropped,
+            "single-char corpus must not trigger suppression — minimum "
+            "overlap rule guards against trivial matches",
+        )
+        self.assertEqual(plain, critique)
+
+
+class FindingsContentCorpusHelperTests(SimpleTestCase):
+    """The corpus helper concatenates summary + experience/projects
+    descriptions into a normalized lowercased / whitespace-collapsed
+    text — the substring detector's left-hand side."""
+
+    def test_summary_in_corpus(self):
+        from resumes.services.findings_ux import _collect_resume_content_corpus
+        corpus = _collect_resume_content_corpus(
+            {"professional_summary": "Lead Engineer building RAG systems."},
+        )
+        self.assertIn("lead engineer building rag systems", corpus)
+
+    def test_experience_descriptions_in_corpus(self):
+        from resumes.services.findings_ux import _collect_resume_content_corpus
+        corpus = _collect_resume_content_corpus({"experience": [
+            {"description": ["Built X.", "Shipped Y."]},
+            {"description": ["Cut Z by 30%."]},
+        ]})
+        self.assertIn("built x.", corpus)
+        self.assertIn("shipped y.", corpus)
+        self.assertIn("cut z by 30%.", corpus)
+
+    def test_project_descriptions_in_corpus(self):
+        from resumes.services.findings_ux import _collect_resume_content_corpus
+        corpus = _collect_resume_content_corpus({"projects": [
+            {"description": ["Built a Streamlit dashboard."]},
+        ]})
+        self.assertIn("built a streamlit dashboard.", corpus)
+
+    def test_whitespace_collapsed_and_lowercased(self):
+        from resumes.services.findings_ux import _collect_resume_content_corpus
+        corpus = _collect_resume_content_corpus({
+            "professional_summary": "Senior\nEngineer   building\tRAG",
+        })
+        self.assertIn("senior engineer building rag", corpus)
+
+    def test_none_or_empty_content_returns_empty_corpus(self):
+        from resumes.services.findings_ux import _collect_resume_content_corpus
+        self.assertEqual(_collect_resume_content_corpus(None), "")
+        self.assertEqual(_collect_resume_content_corpus({}), "")
+        self.assertEqual(_collect_resume_content_corpus("not a dict"), "")
+
