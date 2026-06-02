@@ -133,7 +133,14 @@ class GeneratedResumeV2(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-_BULLET_QUALITY_RULES = """ACHIEVEMENT SHAPE — every bullet reads as a RESULT, not a duty:
+from resumes.services.banned_openings import format_banned_openings_for_prompt as _fmt_banned_openings
+
+# The banned-opening list is sourced from
+# ``banned_openings.BANNED_OPENINGS`` — the single source of truth, also
+# consumed by ``resume_reviewer_v2._scan_bullet`` (post-gen detection)
+# and by the regen feedback (so the regen LLM gets the full forbidden
+# list, not just the one verb that was caught).
+_BULLET_QUALITY_RULES = f"""ACHIEVEMENT SHAPE — every bullet reads as a RESULT, not a duty:
   [Strong action verb] + [What you did, briefly] + [Concrete outcome — a result, a deliverable, a metric, a scope marker]
 
 NUMBERS POLICY (the load-bearing guard — read this twice):
@@ -141,9 +148,12 @@ NUMBERS POLICY (the load-bearing guard — read this twice):
 - If a fact is HEDGED (marked hedged=true), the number must be phrased with a qualifier ("~", "around", "approximately"). Never present a hedged number as a hard figure.
 - If you have NO real number for an item, write the bullet qualitatively. An honest qualitative bullet beats a fake quantitative one.
 
-WEAK SHAPES TO AVOID:
-- "Contributed to / Applied / Worked on / Helped with / Participated in / Took part in / Engaged in / Involved in <X>" — pure duty framing; lead with the verb of action and end on the outcome.
-- "Responsible for / Tasked with / In charge of / Duties included <X>" — same fix.
+FORBIDDEN OPENINGS — NEVER start a bullet with any of these (case-insensitive). A bullet that opens with one of these will be REJECTED by the post-generation reviewer and regenerated:
+  {_fmt_banned_openings()}
+Replace these with a strong outcome-leading action verb that names what you BUILT, SHIPPED, MEASURED, REDUCED, or DESIGNED. Lead with the system, the scale, or the outcome — not the verb-of-doing.
+
+WEAK SHAPES TO AVOID (not banned openings but read as filler):
+- "Applied / Participated in / Took part in / Engaged in / Involved in <X>" — duty framing; lead with the verb of action and end on the outcome.
 - "Developed and evaluated <models>" / "Built and tested <X>" — compound verbs that hide the outcome.
 
 PHRASING:

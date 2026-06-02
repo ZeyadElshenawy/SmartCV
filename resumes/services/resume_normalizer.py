@@ -1623,6 +1623,73 @@ _PRESENT_RE = re.compile(
     r'\b(present|current|currently|ongoing|now|to\s+date|till\s+now)\b',
     re.IGNORECASE,
 )
+
+
+def assemble_duration_honest(start, end, is_current):
+    """Render a duration string honestly. ``Present`` is emitted ONLY
+    when ``is_current is True``.
+
+    - ``is_current=True``                 → ``"<start> - Present"`` (or just "Present" if no start).
+    - ``end`` is empty / None             → ``"<start>"`` (start alone — never invent Present).
+    - ``end`` carries a present-family
+      token but ``is_current`` is not True
+      (legacy LLM fabrication)            → treat as unknown end, render ``"<start>"``.
+    - Closed range                        → ``"<start> - <end>"``.
+
+    The legacy-heal branch protects already-generated resumes whose
+    stored ``duration`` says "X - Present" on a non-current role.
+    """
+    s = (start or '').strip() if isinstance(start, str) else ''
+    e = (end or '').strip() if isinstance(end, str) else ''
+    if is_current is True:
+        return f"{s} - Present" if s else "Present"
+    if e and _PRESENT_RE.search(e):
+        e = ''
+    if s and e:
+        return f"{s} - {e}"
+    return s or e or ''
+
+
+def heal_experience_durations(experiences):
+    """Defensive render-time pass for legacy resumes whose stored
+    ``duration`` was inflated by the LLM to ``"X - Present"`` on a
+    record that is NOT actually current.
+
+    Returns a new list of dicts; never mutates the input. Each
+    experience entry's ``duration`` is recomputed from
+    ``assemble_duration_honest(start_date, end_date, is_current)``
+    when the stored duration's tail says present-family AND the entry
+    does not carry ``is_current=True``. Otherwise the entry is passed
+    through unchanged so the editor's hand-typed durations are
+    preserved.
+    """
+    if not isinstance(experiences, list):
+        return experiences
+    out = []
+    for exp in experiences:
+        if not isinstance(exp, dict):
+            out.append(exp)
+            continue
+        dur = exp.get('duration')
+        is_current = exp.get('is_current') is True
+        needs_heal = (
+            isinstance(dur, str)
+            and bool(_PRESENT_RE.search(dur))
+            and not is_current
+        )
+        if not needs_heal:
+            out.append(exp)
+            continue
+        # Both `duration` AND `end_date` are suspect when duration says
+        # "Present" without is_current=True — the LLM fabricated one,
+        # the other, or both, and we don't know which. Treat the end as
+        # unknown: render start alone AND clear end_date so the
+        # reverse-chrono sort falls back to start_date too.
+        healed = dict(exp)
+        healed['end_date'] = None
+        healed['duration'] = (exp.get('start_date') or '').strip() if isinstance(exp.get('start_date'), str) else ''
+        out.append(healed)
+    return out
 _RANGE_SEP_RE = re.compile(r'\s+(?:[-–—]|to|until|through)\s+', re.IGNORECASE)
 # "2025-09" / "2025-09-15" / "2025/09" — ISO-ish year-month forms.
 _ISO_YM_RE = re.compile(r'\b(20\d{2}|19\d{2})[-/](\d{1,2})(?:[-/]\d{1,2})?\b')
@@ -1634,7 +1701,8 @@ _MONTH_ABBR_RE = re.compile(
 )
 
 
-def _parse_yearmonth(s: str, today_ym, *, end_of_year: bool = True):
+def _parse_yearmonth(s: str, today_ym, *, end_of_year: bool = True,
+                     allow_present: bool = False):
     """Parse a date-like string into a sortable ``(year, month)`` tuple.
 
     Returns ``None`` when the string carries no parseable year. Handles
@@ -1645,7 +1713,12 @@ def _parse_yearmonth(s: str, today_ym, *, end_of_year: bool = True):
         ``end_of_year=True`` (end-of-range conservatism: a "2024" end
         date occupies the whole year), else to 1
       - "Present" / "Current" / "Ongoing" / "Now" / "to date" /
-        "till now"  →  ``today_ym``
+        "till now"  →  ``today_ym`` ONLY when ``allow_present=True``
+        (caller has verified the entry's ``is_current is True``).
+        Otherwise the present-family token is treated as unknown end
+        (returns ``None``) so the sort falls back to the start date —
+        prevents a stale LLM-injected "Present" from forging a top
+        rank.
 
     The caller is expected to extract the range tail before calling
     when sorting by end_date — see ``_extract_end_yearmonth``.
@@ -1656,7 +1729,7 @@ def _parse_yearmonth(s: str, today_ym, *, end_of_year: bool = True):
     if not s:
         return None
     if _PRESENT_RE.search(s):
-        return today_ym
+        return today_ym if allow_present else None
     iso = _ISO_YM_RE.search(s)
     if iso:
         y = int(iso.group(1))
@@ -1683,22 +1756,43 @@ def _extract_end_yearmonth(entry: dict, today_ym):
       1. ``end_date`` field, parsed end-of-year on year-only.
       2. The tail of ``duration`` after a range separator.
       3. ``duration`` parsed as a single date (some profiles set only one).
-    Returns ``None`` when no source yields a parseable year."""
+    Returns ``None`` when no source yields a parseable year.
+
+    "Present" tokens (in ``end_date`` or ``duration``) are honored
+    (→ ``today_ym``) ONLY when the entry carries ``is_current is True``.
+    Otherwise present-family tokens are treated as legacy LLM
+    fabrications — they don't promote a stale role to the top of the
+    reverse-chrono order. Legacy heal: if ``duration`` ends in a
+    present-family token but ``is_current`` is not True, we treat the
+    end as unknown and fall through to the start date.
+    """
     if not isinstance(entry, dict):
         return None
+    is_current = entry.get('is_current') is True
     raw_end = entry.get('end_date')
+    raw_dur = entry.get('duration')
+    dur_claims_present = (
+        isinstance(raw_dur, str) and bool(_PRESENT_RE.search(raw_dur))
+    )
+    # Legacy heal: a duration string that says "Present" on a record
+    # without the explicit is_current flag is internally inconsistent
+    # (LLM-fabricated). Don't trust the end at all; fall to start.
+    if dur_claims_present and not is_current:
+        return None
     if isinstance(raw_end, str) and raw_end.strip():
-        ym = _parse_yearmonth(raw_end, today_ym, end_of_year=True)
+        ym = _parse_yearmonth(raw_end, today_ym, end_of_year=True,
+                              allow_present=is_current)
         if ym:
             return ym
-    raw_dur = entry.get('duration')
     if isinstance(raw_dur, str) and raw_dur.strip():
         parts = _RANGE_SEP_RE.split(raw_dur, maxsplit=1)
         tail = parts[-1].strip() if parts else raw_dur.strip()
-        ym = _parse_yearmonth(tail, today_ym, end_of_year=True)
+        ym = _parse_yearmonth(tail, today_ym, end_of_year=True,
+                              allow_present=is_current)
         if ym:
             return ym
-        ym = _parse_yearmonth(raw_dur, today_ym, end_of_year=True)
+        ym = _parse_yearmonth(raw_dur, today_ym, end_of_year=True,
+                              allow_present=is_current)
         if ym:
             return ym
     return None

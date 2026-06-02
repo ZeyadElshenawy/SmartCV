@@ -48,6 +48,12 @@ class Experience(BaseModel):
     company: str
     start_date: Optional[str] = None
     end_date: Optional[str] = None
+    # Explicit "currently in this role" signal — single source of truth.
+    # True ONLY when the source explicitly states ongoing / current /
+    # present / now / "till date". A missing end_date is NOT "current";
+    # legacy records may carry end_date="Present" without is_current=True
+    # (LLM-fabricated) and downstream code treats that as unknown.
+    is_current: Optional[bool] = None
     industry: Optional[str] = None
     location: Optional[str] = None
     # Provenance: 'cv' / 'linkedin' / etc. SIGNAL ONLY — not output
@@ -630,6 +636,12 @@ class ResumeExperience(BaseModel):
     industry: Optional[str] = None
     start_date: str = ""
     end_date: Optional[str] = None
+    # Mirrors the profile-side Experience.is_current — explicit ongoing
+    # flag, set ONLY when the source data says ongoing/current/present.
+    # The render layer and reverse-chronological sort honor "Present"
+    # tokens ONLY when this is True; otherwise a "Present" tail on
+    # `end_date` / `duration` is treated as legacy LLM fabrication.
+    is_current: Optional[bool] = None
     description: List[str] = Field(default_factory=list)
 
     model_config = ConfigDict(extra="forbid")

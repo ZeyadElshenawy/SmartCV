@@ -336,7 +336,7 @@ def resume_edit_view(request, resume_id):
         updated_content['professional_title'] = request.POST.get('professional_title', '')
         updated_content['professional_summary'] = request.POST.get('professional_summary', '')
         updated_content['objective'] = request.POST.get('objective', '')
-        updated_content['template_name'] = request.POST.get('template_name', 'standard')
+        updated_content['template_name'] = request.POST.get('template_name', 'ats_clean')
 
         # Skills (comma separated)
         skills_raw = request.POST.get('skills', '')
@@ -543,16 +543,14 @@ def resume_edit_view(request, resume_id):
     # Overlay the modified content back onto the resume object specifically for the template
     resume.content = form_content
 
-    # Single source of truth for the template picker. Values must match PDF
-    # template file names: pdf_template.html for 'standard', otherwise
-    # pdf_template_{value}.html.
+    # Single source of truth for the template picker. Values must match
+    # PDF template file names: pdf_template_{value}.html. Old theme
+    # names (standard / executive / etc.) are still accepted on POST and
+    # migrate through pdf_exporter.THEME_MIGRATION at render time so an
+    # in-flight legacy value never 500s the export.
     template_choices = [
-        {'value': 'standard',    'label': 'Standard',    'subtitle': 'Classic layout',     'tag': 'B&W'},
-        {'value': 'executive',   'label': 'Executive',   'subtitle': 'Serif, traditional', 'tag': 'B&W'},
-        {'value': 'minimalist',  'label': 'Minimalist',  'subtitle': 'Clean whitespace',   'tag': 'B&W'},
-        {'value': 'compact',     'label': 'Compact',     'subtitle': 'Dense one-pager',    'tag': 'B&W'},
-        {'value': 'danette',     'label': 'Accent',      'subtitle': 'Blue highlights',    'tag': 'Color'},
-        {'value': 'zeyad',       'label': 'Modern',      'subtitle': 'Bold sans-serif',    'tag': 'Color'},
+        {'value': 'ats_clean',         'label': 'ATS Clean',  'subtitle': 'Single-column, black-only, recruiter-safe',  'tag': 'B&W'},
+        {'value': 'ats_clean_accent',  'label': 'ATS Accent', 'subtitle': 'Same structure, one restrained accent color', 'tag': 'Accent'},
     ]
 
     # Pass the user's profile so the live preview's contact line can render
@@ -891,7 +889,7 @@ def export_pdf_view(request, resume_id):
     os.close(fd)
 
     try:
-        template_name = resume.content.get('template_name', 'standard')
+        template_name = resume.content.get('template_name', 'ats_clean')
         generate_pdf(resume, output_path, template_name)
         # Read into memory so we can delete the temp file safely
         with open(output_path, 'rb') as f:

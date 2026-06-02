@@ -156,13 +156,19 @@ def _bullet(doc: Document, text: str) -> None:
 _PRESENT_TOKENS = frozenset({'present', 'current', 'now', 'today'})
 
 
-def _format_date_range(start: str | None, end: str | None) -> str:
+def _format_date_range(start: str | None, end: str | None,
+                       is_current: bool | None = None) -> str:
     """Render a date range as ``"MMM YYYY – MMM YYYY"`` with en-dash.
 
     Rules:
       - Both parsed and in the same month/year → ``"MMM YYYY"`` once.
-      - End in {Present, Current, Now} or empty/None and start parsed
+      - End in {Present, Current, Now, Today} AND ``is_current=True``
+        (the source data explicitly marked the role ongoing)
         → ``"MMM YYYY – Present"``.
+      - End empty/None OR a present-family token without
+        ``is_current=True`` → render the start alone (honest: no
+        invented "Present" for unknown ends; heals legacy LLM
+        fabrications on re-render).
       - Year only (no month detected) → ``"YYYY"``.
       - Unparseable field → returned verbatim (never raises).
 
@@ -210,18 +216,26 @@ def _format_date_range(start: str | None, end: str | None) -> str:
     start_str = (start or '').strip()
     end_str = (end or '').strip()
 
-    # Detect Present-style end.
-    end_is_present = end_str.lower() in _PRESENT_TOKENS or not end_str
+    # Honor "Present"-family tokens ONLY when is_current is True (the
+    # source data explicitly says ongoing). An empty end_str or a
+    # present-family token on a non-current record is treated as
+    # unknown end → render the start alone (honest; legacy-heal).
+    end_token_is_present_family = end_str.lower() in _PRESENT_TOKENS
+    end_is_present = end_token_is_present_family and is_current is True
 
     parsed_start = _try_parse(start_str)
-    parsed_end = None if end_is_present else _try_parse(end_str)
+    parsed_end = (None if end_is_present or end_token_is_present_family or not end_str
+                  else _try_parse(end_str))
 
     rendered_start = _render_single(start_str, parsed_start)
     if end_is_present:
         if parsed_start is None:
-            # No usable start either — return whatever start was, verbatim.
             return rendered_start
         return f"{rendered_start} – Present"
+    # Empty end OR a present-family token without is_current=True →
+    # render the start alone. Never invent "Present" for unknown ends.
+    if not end_str or end_token_is_present_family:
+        return rendered_start
     rendered_end = _render_single(end_str, parsed_end)
 
     if not rendered_start and not rendered_end:
@@ -391,10 +405,21 @@ def _write_experience(doc: Document, content: dict) -> None:
         date_text = ''
         start_date = exp.get('start_date') or ''
         end_date = exp.get('end_date') or ''
+        is_current = exp.get('is_current') is True
         if start_date or end_date:
-            date_text = _format_date_range(start_date, end_date)
+            date_text = _format_date_range(start_date, end_date, is_current=is_current)
         if not date_text:
-            date_text = exp.get('duration') or ''
+            # Legacy fallback: respect a stored duration only when the
+            # current is_current rule wouldn't itself heal it. If the
+            # stored duration says "Present" but is_current is not True,
+            # treat as unknown end (fall back to start_date alone).
+            stored_dur = exp.get('duration') or ''
+            if stored_dur and not is_current:
+                import re as _re
+                if _re.search(r'\b(present|current|currently|ongoing|now|today|to\s+date|till\s+now)\b',
+                              stored_dur, _re.IGNORECASE):
+                    stored_dur = start_date
+            date_text = stored_dur
         if date_text:
             head.add_run('\t')
             date_run = head.add_run(date_text)

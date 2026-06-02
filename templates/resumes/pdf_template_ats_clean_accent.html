@@ -1,0 +1,13 @@
+{% extends 'resumes/pdf_base.html' %}
+{% block theme_css %}
+/* One restrained accent color — name + section rules only. Everything
+   else stays black so the document remains ATS-safe (rule 007 — modern
+   parsers tolerate a single dark color in headers, but body keyword
+   ranking improves with black-only body text). */
+.name { color: #1e3a8a; }
+.section-title {
+    color: #1e3a8a;
+    border-bottom-color: #1e3a8a;
+}
+.resume-header { border-bottom-color: #1e3a8a; }
+{% endblock %}
