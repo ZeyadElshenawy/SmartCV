@@ -162,6 +162,38 @@ PHRASING:
 - Don't quote evidence verbatim — rephrase. But don't pad."""
 
 
+# Summary uses its OWN rules. The bullet rules above force a single 15-25
+# word line — fine for a per-role bullet, but the summary collapses the
+# planner's 3 marquee facts into one bullet-shaped sentence under those
+# rules. The summary should read as a POSITIONING STATEMENT: level + focus
+# + 2-3 strongest themes synthesized across the facts.
+#
+# Same integrity chain applies: ``allowed_numbers`` is still built from
+# the planner's facts; ``_ungrounded_numbers`` still scans the multi-
+# sentence output and drops any fabricated figure. ``find_banned_opening``
+# still tests the first token of the summary text. The ONLY change is
+# the prompt copy.
+_SUMMARY_QUALITY_RULES = f"""POSITIONING SHAPE — the summary names WHO this candidate is and what they bring:
+  [Level + role focus] + [2-3 strongest themes drawn from the facts] + [What sets them apart, briefly]
+
+SYNTHESIZE — do NOT pick one accomplishment and write about it:
+- The facts below are MARQUEE facts. Synthesize across multiple of them — the summary should reflect breadth, not a single project.
+- A summary that describes ONE bullet (one outcome, one project, one metric) is wrong; rewrite to position the whole candidate.
+
+NUMBERS POLICY (load-bearing guard):
+- Use ONLY numbers that appear in the facts I'm giving you. Same lock as for bullets — invented numbers will be DROPPED by the post-check.
+- If a fact is HEDGED, the number must be phrased with a qualifier ("~", "around", "approximately").
+- Numbers are optional in a summary — an honest qualitative positioning beats a quantified one with fake figures.
+
+FORBIDDEN OPENINGS — NEVER start the summary with any of these (case-insensitive):
+  {_fmt_banned_openings()}
+Open with what the candidate IS or BUILDS, not with a verb-of-doing.
+
+LENGTH:
+- 2-3 sentences total, ~50-80 words. NOT a single one-liner.
+- Each sentence carries its own weight — level / focus / themes — don't repeat content across sentences."""
+
+
 # ---------------------------------------------------------------------------
 # Number extraction + normalization + grounding.
 # ---------------------------------------------------------------------------
@@ -316,7 +348,7 @@ def _fact_brief(f: FactRecord) -> str:
 
 def _bullet_prompt(
     *, role_hint: str, facts: list[FactRecord], regen_feedback: str = "",
-    writing_rules_block: str = "",
+    writing_rules_block: str = "", section: str = "",
 ) -> str:
     facts_block = "\n".join(_fact_brief(f) for f in facts) or "(no facts)"
     feedback = ""
@@ -339,6 +371,21 @@ def _bullet_prompt(
     writing_rules = (
         f"\n{writing_rules_block}\n\n" if writing_rules_block else ""
     )
+    # Summary uses a positioning prompt + length budget; everything else
+    # uses the bullet prompt. The number-guard / banned-openings chain
+    # in _generate_one_bullet is identical for both paths — only the
+    # prompt copy differs.
+    if section == "summary":
+        return (
+            f"You are writing a 2-3 sentence PROFESSIONAL SUMMARY for {role_hint}. "
+            "Synthesize ACROSS the facts below — do not pick just one.\n"
+            f"{_SUMMARY_QUALITY_RULES}\n"
+            f"{writing_rules}"
+            f"FACTS (the ONLY content + numbers you may draw from):\n{facts_block}\n"
+            f"{feedback}\n"
+            "Return JUST the summary text — 2-3 sentences, no quotes, "
+            "no bullet character, no commentary."
+        )
     return (
         f"You are writing ONE resume bullet for {role_hint}. Use the facts below.\n"
         f"{_BULLET_QUALITY_RULES}\n"
@@ -386,6 +433,7 @@ def _generate_one_bullet(
         role_hint=role_hint, facts=facts,
         writing_rules_block=writing_rules_block,
         regen_feedback=regen_feedback,
+        section=section,
     ))
     bad = _ungrounded_numbers(text, allowed_numbers)
     if not bad:
@@ -413,7 +461,8 @@ def _generate_one_bullet(
     text2 = _llm_call(
         _bullet_prompt(role_hint=role_hint, facts=facts,
                        regen_feedback=regen_feedback,
-                       writing_rules_block=writing_rules_block),
+                       writing_rules_block=writing_rules_block,
+                       section=section),
     )
     bad2 = _ungrounded_numbers(text2, allowed_numbers)
     if not bad2:

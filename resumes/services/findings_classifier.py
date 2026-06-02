@@ -66,7 +66,13 @@ _SUPERVISOR_BUCKET: dict[str, str] = {
     'summary':             BUCKET_AUTO_FIX,
     'professional_summary': BUCKET_AUTO_FIX,
     'objective':           BUCKET_AUTO_FIX,
-    'skills':              BUCKET_AUTO_FIX,
+    # Skills has NO LLM-regen path in v2 — _generate_skills_line is a
+    # deterministic comma-join from planner-allocated facts (no number
+    # guard applies because there's no prose to ground). Adding or
+    # removing a skill is something only the user can do, so supervisor
+    # findings on the skills section route to USER_INPUT rather than
+    # offering an auto-fix the system can't safely deliver.
+    'skills':              BUCKET_USER_INPUT,
     'experience':          BUCKET_AUTO_FIX,
     'work_experience':     BUCKET_AUTO_FIX,
     'projects':            BUCKET_AUTO_FIX,
