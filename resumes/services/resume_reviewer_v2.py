@@ -48,6 +48,10 @@ from resumes.services.findings_classifier import (
     BUCKET_USER_INPUT,
     classify_finding,
 )
+from resumes.services.banned_openings import (
+    find_banned_opening,
+    format_banned_openings_for_prompt,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -59,31 +63,11 @@ DEFAULT_MAX_REVISION_ROUNDS = 1
 
 
 # ---------------------------------------------------------------------------
-# Bullet-text checks. These match the KB's banned-pattern + action-verb
-# concrete_rule contents (action_verbs_001 + banned_patterns_002).
-# Hardcoded here because the reviewer needs deterministic regex
-# checks, not LLM prose parsing — keep in sync with the KB chunks.
+# Bullet-text checks. The banned-opening list is the canonical set in
+# ``resumes.services.banned_openings`` — same set the generator's prompt
+# enumerates and the regen feedback names. Other regex checks live here
+# because they are not duplicated elsewhere.
 # ---------------------------------------------------------------------------
-
-
-# Banned bullet openings — from action_verbs_001's "Never start a
-# bullet with..." rule. Match at the start of the (lowercased,
-# whitespace-stripped) bullet text.
-_BANNED_OPENINGS: tuple[str, ...] = (
-    "utilized",
-    "utilised",
-    "leveraged",
-    "spearheaded",
-    "helped",
-    "worked on",
-    "was responsible for",
-    "responsible for",
-    "contributed to",
-    "assisted with",
-    "tasked with",
-    "in charge of",
-    "duties included",
-)
 
 
 # AI-tell endings (participial closers) — from banned_patterns_002's
@@ -137,21 +121,18 @@ def _scan_bullet(text: str) -> list[dict]:
     text = (text or "").strip()
     if not text:
         return findings
-    lower = text.lower()
-    # Banned-opening check — strip leading punctuation/whitespace
-    # before testing so "Utilized..." catches even if the LLM
-    # prefixed it with a stray bullet character or quote.
-    cleaned_lower = re.sub(r"^[\s\"'•\-\*]+", "", lower)
-    for banned in _BANNED_OPENINGS:
-        if cleaned_lower.startswith(banned):
-            findings.append({
-                "rule_id": "A1_banned_phrase",
-                "severity": "blocking",
-                "where": "",
-                "detail": f"bullet starts with banned opening {banned!r}",
-                "fix": "Replace the opening with a strong outcome-leading verb.",
-            })
-            break
+    # Banned-opening check — reads the canonical set from
+    # ``banned_openings.find_banned_opening`` so the reviewer and the
+    # generator/regen prompts can never drift apart.
+    banned = find_banned_opening(text)
+    if banned is not None:
+        findings.append({
+            "rule_id": "A1_banned_phrase",
+            "severity": "blocking",
+            "where": "",
+            "detail": f"bullet starts with banned opening {banned!r}",
+            "fix": "Replace the opening with a strong outcome-leading verb.",
+        })
     # AI-tell ending.
     if _AI_TELL_ENDING_RE.search(text):
         findings.append({
@@ -293,6 +274,54 @@ def classify_v2_findings(vr: dict) -> dict[str, list[tuple[str, dict]]]:
 # _generate_one_bullet (number-lock + writing-rules + regen-once-drop),
 # never through v1's regenerate_section (no structural guards).
 # ---------------------------------------------------------------------------
+
+
+def _is_banned_opening_finding(finding: dict) -> bool:
+    """Detect the banned-opening sub-class of A1_banned_phrase findings.
+
+    A1_banned_phrase also covers empty-intensifier findings; we only
+    want to apply the named-forbidden-set feedback + post-regen
+    re-check to bullets that actually opened with a banned verb.
+    """
+    if (finding or {}).get("rule_id") != "A1_banned_phrase":
+        return False
+    return "banned opening" in (finding.get("detail") or "").lower()
+
+
+def _build_regen_feedback(finding: dict) -> str:
+    """Construct the regen feedback string fed to the LLM via
+    ``_generate_one_bullet(regen_feedback=...)``.
+
+    For banned-opening findings, names the FULL canonical forbidden
+    set inline so the LLM can't swap one banned opener for another
+    (the ``Utilized -> Leveraged`` swap caught in the v2 smoke run).
+    For all other findings, the feedback is the detail + fix as
+    before.
+    """
+    detail = (finding.get("detail") or "").strip()
+    fix = (finding.get("fix") or "").strip()
+    feedback = detail + (" — " + fix if fix else "")
+    if _is_banned_opening_finding(finding):
+        forbidden = format_banned_openings_for_prompt()
+        feedback += (
+            "\nDo NOT open the regenerated bullet with ANY of these "
+            "forbidden verbs (case-insensitive): "
+            f"{forbidden}.\n"
+            "Lead with the system, the scale, or the outcome — not the "
+            "verb-of-doing. Examples: 'Cut churn by 18%...', 'Shipped a "
+            "REST API serving 5,110 predictions...', 'Reduced storage by "
+            "30%...'."
+        )
+    return feedback.strip()
+
+
+def _regen_swap_failed(finding: dict, new_text: str) -> bool:
+    """True when a regen for a banned-opening finding produced ANOTHER
+    banned opening (the regen-swap bug). Caller treats this as an
+    unresolved-demoted outcome rather than a success."""
+    if not _is_banned_opening_finding(finding):
+        return False
+    return find_banned_opening(new_text or "") is not None
 
 
 def _facts_for_bullet(
@@ -440,12 +469,20 @@ def review_and_regenerate(
     demoted: list[dict] = []
     user_input_findings: list[dict] = []
     advisory_findings: list[dict] = []
+    # Track ``where`` strings already demoted-on-regen-failure this
+    # run so subsequent rounds don't re-demote the same finding under
+    # the ``review_cap_exhausted`` reason. The cap policy stands —
+    # we just avoid double-counting one bullet across two reasons.
+    demoted_wheres: set[str] = set()
 
     for round_i in range(max_rounds + 1):
         rounds_run = round_i + 1
         vr = build_v2_validation_report(current)
         buckets = classify_v2_findings(vr)
-        auto_fix = buckets[BUCKET_AUTO_FIX]
+        auto_fix = [
+            (src, f) for (src, f) in buckets[BUCKET_AUTO_FIX]
+            if (f.get("where") or "") not in demoted_wheres
+        ]
         # USER_INPUT + ADVISORY snapshot on the FIRST pass so the
         # report surfaces what the user needs to do — even if later
         # regens change resolution count.
@@ -477,7 +514,7 @@ def review_and_regenerate(
             )
             break
 
-        current, fixed_this_round = _apply_regen_round(
+        current, fixed_this_round, regen_failed_this_round = _apply_regen_round(
             current,
             auto_fix_findings=[f for _src, f in auto_fix],
             store=store,
@@ -485,7 +522,22 @@ def review_and_regenerate(
             job_title=job_title,
         )
         resolved.extend(fixed_this_round)
-        if not fixed_this_round:
+        # Banned-opening regen that produced ANOTHER banned opener:
+        # demote with explicit reason and skip from subsequent rounds.
+        for finding in regen_failed_this_round:
+            d = dict(finding)
+            d["original_severity"] = finding.get("severity", "")
+            d["severity"] = "warning"
+            d["demoted_reason"] = "regen_produced_banned_opener"
+            demoted.append(d)
+            demoted_wheres.add(finding.get("where") or "")
+        if regen_failed_this_round:
+            logger.info(
+                "resume_reviewer_v2: demoted %d finding(s) where the "
+                "regen produced another banned opener.",
+                len(regen_failed_this_round),
+            )
+        if not fixed_this_round and not regen_failed_this_round:
             # No bullet-locatable AUTO_FIX → nothing actionable; demote
             # the unresolved set and break. Prevents infinite loops on
             # findings whose ``where`` doesn't parse.
@@ -521,7 +573,7 @@ def _apply_regen_round(
     store: FactStore,
     writing_rules_block: str,
     job_title: str,
-) -> tuple[GeneratedResumeV2, list[dict]]:
+) -> tuple[GeneratedResumeV2, list[dict], list[dict]]:
     """Apply one round of regenerations.
 
     Pydantic models are immutable; rebuild new sections rather than
@@ -529,7 +581,17 @@ def _apply_regen_round(
     DESCENDING bullet-index order so a drop doesn't shift earlier
     indices for other findings in the same entity.
 
-    Returns ``(new_resume, resolved_findings)``.
+    Post-regen guard: when the original finding was a banned-opening
+    A1, re-scan the regenerated bullet with the canonical
+    ``find_banned_opening``. If the regen ALSO produced a banned
+    opener (the swap bug — e.g. "Utilized" → "Leveraged"), DO NOT
+    mark the finding resolved; record it in ``regen_failed`` so the
+    caller can demote it with reason ``regen_produced_banned_opener``.
+    The bullet is left replaced regardless (the regen text may be
+    better in other ways and the round's next pass will still see
+    the violation if needed).
+
+    Returns ``(new_resume, resolved_findings, regen_failed_findings)``.
     """
     # Bucket findings by (section_name, entity_id_or_None) and sort
     # each bucket by descending bullet_idx.
@@ -537,6 +599,7 @@ def _apply_regen_round(
     section_summary_findings: dict[int, dict] = {}
 
     resolved: list[dict] = []
+    regen_failed: list[dict] = []
     new_sections: dict[str, GeneratedSection] = dict(resume.sections)
 
     for finding in auto_fix_findings:
@@ -564,13 +627,7 @@ def _apply_regen_round(
                 if bullet_idx >= len(summary_sec.bullets):
                     continue
                 bullet = summary_sec.bullets[bullet_idx]
-                feedback = (
-                    (finding.get("detail") or "").strip()
-                    + (
-                        " — " + finding.get("fix", "")
-                        if finding.get("fix") else ""
-                    )
-                ).strip()
+                feedback = _build_regen_feedback(finding)
                 events: list[FabricationEvent] = []
                 new_bullet = _regenerate_v2_bullet(
                     store=store,
@@ -586,10 +643,18 @@ def _apply_regen_round(
                 new_bullets = list(summary_sec.bullets)
                 if new_bullet is not None:
                     new_bullets[bullet_idx] = new_bullet
-                    resolved.append(dict(
-                        finding,
-                        resolved_to=new_bullet.text,
-                    ))
+                    if _regen_swap_failed(finding, new_bullet.text):
+                        # Regen swapped one banned opener for another.
+                        # Don't mark resolved; surface to caller.
+                        regen_failed.append(dict(
+                            finding,
+                            regen_attempt_text=new_bullet.text,
+                            regen_attempt_banned_opening=find_banned_opening(new_bullet.text),
+                        ))
+                    else:
+                        resolved.append(dict(
+                            finding, resolved_to=new_bullet.text,
+                        ))
                 else:
                     new_bullets.pop(bullet_idx)
                     resolved.append(dict(finding, resolved_to="(dropped)"))
@@ -618,13 +683,7 @@ def _apply_regen_round(
             if bullet_idx >= len(new_bullets):
                 continue
             bullet = new_bullets[bullet_idx]
-            feedback = (
-                (finding.get("detail") or "").strip()
-                + (
-                    " — " + finding.get("fix", "")
-                    if finding.get("fix") else ""
-                )
-            ).strip()
+            feedback = _build_regen_feedback(finding)
             events: list[FabricationEvent] = []
             new_bullet = _regenerate_v2_bullet(
                 store=store,
@@ -639,7 +698,16 @@ def _apply_regen_round(
             )
             if new_bullet is not None:
                 new_bullets[bullet_idx] = new_bullet
-                resolved.append(dict(finding, resolved_to=new_bullet.text))
+                if _regen_swap_failed(finding, new_bullet.text):
+                    # Regen swapped one banned opener for another —
+                    # not a real fix. Record for the caller to demote.
+                    regen_failed.append(dict(
+                        finding,
+                        regen_attempt_text=new_bullet.text,
+                        regen_attempt_banned_opening=find_banned_opening(new_bullet.text),
+                    ))
+                else:
+                    resolved.append(dict(finding, resolved_to=new_bullet.text))
             else:
                 new_bullets.pop(bullet_idx)
                 resolved.append(dict(finding, resolved_to="(dropped)"))
@@ -649,4 +717,4 @@ def _apply_regen_round(
         new_sections[section_name] = new_section
 
     new_resume = resume.model_copy(update={"sections": new_sections})
-    return new_resume, resolved
+    return new_resume, resolved, regen_failed

@@ -1383,7 +1383,9 @@ COMPLETE CV DATA (the candidate's authoritative resume — already narrowed by t
 
 === FIELD MAPPING (CRITICAL — the CV data uses different field names than the output schema) ===
 - CV `experiences[].highlights` array → output `experience[].description` array (rewrite each bullet)
-- CV `experiences[].start_date` / `end_date` → output `experience[].duration` (combine as "Aug 2025 - Present"). Also pass through start_date and end_date verbatim into the output `experience[].start_date` / `experience[].end_date`.
+- CV `experiences[].start_date` / `end_date` → output `experience[].duration` (combine as a CLOSED range, e.g. "Aug 2025 - Mar 2026"). Also pass through start_date and end_date verbatim into the output `experience[].start_date` / `experience[].end_date` — NEVER replace a null/empty end_date with a guess.
+- CV `experiences[].is_current` → output `experience[].is_current` (pass through; null when the CV did not state it).
+- CRITICAL — DO NOT FABRICATE "Present": render "X - Present" in `duration` AND emit `end_date="Present"` ONLY when `is_current=true` is set on the source experience. If the source `end_date` is null/empty AND `is_current` is not true, render `duration` as the start date alone (e.g. "Jul 2024"). NEVER invent an end_date or write "- Present" for a role whose end is simply unknown.
 - CV `experiences[].title` → output `experience[].title`
 - CV `experiences[].location` → output `experience[].location` (PRESERVE)
 - CV `experiences[].industry` → output `experience[].industry` (PRESERVE)
@@ -2771,13 +2773,15 @@ def _build_offline_fallback(profile, job, raw_cv_data: dict) -> dict:
     # single canonical bullets bucket on the profile-side Experience
     # schema; highlights/achievements are folded in at validation time
     # and the migration brought legacy rows into the same shape.
+    from resumes.services.resume_normalizer import assemble_duration_honest
     experience = []
     for exp in (raw_cv_data.get('experiences') or []):
         if not isinstance(exp, dict):
             continue
         start = (exp.get('start_date') or '').strip()
         end = (exp.get('end_date') or '').strip()
-        duration = f"{start} - {end}".strip(' -') if (start or end) else ''
+        is_current = exp.get('is_current') is True
+        duration = assemble_duration_honest(start, end, is_current)
         bullets = exp.get('description') or []
         if isinstance(bullets, str):
             bullets = [line.strip() for line in bullets.split('\n') if line.strip()]
@@ -2787,6 +2791,7 @@ def _build_offline_fallback(profile, job, raw_cv_data: dict) -> dict:
             'duration': duration,
             'start_date': start,
             'end_date': end,
+            'is_current': is_current,
             'location': (exp.get('location') or '').strip(),
             'industry': (exp.get('industry') or '').strip(),
             'description': bullets,
@@ -2899,11 +2904,13 @@ def _ensure_profile_data_preserved(resume_content: dict, profile_data: dict) -> 
 
     # --- Experience ---
     if not resume_content.get('experience') and profile_data.get('experiences'):
+        from resumes.services.resume_normalizer import assemble_duration_honest
         resume_content['experience'] = []
         for exp in profile_data['experiences']:
             start = exp.get('start_date') or ''
             end = exp.get('end_date') or ''
-            duration = f"{start} - {end}".strip(' -') if (start or end) else ''
+            is_current = exp.get('is_current') is True
+            duration = assemble_duration_honest(start, end, is_current)
             # PR 3b: description canonical on profile-side too.
             description = exp.get('description') or []
             if isinstance(description, str):
@@ -2914,6 +2921,7 @@ def _ensure_profile_data_preserved(resume_content: dict, profile_data: dict) -> 
                 'duration': duration,
                 'start_date': start,
                 'end_date': end,
+                'is_current': is_current,
                 'location': exp.get('location') or '',
                 'industry': exp.get('industry') or '',
                 'description': description,

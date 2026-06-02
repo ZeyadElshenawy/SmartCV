@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{{ profile.full_name|default:"Resume" }} — Resume</title>
+<style>
+/* SmartCV ATS-clean base. Themes extend this and add a `theme_css` block
+   for narrow palette / heading-treatment overrides. Built ATS-clean by
+   construction (profiles/knowledge/ats_rules/): single-column body, no
+   tables for layout (rule 004), canonical section names, web-safe font
+   chain with WeasyPrint's automatic font embedding, contact in body,
+   ≥10pt body / ≥14pt section titles / 18-24pt name, • bullets,
+   break-inside controls.
+   Fonts: family chain points at universally available web-safe sans-serifs
+   (rule 007). WeasyPrint subsets + embeds the glyphs used into the PDF,
+   so the recruiter's machine does NOT need the font installed — no
+   substitution. */
+@page {
+    size: A4 portrait;
+    margin: 1.6cm 1.8cm;
+}
+html, body {
+    margin: 0;
+    padding: 0;
+}
+body {
+    font-family: 'Helvetica', 'Arial', 'DejaVu Sans', sans-serif;
+    color: #000;
+    font-size: 10.5pt;
+    line-height: 1.45;
+}
+a { color: inherit; text-decoration: none; }
+strong { font-weight: 700; }
+
+/* Header — single column, contact info in document body (not @page
+   header / footer region). Rule 009. */
+.resume-header {
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #000;
+}
+.name {
+    font-size: 22pt;
+    font-weight: 700;
+    margin: 0 0 4px 0;
+    letter-spacing: 0.2px;
+}
+.professional-title {
+    font-size: 12pt;
+    font-weight: 400;
+    margin: 0 0 8px 0;
+}
+.contact-line {
+    font-size: 10pt;
+    margin: 0;
+    line-height: 1.5;
+}
+.contact-line .sep {
+    margin: 0 5px;
+}
+
+/* Sections — keep each whole section together when possible. */
+.section {
+    margin-bottom: 16px;
+    break-inside: avoid-page;
+}
+.section-title {
+    font-size: 14pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin: 0 0 10px 0;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #000;
+}
+
+/* Entry block (one role / project / education item).
+   Flex replaces the old table.item-header pattern: title left, date
+   right, in the same baseline. Rule 004 — no tables for layout. */
+.item {
+    margin-bottom: 12px;
+    break-inside: avoid;
+}
+.item-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 2px;
+}
+.item-title {
+    font-weight: 700;
+    font-size: 11pt;
+}
+.item-date {
+    font-size: 10pt;
+    white-space: nowrap;
+}
+.item-sub {
+    font-size: 10pt;
+    font-style: italic;
+    margin: 0 0 4px 0;
+}
+
+/* Bullets — • (U+2022). Rule 010. */
+.bullets {
+    margin: 4px 0 0 0;
+    padding-left: 18px;
+    list-style-type: disc;
+}
+.bullets li {
+    margin-bottom: 3px;
+    widows: 2;
+    orphans: 2;
+}
+
+/* Summary paragraph + simple inline lists (languages). */
+.summary {
+    margin: 0;
+    text-align: justify;
+    widows: 3;
+    orphans: 3;
+}
+.inline-list {
+    font-size: 10.5pt;
+    line-height: 1.55;
+    margin: 0;
+}
+
+/* Skills — grouped by category (rule 012). Each category on its own
+   line, category name in bold. */
+.skill-group {
+    margin-bottom: 4px;
+    font-size: 10.5pt;
+    line-height: 1.55;
+}
+.skill-cat {
+    font-weight: 700;
+}
+
+{% block theme_css %}{% endblock %}
+</style>
+</head>
+<body>
+
+<div class="resume-header">
+    <div class="name">{{ profile.full_name|default:"Your Name" }}</div>
+    {% if resume.professional_title %}
+    <div class="professional-title">{{ resume.professional_title }}</div>
+    {% endif %}
+    <div class="contact-line">
+        {% if profile.email %}{{ profile.email }}{% endif %}
+        {% if profile.phone %}<span class="sep">·</span>{{ profile.phone }}{% endif %}
+        {% if profile.location %}<span class="sep">·</span>{{ profile.location }}{% endif %}
+        {% if profile.linkedin_url %}<span class="sep">·</span><a href="{{ profile.linkedin_url }}">{{ profile.linkedin_url|cut:"https://"|cut:"http://"|cut:"www." }}</a>{% endif %}
+        {% if profile.github_url %}<span class="sep">·</span><a href="{{ profile.github_url }}">{{ profile.github_url|cut:"https://"|cut:"http://"|cut:"www." }}</a>{% endif %}
+        {% if profile.portfolio_url %}<span class="sep">·</span><a href="{{ profile.portfolio_url }}">Portfolio</a>{% endif %}
+        {% if profile.kaggle_url %}<span class="sep">·</span><a href="{{ profile.kaggle_url }}">{{ profile.kaggle_url|cut:"https://"|cut:"http://"|cut:"www." }}</a>{% endif %}
+        {% if profile.scholar_url %}<span class="sep">·</span><a href="{{ profile.scholar_url }}">{{ profile.scholar_url|cut:"https://"|cut:"http://"|cut:"www." }}</a>{% endif %}
+    </div>
+</div>
+
+{% for section in section_order %}
+    {% if section == "summary" and resume.professional_summary %}
+    <div class="section">
+        <div class="section-title">Professional Summary</div>
+        <p class="summary">{{ resume.professional_summary }}</p>
+        {% if resume.objective %}
+        <p class="summary" style="margin-top:6px"><strong>Objective:</strong> {{ resume.objective }}</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if section == "skills" and resume.skills %}
+    <div class="section">
+        <div class="section-title">Skills</div>
+        {% if show_grouped_skills and skill_groups %}
+            {% for group in skill_groups %}
+            <div class="skill-group"><span class="skill-cat">{{ group.category }}:</span> {{ group.skills|join:", " }}</div>
+            {% endfor %}
+        {% else %}
+            <div class="inline-list">{{ resume.skills|join:", " }}</div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if section == "experience" and resume.experience %}
+    <div class="section">
+        <div class="section-title">Work Experience</div>
+        {% for exp in resume.experience %}
+        <div class="item">
+            <div class="item-head">
+                <span class="item-title">{{ exp.title }}</span>
+                {% if exp.duration %}<span class="item-date">{{ exp.duration }}</span>{% endif %}
+            </div>
+            <div class="item-sub">{{ exp.company }}{% if exp.location %} — {{ exp.location }}{% endif %}{% if exp.industry %} · {{ exp.industry }}{% endif %}</div>
+            {% if exp.description %}
+            <ul class="bullets">
+                {% for point in exp.description %}<li>{{ point }}</li>{% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if section == "projects" and resume.projects %}
+    <div class="section">
+        <div class="section-title">Projects</div>
+        {% for proj in resume.projects %}
+        <div class="item">
+            <div class="item-head">
+                <span class="item-title">{% if proj.url %}<a href="{{ proj.url }}">{{ proj.name }}</a>{% else %}{{ proj.name }}{% endif %}</span>
+                {% if proj.duration %}<span class="item-date">{{ proj.duration }}</span>{% endif %}
+            </div>
+            {% if proj.technologies %}<div class="item-sub">{{ proj.technologies|join:" · " }}</div>{% endif %}
+            {% if proj.description %}
+            <ul class="bullets">
+                {% for point in proj.description %}<li>{{ point }}</li>{% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if section == "education" and resume.education %}
+    <div class="section">
+        <div class="section-title">Education</div>
+        {% for edu in resume.education %}
+        <div class="item">
+            <div class="item-head">
+                <span class="item-title">{{ edu.degree }}{% if edu.field %} in {{ edu.field }}{% endif %}</span>
+                {% with year=edu.graduation_year|default:edu.year %}{% if year %}<span class="item-date">{{ year }}</span>{% endif %}{% endwith %}
+            </div>
+            <div class="item-sub">{{ edu.institution }}{% if edu.location %} — {{ edu.location }}{% endif %}{% if edu.gpa %} · GPA {{ edu.gpa }}{% endif %}</div>
+            {% if edu.honors %}<div style="font-size:10pt; margin-top:2px">{{ edu.honors|join:" · " }}</div>{% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if section == "certifications" and resume.certifications %}
+    <div class="section">
+        <div class="section-title">Certifications</div>
+        <ul class="bullets">
+            {% for cert in resume.certifications %}
+            <li><strong>{% if cert.url %}<a href="{{ cert.url }}">{{ cert.name }}</a>{% else %}{{ cert.name }}{% endif %}</strong>{% if cert.issuer %} — {{ cert.issuer }}{% endif %}{% if cert.duration %} · {{ cert.duration }}{% endif %}{% if cert.date %} ({{ cert.date }}){% endif %}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if section == "languages" and resume.languages %}
+    <div class="section">
+        <div class="section-title">Languages</div>
+        <div class="inline-list">{{ resume.languages|join:", " }}</div>
+    </div>
+    {% endif %}
+{% endfor %}
+
+</body>
+</html>

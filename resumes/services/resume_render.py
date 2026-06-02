@@ -21,7 +21,7 @@ def render_resume_png(
     resume_content: dict,
     profile=None,
     *,
-    template_name: str = "standard",
+    template_name: str = "ats_clean",
     pages: int = 2,
     zoom: float = 2.0,
 ) -> bytes:
@@ -37,22 +37,37 @@ def render_resume_png(
     # Local import — resumes.views imports services, so import lazily to avoid
     # a circular import at module load (same pattern as pdf_exporter).
     from resumes.views import RESUME_SECTION_KEYS, DEFAULT_SECTION_ORDER
+    from .pdf_exporter import resolve_template
+    from .skill_categorizer import group_skills_for_display, should_show_grouped
+    from .resume_normalizer import (
+        heal_experience_durations, sort_experience_reverse_chronological,
+    )
 
-    if template_name and template_name != "standard":
-        template_file = f"resumes/pdf_template_{template_name}.html"
-    else:
-        template_file = "resumes/pdf_template.html"
+    theme, template_file = resolve_template(template_name)
 
-    saved = (resume_content or {}).get("section_order") or []
+    content = resume_content or {}
+    # Defensive heal + re-sort — same pass as pdf_exporter so the
+    # supervisor PNG reflects what the recruiter PDF will actually show.
+    if content.get("experience"):
+        content = {**content, "experience": heal_experience_durations(content["experience"])}
+        content = sort_experience_reverse_chronological(content)
+    saved = content.get("section_order") or []
     valid_saved = [s for s in saved if s in RESUME_SECTION_KEYS]
     section_order = valid_saved + [s for s in DEFAULT_SECTION_ORDER if s not in valid_saved]
 
+    skills_list = content.get("skills") or []
+    skill_groups = group_skills_for_display(skills_list)
+    show_grouped_skills = should_show_grouped(skill_groups, len(skills_list))
+
     user = getattr(profile, "user", None)
     html_string = render_to_string(template_file, {
-        "resume": resume_content,
+        "resume": content,
         "user": user,
         "profile": profile,
         "section_order": section_order,
+        "skill_groups": skill_groups,
+        "show_grouped_skills": show_grouped_skills,
+        "theme": theme,
     })
 
     pdf_bytes = HTML(string=html_string).write_pdf()

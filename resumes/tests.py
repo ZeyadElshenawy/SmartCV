@@ -337,21 +337,21 @@ class ResumeEditPreviewTemplateClassTests(TestCase):
             content={
                 'professional_title': 'Data Scientist',
                 'professional_summary': 'Lorem ipsum.',
-                'template_name': 'executive',
+                'template_name': 'ats_clean_accent',
             },
         )
 
     def test_preview_carries_saved_template_modifier(self):
         resp = self.client.get(reverse('resume_edit', args=[self.resume.id]))
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'pdf-preview pdf-preview--executive')
+        self.assertContains(resp, 'pdf-preview pdf-preview--ats_clean_accent')
 
-    def test_preview_falls_back_to_standard_when_template_missing(self):
+    def test_preview_falls_back_to_default_when_template_missing(self):
         self.resume.content = {'professional_title': 'X', 'professional_summary': 'Y'}
         self.resume.save()
         resp = self.client.get(reverse('resume_edit', args=[self.resume.id]))
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'pdf-preview pdf-preview--standard')
+        self.assertContains(resp, 'pdf-preview pdf-preview--ats_clean')
 
     def test_every_card_has_a_thumbnail_preview(self):
         """Each template radio card must render a .template-thumb miniature
@@ -2030,24 +2030,31 @@ class SortExperienceReverseChronologicalTests(SimpleTestCase):
         )
 
     def test_present_sorts_to_top(self):
+        """end_date='Present' on a record explicitly marked is_current=True
+        still sorts to the top (today_ym). A 'Present' string without
+        the flag is treated as unknown (covered by the dedicated
+        legacy-heal tests)."""
         from resumes.services.resume_normalizer import (
             sort_experience_reverse_chronological,
         )
         resume = {'experience': [
             {'title': 'Old',     'end_date': 'Dec 2025'},
-            {'title': 'Live',    'end_date': 'Present'},
+            {'title': 'Live',    'end_date': 'Present', 'is_current': True},
             {'title': 'AlsoOld', 'end_date': 'Aug 2025'},
         ]}
         out = sort_experience_reverse_chronological(resume, _today=self._TODAY)
         self.assertEqual(self._titles(out)[0], 'Live')
 
     def test_present_in_duration_field_when_end_date_missing(self):
+        """duration tail 'Present' on a record with is_current=True
+        still sorts to the top. Without the flag it would heal to
+        unknown (covered separately)."""
         from resumes.services.resume_normalizer import (
             sort_experience_reverse_chronological,
         )
         resume = {'experience': [
             {'title': 'Old',  'duration': 'Jan 2024 - Dec 2024'},
-            {'title': 'Live', 'duration': 'Mar 2025 - Present'},
+            {'title': 'Live', 'duration': 'Mar 2025 - Present', 'is_current': True},
         ]}
         out = sort_experience_reverse_chronological(resume, _today=self._TODAY)
         self.assertEqual(self._titles(out), ['Live', 'Old'])
@@ -4153,7 +4160,7 @@ class ResumeListThumbnailTests(TestCase):
             content={
                 'professional_title': 'Backend Systems Engineer',
                 'professional_summary': 'Built distributed Python systems for high-throughput pipelines and ran the migration from synchronous to async stack.',
-                'template_name': 'danette',
+                'template_name': 'ats_clean_accent',
                 'experience': [
                     {
                         'title': 'Backend Engineer',
@@ -4182,7 +4189,7 @@ class ResumeListThumbnailTests(TestCase):
         # Top skill renders.
         self.assertIn('Python', body)
         # Template-aware CSS modifier picked up.
-        self.assertIn('pdf-preview pdf-preview--danette', body)
+        self.assertIn('pdf-preview pdf-preview--ats_clean_accent', body)
         # Sized as a list thumbnail (not the editor's small picker thumb).
         self.assertIn('resume-list-thumb', body)
 
@@ -4206,9 +4213,10 @@ class ResumeListThumbnailTests(TestCase):
         # Header still falls back to job title when professional_title is empty.
         self.assertIn('Senior Backend Engineer', body)
 
-    def test_thumbnail_falls_back_to_standard_when_template_missing(self):
+    def test_thumbnail_falls_back_to_default_when_template_missing(self):
         """If a resume saved before the template-name feature, fall back to
-        'standard' so the thumbnail still has consistent styling."""
+        the current default theme so the thumbnail still has consistent
+        styling."""
         self.resume.content = {
             'professional_title': 'X',
             'professional_summary': 'Y',
@@ -4216,7 +4224,7 @@ class ResumeListThumbnailTests(TestCase):
         self.resume.save()
         resp = self.client.get(reverse('resume_list'))
         body = resp.content.decode('utf-8')
-        self.assertIn('pdf-preview pdf-preview--standard', body)
+        self.assertIn('pdf-preview pdf-preview--ats_clean', body)
 
     def test_profile_name_falls_back_to_email_local_part(self):
         """Users without a UserProfile.full_name should still get a header,
@@ -5452,7 +5460,7 @@ class PathBSupervisedRegenTests(TestCase):
             gap_analysis=self.gap,
             content={
                 'professional_summary': 'old summary',
-                'template_name': 'minimalist',
+                'template_name': 'ats_clean',
                 'experience': [{'title': 'Engineer'}],
             },
             ats_score=70.0,
@@ -5574,7 +5582,7 @@ class PathBSupervisedRegenTests(TestCase):
     def test_trigger_regen_api_preserves_template_name(self):
         """template_name was carried across the regen in the old inline
         path; the new flow MUST preserve that contract so a user's
-        chosen template doesn't reset to 'standard' on every regen."""
+        chosen template doesn't reset to the default on every regen."""
         from django.urls import reverse
         from unittest.mock import patch
         # Mocked LLM output does NOT include template_name — the view
@@ -5590,7 +5598,7 @@ class PathBSupervisedRegenTests(TestCase):
             resp = self.client.post(url)
         self.assertEqual(resp.status_code, 200)
         self.resume.refresh_from_db()
-        self.assertEqual(self.resume.content.get('template_name'), 'minimalist')
+        self.assertEqual(self.resume.content.get('template_name'), 'ats_clean')
         self.assertEqual(self.resume.content.get('professional_summary'), 'new summary')
         self.assertEqual(self.resume.ats_score, 82.0)
 
@@ -6314,7 +6322,7 @@ class ExportCapturesPreviousBestTests(TestCase):
             content={'professional_summary': 'A summary.',
                      'skills': ['Python'],
                      'experience': [],
-                     'template_name': 'standard'},
+                     'template_name': 'ats_clean'},
             ats_score=75.0,
         )
 
@@ -8670,4 +8678,1453 @@ class RecoveryPathPostProcessTests(SimpleTestCase):
                       'recovery path must route through _post_process so the '
                       'salvaged content gets identity-guard, grounding check, '
                       'and regression check (was missing pre-FIX-3)')
+
+
+# ---------------------------------------------------------------------------
+# Pillar 4 Step 2 — ATS-clean rebuild: migration map, skills grouping,
+# v2 adapter, and rendered-HTML self-check against the KB ats_rules.
+# ---------------------------------------------------------------------------
+
+
+class ResolveTemplateMigrationTests(SimpleTestCase):
+    """pdf_exporter.resolve_template must (a) pass through live theme
+    names, (b) migrate every removed theme name to a surviving theme so
+    existing GeneratedResume.content['template_name'] values never 500
+    the export, (c) fall through to ats_clean for unknown / empty input.
+    """
+
+    def test_live_theme_passes_through(self):
+        from resumes.services.pdf_exporter import resolve_template
+        theme, path = resolve_template('ats_clean')
+        self.assertEqual(theme, 'ats_clean')
+        self.assertEqual(path, 'resumes/pdf_template_ats_clean.html')
+        theme, path = resolve_template('ats_clean_accent')
+        self.assertEqual(theme, 'ats_clean_accent')
+        self.assertEqual(path, 'resumes/pdf_template_ats_clean_accent.html')
+
+    def test_removed_bw_themes_migrate_to_ats_clean(self):
+        from resumes.services.pdf_exporter import resolve_template
+        for old in ('standard', 'executive', 'minimalist', 'compact'):
+            theme, path = resolve_template(old)
+            self.assertEqual(theme, 'ats_clean',
+                             f'{old!r} should migrate to ats_clean, got {theme!r}')
+            self.assertEqual(path, 'resumes/pdf_template_ats_clean.html')
+
+    def test_removed_color_themes_migrate_to_accent(self):
+        from resumes.services.pdf_exporter import resolve_template
+        for old in ('danette', 'zeyad'):
+            theme, path = resolve_template(old)
+            self.assertEqual(theme, 'ats_clean_accent',
+                             f'{old!r} should migrate to ats_clean_accent, got {theme!r}')
+            self.assertEqual(path, 'resumes/pdf_template_ats_clean_accent.html')
+
+    def test_unknown_or_empty_falls_through_to_ats_clean(self):
+        from resumes.services.pdf_exporter import resolve_template
+        for bad in (None, '', '   ', 'not_a_theme', 'pdf_template.html'):
+            theme, path = resolve_template(bad)
+            self.assertEqual(theme, 'ats_clean',
+                             f'{bad!r} should fall through to ats_clean')
+            self.assertEqual(path, 'resumes/pdf_template_ats_clean.html')
+
+    def test_migrated_template_file_actually_exists(self):
+        """The migration is meaningless if it points at a non-existent
+        template file. Importing the loader and resolving the file
+        verifies both the map and the templates land in lockstep."""
+        from django.template.loader import get_template
+        from resumes.services.pdf_exporter import resolve_template, LIVE_THEMES
+        for old in ('standard', 'executive', 'minimalist', 'compact', 'danette', 'zeyad'):
+            _, path = resolve_template(old)
+            get_template(path)  # raises TemplateDoesNotExist on miss
+        for live in LIVE_THEMES:
+            _, path = resolve_template(live)
+            get_template(path)
+
+
+class SkillCategorizerTests(SimpleTestCase):
+    """Deterministic skill → category lookup + fail-safe behaviour
+    (rule 012). Unknown skills MUST surface in 'Other', not get dropped
+    or guessed into a wrong bucket."""
+
+    def test_known_skills_land_in_expected_categories(self):
+        from resumes.services.skill_categorizer import categorize_skill
+        cases = {
+            'Python': 'Languages',
+            'TypeScript': 'Languages',
+            'Django': 'Frameworks & Libraries',
+            'React': 'Frameworks & Libraries',
+            'PostgreSQL': 'Databases',
+            'AWS': 'Cloud & DevOps',
+            'Docker': 'Cloud & DevOps',
+            'Pandas': 'ML & Data',
+            'PyTorch': 'ML & Data',
+            'Git': 'Tools & Platforms',
+            'Jira': 'Tools & Platforms',
+        }
+        for skill, expected in cases.items():
+            self.assertEqual(categorize_skill(skill), expected,
+                             f'{skill!r} should be {expected!r}')
+
+    def test_lookup_is_case_insensitive(self):
+        from resumes.services.skill_categorizer import categorize_skill
+        for variant in ('python', 'Python', 'PYTHON', '  python  '):
+            self.assertEqual(categorize_skill(variant), 'Languages')
+
+    def test_unknown_skill_lands_in_other_not_dropped(self):
+        from resumes.services.skill_categorizer import (
+            categorize_skill, group_skills_for_display,
+        )
+        self.assertEqual(categorize_skill('SomeNicheTool'), 'Other')
+        groups = group_skills_for_display(['Python', 'SomeNicheTool'])
+        flat = {s for g in groups for s in g['skills']}
+        self.assertIn('SomeNicheTool', flat,
+                      'unknown skill must NOT be dropped from output')
+        other = next((g for g in groups if g['category'] == 'Other'), None)
+        self.assertIsNotNone(other, "'Other' bucket must exist for unknown skills")
+        self.assertIn('SomeNicheTool', other['skills'])
+
+    def test_grouping_preserves_input_order_within_category(self):
+        from resumes.services.skill_categorizer import group_skills_for_display
+        groups = group_skills_for_display(['TypeScript', 'Python', 'Go'])
+        langs = next(g for g in groups if g['category'] == 'Languages')
+        self.assertEqual(langs['skills'], ['TypeScript', 'Python', 'Go'])
+
+    def test_grouping_dedups_case_insensitive(self):
+        from resumes.services.skill_categorizer import group_skills_for_display
+        groups = group_skills_for_display(['Python', 'python', 'PYTHON'])
+        langs = next(g for g in groups if g['category'] == 'Languages')
+        self.assertEqual(langs['skills'], ['Python'])
+
+    def test_grouping_handles_empty_and_invalid_entries(self):
+        from resumes.services.skill_categorizer import group_skills_for_display
+        # None / empty list returns []
+        self.assertEqual(group_skills_for_display(None), [])
+        self.assertEqual(group_skills_for_display([]), [])
+        # Empty / whitespace / non-string entries are skipped, real
+        # entries are kept.
+        groups = group_skills_for_display(['', '   ', None, 123, 'Python'])
+        self.assertEqual(len(groups), 1)
+        self.assertEqual(groups[0]['category'], 'Languages')
+        self.assertEqual(groups[0]['skills'], ['Python'])
+
+    def test_grouping_returns_canonical_category_order(self):
+        from resumes.services.skill_categorizer import (
+            CATEGORIES_ORDER, group_skills_for_display,
+        )
+        # One representative skill per category — Other last.
+        groups = group_skills_for_display([
+            'Jira',          # Tools & Platforms
+            'Python',        # Languages
+            'AWS',           # Cloud & DevOps
+            'Pandas',        # ML & Data
+            'NicheThing',    # Other
+            'Django',        # Frameworks & Libraries
+            'PostgreSQL',    # Databases
+        ])
+        got = [g['category'] for g in groups]
+        # Each category appears at most once, and only in CATEGORIES_ORDER
+        # sequence (no shuffling by input order).
+        idxs = [CATEGORIES_ORDER.index(c) for c in got]
+        self.assertEqual(idxs, sorted(idxs),
+                         f'groups not in canonical order: {got}')
+
+
+class ResumeV2AdapterTests(SimpleTestCase):
+    """The v2 → template-dict adapter must (a) flatten v2 sections into
+    the v1 shape the templates consume, (b) prefer rich source v1 items
+    for education / certifications / languages, and (c) NEVER emit
+    fact_ids / provenance into the rendered output dict — that metadata
+    stays inside GeneratedResumeV2 for downstream grounding, not on the
+    recruiter's PDF."""
+
+    def _build_v2(self):
+        from resumes.services.resume_generator_v2 import (
+            GeneratedResumeV2, GeneratedSection, GeneratedBullet, EntityBlock,
+        )
+        return GeneratedResumeV2(
+            sections={
+                'summary': GeneratedSection(
+                    section='summary',
+                    summary_text='Data scientist with 4 years of experience.'),
+                'skills': GeneratedSection(
+                    section='skills',
+                    skills_line='Python, SQL, PyTorch, Docker'),
+                'experience': GeneratedSection(
+                    section='experience',
+                    entities=[
+                        EntityBlock(
+                            entity_id='exp-1',
+                            entity_display='Senior Engineer at Acme (2022–Present)',
+                            bullets=[
+                                GeneratedBullet(text='Shipped X.', fact_ids=['f1', 'f2']),
+                                GeneratedBullet(text='Owned Y.', fact_ids=['f3'], hedged=True),
+                            ]),
+                    ]),
+                'projects': GeneratedSection(
+                    section='projects',
+                    entities=[
+                        EntityBlock(
+                            entity_id='proj-1',
+                            entity_display='SmartCV',
+                            bullets=[GeneratedBullet(text='Built RAG knowledge base.', fact_ids=['f9'])]),
+                    ]),
+            },
+        )
+
+    def test_summary_and_skills_flatten(self):
+        from resumes.services.resume_v2_adapter import resume_v2_to_template_dict
+        out = resume_v2_to_template_dict(self._build_v2())
+        self.assertEqual(out['professional_summary'],
+                         'Data scientist with 4 years of experience.')
+        self.assertEqual(out['skills'], ['Python', 'SQL', 'PyTorch', 'Docker'])
+
+    def test_experience_entities_flatten_to_v1_items(self):
+        from resumes.services.resume_v2_adapter import resume_v2_to_template_dict
+        out = resume_v2_to_template_dict(self._build_v2())
+        self.assertEqual(len(out['experience']), 1)
+        item = out['experience'][0]
+        # entity_display lands in title (no v1 source item to merge).
+        self.assertIn('Senior Engineer', item['title'])
+        # description is the flat list of bullet texts in input order.
+        self.assertEqual(item['description'], ['Shipped X.', 'Owned Y.'])
+
+    def test_projects_entities_flatten(self):
+        from resumes.services.resume_v2_adapter import resume_v2_to_template_dict
+        out = resume_v2_to_template_dict(self._build_v2())
+        self.assertEqual(len(out['projects']), 1)
+        self.assertEqual(out['projects'][0]['description'], ['Built RAG knowledge base.'])
+
+    def test_no_fact_ids_or_provenance_leak_into_output(self):
+        """The recruiter's PDF carries no provenance metadata — fact_ids,
+        hedged, anchor_fact_id, entity_id must all stay inside
+        GeneratedResumeV2."""
+        from resumes.services.resume_v2_adapter import resume_v2_to_template_dict
+        out = resume_v2_to_template_dict(self._build_v2())
+        # Recursively walk the output and assert no provenance keys.
+        leak_keys = {'fact_ids', 'hedged', 'anchor_fact_id', 'entity_id',
+                     'fabrication_events', 'notes'}
+        def _scan(node, path='out'):
+            if isinstance(node, dict):
+                bad = leak_keys & set(node.keys())
+                self.assertFalse(bad, f'provenance keys leaked at {path}: {bad}')
+                for k, v in node.items():
+                    _scan(v, f'{path}.{k}')
+            elif isinstance(node, list):
+                for i, v in enumerate(node):
+                    _scan(v, f'{path}[{i}]')
+        _scan(out)
+
+    def test_source_v1_merged_into_experience_items_by_entity_id(self):
+        """When the v2 entity_id matches a v1 source item's id, the
+        adapter preserves the v1 structured fields (company, duration,
+        location, etc.) and only overwrites description bullets."""
+        from resumes.services.resume_generator_v2 import (
+            GeneratedResumeV2, GeneratedSection, GeneratedBullet, EntityBlock,
+        )
+        from resumes.services.resume_v2_adapter import resume_v2_to_template_dict
+        generated = GeneratedResumeV2(sections={
+            'experience': GeneratedSection(
+                section='experience',
+                entities=[EntityBlock(
+                    entity_id='abc-123',
+                    entity_display='ignored when merge happens',
+                    bullets=[GeneratedBullet(text='new bullet.', fact_ids=[])])]),
+        })
+        source = {
+            'experience': [{
+                'id': 'abc-123',
+                'title': 'Senior Engineer',
+                'company': 'Acme Corp',
+                'duration': '2022–Present',
+                'location': 'Remote',
+                'description': ['old bullet that must be overwritten'],
+            }],
+        }
+        out = resume_v2_to_template_dict(generated, source=source)
+        item = out['experience'][0]
+        self.assertEqual(item['title'], 'Senior Engineer')
+        self.assertEqual(item['company'], 'Acme Corp')
+        self.assertEqual(item['duration'], '2022–Present')
+        self.assertEqual(item['description'], ['new bullet.'])
+
+    def test_education_falls_back_to_source_v1(self):
+        """v2 doesn't enrich education — the adapter must keep the
+        structured v1 source rows rather than overwriting with the
+        flatter v2 'lines'."""
+        from resumes.services.resume_generator_v2 import (
+            GeneratedResumeV2, GeneratedSection,
+        )
+        from resumes.services.resume_v2_adapter import resume_v2_to_template_dict
+        generated = GeneratedResumeV2(sections={
+            'education': GeneratedSection(
+                section='education',
+                lines=['v2 simplification of education']),
+        })
+        source = {'education': [
+            {'degree': 'B.Sc.', 'field': 'CS', 'institution': 'KSIU', 'year': '2025'},
+        ]}
+        out = resume_v2_to_template_dict(generated, source=source)
+        # Source v1 wins because it has richer structure.
+        self.assertEqual(out['education'], source['education'])
+
+
+def _ats_render_context():
+    """Build a minimal render context that exercises every section of the
+    base template (used by AtsCleanRenderTests below)."""
+    from types import SimpleNamespace
+    from resumes.services.skill_categorizer import (
+        group_skills_for_display, should_show_grouped,
+    )
+
+    profile = SimpleNamespace(
+        full_name='Jane Doe',
+        email='jane@example.com',
+        phone='+1 555 123 4567',
+        location='Cairo, Egypt',
+        linkedin_url='https://www.linkedin.com/in/janedoe',
+        github_url='https://github.com/janedoe',
+        portfolio_url='',
+        kaggle_url='',
+        scholar_url='',
+    )
+    skills = ['Python', 'Django', 'PostgreSQL', 'AWS', 'Pandas', 'SomeNicheTool']
+    resume = {
+        'professional_title': 'Senior Data Scientist',
+        'professional_summary': (
+            'Senior data scientist with hands-on ML engineering. Shipped models '
+            'in production at scale across analytics and personalization.'),
+        'skills': skills,
+        'experience': [{
+            'title': 'Senior Data Scientist',
+            'company': 'Acme Analytics',
+            'location': 'Remote',
+            'industry': 'AdTech',
+            'duration': '2022 – Present',
+            'description': [
+                'Cut churn by 18% with a calibrated propensity model.',
+                'Owned end-to-end MLOps pipeline on AWS for 5 models in production.',
+            ],
+        }],
+        'projects': [{
+            'name': 'SmartCV',
+            'url': 'https://example.com/smartcv',
+            'technologies': ['Django', 'WeasyPrint'],
+            'description': ['ATS-clean resume rendering pipeline.'],
+        }],
+        'education': [{
+            'degree': 'B.Sc.', 'field': 'Computer Science',
+            'institution': 'KSIU', 'year': '2025', 'gpa': '3.8',
+        }],
+        'certifications': [{'name': 'AWS Solutions Architect', 'issuer': 'Amazon', 'date': '2024'}],
+        'languages': ['English (Native)', 'Arabic (Native)'],
+    }
+    skill_groups = group_skills_for_display(skills)
+    return {
+        'profile': profile,
+        'user': None,
+        'resume': resume,
+        'section_order': ['summary', 'skills', 'experience',
+                          'projects', 'education', 'certifications', 'languages'],
+        'skill_groups': skill_groups,
+        'show_grouped_skills': should_show_grouped(skill_groups, len(skills)),
+        'theme': 'ats_clean',
+    }
+
+
+class AtsCleanRenderTests(SimpleTestCase):
+    """Render the two surviving templates with a real-ish context and
+    assert the rendered HTML satisfies the project's KB ats_rules. These
+    are template-level checks (the PDF is rendered by WeasyPrint
+    downstream, but the structure/CSS lives in the templates)."""
+
+    THEMES = ('ats_clean', 'ats_clean_accent')
+
+    def _render(self, theme):
+        from django.template.loader import render_to_string
+        return render_to_string(f'resumes/pdf_template_{theme}.html', _ats_render_context())
+
+    def test_no_table_tags_for_layout(self):
+        """Rule 004 — single-column body, no <table> for alignment."""
+        import re
+        for theme in self.THEMES:
+            html = self._render(theme)
+            self.assertFalse(
+                re.search(r'<table[\s>]', html),
+                f"theme {theme!r} emitted a <table> tag (rule 004 violation)",
+            )
+
+    def test_canonical_section_names(self):
+        """Rule 002 — canonical section headers."""
+        for theme in self.THEMES:
+            html = self._render(theme)
+            for needed in (
+                'Professional Summary', 'Skills', 'Work Experience',
+                'Projects', 'Education', 'Certifications', 'Languages',
+            ):
+                self.assertIn(needed, html,
+                              f'theme {theme!r} missing canonical section name {needed!r}')
+
+    def test_no_creative_section_headers(self):
+        """Rule 002 — none of the rejected names from the audit."""
+        for theme in self.THEMES:
+            html = self._render(theme)
+            for bad in ('Profile', 'Core Skills', 'My Journey',
+                        'The Toolkit', 'What I Bring'):
+                self.assertNotIn(f'>{bad}<', html,
+                                 f'theme {theme!r} uses non-canonical section name {bad!r}')
+
+    def test_font_sizes_meet_rule_007(self):
+        """Body ≥10pt, section heading ≥14pt, name 18–24pt (rule 007).
+        We check the CSS rules in the rendered HTML head."""
+        import re
+        for theme in self.THEMES:
+            html = self._render(theme)
+            body = re.search(r'body\s*\{[^}]*font-size:\s*([\d.]+)pt', html)
+            self.assertIsNotNone(body, f'no body font-size found in {theme!r}')
+            self.assertGreaterEqual(float(body.group(1)), 10.0,
+                                    f'theme {theme!r} body font below 10pt')
+            sec = re.search(r'\.section-title\s*\{[^}]*font-size:\s*([\d.]+)pt', html)
+            self.assertIsNotNone(sec, f'no section-title font-size in {theme!r}')
+            self.assertGreaterEqual(float(sec.group(1)), 14.0,
+                                    f'theme {theme!r} section title below 14pt')
+            name = re.search(r'\.name\s*\{[^}]*font-size:\s*([\d.]+)pt', html)
+            self.assertIsNotNone(name, f'no .name font-size in {theme!r}')
+            name_pt = float(name.group(1))
+            self.assertTrue(18.0 <= name_pt <= 24.0,
+                            f'theme {theme!r} name font {name_pt}pt outside 18-24pt')
+
+    def test_web_safe_font_family(self):
+        """Rule 007 — Helvetica / Arial chain, no Segoe UI / decorative."""
+        for theme in self.THEMES:
+            html = self._render(theme)
+            self.assertIn("'Helvetica'", html)
+            self.assertIn("'Arial'", html)
+            for bad in ('Segoe UI', 'Comic Sans', 'Papyrus'):
+                self.assertNotIn(bad, html,
+                                 f'theme {theme!r} references non-safe font {bad!r}')
+
+    def test_bullet_marker_is_disc(self):
+        """Rule 010 — disc / • bullets, not arrows / checks / stars."""
+        for theme in self.THEMES:
+            html = self._render(theme)
+            self.assertIn('list-style-type: disc', html,
+                          f'theme {theme!r} should use disc bullets')
+            for bad in ('list-style-type: square', '→', '►', '✓', '★'):
+                self.assertNotIn(bad, html,
+                                 f'theme {theme!r} uses unsafe bullet marker {bad!r}')
+
+    def test_page_break_controls_present(self):
+        """Rule 011 (CSS half) — entry blocks have break-inside: avoid
+        and bullets carry widows/orphans control so the last bullet of a
+        role doesn't get orphaned on the next page."""
+        for theme in self.THEMES:
+            html = self._render(theme)
+            self.assertIn('break-inside: avoid', html,
+                          f'theme {theme!r} missing break-inside: avoid')
+            self.assertIn('widows', html)
+            self.assertIn('orphans', html)
+
+    def test_skills_rendered_as_groups(self):
+        """Rule 012 — skills grouped by category, each on its own line
+        with a bolded category name."""
+        for theme in self.THEMES:
+            html = self._render(theme)
+            self.assertIn('class="skill-cat">Languages:', html,
+                          f'theme {theme!r} missing Languages: group label')
+            self.assertIn('Other:', html,
+                          f"theme {theme!r} should surface 'Other' bucket for unknown skill")
+
+    def test_unknown_skill_appears_in_other_in_rendered_html(self):
+        """The fail-safe in skill_categorizer must reach the rendered
+        artifact: an unknown skill is visible under 'Other', not
+        dropped."""
+        for theme in self.THEMES:
+            html = self._render(theme)
+            self.assertIn('SomeNicheTool', html,
+                          f'theme {theme!r} dropped an unknown skill')
+
+    def test_accent_theme_uses_single_color_clean_theme_is_black_only(self):
+        """ats_clean: black-only. ats_clean_accent: one restrained
+        accent color (#1e3a8a) and nothing else."""
+        clean = self._render('ats_clean')
+        # ats_clean has no accent color block.
+        self.assertNotIn('#1e3a8a', clean,
+                         'ats_clean must stay black-only — no accent color')
+
+        accent = self._render('ats_clean_accent')
+        self.assertIn('#1e3a8a', accent,
+                      'ats_clean_accent must declare one accent color')
+        # Only this single accent appears — no rainbow.
+        import re
+        hex_colors = set(re.findall(r'#[0-9a-fA-F]{6}', accent))
+        # #000000 etc may appear; allow black + the accent only.
+        non_black = {c for c in hex_colors if c.lower() not in {'#000000'}}
+        self.assertEqual(non_black, {'#1e3a8a'},
+                         f'ats_clean_accent must use exactly one accent color; '
+                         f'found {non_black}')
+
+    def test_no_v2_provenance_keys_in_rendered_html(self):
+        """Defensive: even if a fact_ids key were ever added to the
+        adapter output, the templates would render the dict and could
+        leak it. Assert no provenance labels appear in the HTML."""
+        for theme in self.THEMES:
+            html = self._render(theme)
+            for bad in ('fact_ids', 'fabrication_events', 'anchor_fact_id'):
+                self.assertNotIn(bad, html,
+                                 f'theme {theme!r} leaked provenance key {bad!r}')
+
+    def test_contact_block_lives_in_document_body(self):
+        """Rule 009 — contact info in body, not @page header/footer.
+        The .contact-line lives inside .resume-header, which is in
+        <body>, not in @page { @top-center }."""
+        for theme in self.THEMES:
+            html = self._render(theme)
+            self.assertIn('class="contact-line"', html)
+            self.assertNotIn('@top-center', html,
+                             f'theme {theme!r} placed content in @page header')
+            self.assertNotIn('@bottom-center', html)
+
+
+# ---------------------------------------------------------------------------
+# Pillar 4 polish pass — expanded skill table, balanced-grouping guard,
+# portfolio link relabeled to "Portfolio".
+# ---------------------------------------------------------------------------
+
+
+class SkillCategorizerExpansionTests(SimpleTestCase):
+    """Common ML / AI vocabulary added to the lookup table so it no longer
+    drops into 'Other'. The fail-safe (unknown → 'Other') must survive
+    the expansion."""
+
+    def test_ml_ai_terms_classify_to_ml_and_data(self):
+        from resumes.services.skill_categorizer import categorize_skill
+        for skill in (
+            'AI Model Development', 'Large Language Models', 'LLMs',
+            'Generative AI', 'Gen AI', 'GenAI',
+            'Model Optimization', 'Transfer Learning',
+            'Model Evaluation', 'AI Feature Implementation',
+            'AI Tools Deployment', 'Internal AI Tool Deployment',
+            'Supervised Learning', 'Unsupervised Learning',
+            'Supervised & Unsupervised Learning',
+            'Feature Engineering', 'Model Deployment',
+            'Fine-tuning', 'Fine Tuning',
+            'Prompt Engineering', 'RAG',
+            'Computer Vision', 'NLP', 'Natural Language Processing',
+        ):
+            got = categorize_skill(skill)
+            self.assertEqual(
+                got, 'ML & Data',
+                f'{skill!r} should categorise as ML & Data, got {got!r}',
+            )
+
+    def test_technical_documentation_lands_in_tools(self):
+        from resumes.services.skill_categorizer import categorize_skill
+        self.assertEqual(
+            categorize_skill('Technical Documentation'),
+            'Tools & Platforms',
+        )
+
+    def test_fail_safe_still_routes_unknown_to_other(self):
+        """Expanding the table must not break the fail-safe."""
+        from resumes.services.skill_categorizer import categorize_skill
+        self.assertEqual(categorize_skill('SomeNicheThingFromTheFuture'), 'Other')
+
+
+class ShouldShowGroupedTests(SimpleTestCase):
+    """Balanced-grouping guard. Rule: show grouped only when ≥3 categories
+    are populated AND no single category exceeds MAX_DOMINANCE (60%) of
+    the total skills. Otherwise fall back to the flat list — for ALL
+    users, not just dev/ML profiles."""
+
+    def _groups(self, skills):
+        from resumes.services.skill_categorizer import group_skills_for_display
+        return group_skills_for_display(skills)
+
+    def test_balanced_set_returns_true(self):
+        """Six different categories, one skill each → balanced → show grouped."""
+        from resumes.services.skill_categorizer import should_show_grouped
+        skills = ['Python', 'Django', 'PostgreSQL', 'AWS', 'Pandas', 'Git']
+        groups = self._groups(skills)
+        self.assertEqual(len(groups), 6)
+        self.assertTrue(should_show_grouped(groups, len(skills)))
+
+    def test_too_few_categories_returns_false(self):
+        """Everything in 1-2 buckets → not categorical enough → flat."""
+        from resumes.services.skill_categorizer import should_show_grouped
+        # All Languages.
+        skills = ['Python', 'TypeScript', 'Java', 'Go', 'C++']
+        groups = self._groups(skills)
+        self.assertEqual(len(groups), 1)
+        self.assertFalse(should_show_grouped(groups, len(skills)))
+        # Two categories.
+        skills2 = ['Python', 'Django']
+        groups2 = self._groups(skills2)
+        self.assertEqual(len(groups2), 2)
+        self.assertFalse(should_show_grouped(groups2, len(skills2)))
+
+    def test_dominant_other_bucket_returns_false(self):
+        """The motivating case: lots of unknown skills dump into Other →
+        Other dominates → flat reads cleaner than a lopsided group."""
+        from resumes.services.skill_categorizer import should_show_grouped
+        skills = (
+            ['UnknownA', 'UnknownB', 'UnknownC', 'UnknownD', 'UnknownE',
+             'UnknownF', 'UnknownG']  # 7 → Other
+            + ['Python', 'Django', 'AWS']  # 3 distinct cats
+        )
+        groups = self._groups(skills)
+        other = next(g for g in groups if g['category'] == 'Other')
+        self.assertEqual(len(other['skills']), 7)
+        self.assertGreaterEqual(len(groups), 3)
+        # 7 / 10 = 70 % > 60 % → unbalanced.
+        self.assertFalse(should_show_grouped(groups, len(skills)))
+
+    def test_just_under_dominance_threshold_returns_true(self):
+        """5 in one bucket / 9 total = 55 % — under the 60 % threshold."""
+        from resumes.services.skill_categorizer import should_show_grouped
+        skills = (
+            ['UnknownA', 'UnknownB', 'UnknownC', 'UnknownD', 'UnknownE']  # 5 Other
+            + ['Python', 'Django', 'AWS', 'Git']  # 4 distinct cats
+        )
+        groups = self._groups(skills)
+        self.assertEqual(len(groups), 5)
+        self.assertTrue(should_show_grouped(groups, len(skills)))
+
+    def test_empty_inputs_return_false(self):
+        from resumes.services.skill_categorizer import should_show_grouped
+        self.assertFalse(should_show_grouped([], 0))
+        self.assertFalse(should_show_grouped([], 5))
+        # Single-category corner case.
+        single = [{'category': 'Languages', 'skills': ['Python']}]
+        self.assertFalse(should_show_grouped(single, 1))
+
+
+class BalancedSkillsRenderingTests(SimpleTestCase):
+    """End-to-end: the template renders the FLAT list when the grouping
+    would be lopsided, and the GROUPED layout when it would be balanced."""
+
+    def _render(self, skills, theme='ats_clean'):
+        from django.template.loader import render_to_string
+        from resumes.services.skill_categorizer import (
+            group_skills_for_display, should_show_grouped,
+        )
+        ctx = _ats_render_context()
+        ctx['resume']['skills'] = skills
+        groups = group_skills_for_display(skills)
+        ctx['skill_groups'] = groups
+        ctx['show_grouped_skills'] = should_show_grouped(groups, len(skills))
+        return render_to_string(f'resumes/pdf_template_{theme}.html', ctx)
+
+    def test_lopsided_set_renders_flat(self):
+        """12 unknown + 2 known → grouped would dump 12 into Other → flat."""
+        skills = [f'Unknown{i}' for i in range(12)] + ['Python', 'Django']
+        html = self._render(skills)
+        # No category labels emitted — grouped path was skipped.
+        self.assertNotIn('class="skill-cat">', html)
+        # Flat list IS emitted: every skill present.
+        for s in skills:
+            self.assertIn(s, html)
+
+    def test_balanced_set_renders_grouped(self):
+        """Six skills in six categories → balanced → grouped renders with
+        the category labels (Django escapes '&' to '&amp;')."""
+        skills = ['Python', 'Django', 'PostgreSQL', 'AWS', 'Pandas', 'Git']
+        html = self._render(skills)
+        self.assertIn('class="skill-cat">Languages:', html)
+        self.assertIn('class="skill-cat">Frameworks &amp; Libraries:', html)
+        self.assertIn('class="skill-cat">Databases:', html)
+        self.assertIn('class="skill-cat">Cloud &amp; DevOps:', html)
+        self.assertIn('class="skill-cat">ML &amp; Data:', html)
+        self.assertIn('class="skill-cat">Tools &amp; Platforms:', html)
+
+    def test_unknown_skill_still_in_other_when_grouped(self):
+        """Even in the grouped path, the fail-safe holds: unknown skill →
+        Other, never dropped, never misfiled."""
+        skills = ['Python', 'Django', 'PostgreSQL', 'AWS', 'Pandas',
+                  'Git', 'SomeNicheThing']
+        html = self._render(skills)
+        # 7 categories, max 1/7 = 14 % → balanced → grouped.
+        self.assertIn('class="skill-cat">Other:', html)
+        self.assertIn('SomeNicheThing', html)
+
+    def test_real_world_lopsided_zeyad_profile_falls_back_to_flat(self):
+        """Regression: this is the actual skill list shape that motivated
+        the polish pass. Several legitimate ML/AI strings used to land
+        in 'Other'; the table expansion + balanced guard together must
+        deliver a clean grouping OR a clean flat list — never a lopsided
+        dump."""
+        skills = [
+            'Python', 'SQL',
+            'Machine Learning', 'Deep Learning', 'Transfer Learning',
+            'Supervised & Unsupervised Learning', 'Model Evaluation',
+            'Computer Vision', 'NLP',
+            'Pandas', 'NumPy', 'scikit-learn', 'TensorFlow',
+            'AWS', 'Docker',
+            'Team Management', 'Project Management',  # → Other
+        ]
+        html = self._render(skills)
+        # Either grouped (with balanced categories) or flat — but the
+        # 'Other' bucket must NOT dominate the rendered output.
+        from resumes.services.skill_categorizer import (
+            group_skills_for_display, should_show_grouped,
+        )
+        groups = group_skills_for_display(skills)
+        balanced = should_show_grouped(groups, len(skills))
+        if balanced:
+            other = next((g for g in groups if g['category'] == 'Other'), None)
+            other_n = len(other['skills']) if other else 0
+            self.assertLessEqual(
+                other_n / len(skills), 0.60,
+                'grouped path emitted a dominant Other bucket',
+            )
+        else:
+            self.assertNotIn('class="skill-cat">', html,
+                             'flat path should not emit category labels')
+        # In either case, every skill must still appear (Django escapes
+        # '&' to '&amp;', so compare the escaped form).
+        from django.utils.html import escape
+        for s in skills:
+            self.assertIn(escape(s), html, f'skill {s!r} dropped from output')
+
+
+class PortfolioLabelTests(SimpleTestCase):
+    """The portfolio link renders with the visible label 'Portfolio'
+    (href stays the real URL). LinkedIn / GitHub / Kaggle keep their
+    raw URL as the visible text — recruiter heuristic + rule 009."""
+
+    def _render(self, **profile_overrides):
+        from django.template.loader import render_to_string
+        from types import SimpleNamespace
+        ctx = _ats_render_context()
+        profile_fields = dict(vars(ctx['profile']))
+        profile_fields.update(profile_overrides)
+        ctx['profile'] = SimpleNamespace(**profile_fields)
+        return render_to_string('resumes/pdf_template_ats_clean.html', ctx)
+
+    def test_portfolio_label_replaces_visible_url_text(self):
+        portfolio = 'https://my-portfolio-weld-eta-67.vercel.app/'
+        html = self._render(portfolio_url=portfolio)
+        # Visible text is the friendly label.
+        self.assertIn('>Portfolio</a>', html)
+        # href keeps the real URL.
+        self.assertIn(f'href="{portfolio}"', html)
+        # Raw vercel domain does NOT appear as visible text
+        # (would be '>my-portfolio-weld-eta-67.vercel.app...').
+        self.assertNotIn('>my-portfolio-weld-eta-67.vercel.app', html)
+
+    def test_linkedin_github_kaggle_still_show_raw_url_text(self):
+        html = self._render(
+            linkedin_url='https://www.linkedin.com/in/janedoe',
+            github_url='https://github.com/janedoe',
+            kaggle_url='https://kaggle.com/janedoe',
+        )
+        # Raw URLs (with https:// / www. stripped) appear as visible text.
+        self.assertIn('linkedin.com/in/janedoe', html)
+        self.assertIn('github.com/janedoe', html)
+        self.assertIn('kaggle.com/janedoe', html)
+        # NOT relabeled.
+        self.assertNotIn('>LinkedIn</a>', html)
+        self.assertNotIn('>GitHub</a>', html)
+        self.assertNotIn('>Kaggle</a>', html)
+
+    def test_missing_portfolio_emits_no_portfolio_anchor(self):
+        html = self._render(portfolio_url='')
+        self.assertNotIn('>Portfolio</a>', html)
+
+    def test_portfolio_label_works_in_accent_theme_too(self):
+        from django.template.loader import render_to_string
+        from types import SimpleNamespace
+        ctx = _ats_render_context()
+        profile_fields = dict(vars(ctx['profile']))
+        profile_fields['portfolio_url'] = 'https://example.dev/me'
+        ctx['profile'] = SimpleNamespace(**profile_fields)
+        html = render_to_string('resumes/pdf_template_ats_clean_accent.html', ctx)
+        self.assertIn('>Portfolio</a>', html)
+        self.assertIn('href="https://example.dev/me"', html)
+
+
+# ---------------------------------------------------------------------------
+# "Present" fabrication + reverse-chrono mis-sort fix.
+# Single source of truth: is_current=True on the entry. Missing end is
+# rendered as start alone (not "Present"); legacy "X - Present" without
+# is_current heals on re-render and re-sorts honestly.
+# ---------------------------------------------------------------------------
+
+
+class AssembleDurationHonestTests(SimpleTestCase):
+    """The shared honest duration assembler. Used by resume_generator
+    offline-fallback paths and the docx exporter."""
+
+    def test_is_current_true_with_start_emits_present(self):
+        from resumes.services.resume_normalizer import assemble_duration_honest
+        self.assertEqual(assemble_duration_honest('Jul 2024', '', True),
+                         'Jul 2024 - Present')
+        self.assertEqual(assemble_duration_honest('Jul 2024', None, True),
+                         'Jul 2024 - Present')
+        self.assertEqual(assemble_duration_honest('Jul 2024', 'Present', True),
+                         'Jul 2024 - Present')
+
+    def test_missing_end_without_is_current_renders_start_alone(self):
+        from resumes.services.resume_normalizer import assemble_duration_honest
+        self.assertEqual(assemble_duration_honest('Jul 2024', '', None), 'Jul 2024')
+        self.assertEqual(assemble_duration_honest('Jul 2024', None, False), 'Jul 2024')
+        self.assertEqual(assemble_duration_honest('Jul 2024', '   ', None), 'Jul 2024')
+
+    def test_legacy_present_without_is_current_heals_to_start_alone(self):
+        """The motivating bug: end='Present' was LLM-fabricated for a
+        non-current role. Without is_current=True, treat as unknown and
+        render start alone."""
+        from resumes.services.resume_normalizer import assemble_duration_honest
+        self.assertEqual(assemble_duration_honest('Jul 2024', 'Present', None),
+                         'Jul 2024')
+        self.assertEqual(assemble_duration_honest('Jul 2024', 'Current', False),
+                         'Jul 2024')
+        self.assertEqual(assemble_duration_honest('Jul 2024', 'Ongoing', None),
+                         'Jul 2024')
+
+    def test_closed_range_passes_through(self):
+        from resumes.services.resume_normalizer import assemble_duration_honest
+        self.assertEqual(assemble_duration_honest('Aug 2025', 'Sep 2025', None),
+                         'Aug 2025 - Sep 2025')
+        self.assertEqual(assemble_duration_honest('Jun 2025', 'Dec 2025', False),
+                         'Jun 2025 - Dec 2025')
+
+    def test_no_start_with_is_current_emits_bare_present(self):
+        from resumes.services.resume_normalizer import assemble_duration_honest
+        self.assertEqual(assemble_duration_honest('', '', True), 'Present')
+        self.assertEqual(assemble_duration_honest(None, None, True), 'Present')
+
+    def test_empty_inputs_return_empty(self):
+        from resumes.services.resume_normalizer import assemble_duration_honest
+        self.assertEqual(assemble_duration_honest('', '', None), '')
+        self.assertEqual(assemble_duration_honest(None, None, None), '')
+
+
+class HealExperienceDurationsTests(SimpleTestCase):
+    """Defensive render-time pass for legacy resumes whose stored
+    duration was inflated to 'X - Present' on a non-current role."""
+
+    def test_legacy_present_without_is_current_heals(self):
+        from resumes.services.resume_normalizer import heal_experience_durations
+        out = heal_experience_durations([{
+            'title': 'IT Intern', 'start_date': 'Jul 2024',
+            'end_date': 'Dec 2025',
+            'duration': 'Jul 2024 - Present',
+            # is_current absent → legacy LLM fabrication, must heal.
+        }])
+        self.assertEqual(out[0]['duration'], 'Jul 2024')
+
+    def test_is_current_true_preserves_present(self):
+        from resumes.services.resume_normalizer import heal_experience_durations
+        out = heal_experience_durations([{
+            'title': 'Engineer', 'start_date': 'Jan 2024',
+            'end_date': 'Present', 'is_current': True,
+            'duration': 'Jan 2024 - Present',
+        }])
+        self.assertEqual(out[0]['duration'], 'Jan 2024 - Present')
+
+    def test_closed_range_passes_through(self):
+        from resumes.services.resume_normalizer import heal_experience_durations
+        out = heal_experience_durations([{
+            'title': 'Intern', 'start_date': 'Aug 2025',
+            'end_date': 'Sep 2025',
+            'duration': 'Aug 2025 - Sep 2025',
+        }])
+        self.assertEqual(out[0]['duration'], 'Aug 2025 - Sep 2025')
+
+    def test_non_list_input_passes_through(self):
+        from resumes.services.resume_normalizer import heal_experience_durations
+        self.assertEqual(heal_experience_durations(None), None)
+        self.assertEqual(heal_experience_durations({}), {})
+
+    def test_does_not_mutate_input(self):
+        from resumes.services.resume_normalizer import heal_experience_durations
+        src = [{
+            'title': 'X', 'start_date': 'Jul 2024',
+            'end_date': 'Present', 'duration': 'Jul 2024 - Present',
+        }]
+        out = heal_experience_durations(src)
+        self.assertEqual(src[0]['duration'], 'Jul 2024 - Present')  # untouched
+        self.assertEqual(out[0]['duration'], 'Jul 2024')
+
+
+class HonestReverseChronoSortTests(SimpleTestCase):
+    """sort_experience_reverse_chronological + _extract_end_yearmonth:
+    a missing / fabricated 'Present' on a non-current role must NOT
+    inflate the sort key to today_ym."""
+
+    def _sort(self, exps):
+        from resumes.services.resume_normalizer import (
+            sort_experience_reverse_chronological,
+        )
+        return sort_experience_reverse_chronological({'experience': list(exps)})
+
+    def test_aoi_below_almansour_when_is_current_not_set(self):
+        """The motivating regression: AOI start=Jul 2024 with a
+        fabricated end (LLM injected 'Dec 2025' + duration='- Present')
+        must NOT outrank a genuinely-later closed role."""
+        aoi = {
+            'title': 'IT Intern', 'company': 'AOI',
+            'start_date': 'Jul 2024', 'end_date': 'Dec 2025',
+            'duration': 'Jul 2024 - Present',
+        }
+        almansour = {
+            'title': 'DT Intern', 'company': 'Almansour',
+            'start_date': 'Aug 2025', 'end_date': 'Sep 2025',
+            'duration': 'Aug 2025 - Sep 2025',
+        }
+        depi = {
+            'title': 'AI Trainee', 'company': 'DEPI',
+            'start_date': 'Jun 2025', 'end_date': 'Dec 2025',
+            'duration': 'Jun 2025 - Dec 2025',
+        }
+        out = self._sort([aoi, almansour, depi])['experience']
+        order = [e['company'] for e in out]
+        self.assertEqual(order, ['DEPI', 'Almansour', 'AOI'],
+                         f'expected DEPI > Almansour > AOI, got {order}')
+
+    def test_genuine_is_current_role_sorts_at_top(self):
+        """A real ongoing role (is_current=True) still rises to the top."""
+        ongoing = {
+            'title': 'Current Role', 'company': 'ZCo',
+            'start_date': 'Jan 2024', 'end_date': 'Present',
+            'is_current': True,
+            'duration': 'Jan 2024 - Present',
+        }
+        closed_2025 = {
+            'title': 'Closed', 'company': 'ACo',
+            'start_date': 'Jun 2025', 'end_date': 'Dec 2025',
+            'duration': 'Jun 2025 - Dec 2025',
+        }
+        out = self._sort([closed_2025, ongoing])['experience']
+        self.assertEqual([e['company'] for e in out], ['ZCo', 'ACo'])
+
+    def test_legacy_duration_present_heals_in_sort(self):
+        """Stored duration tail 'Present' without is_current=True does
+        NOT promote the role — sort falls back to start date."""
+        from resumes.services.resume_normalizer import _extract_end_yearmonth
+        today_ym = (2026, 6)
+        entry = {
+            'start_date': 'Jul 2024',
+            'end_date': None,
+            'duration': 'Jul 2024 - Present',
+            # No is_current.
+        }
+        # End extraction returns None → sort caller will fall back to start.
+        self.assertIsNone(_extract_end_yearmonth(entry, today_ym))
+
+    def test_end_present_without_is_current_returns_none_in_parse(self):
+        from resumes.services.resume_normalizer import _parse_yearmonth
+        today_ym = (2026, 6)
+        # Default allow_present=False → "Present" → None.
+        self.assertIsNone(_parse_yearmonth('Present', today_ym))
+        self.assertIsNone(_parse_yearmonth('Currently', today_ym))
+        self.assertIsNone(_parse_yearmonth('Jul 2024 - Present', today_ym))
+        # Explicit opt-in → today_ym.
+        self.assertEqual(_parse_yearmonth('Present', today_ym, allow_present=True),
+                         today_ym)
+
+    def test_missing_end_falls_to_start_date(self):
+        """end=None is treated as unknown — sort uses start_date."""
+        out = self._sort([
+            {'title': 'A', 'company': 'A', 'start_date': 'Jul 2024',
+             'end_date': None, 'duration': ''},
+            {'title': 'B', 'company': 'B', 'start_date': 'Aug 2025',
+             'end_date': 'Sep 2025', 'duration': 'Aug 2025 - Sep 2025'},
+        ])['experience']
+        # B (ends Sep 2025) outranks A (no end, starts Jul 2024 → 2024-7).
+        self.assertEqual([e['company'] for e in out], ['B', 'A'])
+
+    def test_closed_ranges_untouched(self):
+        """Regression: closed ranges still sort correctly by end."""
+        out = self._sort([
+            {'title': 'Old', 'company': 'Old', 'start_date': 'Jan 2020',
+             'end_date': 'Dec 2020', 'duration': 'Jan 2020 - Dec 2020'},
+            {'title': 'New', 'company': 'New', 'start_date': 'Jan 2025',
+             'end_date': 'Dec 2025', 'duration': 'Jan 2025 - Dec 2025'},
+        ])['experience']
+        self.assertEqual([e['company'] for e in out], ['New', 'Old'])
+
+
+class DocxFormatDateRangeHonestTests(SimpleTestCase):
+    """docx_exporter._format_date_range: empty end is NOT "Present";
+    'Present' is honored only when is_current=True."""
+
+    def test_empty_end_renders_start_alone(self):
+        from resumes.services.docx_exporter import _format_date_range
+        out = _format_date_range('Jul 2024', '')
+        self.assertNotIn('Present', out)
+        self.assertIn('2024', out)
+
+    def test_present_token_without_is_current_renders_start_alone(self):
+        from resumes.services.docx_exporter import _format_date_range
+        out = _format_date_range('Jul 2024', 'Present')
+        self.assertNotIn('Present', out)
+        out = _format_date_range('Jul 2024', 'Present', is_current=False)
+        self.assertNotIn('Present', out)
+
+    def test_present_with_is_current_true_renders_present(self):
+        from resumes.services.docx_exporter import _format_date_range
+        out = _format_date_range('Jul 2024', 'Present', is_current=True)
+        self.assertIn('Present', out)
+        self.assertIn('2024', out)
+
+    def test_closed_range_unchanged(self):
+        from resumes.services.docx_exporter import _format_date_range
+        out = _format_date_range('Aug 2025', 'Sep 2025')
+        self.assertIn('Aug 2025', out)
+        self.assertIn('Sep 2025', out)
+        self.assertNotIn('Present', out)
+
+
+class PromptHardeningAssertionTests(SimpleTestCase):
+    """Lock in the prompt text changes that stop LLMs from fabricating
+    'Present' for missing end dates. These assertions guard against
+    accidental rollback."""
+
+    def test_llm_validator_no_longer_infers_present_from_absence(self):
+        from profiles.services import llm_validator
+        src = llm_validator.__doc__ or ''
+        # The validator's instruction text lives in the module-level
+        # CV_VALIDATOR_PROMPT (or equivalent) — read the file.
+        import inspect
+        file_src = inspect.getsource(llm_validator)
+        # Old fabrication instruction removed.
+        self.assertNotIn(
+            'infer "Present" only if it is the most recent role',
+            file_src,
+            'CV-parser prompt must not instruct LLM to infer Present '
+            'from absence of an end date',
+        )
+        # New explicit rule present.
+        self.assertIn('Set `is_current=true`', file_src)
+        self.assertIn('explicitly says ongoing', file_src)
+
+    def test_resume_generator_prompt_uses_closed_range_example(self):
+        from resumes.services import resume_generator
+        import inspect
+        file_src = inspect.getsource(resume_generator)
+        # Old open-ended example replaced.
+        self.assertNotIn('combine as "Aug 2025 - Present"', file_src)
+        # Closed-range example present.
+        self.assertIn('CLOSED range', file_src)
+        # Anti-fabrication rule present.
+        self.assertIn('DO NOT FABRICATE "Present"', file_src)
+
+
+class ResumeExperienceSchemaIsCurrentTests(SimpleTestCase):
+    """The is_current field exists on both Experience (profile-side)
+    and ResumeExperience (output-side) schemas, defaulting to None so
+    legacy records don't require migration."""
+
+    def test_experience_schema_has_is_current(self):
+        from profiles.services.schemas import Experience
+        fields = Experience.model_fields
+        self.assertIn('is_current', fields)
+        # Optional + default None.
+        exp = Experience(title='X', company='Y')
+        self.assertIsNone(exp.is_current)
+        exp2 = Experience(title='X', company='Y', is_current=True)
+        self.assertTrue(exp2.is_current)
+
+    def test_resume_experience_schema_has_is_current(self):
+        from profiles.services.schemas import ResumeExperience
+        fields = ResumeExperience.model_fields
+        self.assertIn('is_current', fields)
+        re = ResumeExperience(title='X', company='Y')
+        self.assertIsNone(re.is_current)
+
+
+class PdfRenderHealsLegacyPresentTests(SimpleTestCase):
+    """End-to-end: rendering a resume whose stored experience contains
+    the AOI-style legacy fabrication produces:
+      (a) the AOI duration shown as 'Jul 2024' (start alone), and
+      (b) AOI sorted BELOW Almansour."""
+
+    def _ctx(self, experience):
+        from resumes.services.resume_normalizer import (
+            heal_experience_durations, sort_experience_reverse_chronological,
+        )
+        ctx = _ats_render_context()
+        # Heal + re-sort, mirroring what pdf_exporter.generate_pdf does.
+        healed = heal_experience_durations(experience)
+        content = {'experience': healed,
+                   'professional_summary': 'x',
+                   'skills': ['Python']}
+        sorted_resume = sort_experience_reverse_chronological(content)
+        ctx['resume'] = sorted_resume
+        ctx['resume']['professional_title'] = 'Engineer'
+        ctx['section_order'] = ['summary', 'skills', 'experience']
+        return ctx
+
+    def _render(self, experience):
+        from django.template.loader import render_to_string
+        return render_to_string(
+            'resumes/pdf_template_ats_clean.html',
+            self._ctx(experience),
+        )
+
+    def _item_block(self, html, title_marker):
+        """Return the `<div class="item">...</div>` block containing
+        the given title marker. The PDF template renders title first,
+        then date, then company — so reads windowed forward from the
+        title cover the date AND the company line."""
+        import re
+        # Find all item blocks and pick the one containing the marker.
+        for m in re.finditer(r'<div class="item">[\s\S]*?</div>\s*</div>', html):
+            if title_marker in m.group(0):
+                return m.group(0)
+        return ''
+
+    def test_aoi_renders_start_alone_and_below_almansour(self):
+        aoi = {
+            'title': 'IT Intern', 'company': 'AOI',
+            'start_date': 'Jul 2024', 'end_date': 'Dec 2025',
+            'duration': 'Jul 2024 - Present',
+        }
+        almansour = {
+            'title': 'DT Intern', 'company': 'Almansour',
+            'start_date': 'Aug 2025', 'end_date': 'Sep 2025',
+            'duration': 'Aug 2025 - Sep 2025',
+        }
+        depi = {
+            'title': 'AI Trainee', 'company': 'DEPI',
+            'start_date': 'Jun 2025', 'end_date': 'Dec 2025',
+            'duration': 'Jun 2025 - Dec 2025',
+        }
+        html = self._render([aoi, almansour, depi])
+        # Sort order: DEPI > Almansour > AOI (titles read in that order).
+        i_depi = html.find('AI Trainee')
+        i_alm  = html.find('DT Intern')
+        i_aoi  = html.find('IT Intern')
+        self.assertGreater(i_depi, 0)
+        self.assertGreater(i_alm, i_depi)
+        self.assertGreater(i_aoi, i_alm,
+                           f'AOI must be below Almansour after heal+sort '
+                           f'(positions: DEPI={i_depi} Alm={i_alm} AOI={i_aoi})')
+        # AOI's item-block contains "Jul 2024" and NOT "Present".
+        aoi_block = self._item_block(html, 'IT Intern')
+        self.assertIn('Jul 2024', aoi_block)
+        self.assertNotIn('Present', aoi_block,
+                         'healed AOI must not render "Present"')
+        # Closed-range siblings untouched.
+        alm_block = self._item_block(html, 'DT Intern')
+        self.assertIn('Aug 2025', alm_block)
+        self.assertIn('Sep 2025', alm_block)
+        depi_block = self._item_block(html, 'AI Trainee')
+        self.assertIn('Jun 2025', depi_block)
+        self.assertIn('Dec 2025', depi_block)
+
+    def test_genuinely_current_role_still_shows_present(self):
+        cur = {
+            'title': 'Engineer', 'company': 'ZCo',
+            'start_date': 'Jan 2024', 'end_date': 'Present',
+            'is_current': True,
+            'duration': 'Jan 2024 - Present',
+        }
+        html = self._render([cur])
+        block = self._item_block(html, 'Engineer')
+        self.assertIn('Jan 2024', block)
+        self.assertIn('Present', block)
+
+
+# ---------------------------------------------------------------------------
+# Banned-opening single source of truth + regen-swap guard.
+# Canonical set lives in resumes.services.banned_openings; consumed by
+# the generator prompt, the reviewer's _scan_bullet, and the regen
+# feedback. Post-regen re-check prevents a Utilized→Leveraged-style
+# swap from being marked "resolved".
+# ---------------------------------------------------------------------------
+
+
+class BannedOpeningsCanonicalSetTests(SimpleTestCase):
+    """The set is the single source of truth — covers every verb the
+    task spec called out, the detector matches case-insensitively
+    after stripping leading noise, and unknown openings pass clean."""
+
+    def test_canonical_set_includes_required_verbs(self):
+        from resumes.services.banned_openings import BANNED_OPENINGS
+        required = {
+            "utilized", "leveraged", "spearheaded", "helped",
+            "worked on", "crafted", "responsible for", "assisted with",
+        }
+        missing = required - set(BANNED_OPENINGS)
+        self.assertFalse(missing, f"canonical set missing: {missing}")
+
+    def test_detects_each_banned_opening(self):
+        from resumes.services.banned_openings import find_banned_opening
+        cases = {
+            "Crafted a model that...": "crafted",
+            "Leveraged tools for X.": "leveraged",
+            "Spearheaded a new...": "spearheaded",
+            "Helped the team ship X.": "helped",
+            "Worked on a model pipeline.": "worked on",
+            "Utilized AWS to do X.": "utilized",
+            "Utilised AWS to do X.": "utilised",
+            "Responsible for X and Y.": "responsible for",
+            "Assisted with database migration.": "assisted with",
+            "Contributed to a deep-learning pipeline.": "contributed to",
+        }
+        for text, expected in cases.items():
+            self.assertEqual(
+                find_banned_opening(text), expected,
+                f"{text!r} should detect {expected!r}, got {find_banned_opening(text)!r}",
+            )
+
+    def test_clean_openings_pass(self):
+        from resumes.services.banned_openings import find_banned_opening
+        for clean in (
+            "Cut churn by 18% with a calibrated propensity model.",
+            "Shipped a REST API serving 5,110 predictions.",
+            "Reduced storage by 30% via dedup.",
+            "Designed a class-weighted Logistic Regression model.",
+            "Trained a CNN on 50K images.",
+            "Built a Streamlit dashboard.",
+        ):
+            self.assertIsNone(find_banned_opening(clean),
+                              f"{clean!r} should pass clean")
+
+    def test_match_is_case_insensitive_and_strips_leading_noise(self):
+        from resumes.services.banned_openings import find_banned_opening
+        for variant in (
+            "Crafted a model for X.",
+            "crafted a model for X.",
+            "CRAFTED a model for X.",
+            "• Crafted a model for X.",
+            "  - Crafted a model for X.",
+            '"Crafted a model for X."',
+        ):
+            self.assertEqual(find_banned_opening(variant), "crafted")
+
+    def test_word_boundary_guard(self):
+        """A bullet starting with 'Utilization' should NOT match 'utilized'."""
+        from resumes.services.banned_openings import find_banned_opening
+        self.assertIsNone(find_banned_opening("Utilization of resources improved..."))
+
+
+class GeneratorPromptListsCanonicalSetTests(SimpleTestCase):
+    """The generator's _BULLET_QUALITY_RULES enumerates every canonical
+    banned opening — so first-attempt generation has the full forbidden
+    list."""
+
+    def test_generator_prompt_contains_every_canonical_opening(self):
+        from resumes.services.banned_openings import BANNED_OPENINGS
+        from resumes.services.resume_generator_v2 import _BULLET_QUALITY_RULES
+        rules_lower = _BULLET_QUALITY_RULES.lower()
+        for banned in BANNED_OPENINGS:
+            self.assertIn(banned, rules_lower,
+                          f"generator prompt missing canonical verb {banned!r}")
+
+    def test_generator_prompt_includes_forbidden_section_header(self):
+        from resumes.services.resume_generator_v2 import _BULLET_QUALITY_RULES
+        self.assertIn("FORBIDDEN OPENINGS", _BULLET_QUALITY_RULES)
+
+
+class ReviewerReadsCanonicalSetTests(SimpleTestCase):
+    """The reviewer's _scan_bullet must call find_banned_opening from
+    the canonical module — no hardcoded duplicate list lives in
+    resume_reviewer_v2 anymore."""
+
+    def test_reviewer_module_has_no_hardcoded_banned_set(self):
+        import resumes.services.resume_reviewer_v2 as rv
+        # The old constant name no longer exists.
+        self.assertFalse(
+            hasattr(rv, "_BANNED_OPENINGS"),
+            "_BANNED_OPENINGS still exists — should be gone after collapse "
+            "to banned_openings.BANNED_OPENINGS",
+        )
+        # The reviewer imports from the canonical module.
+        import inspect
+        src = inspect.getsource(rv)
+        self.assertIn("from resumes.services.banned_openings import", src)
+        self.assertIn("find_banned_opening", src)
+
+    def test_reviewer_flags_newly_canonical_openings(self):
+        """The bug the smoke run caught: 'Crafted' / 'Leveraged' /
+        'Spearheaded' / 'Helped' / 'Worked on' were not flagged before
+        the collapse. They must be flagged now."""
+        from resumes.services.resume_reviewer_v2 import _scan_bullet
+        for text in (
+            "Crafted a model for X.",
+            "Leveraged tools for data science to drive project outcomes.",
+            "Spearheaded a new architecture for X.",
+            "Helped the team ship Y.",
+            "Worked on a pipeline for Z.",
+        ):
+            findings = _scan_bullet(text)
+            banned_findings = [
+                f for f in findings
+                if f["rule_id"] == "A1_banned_phrase"
+                and "banned opening" in f["detail"]
+            ]
+            self.assertTrue(
+                banned_findings,
+                f"{text!r} should produce a banned-opening finding",
+            )
+
+
+class RegenFeedbackNamesForbiddenSetTests(SimpleTestCase):
+    """When the reviewer regenerates a banned-opening bullet, the
+    feedback fed to the LLM must enumerate the full canonical set —
+    so the LLM doesn't swap one banned verb for another."""
+
+    def test_feedback_for_banned_opening_lists_all_forbidden_verbs(self):
+        from resumes.services.banned_openings import BANNED_OPENINGS
+        from resumes.services.resume_reviewer_v2 import _build_regen_feedback
+        finding = {
+            "rule_id": "A1_banned_phrase",
+            "severity": "blocking",
+            "where": "experience/x[0]",
+            "detail": "bullet starts with banned opening 'utilized'",
+            "fix": "Replace the opening with a strong outcome-leading verb.",
+        }
+        feedback = _build_regen_feedback(finding)
+        # Every canonical verb appears in the feedback (case-insensitive
+        # check — feedback uses Title Case).
+        feedback_lower = feedback.lower()
+        for banned in BANNED_OPENINGS:
+            self.assertIn(banned, feedback_lower,
+                          f"regen feedback missing {banned!r}")
+
+    def test_feedback_for_non_banned_finding_does_not_list_forbidden_set(self):
+        """An intensifier finding (A1) or AI-tell finding (A7) doesn't
+        need the forbidden-openings preamble — keep the feedback
+        targeted."""
+        from resumes.services.resume_reviewer_v2 import _build_regen_feedback
+        intensifier = _build_regen_feedback({
+            "rule_id": "A1_banned_phrase",
+            "detail": "bullet contains an empty intensifier (successfully/...)",
+            "fix": "Remove the intensifier; let the outcome speak.",
+        })
+        # Doesn't drag the full banned-verb list into a different
+        # rule's feedback.
+        self.assertNotIn("crafted", intensifier.lower())
+        self.assertNotIn("spearheaded", intensifier.lower())
+        ai_tell = _build_regen_feedback({
+            "rule_id": "A7_demonstrating_closer",
+            "detail": "bullet ends with an AI-tell participial phrase",
+            "fix": "Drop the trailing tail; end on the concrete outcome.",
+        })
+        self.assertNotIn("crafted", ai_tell.lower())
+
+
+class RegenSwapGuardTests(SimpleTestCase):
+    """A regen for a banned-opening finding that produces ANOTHER
+    banned opening (e.g. Utilized→Leveraged) is NOT counted resolved —
+    it's recorded as demoted with reason 'regen_produced_banned_opener'.
+    Mocks the LLM via _generate_one_bullet so no Groq calls happen."""
+
+    @staticmethod
+    def _build_test_resume_with_banned_bullet(opening_text):
+        from resumes.services.resume_generator_v2 import (
+            GeneratedResumeV2, GeneratedSection, EntityBlock, GeneratedBullet,
+        )
+        return GeneratedResumeV2(sections={
+            "experience": GeneratedSection(
+                section="experience",
+                entities=[EntityBlock(
+                    entity_id="ent-x",
+                    entity_display="Engineer @ Acme",
+                    bullets=[GeneratedBullet(
+                        text=opening_text,
+                        fact_ids=["f1"],
+                    )],
+                )],
+            ),
+        })
+
+    @staticmethod
+    def _build_test_store_with_one_fact():
+        from resumes.services.fact_store import FactStore
+        from resumes.services.fact_store import (
+            FactRecord, FactType, SourceReliability,
+        )
+        store = FactStore()
+        store.add(FactRecord(
+            id="f1", type=FactType.ACHIEVEMENT,
+            claim="shipped X with results",
+            entity_id="ent-x", entity_display="Engineer @ Acme",
+            source="cv", source_reliability=SourceReliability.USER_ORIGINAL,
+            evidence_quote="shipped X with results",
+        ))
+        return store
+
+    def test_swap_to_another_banned_opener_is_demoted_not_resolved(self):
+        from unittest.mock import patch
+        from resumes.services.resume_generator_v2 import GeneratedBullet
+        from resumes.services.resume_reviewer_v2 import review_and_regenerate
+        from resumes.services.resume_planner_v2 import PlanResult
+
+        resume = self._build_test_resume_with_banned_bullet("Utilized AWS to ship X.")
+        store = self._build_test_store_with_one_fact()
+        from resumes.services.resume_planner_v2 import ValidationReport
+        plan = PlanResult(sections={}, validation=ValidationReport(valid_fact_ids=["f1"]))
+
+        def fake_regen(**kwargs):
+            # The LLM "fixes" by emitting a different banned verb.
+            return GeneratedBullet(text="Leveraged AWS to ship X.", fact_ids=["f1"])
+
+        with patch("resumes.services.resume_reviewer_v2._generate_one_bullet",
+                   side_effect=fake_regen):
+            _, report = review_and_regenerate(
+                resume, store=store, plan=plan, job_title="",
+                writing_rules_block="", max_rounds=1,
+            )
+
+        # The original Utilized finding is NOT in resolved.
+        for r in report["resolved"]:
+            self.assertNotIn("utilized", (r.get("detail") or "").lower(),
+                             f"Utilized finding wrongly resolved: {r}")
+        # It IS in demoted with the regen-failure reason.
+        regen_failed = [
+            d for d in report["demoted"]
+            if d.get("demoted_reason") == "regen_produced_banned_opener"
+        ]
+        self.assertTrue(regen_failed,
+                        f"expected 1+ demoted with regen_produced_banned_opener; "
+                        f"got demoted={report['demoted']}")
+        # Annotates the offending regen output so the user knows what
+        # the regen produced.
+        ann = regen_failed[0]
+        self.assertEqual(ann.get("regen_attempt_banned_opening"), "leveraged")
+        self.assertIn("Leveraged", ann.get("regen_attempt_text") or "")
+        # And not double-demoted under another reason.
+        cap_dem = [d for d in report["demoted"]
+                   if d.get("demoted_reason") == "review_cap_exhausted"
+                   and "utilized" in (d.get("detail") or "").lower()]
+        self.assertFalse(cap_dem,
+                         "regen-swap finding double-demoted under cap_exhausted")
+
+    def test_clean_regen_is_resolved_not_demoted(self):
+        from unittest.mock import patch
+        from resumes.services.resume_generator_v2 import GeneratedBullet
+        from resumes.services.resume_reviewer_v2 import review_and_regenerate
+        from resumes.services.resume_planner_v2 import PlanResult
+
+        resume = self._build_test_resume_with_banned_bullet("Utilized AWS to ship X.")
+        store = self._build_test_store_with_one_fact()
+        from resumes.services.resume_planner_v2 import ValidationReport
+        plan = PlanResult(sections={}, validation=ValidationReport(valid_fact_ids=["f1"]))
+
+        def fake_regen(**kwargs):
+            return GeneratedBullet(text="Shipped X via AWS Lambda.", fact_ids=["f1"])
+
+        with patch("resumes.services.resume_reviewer_v2._generate_one_bullet",
+                   side_effect=fake_regen):
+            _, report = review_and_regenerate(
+                resume, store=store, plan=plan, job_title="",
+                writing_rules_block="", max_rounds=1,
+            )
+
+        resolved_utilized = [
+            r for r in report["resolved"]
+            if "utilized" in (r.get("detail") or "").lower()
+        ]
+        self.assertTrue(resolved_utilized,
+                        "clean regen should be marked resolved")
+        # And NOT also demoted.
+        demoted_utilized = [
+            d for d in report["demoted"]
+            if "utilized" in (d.get("detail") or "").lower()
+        ]
+        self.assertFalse(demoted_utilized,
+                         "clean regen should NOT appear in demoted")
 

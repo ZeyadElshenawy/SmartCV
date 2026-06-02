@@ -69,7 +69,15 @@
     .pdf-preview .p-item-subtitle { font-weight: bold; color: var(--p-subtitle-color); font-size: 7pt; margin-top: 1px; margin-bottom: 2px; }
     .pdf-preview .p-item-description { font-size: 6.5pt; line-height: 1.3; color: #333; padding-left: 10px; margin: 0; }
 
-    /* Template variants — same vars as editor.html */
+    /* Template variants — same vars as edit.html */
+    .pdf-preview--ats_clean { /* inherits defaults */ }
+    .pdf-preview--ats_clean_accent {
+        --p-title-color: #1e3a8a;
+        --p-section-title-color: #1e3a8a;
+        --p-section-title-border: 1px solid #1e3a8a;
+        --p-header-border: 1px solid #1e3a8a;
+    }
+    /* Legacy classes — preview-only; PDF renders via THEME_MIGRATION */
     .pdf-preview--standard { /* inherits defaults */ }
     .pdf-preview--executive {
         --p-font: 'Georgia', 'Times New Roman', Times, serif;
@@ -207,7 +215,7 @@
 
                 {# At-a-glance preview of the actual résumé content #}
                 <a href="{% url 'resume_preview' resume.id %}" class="resume-list-thumb-wrap block">
-                    <div class="resume-list-thumb pdf-preview pdf-preview--{{ resume.content.template_name|default:'standard' }}"
+                    <div class="resume-list-thumb pdf-preview pdf-preview--{{ resume.content.template_name|default:'ats_clean' }}"
                          aria-hidden="true">
                         <div class="p-header">
                             <div class="p-name">{{ profile_name }}</div>
