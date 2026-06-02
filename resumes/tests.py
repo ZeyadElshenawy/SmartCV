@@ -11638,13 +11638,13 @@ class SummaryPromptSynthesisTests(SimpleTestCase):
         )
 
     def test_summary_prompt_contains_synthesis_directive(self):
-        p = self._summary_prompt()
-        self.assertIn("PROFESSIONAL SUMMARY", p)
-        self.assertIn("Synthesize ACROSS the facts", p)
-        # 2-3 sentence shape called out.
-        self.assertIn("2-3 sentence", p)
-        # Length budget different from bullets.
-        self.assertIn("50-80 words", p)
+        p = self._summary_prompt().lower()
+        self.assertIn("professional summary", p)
+        self.assertIn("synthesize across the facts", p)
+        # Length shape called out — spelled out post-FIX-2 to avoid the
+        # number-lock false-positive on our own prompt digits.
+        self.assertIn("two to three sentences", p)
+        self.assertIn("fifty to eighty words", p)
 
     def test_summary_prompt_does_not_carry_bullet_copy(self):
         """The summary path must NOT carry the bullet's one-line
@@ -11989,4 +11989,270 @@ class FindingsContentCorpusHelperTests(SimpleTestCase):
         self.assertEqual(_collect_resume_content_corpus(None), "")
         self.assertEqual(_collect_resume_content_corpus({}), "")
         self.assertEqual(_collect_resume_content_corpus("not a dict"), "")
+
+
+# ---------------------------------------------------------------------------
+# Summary prompt refinements:
+#   FIX 1 — kill the "Here is a rewritten…" preamble (prompt directive +
+#           deterministic post-process strip).
+#   FIX 2 — remove ALL digits from the summary prompt instruction text so
+#           the number-lock can't false-positive on a digit we emitted.
+#   FIX 3 — nudge the LLM toward the fuller end of the length range.
+# ---------------------------------------------------------------------------
+
+
+class SummaryPromptRefinementTests(SimpleTestCase):
+    """Prompt-text assertions for the three summary refinements."""
+
+    def _summary_prompt(self):
+        from resumes.services.resume_generator_v2 import _bullet_prompt
+        return _bullet_prompt(
+            role_hint="the professional summary for an AI/ML Developer role at Acme",
+            facts=[],
+            section="summary",
+        )
+
+    def _bullet_prompt(self):
+        from resumes.services.resume_generator_v2 import _bullet_prompt
+        return _bullet_prompt(
+            role_hint="an experience entry: 'Engineer @ Acme'",
+            facts=[],
+            section="experience",
+        )
+
+    # --- FIX 1: no preamble ----------------------------------------
+
+    def test_summary_prompt_has_explicit_no_preamble_directive(self):
+        p = self._summary_prompt()
+        # The directive name-checks the patterns the LLM was emitting.
+        self.assertIn("Do NOT prefix with 'Here is", p)
+        self.assertIn("'Summary:'", p)
+        self.assertIn("'Professional summary:'", p)
+        self.assertIn("Output ONLY the summary itself", p)
+        self.assertIn("Start directly with the first sentence", p)
+        # Reinforce that the old softer closing isn't there in isolation
+        # (the new one supersedes it).
+        self.assertNotIn("Return JUST the summary text — 2-3 sentences",
+                         p)
+
+    # --- FIX 2: no digits in the summary instruction text ----------
+
+    def test_summary_prompt_has_zero_digits_in_instructions(self):
+        """Digits in our own prompt copy collide with the number-lock
+        regex when the LLM echoes them. Spell every count out in words
+        so the guard has nothing of ours to grab.
+
+        We check the SUMMARY_QUALITY_RULES constant + the inline branch
+        text. Digits inside facts/feedback aren't from our copy.
+        """
+        import re
+        from resumes.services.resume_generator_v2 import (
+            _SUMMARY_QUALITY_RULES,
+        )
+        # The standalone rules block — no digit anywhere.
+        self.assertIsNone(re.search(r"\d", _SUMMARY_QUALITY_RULES),
+                          f"_SUMMARY_QUALITY_RULES contains a digit: "
+                          f"{_SUMMARY_QUALITY_RULES!r}")
+        # The inline summary-branch directives (the opener + the
+        # closing instruction) — render the prompt without facts /
+        # feedback / writing rules, so the only text in the prompt
+        # outside _SUMMARY_QUALITY_RULES is the inline copy. Pull
+        # those lines and assert digit-free.
+        p = self._summary_prompt()
+        # Lines that are NOT in the rules block (everything before
+        # _SUMMARY_QUALITY_RULES and after it).
+        before_rules, _, after_rules = p.partition(_SUMMARY_QUALITY_RULES)
+        for label, fragment in (("before-rules", before_rules),
+                                ("after-rules", after_rules)):
+            # Strip the facts placeholder line ("(no facts)") whose
+            # text is not from our prompt copy.
+            cleaned = fragment.replace("(no facts)", "")
+            self.assertIsNone(
+                re.search(r"\d", cleaned),
+                f"summary prompt {label} fragment contains a digit: "
+                f"{cleaned!r}",
+            )
+
+    def test_summary_prompt_uses_spelled_out_length_words(self):
+        from resumes.services.resume_generator_v2 import (
+            _SUMMARY_QUALITY_RULES,
+        )
+        lower = _SUMMARY_QUALITY_RULES.lower()
+        self.assertIn("two to three sentences", lower)
+        self.assertIn("fifty to eighty words", lower)
+        # The old digit-bearing forms are gone.
+        self.assertNotIn("2-3", _SUMMARY_QUALITY_RULES)
+        self.assertNotIn("50-80", _SUMMARY_QUALITY_RULES)
+
+    # --- FIX 3: nudge toward the fuller end ------------------------
+
+    def test_summary_rules_nudges_toward_fuller_length(self):
+        from resumes.services.resume_generator_v2 import (
+            _SUMMARY_QUALITY_RULES,
+        )
+        self.assertIn("Aim for the fuller end", _SUMMARY_QUALITY_RULES)
+        self.assertIn("three sentences is better than two",
+                      _SUMMARY_QUALITY_RULES)
+
+    # --- Regression: bullet prompt untouched -----------------------
+
+    def test_bullet_prompt_still_has_15_25_words_etc(self):
+        """Non-summary sections still get the bullet copy — digit
+        cleanup is summary-only."""
+        p = self._bullet_prompt()
+        self.assertIn("15-25 words", p)
+        self.assertIn("1-2 lines", p)
+        self.assertIn("ONE resume bullet", p)
+        self.assertIn("one line, no quotes", p)
+        # And the summary-only copy did NOT leak into the bullet path.
+        self.assertNotIn("two to three sentences", p)
+        self.assertNotIn("Do NOT prefix with 'Here is", p)
+
+
+class SummaryPreambleStripTests(SimpleTestCase):
+    """Deterministic post-process strip for LLM-emitted preambles —
+    runs after the number guard so a "Here is a rewritten…" preamble
+    NEVER reaches the rendered PDF, even if the LLM ignores the prompt
+    instruction."""
+
+    def test_strips_here_is_a_rewritten_preamble(self):
+        from resumes.services.resume_generator_v2 import _strip_summary_preamble
+        raw = (
+            "Here is a rewritten professional summary:\n\n"
+            "AI/ML Developer with a foundation in Applied Machine Learning."
+        )
+        out = _strip_summary_preamble(raw)
+        self.assertEqual(
+            out,
+            "AI/ML Developer with a foundation in Applied Machine Learning.",
+        )
+
+    def test_strips_summary_colon_label(self):
+        from resumes.services.resume_generator_v2 import _strip_summary_preamble
+        raw = "Summary:\nEngineer with hands-on ML production experience."
+        self.assertEqual(
+            _strip_summary_preamble(raw),
+            "Engineer with hands-on ML production experience.",
+        )
+
+    def test_strips_professional_summary_label(self):
+        from resumes.services.resume_generator_v2 import _strip_summary_preamble
+        raw = "Professional summary:\n\nSenior Data Scientist focused on NLP."
+        self.assertEqual(
+            _strip_summary_preamble(raw),
+            "Senior Data Scientist focused on NLP.",
+        )
+
+    def test_strips_heres_a_preamble(self):
+        from resumes.services.resume_generator_v2 import _strip_summary_preamble
+        raw = ("Here's a 2-3 sentence summary:\n"
+               "ML Engineer with three years of pipeline work.")
+        out = _strip_summary_preamble(raw)
+        self.assertEqual(out, "ML Engineer with three years of pipeline work.")
+
+    def test_strips_leading_label_line_ending_in_colon(self):
+        """Second-pass safety net for labels the keyword set didn't
+        anticipate (any short leading line ending in ':')."""
+        from resumes.services.resume_generator_v2 import _strip_summary_preamble
+        raw = "My polished version:\nAI Engineer building production RAG."
+        self.assertEqual(
+            _strip_summary_preamble(raw),
+            "AI Engineer building production RAG.",
+        )
+
+    def test_clean_summary_passes_through_unchanged(self):
+        from resumes.services.resume_generator_v2 import _strip_summary_preamble
+        clean = (
+            "AI/ML Developer with a Coursera credential and an AI Associate "
+            "Level certificate. Builds and deploys ML models, including a "
+            "Flask REST API for predictions. Drives business value via "
+            "Python-based data solutions."
+        )
+        self.assertEqual(_strip_summary_preamble(clean), clean)
+
+    def test_does_not_strip_first_sentence_that_happens_to_end_in_colon(self):
+        """A summary that legitimately starts with a long first sentence
+        ending in ':' (very rare) should NOT be stripped — the safety-net
+        only fires when the leading line is short (< 120 chars). A real
+        first sentence is typically 40-80 chars but the safety net's
+        triggers on labels under 120, which covers normal label use
+        without stripping prose."""
+        from resumes.services.resume_generator_v2 import _strip_summary_preamble
+        # 130+ char first "sentence" ending in colon — won't trigger
+        # the safety-net strip.
+        raw = (
+            "AI/ML Developer with strong experience in deep learning, "
+            "computer vision, and natural language processing pipelines "
+            "across production-scale systems:\n"
+            "Built and shipped multiple RAG systems."
+        )
+        out = _strip_summary_preamble(raw)
+        # The first line (>= 120 chars) is preserved.
+        self.assertTrue(out.startswith("AI/ML Developer"))
+
+    def test_empty_or_none_returns_input_unchanged(self):
+        from resumes.services.resume_generator_v2 import _strip_summary_preamble
+        self.assertEqual(_strip_summary_preamble(""), "")
+        self.assertEqual(_strip_summary_preamble("   "), "   ")
+        self.assertIsNone(_strip_summary_preamble(None))
+
+
+class SummaryStripIntegrationTests(SimpleTestCase):
+    """End-to-end: a mocked summary LLM emitting a preamble produces
+    a GeneratedSection whose .summary_text is the clean summary, NOT
+    the preamble."""
+
+    def _build_facts(self):
+        from resumes.services.fact_store import (
+            FactRecord, FactType, SourceReliability,
+        )
+        return [
+            FactRecord(
+                id="f1", type=FactType.ACHIEVEMENT,
+                claim="shipped X",
+                entity_id="ent", entity_display="Engineer @ Acme",
+                source="cv", source_reliability=SourceReliability.USER_ORIGINAL,
+                evidence_quote="shipped X",
+            ),
+        ]
+
+    def test_generated_summary_text_has_preamble_stripped(self):
+        from unittest.mock import patch
+        from resumes.services.fact_store import FactStore
+        from resumes.services.resume_planner_v2 import (
+            FactAllocation, SectionPlan,
+        )
+        from resumes.services.resume_generator_v2 import _generate_summary
+
+        store = FactStore()
+        facts = self._build_facts()
+        for f in facts:
+            store.add(f)
+        section = SectionPlan(
+            section="summary",
+            facts=[FactAllocation(fact_id=facts[0].id,
+                                  rationale="test", hedged=False)],
+        )
+
+        preamble = (
+            "Here is a rewritten professional summary:\n\n"
+            "AI/ML Developer with a foundation in Applied Machine Learning. "
+            "Builds production systems. Drives business outcomes."
+        )
+        with patch(
+            "resumes.services.resume_generator_v2._llm_call",
+            side_effect=lambda prompt: preamble,
+        ):
+            out = _generate_summary(
+                store, section,
+                job_title="AI/ML Developer",
+                job_company="Acme",
+                events=[],
+            )
+        self.assertFalse(out.summary_text.startswith("Here is"),
+                         f"preamble not stripped: {out.summary_text!r}")
+        self.assertTrue(out.summary_text.startswith("AI/ML Developer"))
+        # The bullet copy was synced so the model object also carries
+        # the clean text (for downstream review / regen feedback).
+        self.assertTrue(out.bullets[0].text.startswith("AI/ML Developer"))
 
