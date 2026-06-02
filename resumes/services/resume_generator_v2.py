@@ -174,7 +174,7 @@ PHRASING:
 # still tests the first token of the summary text. The ONLY change is
 # the prompt copy.
 _SUMMARY_QUALITY_RULES = f"""POSITIONING SHAPE — the summary names WHO this candidate is and what they bring:
-  [Level + role focus] + [2-3 strongest themes drawn from the facts] + [What sets them apart, briefly]
+  [Level + role focus] + [the strongest themes drawn from the facts] + [What sets them apart, briefly]
 
 SYNTHESIZE — do NOT pick one accomplishment and write about it:
 - The facts below are MARQUEE facts. Synthesize across multiple of them — the summary should reflect breadth, not a single project.
@@ -190,7 +190,8 @@ FORBIDDEN OPENINGS — NEVER start the summary with any of these (case-insensiti
 Open with what the candidate IS or BUILDS, not with a verb-of-doing.
 
 LENGTH:
-- 2-3 sentences total, ~50-80 words. NOT a single one-liner.
+- Two to three sentences total, roughly fifty to eighty words. NOT a single one-liner.
+- Aim for the fuller end — three sentences is better than two; do not trim conservatively.
 - Each sentence carries its own weight — level / focus / themes — don't repeat content across sentences."""
 
 
@@ -377,14 +378,16 @@ def _bullet_prompt(
     # prompt copy differs.
     if section == "summary":
         return (
-            f"You are writing a 2-3 sentence PROFESSIONAL SUMMARY for {role_hint}. "
+            f"You are writing a PROFESSIONAL SUMMARY of two to three sentences for {role_hint}. "
             "Synthesize ACROSS the facts below — do not pick just one.\n"
             f"{_SUMMARY_QUALITY_RULES}\n"
             f"{writing_rules}"
             f"FACTS (the ONLY content + numbers you may draw from):\n{facts_block}\n"
             f"{feedback}\n"
-            "Return JUST the summary text — 2-3 sentences, no quotes, "
-            "no bullet character, no commentary."
+            "Output ONLY the summary itself. Start directly with the first sentence "
+            "(e.g. 'AI/ML Developer…'). Do NOT prefix with 'Here is…', 'Summary:', "
+            "'Professional summary:', or any preamble or commentary. No quotes, no "
+            "bullet character, no markdown headers."
         )
     return (
         f"You are writing ONE resume bullet for {role_hint}. Use the facts below.\n"
@@ -570,6 +573,47 @@ def _generate_certification_lines(
     )
 
 
+# Belt-and-suspenders: even with the prompt's explicit "no preamble"
+# instruction, the LLM occasionally prefixes the summary with "Here is
+# a rewritten professional summary:" or similar. Strip it deterministically
+# before the text reaches the resume model. This text ships into the PDF,
+# so we don't want to depend on the LLM honoring an instruction.
+_SUMMARY_PREAMBLE_RE = re.compile(
+    r"^\s*("
+    r"here\s+is(?:\s+a)?|"
+    r"here['’]?s(?:\s+a)?|"
+    r"summary|"
+    r"professional\s+summary|"
+    r"rewritten(?:\s+\w+)?"
+    r")\b[^\n]{0,120}:\s*",
+    re.IGNORECASE,
+)
+
+
+def _strip_summary_preamble(text: str) -> str:
+    """Remove an LLM-emitted preamble (e.g. ``"Here is a rewritten
+    professional summary:"``) from the start of summary text. Belt-and-
+    suspenders for the prompt's "no preamble" rule — this text ships
+    into the PDF and we don't want it to depend on LLM compliance.
+
+    Two passes:
+      1. Strip a preamble that opens with one of a small set of keywords
+         and ends in ``:``.
+      2. If the first non-empty line still ends in ``:`` and is short
+         enough to be a label (under 120 chars), drop it. Catches
+         labels the keyword set didn't anticipate.
+    """
+    if not isinstance(text, str) or not text.strip():
+        return text
+    stripped = _SUMMARY_PREAMBLE_RE.sub("", text, count=1)
+    lines = stripped.split("\n", 1)
+    if (len(lines) == 2
+            and lines[0].strip().endswith(":")
+            and len(lines[0].strip()) < 120):
+        stripped = lines[1]
+    return stripped.lstrip()
+
+
 def _generate_summary(
     store: FactStore,
     section: SectionPlan,
@@ -580,7 +624,8 @@ def _generate_summary(
     writing_rules_block: str = "",
 ) -> GeneratedSection:
     """Summary: one short paragraph drawing on the plan's marquee facts.
-    Single LLM call; same number guard."""
+    Single LLM call; same number guard. Post-processes the LLM output
+    to strip a leading preamble — see ``_strip_summary_preamble``."""
     facts = _resolve_facts(store, section.facts)
     if not facts:
         return GeneratedSection(section="summary", summary_text="")
@@ -595,9 +640,15 @@ def _generate_summary(
         allowed_numbers=allowed, events=events,
         writing_rules_block=writing_rules_block,
     )
+    # Defensive strip — happens AFTER the number guard so the preamble's
+    # text doesn't participate in number-grounding (the guard already
+    # ran on the raw LLM output before reaching this branch).
+    final_text = _strip_summary_preamble(bullet.text) if bullet else ""
+    if bullet and final_text != bullet.text:
+        bullet = bullet.model_copy(update={"text": final_text})
     return GeneratedSection(
         section="summary",
-        summary_text=bullet.text if bullet else "",
+        summary_text=final_text,
         bullets=[bullet] if bullet else [],
     )
 
