@@ -12256,3 +12256,330 @@ class SummaryStripIntegrationTests(SimpleTestCase):
         # the clean text (for downstream review / regen feedback).
         self.assertTrue(out.bullets[0].text.startswith("AI/ML Developer"))
 
+
+# ---------------------------------------------------------------------------
+# v2 adapter match-chain — replaces the id-only match (dead code for
+# profile-sourced flows) with id → normalised (title, company) match,
+# so source metadata reaches the template dict.
+# ---------------------------------------------------------------------------
+
+
+def _make_entity(entity_id, entity_display, bullet_texts):
+    """Construct a real EntityBlock for use in adapter tests."""
+    from resumes.services.resume_generator_v2 import (
+        EntityBlock, GeneratedBullet,
+    )
+    return EntityBlock(
+        entity_id=entity_id,
+        entity_display=entity_display,
+        bullets=[GeneratedBullet(text=t, fact_ids=[]) for t in bullet_texts],
+    )
+
+
+def _make_generated_resume_v2(experience=None, projects=None):
+    """A minimal GeneratedResumeV2 with experience + projects sections
+    populated from EntityBlock instances."""
+    from resumes.services.resume_generator_v2 import (
+        GeneratedResumeV2, GeneratedSection,
+    )
+    sections = {}
+    if experience is not None:
+        sections["experience"] = GeneratedSection(
+            section="experience", entities=experience,
+        )
+    if projects is not None:
+        sections["projects"] = GeneratedSection(
+            section="projects", entities=projects,
+        )
+    return GeneratedResumeV2(sections=sections)
+
+
+class V2AdapterMatchChainTests(SimpleTestCase):
+    """The id-only match was dead code for profile-sourced data; the
+    new match chain (id → normalised title+company) recovers metadata."""
+
+    def test_experience_title_company_match_merges_source_metadata(self):
+        """The motivating fix — source items lack `id`, but title +
+        company match the v2 entity. Source metadata flows through."""
+        from resumes.services.resume_v2_adapter import resume_v2_to_template_dict
+        v2 = _make_generated_resume_v2(experience=[
+            _make_entity(
+                entity_id="cv:role|digital egypt pioneers initiative - depi|ai & data science trainee",
+                entity_display="AI & Data Science Trainee @ Digital Egypt Pioneers Initiative - DEPI",
+                bullet_texts=["Built reproducible ML pipelines.",
+                              "Owned MLflow + Hugging Face integration."],
+            ),
+        ])
+        source = {
+            "experiences": [
+                {  # Source row matches by (title, company) — no id field.
+                    "title": "AI & Data Science Trainee",
+                    "company": "Digital Egypt Pioneers Initiative - DEPI",
+                    "start_date": "Jun 2025",
+                    "end_date": "Dec 2025",
+                    "location": "Remote",
+                    "industry": "Education / AI",
+                },
+            ],
+        }
+        # Mirror the live wiring: source['experience'] is what the adapter
+        # walks — but profile data uses `experiences`. The adapter is
+        # called with experience key, so plumb it.
+        plumbed = {**source, "experience": source["experiences"]}
+        out = resume_v2_to_template_dict(v2, source=plumbed)
+        item = out["experience"][0]
+        # Source METADATA merged.
+        self.assertEqual(item["company"], "Digital Egypt Pioneers Initiative - DEPI")
+        self.assertEqual(item["start_date"], "Jun 2025")
+        self.assertEqual(item["end_date"], "Dec 2025")
+        self.assertEqual(item["location"], "Remote")
+        self.assertEqual(item["industry"], "Education / AI")
+        # Duration assembled honestly from start/end (no Present).
+        self.assertEqual(item["duration"], "Jun 2025 - Dec 2025")
+        # v2 bullets carried through.
+        self.assertEqual(item["description"],
+                         ["Built reproducible ML pipelines.",
+                          "Owned MLflow + Hugging Face integration."])
+
+    def test_match_is_case_and_whitespace_insensitive(self):
+        from resumes.services.resume_v2_adapter import resume_v2_to_template_dict
+        v2 = _make_generated_resume_v2(experience=[
+            _make_entity(
+                "ent-x",
+                "AI & Data Science Trainee @ Digital Egypt Pioneers Initiative - DEPI",
+                ["b1"],
+            ),
+        ])
+        source = {"experience": [{
+            # Drift: extra whitespace, different case.
+            "title": "ai &  data    science  TRAINEE",
+            "company": "  digital egypt  pioneers   initiative - depi  ",
+            "start_date": "Jun 2025", "end_date": "Dec 2025",
+        }]}
+        out = resume_v2_to_template_dict(v2, source=source)
+        item = out["experience"][0]
+        self.assertEqual(item["start_date"], "Jun 2025")
+        self.assertEqual(item["duration"], "Jun 2025 - Dec 2025")
+
+    def test_aoi_style_role_with_no_end_date_renders_start_alone(self):
+        """The integration of the adapter merge + assemble_duration_honest:
+        AOI source has end_date=None, is_current=None, start='Jul 2024'
+        → duration must be 'Jul 2024' (NOT 'Jul 2024 - Present')."""
+        from resumes.services.resume_v2_adapter import resume_v2_to_template_dict
+        v2 = _make_generated_resume_v2(experience=[
+            _make_entity(
+                "ent-aoi",
+                "Information Technology Intern @ Arab Organization for Industrialization",
+                ["Completed sensor / microcontroller / IoT training."],
+            ),
+        ])
+        source = {"experience": [{
+            "title": "Information Technology Intern",
+            "company": "Arab Organization for Industrialization",
+            "start_date": "Jul 2024",
+            "end_date": None,        # the AOI shape
+            "is_current": None,
+        }]}
+        out = resume_v2_to_template_dict(v2, source=source)
+        item = out["experience"][0]
+        self.assertEqual(item["start_date"], "Jul 2024")
+        self.assertEqual(item["duration"], "Jul 2024")
+        self.assertNotIn("Present", item["duration"])
+
+    def test_conservative_match_no_overlap_falls_through_to_split(self):
+        """When the v2 entity does NOT confidently match ANY source
+        item, fall through to the no-match branch instead of attaching
+        wrong metadata."""
+        from resumes.services.resume_v2_adapter import resume_v2_to_template_dict
+        v2 = _make_generated_resume_v2(experience=[
+            _make_entity(
+                "ent-z",
+                "Cloud Architect @ Acme Cloud",
+                ["Designed multi-region failover."],
+            ),
+        ])
+        source = {"experience": [{
+            "title": "Marketing Manager", "company": "RetailCo",
+            "start_date": "Jan 2020", "end_date": "Dec 2020",
+        }]}
+        out = resume_v2_to_template_dict(v2, source=source)
+        item = out["experience"][0]
+        # No source metadata leaked from the unrelated role.
+        self.assertNotEqual(item.get("company"), "RetailCo")
+        # entity_display split correctly into title + company.
+        self.assertEqual(item["title"], "Cloud Architect")
+        self.assertEqual(item["company"], "Acme Cloud")
+        # v2 bullets still carried.
+        self.assertEqual(item["description"], ["Designed multi-region failover."])
+
+    def test_ambiguous_match_two_candidates_falls_through(self):
+        """Two source items match the v2 entity's title/company filter
+        → adapter is conservative and emits no metadata (better than a
+        wrong merge)."""
+        from resumes.services.resume_v2_adapter import resume_v2_to_template_dict
+        v2 = _make_generated_resume_v2(experience=[
+            _make_entity(
+                "ent-amb",
+                "Engineer @ Acme",
+                ["b1"],
+            ),
+        ])
+        source = {"experience": [
+            {"title": "Engineer", "company": "Acme",
+             "start_date": "Jan 2020", "end_date": "Dec 2020"},
+            {"title": "Engineer", "company": "Acme",
+             "start_date": "Jan 2022", "end_date": "Dec 2022"},
+        ]}
+        out = resume_v2_to_template_dict(v2, source=source)
+        item = out["experience"][0]
+        # No merge → ambiguity-safe fallback.
+        self.assertNotIn("start_date", item)
+        self.assertEqual(item["title"], "Engineer")
+        self.assertEqual(item["company"], "Acme")
+
+    def test_id_match_still_works_when_source_has_id(self):
+        """The id-match branch is preserved for any source that does
+        carry ids (e.g. a future shape)."""
+        from resumes.services.resume_v2_adapter import resume_v2_to_template_dict
+        v2 = _make_generated_resume_v2(experience=[
+            _make_entity(
+                "ent-with-id",
+                "Engineer @ Acme",
+                ["b1"],
+            ),
+        ])
+        source = {"experience": [
+            # Has an id matching the v2 entity_id — title/company DON'T
+            # match, but the id wins regardless.
+            {"id": "ent-with-id",
+             "title": "Different Title", "company": "OtherCo",
+             "start_date": "Jan 2020"},
+        ]}
+        out = resume_v2_to_template_dict(v2, source=source)
+        item = out["experience"][0]
+        # Source row (with the wrong-looking title) merged.
+        self.assertEqual(item["company"], "OtherCo")
+        self.assertEqual(item["start_date"], "Jan 2020")
+
+    def test_bullets_carry_through_unchanged_when_matched(self):
+        """Regression: v2 bullets must replace source description even
+        when source had its own description text."""
+        from resumes.services.resume_v2_adapter import resume_v2_to_template_dict
+        v2 = _make_generated_resume_v2(experience=[
+            _make_entity(
+                "ent-1",
+                "Engineer @ Acme",
+                ["v2 bullet 1", "v2 bullet 2"],
+            ),
+        ])
+        source = {"experience": [{
+            "title": "Engineer", "company": "Acme",
+            "description": ["legacy source bullet"],
+            "start_date": "Jan 2024", "end_date": "Dec 2024",
+        }]}
+        out = resume_v2_to_template_dict(v2, source=source)
+        item = out["experience"][0]
+        # v2 wins on description.
+        self.assertEqual(item["description"], ["v2 bullet 1", "v2 bullet 2"])
+        # Source metadata still flows through.
+        self.assertEqual(item["start_date"], "Jan 2024")
+
+    def test_bullets_carry_through_unchanged_when_unmatched(self):
+        """Regression: even when no source match, bullets are kept."""
+        from resumes.services.resume_v2_adapter import resume_v2_to_template_dict
+        v2 = _make_generated_resume_v2(experience=[
+            _make_entity(
+                "ent-orphan",
+                "Architect @ Voidcorp",
+                ["bullet a", "bullet b"],
+            ),
+        ])
+        out = resume_v2_to_template_dict(v2, source={})
+        item = out["experience"][0]
+        self.assertEqual(item["description"], ["bullet a", "bullet b"])
+
+    def test_projects_match_by_name_and_carry_url_technologies(self):
+        """Projects have no company concept. Entity_display is the
+        project name; matching is by normalised name against source
+        ``name`` (or ``title``). Source ``url`` and ``technologies``
+        flow through."""
+        from resumes.services.resume_v2_adapter import resume_v2_to_template_dict
+        v2 = _make_generated_resume_v2(projects=[
+            _make_entity(
+                "https://github.com/ZeyadElshenawy/customer-segmentation-rfmt",
+                "customer-segmentation-rfmt",
+                ["Deployed Streamlit predictor.",
+                 "Validated silhouette 0.351 at k=3."],
+            ),
+        ])
+        source = {"projects": [{
+            "name": "customer-segmentation-rfmt",
+            "url": "https://github.com/ZeyadElshenawy/customer-segmentation-rfmt",
+            "technologies": ["Python", "Streamlit", "K-Means"],
+            "description": ["legacy summary"],  # will be overwritten
+        }]}
+        out = resume_v2_to_template_dict(v2, source=source)
+        item = out["projects"][0]
+        self.assertEqual(item["name"], "customer-segmentation-rfmt")
+        self.assertEqual(item["url"],
+                         "https://github.com/ZeyadElshenawy/customer-segmentation-rfmt")
+        self.assertEqual(item["technologies"], ["Python", "Streamlit", "K-Means"])
+        # v2 bullets replace source description.
+        self.assertEqual(item["description"][0], "Deployed Streamlit predictor.")
+        self.assertEqual(item["description"][1], "Validated silhouette 0.351 at k=3.")
+
+    def test_unmatched_entity_display_split_into_title_and_company_cells(self):
+        """Pre-fix behaviour stuffed the composite 'Title @ Company'
+        into the title cell, leaving company empty. Now the two split
+        on ' @ ' so the item-sub row has something to render."""
+        from resumes.services.resume_v2_adapter import resume_v2_to_template_dict
+        v2 = _make_generated_resume_v2(experience=[
+            _make_entity(
+                "ent-orphan",
+                "Engineer @ Acme",
+                ["b1"],
+            ),
+        ])
+        out = resume_v2_to_template_dict(v2, source={})
+        item = out["experience"][0]
+        self.assertEqual(item["title"], "Engineer")
+        self.assertEqual(item["company"], "Acme")
+        # The composite is NOT in either cell verbatim.
+        self.assertNotIn("@", item["title"])
+        self.assertNotIn("@", item["company"])
+
+    def test_unmatched_project_display_without_at_separator_kept_as_title_and_name(self):
+        """A project entity_display has no ' @ '. The split returns
+        (s, '') so title and name are both the project string and
+        company stays empty."""
+        from resumes.services.resume_v2_adapter import resume_v2_to_template_dict
+        v2 = _make_generated_resume_v2(projects=[
+            _make_entity(
+                "https://github.com/foo/bar",
+                "smartcv",
+                ["bullet"],
+            ),
+        ])
+        out = resume_v2_to_template_dict(v2, source={})
+        item = out["projects"][0]
+        self.assertEqual(item["name"], "smartcv")
+        self.assertEqual(item["title"], "smartcv")
+        self.assertEqual(item["company"], "")
+        self.assertEqual(item["description"], ["bullet"])
+
+    def test_existing_source_duration_preserved_when_present(self):
+        """If the source already carries a non-empty `duration`, don't
+        overwrite it — the render-time heal still operates on it."""
+        from resumes.services.resume_v2_adapter import resume_v2_to_template_dict
+        v2 = _make_generated_resume_v2(experience=[
+            _make_entity("e", "Engineer @ Acme", ["b1"]),
+        ])
+        source = {"experience": [{
+            "title": "Engineer", "company": "Acme",
+            "start_date": "Jan 2024", "end_date": "Dec 2024",
+            "duration": "Jan 2024 - Dec 2024 (preserved)",
+        }]}
+        out = resume_v2_to_template_dict(v2, source=source)
+        self.assertEqual(out["experience"][0]["duration"],
+                         "Jan 2024 - Dec 2024 (preserved)")
+
