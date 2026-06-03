@@ -284,6 +284,17 @@ JOB_SCRAPER_DEBUG_DUMPS_DIR = BASE_DIR / config(
 # False, the resume prompt is identical to pre-RAG behavior (baseline for the
 # §5 A/B eval). Default False until benchmarks confirm a lift.
 RAG_ENABLED = config('RAG_ENABLED', default=True, cast=bool)
+
+# Resume-generation pipeline selector — production trigger sites
+# (resumes.tasks.generate_resume_task + resumes.views.trigger_resume_regeneration_api)
+# dispatch through resumes.services.pipeline_dispatch.generate_resume_content_dispatched,
+# which branches on this flag. Default 'v1' keeps the byte-for-byte
+# legacy path; flip to 'v2' (env var, no code change) to route through
+# generate_resume_v2 + resume_v2_to_template_dict. Reversibility: the
+# default of 'v1' means adding this setting changes nothing until the
+# env var is flipped.
+#   Valid values: 'v1' | 'v2'
+RESUME_GENERATOR_PIPELINE = config('RESUME_GENERATOR_PIPELINE', default='v1')
 # Total number of KB chunks injected into the resume prompt as the
 # `STANDARDS, EXAMPLES & CONVENTIONS` block.
 RAG_TOP_K = config('RAG_TOP_K', default=6, cast=int)
