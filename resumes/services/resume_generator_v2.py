@@ -143,6 +143,7 @@ class GeneratedResumeV2(BaseModel):
 
 
 from resumes.services.banned_openings import (
+    _LEADING_NOISE_RE,
     find_banned_opening,
     format_banned_openings_for_prompt as _fmt_banned_openings,
 )
@@ -534,6 +535,7 @@ def _bullet_prompt(
     digest_text: str = "",
     jd_must: list[str] | None = None,
     jd_nice: list[str] | None = None,
+    siblings: list[str] | None = None,
 ) -> str:
     # Summary path: flat fact list — summaries synthesise across marquee facts
     # rather than anchor+child pairs, so no hierarchy split applies. The
@@ -575,6 +577,22 @@ def _bullet_prompt(
     jd_emphasis = (
         f"\n{jd_emphasis_text}\n\n" if jd_emphasis_text else ""
     )
+    # Fix C — SIBLINGS block. Slots BETWEEN the KB writing-rules block and the
+    # FACTS block. Same labelled-boundary envelope as JD EMPHASIS and writing-
+    # rules: explicitly framed as "NEVER as content", so the LLM treats
+    # sibling text purely as a diversity hint (avoid repeating opener / tone)
+    # and not as a fact source. Number-lock + JD-skill guard remain bound
+    # exclusively to FACTS — sibling text can NEVER enter allowed_numbers
+    # or change which JD skills the bullet is allowed to mention.
+    sibling_quoted = "\n".join(
+        f"- {s.strip()!r}" for s in (siblings or []) if s and s.strip()
+    )
+    siblings_block = (
+        "\n=== SIBLINGS — bullets ALREADY written for this role "
+        "(use ONLY to diversify opener and tone; NEVER as content) ===\n"
+        f"{sibling_quoted}\n"
+        "=== END SIBLINGS — facts follow ===\n\n"
+    ) if sibling_quoted else ""
     # Layer 5 Full — when synthesising the summary AFTER the reviewer, the
     # caller passes a digest of the finished/reviewed sections so the LLM
     # synthesises from what actually shipped (post number-lock, post
@@ -596,6 +614,7 @@ def _bullet_prompt(
             f"{_SUMMARY_QUALITY_RULES}\n"
             f"{jd_emphasis}"
             f"{writing_rules}"
+            f"{siblings_block}"
             f"{digest_block}"
             f"FACTS (the ONLY content + numbers you may draw from):\n{facts_block}\n"
             f"{feedback}\n"
@@ -609,6 +628,7 @@ def _bullet_prompt(
         f"{_BULLET_QUALITY_RULES}\n"
         f"{jd_emphasis}"
         f"{writing_rules}"
+        f"{siblings_block}"
         f"FACTS (the ONLY content + numbers you may draw from):\n{facts_block}\n"
         f"{feedback}\n"
         "Return JUST the bullet text — one line, no quotes, no bullet character, "
@@ -629,6 +649,7 @@ def _generate_one_bullet(
     digest_text: str = "",
     jd_must: list[str] | None = None,
     jd_nice: list[str] | None = None,
+    siblings: list[str] | None = None,
 ) -> Optional[GeneratedBullet]:
     """Generate one bullet, run two grounding guards (numbers + JD skills),
     regenerate once on either failure with combined feedback, then degrade
@@ -665,6 +686,7 @@ def _generate_one_bullet(
             digest_text=digest_text,
             jd_must=jd_must,
             jd_nice=jd_nice,
+            siblings=siblings,
         ))
 
     def _build_guard_feedback(bad_nums, bad_skills) -> str:
@@ -1102,6 +1124,50 @@ def _synthesize_summary_from_sections(
     })
 
 
+def _opener_token(text: str) -> str:
+    """Extract a bullet's first verb token for collision detection.
+
+    Strips the leading-noise the banned-openings module already knows
+    about (whitespace, quotes, bullet glyphs, dashes, parens) via the
+    shared ``_LEADING_NOISE_RE``, lowercases, and returns the first
+    whitespace-separated token. Returns ``""`` on empty/None input.
+
+    Shared regex with ``banned_openings.find_banned_opening`` so the
+    set-level collision check and the per-bullet banned-opening check
+    can never drift on what counts as the "first word"."""
+    if not text:
+        return ""
+    cleaned = _LEADING_NOISE_RE.sub("", text).lower()
+    if not cleaned:
+        return ""
+    tokens = cleaned.split()
+    return tokens[0] if tokens else ""
+
+
+def _find_opener_collisions(
+    bullet_texts: list[str],
+) -> list[tuple[int, str]]:
+    """Return ``[(index, opener_verb), ...]`` for each bullet whose first
+    verb collides with an earlier bullet's first verb in the same list.
+
+    First occurrence wins (kept). Subsequent occurrences are the "losers"
+    flagged for opener-regen. ``opener_verb`` is the collided token
+    (lowercase) — the caller uses it in the regen-feedback string so the
+    LLM knows which verb to avoid.
+    """
+    seen: dict[str, int] = {}
+    collisions: list[tuple[int, str]] = []
+    for i, text in enumerate(bullet_texts):
+        tok = _opener_token(text)
+        if not tok:
+            continue
+        if tok in seen:
+            collisions.append((i, tok))
+        else:
+            seen[tok] = i
+    return collisions
+
+
 def _generate_entity_bullets(
     store: FactStore,
     entity: EntityAllocation,
@@ -1121,6 +1187,25 @@ def _generate_entity_bullets(
     Caller (build) ensures ``entity.metric_fact_ids`` comes from the
     plan, which came from ``store.metrics_for(entity_id)`` — i.e.
     only THIS entity's metrics. No cross-entity number can leak in.
+
+    Fix C — two diversity layers, both AFTER each bullet's inline
+    number-lock + JD-skill guards have already passed:
+
+      1. SOFT (sibling context): each per-child call receives a
+         ``siblings`` list of the bullet texts ALREADY produced for
+         this entity. The prompt frames them as "use ONLY to diversify
+         opener and tone; NEVER as content" — they're a hint, not a
+         content source. Empty for bullet #1.
+
+      2. HARD (deterministic post-pass): after all bullets are built,
+         a set-level opener-collision scan runs. For each colliding
+         bullet (later occurrence — earlier wins), one regen fires
+         with collision feedback + the now-populated siblings list,
+         through the SAME ``_generate_one_bullet`` path so number-lock
+         and JD-skill guards re-apply. Regen budget: one per bullet.
+         If the regen returns ``None`` (a guard persisted), the
+         ORIGINAL colliding bullet is kept — never drop a grounded
+         bullet over a cosmetic opener.
     """
     child_facts = _resolve_facts(store, entity.facts)
     metric_facts = _resolve_ids(store, entity.metric_fact_ids)
@@ -1129,7 +1214,10 @@ def _generate_entity_bullets(
     # Anchor + metrics are always in the allowed pool — every bullet
     # at this entity may draw on them.
     base_facts = [f for f in (anchor,) if f is not None]
-    bullets: list[GeneratedBullet] = []
+    # Track each bullet with its source facts so the collision-regen pass
+    # can reuse the SAME per-bullet facts (number-lock + JD-skill guards
+    # are bound to those facts and only those).
+    generated: list[tuple[GeneratedBullet, list[FactRecord]]] = []
     role_hint = (
         f"a {section} entry: {entity.entity_display!r}"
         + (f" (targeting {job_title})" if job_title else "")
@@ -1154,13 +1242,17 @@ def _generate_entity_bullets(
             writing_rules_block=writing_rules_block,
             jd_must=jd_must,
             jd_nice=jd_nice,
+            siblings=None,  # only one bullet — no siblings exist
         )
         if b is not None:
-            bullets.append(b)
+            generated.append((b, facts_for_bullet))
     else:
         for i, child in enumerate(child_facts):
             facts_for_bullet = base_facts + [child] + metric_assignment[i]
             allowed = _allowed_numbers_from_facts(facts_for_bullet)
+            # Soft layer: pass the bullets generated so far as diversity
+            # hints. Empty list for bullet #1 → no siblings block rendered.
+            current_siblings = [g[0].text for g in generated]
             b = _generate_one_bullet(
                 section=section, entity_id=entity.entity_id,
                 role_hint=role_hint, facts=facts_for_bullet,
@@ -1168,10 +1260,56 @@ def _generate_entity_bullets(
                 writing_rules_block=writing_rules_block,
                 jd_must=jd_must,
                 jd_nice=jd_nice,
+                siblings=current_siblings if current_siblings else None,
             )
             if b is not None:
-                bullets.append(b)
+                generated.append((b, facts_for_bullet))
 
+    # --- Hard layer: set-level opener-collision post-pass ---
+    # Each bullet has already passed number-lock + JD-skill guards
+    # inline. This pass detects opener collisions across the entity's
+    # bullets and fires ONE regen per colliding bullet, through the same
+    # guarded _generate_one_bullet path. If a regen trips a guard
+    # persistently and returns None, the ORIGINAL colliding bullet
+    # remains — never drop a grounded bullet over a cosmetic opener.
+    if len(generated) >= 2:
+        bullet_texts = [g[0].text for g in generated]
+        collisions = _find_opener_collisions(bullet_texts)
+        for collision_idx, verb in collisions:
+            _, b_facts = generated[collision_idx]
+            allowed = _allowed_numbers_from_facts(b_facts)
+            # Siblings = every OTHER bullet in the entity (the colliding
+            # bullet sits somewhere in the middle; both earlier and
+            # later siblings inform the regen).
+            sibs = [
+                g[0].text
+                for j, g in enumerate(generated)
+                if j != collision_idx
+            ]
+            regen_feedback = (
+                f"A previous bullet in this role opens with {verb!r}; "
+                f"lead with a different action verb."
+            )
+            regen_b = _generate_one_bullet(
+                section=section, entity_id=entity.entity_id,
+                role_hint=role_hint, facts=b_facts,
+                allowed_numbers=allowed, events=events,
+                writing_rules_block=writing_rules_block,
+                jd_must=jd_must,
+                jd_nice=jd_nice,
+                siblings=sibs if sibs else None,
+                regen_feedback=regen_feedback,
+            )
+            if regen_b is not None:
+                # Swap to the regen result (may or may not still collide;
+                # the post-pass is one-shot per the regenerate-once
+                # discipline — see number-lock pattern).
+                generated[collision_idx] = (regen_b, b_facts)
+            # else: regen returned None (a guard persisted on the regen
+            # attempt). Per the KEEP-AND-NEVER-DROP rule, the original
+            # colliding bullet stays.
+
+    bullets = [g[0] for g in generated]
     return EntityBlock(
         entity_id=entity.entity_id,
         entity_display=entity.entity_display,
