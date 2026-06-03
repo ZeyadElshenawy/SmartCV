@@ -70,7 +70,8 @@ passthrough.
 from __future__ import annotations
 
 import logging
-import re
+
+from .text_norm import norm as _norm
 
 logger = logging.getLogger(__name__)
 
@@ -92,14 +93,6 @@ _EDUCATION_ITEM_KEYS = (
 _CERTIFICATION_ITEM_KEYS = (
     "name", "issuer", "date", "url", "duration",
 )
-
-
-def _norm(s) -> str:
-    """Normalise a string for comparison — lowercase, whitespace collapsed,
-    leading/trailing whitespace stripped. ``None`` / non-strings → ``""``."""
-    if not isinstance(s, str):
-        return ""
-    return re.sub(r"\s+", " ", s.lower()).strip()
 
 
 def _split_entity_display(s: str):
