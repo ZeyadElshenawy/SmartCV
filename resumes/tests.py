@@ -8946,25 +8946,34 @@ class ResumeV2AdapterTests(SimpleTestCase):
         self.assertEqual(item['duration'], '2022–Present')
         self.assertEqual(item['description'], ['new bullet.'])
 
-    def test_education_falls_back_to_source_v1(self):
-        """v2 doesn't enrich education — the adapter must keep the
-        structured v1 source rows rather than overwriting with the
-        flatter v2 'lines'."""
+    def test_education_hybrid_v2_drives_source_enriches(self):
+        """Hybrid contract: v2's lines drive count + order (the cap is
+        enforced); source enriches each line by normalised name match.
+        Source entries v2 didn't allocate are dropped — the prior
+        prefer-source guard was a passthrough that uncapped the section."""
         from resumes.services.resume_generator_v2 import (
             GeneratedResumeV2, GeneratedSection,
         )
         from resumes.services.resume_v2_adapter import resume_v2_to_template_dict
+        # v2 line names KSIU — should match the source entry by institution.
         generated = GeneratedResumeV2(sections={
             'education': GeneratedSection(
                 section='education',
-                lines=['v2 simplification of education']),
+                lines=['KSIU']),
         })
+        # Source has TWO entries; v2 only allocated one. The unallocated
+        # one must NOT appear in output (cap enforcement).
         source = {'education': [
             {'degree': 'B.Sc.', 'field': 'CS', 'institution': 'KSIU', 'year': '2025'},
+            {'degree': 'High School', 'field': '', 'institution': 'Some School', 'year': '2021'},
         ]}
         out = resume_v2_to_template_dict(generated, source=source)
-        # Source v1 wins because it has richer structure.
-        self.assertEqual(out['education'], source['education'])
+        # v2's count wins — exactly one entry.
+        self.assertEqual(len(out['education']), 1)
+        # Source enrichment landed on the matched entry.
+        self.assertEqual(out['education'][0]['institution'], 'KSIU')
+        self.assertEqual(out['education'][0]['degree'], 'B.Sc.')
+        self.assertEqual(out['education'][0]['year'], '2025')
 
 
 def _ats_render_context():
@@ -12548,10 +12557,12 @@ class V2AdapterMatchChainTests(SimpleTestCase):
         self.assertNotIn("@", item["title"])
         self.assertNotIn("@", item["company"])
 
-    def test_unmatched_project_display_without_at_separator_kept_as_title_and_name(self):
-        """A project entity_display has no ' @ '. The split returns
-        (s, '') so title and name are both the project string and
-        company stays empty."""
+    def test_unmatched_project_display_without_at_separator_kept_as_name(self):
+        """A project entity_display has no ' @ '. After the per-item
+        project allow-list filter, only project-shaped keys survive —
+        ``name`` carries the project label, ``description`` carries the
+        bullets. The experience-shaped ``title`` / ``company`` keys
+        (which the projects PDF template doesn't read) are dropped."""
         from resumes.services.resume_v2_adapter import resume_v2_to_template_dict
         v2 = _make_generated_resume_v2(projects=[
             _make_entity(
@@ -12563,9 +12574,11 @@ class V2AdapterMatchChainTests(SimpleTestCase):
         out = resume_v2_to_template_dict(v2, source={})
         item = out["projects"][0]
         self.assertEqual(item["name"], "smartcv")
-        self.assertEqual(item["title"], "smartcv")
-        self.assertEqual(item["company"], "")
         self.assertEqual(item["description"], ["bullet"])
+        # Per-item allow-list contract: projects items must NOT carry
+        # experience-shaped fields.
+        self.assertNotIn("title", item)
+        self.assertNotIn("company", item)
 
     def test_existing_source_duration_preserved_when_present(self):
         """If the source already carries a non-empty `duration`, don't

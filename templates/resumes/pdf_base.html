@@ -59,10 +59,13 @@ strong { font-weight: 700; }
     margin: 0 5px;
 }
 
-/* Sections — keep each whole section together when possible. */
+/* Sections — flow across pages freely so the bottom of each page
+   fills naturally. Mid-role / mid-bullet protection lives on .item +
+   .bullets li below; we don't need a section-level break-inside guard
+   on top, which would force whole-section page-jumps and leave the
+   previous page's bottom blank. */
 .section {
     margin-bottom: 16px;
-    break-inside: avoid-page;
 }
 .section-title {
     font-size: 14pt;
@@ -72,14 +75,27 @@ strong { font-weight: 700; }
     margin: 0 0 10px 0;
     padding-bottom: 4px;
     border-bottom: 1px solid #000;
+    /* Don't strand a section header at the bottom of a page when its
+       first item flows to the next page. */
+    break-after: avoid;
 }
 
 /* Entry block (one role / project / education item).
    Flex replaces the old table.item-header pattern: title left, date
-   right, in the same baseline. Rule 004 — no tables for layout. */
+   right, in the same baseline. Rule 004 — no tables for layout.
+   No break-inside guard: items may flow across page boundaries so
+   pages fill completely. Item-level widows/orphans = 2 are the
+   stranded-line guarantee: a multi-line role can split with ≥2
+   lines on each side, while a short item (e.g. 2-line education
+   entry: degree-line + institution-line) cannot satisfy 2+2 from
+   2 total lines and is therefore kept intact rather than split
+   into one-line orphans. Per-list widows/orphans on .bullets +
+   per-li widows/orphans on .bullets li are the same guarantee at
+   nested-block granularity. */
 .item {
     margin-bottom: 12px;
-    break-inside: avoid;
+    widows: 2;
+    orphans: 2;
 }
 .item-head {
     display: flex;
@@ -87,6 +103,12 @@ strong { font-weight: 700; }
     align-items: baseline;
     gap: 16px;
     margin-bottom: 2px;
+    /* Single-line block: widows/orphans is moot. Use break-after to
+       keep the head bound to its item-sub / bullets, so a 2-line
+       education entry can't end up with degree on page N and
+       institution on page N+1. For a tall role this still allows
+       the head+sub-then-bullets-split layout that fills both pages. */
+    break-after: avoid;
 }
 .item-title {
     font-weight: 700;
@@ -100,13 +122,26 @@ strong { font-weight: 700; }
     font-size: 10pt;
     font-style: italic;
     margin: 0 0 4px 0;
+    /* Pair with .item-head's break-after: avoid — the sub stays bound
+       to whatever follows it (the bullet list, or for header-only
+       items like education, the next item). Prevents a sub line from
+       stranding at the bottom of a page alone. */
+    break-after: avoid;
 }
 
-/* Bullets — • (U+2022). Rule 010. */
+/* Bullets — • (U+2022). Rule 010.
+   widows/orphans at the LIST level (.bullets) keeps ≥2 line boxes on
+   each side of a page break inside the list — i.e. if a 5-bullet role
+   splits, at least 2 single-line bullets stay on each side rather than
+   stranding one. The per-li widows/orphans handles a different case:
+   a SINGLE bullet whose text wraps to multiple lines and gets split
+   across pages — at least 2 of its wrapped lines stay together. */
 .bullets {
     margin: 4px 0 0 0;
     padding-left: 18px;
     list-style-type: disc;
+    widows: 2;
+    orphans: 2;
 }
 .bullets li {
     margin-bottom: 3px;
