@@ -44,8 +44,84 @@ from resumes.services.fact_store import (
     FactType,
     SourceReliability,
 )
+from resumes.services.text_norm import norm as _norm
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Strength-gate (Layer 3) — structural rules that drop facts which would
+# render as weak filler bullets. Applied at allocation time, BEFORE the
+# generator runs, so dropped facts cost no LLM call.
+#
+# Each rule is structural (no profile-specific tuning): a URL-only claim,
+# an anchor-restatement claim, or a claim too short to read as a real
+# bullet. All three checks operate on ``fact.claim`` + ``anchor.claim``;
+# no other FactRecord attribute is consulted.
+#
+# Cap interaction: the gate uses ``continue`` in the allocation loop, so
+# the next-highest-ranked fact takes the rejected slot. When the entire
+# ranked pool fails the gate, the entity ends with fewer than cap bullets
+# — that's the design intent ("2 strong beats 4 mediocre").
+# ---------------------------------------------------------------------------
+
+
+# Bare-URL regex: the ENTIRE claim, after strip, is a URL token. ``\S+``
+# requires no whitespace, so this never matches a sentence that merely
+# mentions a URL — only a claim that IS one.
+_BARE_URL_RE = re.compile(r"(?:https?://|www\.)\S+", re.IGNORECASE)
+
+# Minimum claim length to clear the gate. 15 chars chosen low to bias
+# toward under-dropping — "Built X for Y" is 13, "Built X in Python"
+# is 17. Tune upward only after observing post-MVP runs.
+_MIN_CLAIM_CHARS = 15
+
+
+def _is_weak_fact(
+    fact: FactRecord, anchor: Optional[FactRecord]
+) -> tuple[bool, str]:
+    """Decide whether ``fact`` is structurally too weak to become a bullet.
+
+    Returns ``(True, reason)`` to drop, ``(False, "")`` to keep. The
+    reason string is logged into ``plan.notes`` for observability.
+
+    Rules (structural, profile-agnostic):
+
+    1. **URL-only claim.** ``claim`` after strip matches ``http(s)://`` or
+       ``www.`` followed by non-whitespace — i.e. it IS a URL, not a
+       sentence containing one. A URL alone never reads as an
+       achievement bullet, regardless of which extractor produced it.
+    2. **Anchor restatement.** ``_norm(claim) == _norm(anchor.claim)`` OR
+       ``_norm(claim) in _norm(anchor.claim)``. The substring direction
+       is SAFE-ONLY: a claim shorter than the anchor's text that fits
+       inside it is a restatement (e.g. ``"AI Trainee"`` inside
+       ``"AI Trainee at DEPI"``). The OPPOSITE direction
+       (``anchor in claim``) is NOT a drop — a long achievement
+       containing the role title as a substring ("As an AI Trainee I
+       built …") is a real bullet that happens to mention the title.
+       Empty/None anchor → no anchor check fires.
+    3. **Length floor.** ``len(claim.strip()) < 15`` — too short to be
+       a recruiter-grade bullet, regardless of content.
+    """
+    claim = (fact.claim or "").strip()
+    if not claim:
+        return True, "empty claim"
+    # Rule 1 — bare URL.
+    if _BARE_URL_RE.fullmatch(claim):
+        return True, "URL-only claim"
+    # Rule 2 — anchor restatement (safe substring direction only).
+    if anchor is not None:
+        nc = _norm(claim)
+        na = _norm(anchor.claim or "")
+        if nc and na:
+            if nc == na:
+                return True, "claim restates anchor exactly"
+            if nc in na:
+                return True, "claim is a substring of anchor (restatement)"
+    # Rule 3 — length floor.
+    if len(claim) < _MIN_CLAIM_CHARS:
+        return True, f"claim under {_MIN_CLAIM_CHARS} chars"
+    return False, ""
 
 
 # ---------------------------------------------------------------------------
@@ -1280,6 +1356,13 @@ def build_plan(
                     f"(mention cap on {sorted(overflow)})"
                 )
                 continue
+            weak, weak_reason = _is_weak_fact(fact, anchor=role)
+            if weak:
+                notes.append(
+                    f"experience[{eid}]: dropped weak fact {fact.id} "
+                    f"({weak_reason})"
+                )
+                continue
             slot_facts.append(FactAllocation(
                 fact_id=fact.id,
                 rationale=_rationale_for(fact, "experience",
@@ -1372,6 +1455,13 @@ def build_plan(
                 notes.append(
                     f"projects[{eid}]: skipped fact {fact.id} "
                     f"(mention cap on {sorted(overflow)})"
+                )
+                continue
+            weak, weak_reason = _is_weak_fact(fact, anchor=project)
+            if weak:
+                notes.append(
+                    f"projects[{eid}]: dropped weak fact {fact.id} "
+                    f"({weak_reason})"
                 )
                 continue
             slot_facts.append(FactAllocation(
