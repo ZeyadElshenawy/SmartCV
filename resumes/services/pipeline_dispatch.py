@@ -64,7 +64,10 @@ def _generate_via_v2(profile, job, gap_analysis) -> dict:
         prefetch_kb_for_pipeline,
         split_kb_chunks,
     )
-    from .resume_generator_v2 import generate_resume_v2
+    from .resume_generator_v2 import (
+        _synthesize_summary_from_sections,
+        generate_resume_v2,
+    )
     from .resume_planner_v2 import build_plan
     from .resume_reviewer_v2 import build_v2_validation_report, review_and_regenerate
     from .resume_v2_adapter import resume_v2_to_template_dict
@@ -106,6 +109,21 @@ def _generate_via_v2(profile, job, gap_analysis) -> dict:
         store=store,
         plan=plan,
         job_title=getattr(job, "title", "") or "",
+        writing_rules_block=writing_rules_block,
+    )
+
+    # Layer 5 Full — synthesise the professional summary AFTER the
+    # reviewer settles, fed from the post-reviewer sections (only
+    # facts that survived into a rendered bullet). Empty harvested
+    # pool → summary stays empty → adapter warns and omits. The helper
+    # applies the same number-lock + a one-shot banned-openings
+    # re-check that mirrors the reviewer's contract, so the gap from
+    # synthesising after the reviewer's pass is closed.
+    revised = _synthesize_summary_from_sections(
+        revised,
+        store=store,
+        job_title=getattr(job, "title", "") or "",
+        job_company=getattr(job, "company", "") or "",
         writing_rules_block=writing_rules_block,
     )
 

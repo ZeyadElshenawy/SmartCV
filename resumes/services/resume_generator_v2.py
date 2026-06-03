@@ -133,7 +133,10 @@ class GeneratedResumeV2(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-from resumes.services.banned_openings import format_banned_openings_for_prompt as _fmt_banned_openings
+from resumes.services.banned_openings import (
+    find_banned_opening,
+    format_banned_openings_for_prompt as _fmt_banned_openings,
+)
 
 # The banned-opening list is sourced from
 # ``banned_openings.BANNED_OPENINGS`` — the single source of truth, also
@@ -350,6 +353,7 @@ def _fact_brief(f: FactRecord) -> str:
 def _bullet_prompt(
     *, role_hint: str, facts: list[FactRecord], regen_feedback: str = "",
     writing_rules_block: str = "", section: str = "",
+    digest_text: str = "",
 ) -> str:
     facts_block = "\n".join(_fact_brief(f) for f in facts) or "(no facts)"
     feedback = ""
@@ -372,6 +376,16 @@ def _bullet_prompt(
     writing_rules = (
         f"\n{writing_rules_block}\n\n" if writing_rules_block else ""
     )
+    # Layer 5 Full — when synthesising the summary AFTER the reviewer, the
+    # caller passes a digest of the finished/reviewed sections so the LLM
+    # synthesises from what actually shipped (post number-lock, post
+    # strength-gate, post reviewer regen) — not from pre-allocation plan
+    # facts. Number-lock is still bound exclusively by ``facts`` →
+    # ``allowed_numbers``; the digest is for narrative grounding only,
+    # never for number-grounding.
+    digest_block = (
+        f"\n{digest_text}\n\n" if digest_text else ""
+    )
     # Summary uses a positioning prompt + length budget; everything else
     # uses the bullet prompt. The number-guard / banned-openings chain
     # in _generate_one_bullet is identical for both paths — only the
@@ -382,6 +396,7 @@ def _bullet_prompt(
             "Synthesize ACROSS the facts below — do not pick just one.\n"
             f"{_SUMMARY_QUALITY_RULES}\n"
             f"{writing_rules}"
+            f"{digest_block}"
             f"FACTS (the ONLY content + numbers you may draw from):\n{facts_block}\n"
             f"{feedback}\n"
             "Output ONLY the summary itself. Start directly with the first sentence "
@@ -410,6 +425,7 @@ def _generate_one_bullet(
     events: list[FabricationEvent],
     writing_rules_block: str = "",
     regen_feedback: str = "",
+    digest_text: str = "",
 ) -> Optional[GeneratedBullet]:
     """Generate one bullet, run the number guard, regenerate once on
     failure, drop on persistent failure.
@@ -437,6 +453,7 @@ def _generate_one_bullet(
         writing_rules_block=writing_rules_block,
         regen_feedback=regen_feedback,
         section=section,
+        digest_text=digest_text,
     ))
     bad = _ungrounded_numbers(text, allowed_numbers)
     if not bad:
@@ -465,7 +482,8 @@ def _generate_one_bullet(
         _bullet_prompt(role_hint=role_hint, facts=facts,
                        regen_feedback=regen_feedback,
                        writing_rules_block=writing_rules_block,
-                       section=section),
+                       section=section,
+                       digest_text=digest_text),
     )
     bad2 = _ungrounded_numbers(text2, allowed_numbers)
     if not bad2:
@@ -653,6 +671,164 @@ def _generate_summary(
     )
 
 
+def _synthesize_summary_from_sections(
+    resume: GeneratedResumeV2,
+    *,
+    store: FactStore,
+    job_title: str = "",
+    job_company: str = "",
+    writing_rules_block: str = "",
+) -> GeneratedResumeV2:
+    """Layer 5 Full — synthesise the professional summary from the
+    FINISHED, post-reviewer ``resume.sections`` rather than from the
+    planner's pre-allocation marquee facts.
+
+    Fact pool is the union of ``fact_ids`` referenced by every emitted
+    bullet across experience entities, project entities, and the skills
+    section. Only facts that survived into a rendered bullet are
+    eligible — the summary cannot assert content the generator dropped
+    (number-lock, strength-gate) or the reviewer removed (regen → drop).
+
+    Empty pool → summary stays empty so the adapter's warn-and-omit
+    path fires. NEVER invents a summary from nothing.
+
+    Banned-openings re-check: this runs AFTER the reviewer's pass, so
+    the reviewer's deterministic banned-opening regen loop doesn't see
+    this output. The check is replayed here once (same predicate the
+    reviewer uses, ``find_banned_opening``) and the bullet regenerates
+    once with feedback if it triggers — closes the gap.
+    """
+    sections = resume.sections or {}
+
+    # ---- 1. Harvest fact_ids from every EMITTED bullet --------------------
+    fact_ids: list[str] = []
+    seen: set[str] = set()
+
+    def _collect(bullet_iter):
+        for b in bullet_iter or []:
+            for fid in (getattr(b, "fact_ids", None) or []):
+                if fid in seen:
+                    continue
+                seen.add(fid)
+                fact_ids.append(fid)
+
+    for section_name in ("experience", "projects"):
+        sec = sections.get(section_name)
+        if sec is None:
+            continue
+        for ent in (getattr(sec, "entities", None) or []):
+            _collect(ent.bullets)
+
+    skills_sec = sections.get("skills")
+    if skills_sec is not None:
+        _collect(getattr(skills_sec, "bullets", None))
+
+    facts = [store.get(fid) for fid in fact_ids]
+    facts = [f for f in facts if f is not None]
+
+    # ---- Empty pool → empty summary, no LLM call --------------------------
+    if not facts:
+        logger.info(
+            "resume_generator_v2: synthesise-summary harvested zero facts "
+            "from finished sections — leaving summary empty.",
+        )
+        new_summary = GeneratedSection(section="summary", summary_text="")
+        new_sections = dict(sections)
+        new_sections["summary"] = new_summary
+        return resume.model_copy(update={"sections": new_sections})
+
+    # ---- 2. Build the "what the resume actually says" digest --------------
+    digest_lines: list[str] = ["WHAT THIS RESUME ACTUALLY SAYS:"]
+    for section_name in ("experience", "projects"):
+        sec = sections.get(section_name)
+        if sec is None or not getattr(sec, "entities", None):
+            continue
+        entity_lines: list[str] = []
+        for ent in sec.entities:
+            if not ent.bullets:
+                continue
+            entity_lines.append(f"- {ent.entity_display}:")
+            for b in ent.bullets:
+                t = (b.text or "").strip()
+                if t:
+                    entity_lines.append(f"  · {t}")
+        if entity_lines:
+            digest_lines.append(f"\n{section_name.upper()}:")
+            digest_lines.extend(entity_lines)
+    if skills_sec is not None:
+        line = (getattr(skills_sec, "skills_line", "") or "").strip()
+        if line:
+            digest_lines.append(f"\nSKILLS: {line}")
+    for section_name in ("education", "certifications"):
+        sec = sections.get(section_name)
+        if sec is None:
+            continue
+        lines = [str(l).strip() for l in (getattr(sec, "lines", None) or []) if str(l).strip()]
+        if lines:
+            digest_lines.append(f"\n{section_name.upper()}:")
+            for l in lines:
+                digest_lines.append(f"- {l}")
+    digest_text = "\n".join(digest_lines)
+
+    # ---- 3. Generate via the existing number-lock path --------------------
+    events: list[FabricationEvent] = []
+    allowed = _allowed_numbers_from_facts(facts)
+    role_hint = (
+        f"the professional summary for a {job_title} role"
+        + (f" at {job_company}" if job_company else "")
+    )
+    bullet = _generate_one_bullet(
+        section="summary", entity_id="",
+        role_hint=role_hint, facts=facts,
+        allowed_numbers=allowed, events=events,
+        writing_rules_block=writing_rules_block,
+        digest_text=digest_text,
+    )
+
+    # ---- 4. Banned-openings re-check (one regen, mirrors reviewer) --------
+    if bullet is not None:
+        banned = find_banned_opening(bullet.text)
+        if banned:
+            logger.warning(
+                "resume_generator_v2: synthesised summary started with "
+                "banned opening %r; regenerating once with feedback.", banned,
+            )
+            regen_feedback = (
+                f"Your previous summary started with the banned opening "
+                f"{banned!r}. Rewrite leading with a strong, specific "
+                f"identity statement (role + headline outcome). Do NOT "
+                f"start with any banned word."
+            )
+            bullet_v2 = _generate_one_bullet(
+                section="summary", entity_id="",
+                role_hint=role_hint, facts=facts,
+                allowed_numbers=allowed, events=events,
+                writing_rules_block=writing_rules_block,
+                digest_text=digest_text,
+                regen_feedback=regen_feedback,
+            )
+            if bullet_v2 is not None:
+                bullet = bullet_v2
+
+    # ---- 5. Strip preamble + assemble final section -----------------------
+    final_text = _strip_summary_preamble(bullet.text) if bullet else ""
+    if bullet and final_text != bullet.text:
+        bullet = bullet.model_copy(update={"text": final_text})
+    new_summary = GeneratedSection(
+        section="summary",
+        summary_text=final_text,
+        bullets=[bullet] if bullet else [],
+    )
+    new_sections = dict(sections)
+    new_sections["summary"] = new_summary
+    # Forward any fabrication events the synthesis produced.
+    new_events = list(resume.fabrication_events or []) + events
+    return resume.model_copy(update={
+        "sections": new_sections,
+        "fabrication_events": new_events,
+    })
+
+
 def _generate_entity_bullets(
     store: FactStore,
     entity: EntityAllocation,
@@ -823,13 +999,16 @@ def generate_resume_v2(
             )
             writing_rules_block = ""
 
-    summary = plan.sections.get("summary")
-    if summary is not None:
-        sections["summary"] = _generate_summary(
-            store, summary,
-            job_title=job_title, job_company=job_company, events=events,
-            writing_rules_block=writing_rules_block,
-        )
+    # Layer 5 Full — summary is NOT generated here. It is synthesised
+    # AFTER the reviewer runs, from the post-reviewer
+    # ``sections`` dict, so it reflects what actually shipped (post
+    # number-lock, post strength-gate, post reviewer regen/drop). The
+    # dispatcher (resumes/services/pipeline_dispatch.py) calls
+    # ``_synthesize_summary_from_sections`` between
+    # ``review_and_regenerate`` and the adapter. ``_generate_summary``
+    # is still defined above for direct/harness/test callers that want
+    # the pre-section synthesis behaviour (e.g. unit tests of the
+    # number-lock prompt path).
 
     skills = plan.sections.get("skills")
     if skills is not None:
