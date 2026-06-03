@@ -165,7 +165,7 @@ def trigger_resume_regeneration_api(request, resume_id):
     Preserves the user's template_name choice across the regen, matching
     the contract of the previous inline Path B implementation.
     """
-    from .services.resume_generator import generate_resume_content_supervised
+    from .services.pipeline_dispatch import generate_resume_content_dispatched
     # Ownership scoped at the queryset (same pattern as regenerate_resume_view).
     # A foreign user's resume id resolves to 404 directly — no post-fetch
     # attribute check, no chance of leaking a row we shouldn't have read.
@@ -198,7 +198,7 @@ def trigger_resume_regeneration_api(request, resume_id):
         # exception from the LLM path leaves the existing row's content,
         # ats_score, and validation_report byte-identical. Do NOT mutate
         # resume.<field> until everything below has succeeded.
-        new_content = generate_resume_content_supervised(
+        new_content = generate_resume_content_dispatched(
             profile, job, gap_analysis, previous_best=previous_best,
         )
         new_score = calculate_ats_score(new_content, job.extracted_skills)

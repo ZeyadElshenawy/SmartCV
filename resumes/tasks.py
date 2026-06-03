@@ -4,10 +4,10 @@ from jobs.models import Job
 from profiles.models import UserProfile
 from analysis.models import GapAnalysis
 from .services.resume_generator import (
-    generate_resume_content_supervised,
     calculate_ats_score,
     load_previous_best_for,
 )
+from .services.pipeline_dispatch import generate_resume_content_dispatched
 import logging
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ def generate_resume_task(job_id, user_id):
         # walks rows for this gap_analysis and returns the latest. None
         # when no prior export exists.
         previous_best = load_previous_best_for(gap_analysis)
-        resume_content = generate_resume_content_supervised(
+        resume_content = generate_resume_content_dispatched(
             profile, job, gap_analysis, previous_best=previous_best,
         )
         ats_score = calculate_ats_score(resume_content, job.extracted_skills)
