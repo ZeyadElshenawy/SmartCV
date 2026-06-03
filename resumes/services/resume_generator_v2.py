@@ -144,12 +144,25 @@ from resumes.services.banned_openings import (
 # and by the regen feedback (so the regen LLM gets the full forbidden
 # list, not just the one verb that was caught).
 _BULLET_QUALITY_RULES = f"""ACHIEVEMENT SHAPE — every bullet reads as a RESULT, not a duty:
-  [Strong action verb] + [What you did, briefly] + [Concrete outcome — a result, a deliverable, a metric, a scope marker]
+  [Strong action verb] + [What you did, briefly] + [Concrete outcome IF the facts support one — OTHERWISE OMIT]
+The outcome clause is CONDITIONAL, not mandatory. A clean two-part bullet ("[verb] + [what]") is preferred over a three-part bullet whose outcome was invented to fill the slot. If the source has no concrete outcome, stop after [what you did].
 
 NUMBERS POLICY (the load-bearing guard — read this twice):
 - Use ONLY numbers that appear in the facts I'm giving you for this bullet. The numbers I give you are LOCKED. You may include them, omit them, or reorder them, but you may NOT invent, round, or "approximately" emit a number that isn't in the facts. A bullet with an invented number will be DROPPED by the post-check; you don't get partial credit.
 - If a fact is HEDGED (marked hedged=true), the number must be phrased with a qualifier ("~", "around", "approximately"). Never present a hedged number as a hard figure.
 - If you have NO real number for an item, write the bullet qualitatively. An honest qualitative bullet beats a fake quantitative one.
+
+CONTENT POLICY (same spirit as the numbers policy, but for prose — read this twice):
+- Use ONLY the substantive content (tools, frameworks, libraries, platforms, datasets, techniques, named systems, named outcomes) that appears in the facts. Do NOT invent narrative texture to make a thin source sound more substantial.
+- THIN-SOURCE -> THIN-BULLET. If the source fact has no concrete outcome, no metric, no named tool, and no specific detail, write a TIGHTER qualitative bullet that faithfully restates what's there. Do NOT pad it to hit a length target. Do NOT invent texture to fill the outcome slot. A short honest bullet beats a long padded one — same spirit as the numbers rule.
+- VAGUE-OUTCOME CLAUSES ARE BANNED. The following failure pattern adds words but NO information and must NOT appear in the generated bullet:
+    "driving seamless / cohesive / robust experiences"
+    "enhancing efficiency / quality / consistency / reliability"
+    "ensuring reliable / robust / seamless delivery"
+    "improving overall performance / operational efficiency"
+    "delivering high-impact / cross-functional value"
+  An outcome clause must name a CONCRETE thing: a metric, a named deliverable, a specific scope, a named technology. NOT a generic adjective+noun cliché. If you cannot name a concrete outcome from the facts, OMIT the outcome clause — do not substitute a vague one.
+- SURFACE THE SPECIFICS. When the source claim names a concrete tool, framework, library, platform, dataset, technique, or methodology (e.g. Flutter, Dart, Firebase, SQLite, BLoC, MQTT, PySpark, BigQuery, RFM, MLflow — any technology / dataset / technique noun), PRESERVE THAT NAME in the bullet. Do not abstract "Flutter" into "mobile development frameworks" or "Dart" into "modern languages" or "SQLite" into "local storage solutions". The concrete nouns from the source are the bullet's value to the recruiter; keep them.
 
 FORBIDDEN OPENINGS — NEVER start a bullet with any of these (case-insensitive). A bullet that opens with one of these will be REJECTED by the post-generation reviewer and regenerated:
   {_fmt_banned_openings()}
@@ -161,7 +174,7 @@ WEAK SHAPES TO AVOID (not banned openings but read as filler):
 
 PHRASING:
 - Lead with a different action verb than the previous bullet in this role/project.
-- 1-2 lines, ~15-25 words. No walls of text, no one-word bullets.
+- LENGTH IS A CEILING, NOT A FLOOR. Up to ~25 words; shorter is fine and BETTER when the source is thin. Do NOT add words to reach a length target. A nine-word bullet that faithfully reflects a nine-word source is correct; a twenty-word bullet that padded the source with rhetorical mush is wrong.
 - Don't quote evidence verbatim — rephrase. But don't pad."""
 
 
@@ -187,6 +200,16 @@ NUMBERS POLICY (load-bearing guard):
 - Use ONLY numbers that appear in the facts I'm giving you. Same lock as for bullets — invented numbers will be DROPPED by the post-check.
 - If a fact is HEDGED, the number must be phrased with a qualifier ("~", "around", "approximately").
 - Numbers are optional in a summary — an honest qualitative positioning beats a quantified one with fake figures.
+
+CONTENT POLICY (mirrors the bullet-prompt rule — the same vague-cliché failure mode applies to positioning statements):
+- VAGUE THEME CLAUSES ARE BANNED. The summary must NOT contain failure-pattern phrases that add words but no information:
+    "driving seamless / cohesive / robust experiences"
+    "enhancing efficiency / quality / consistency / reliability"
+    "ensuring reliable / robust / seamless delivery"
+    "improving overall performance / operational efficiency"
+    "delivering high-impact / cross-functional value"
+  Themes must be concrete: a named technology, a named domain, a named scope, a named result. If you can't name a concrete theme, leave it out — do not substitute a vague one.
+- SURFACE THE SPECIFICS. When the facts name a concrete tool, framework, library, platform, dataset, technique, or methodology, PRESERVE THE NAME in the summary. Do not abstract "Flutter" into "mobile development frameworks" or "PySpark" into "big-data tools". The concrete nouns are the summary's value.
 
 FORBIDDEN OPENINGS — NEVER start the summary with any of these (case-insensitive):
   {_fmt_banned_openings()}
@@ -350,12 +373,75 @@ def _fact_brief(f: FactRecord) -> str:
     return "- " + "; ".join(parts)
 
 
+_BULLET_CONTEXT_TYPES = {
+    FactType.ROLE, FactType.PROJECT, FactType.EDUCATION, FactType.CREDENTIAL,
+}
+
+
+def _build_bullet_facts_block(facts: list[FactRecord]) -> str:
+    """Hierarchical FACTS block for per-bullet (non-summary) prompts.
+
+    Splits the supplied facts into two groups:
+
+      - CONTEXT — the entity anchor (ROLE / PROJECT / EDUCATION / CREDENTIAL).
+        This is framing only. The bullet is NOT about the anchor; the anchor
+        names which role/project the bullet belongs to.
+      - ACHIEVEMENT TO WRITE ABOUT — the per-bullet child fact plus any
+        metrics assigned to this bullet. This is what the bullet writes
+        about; its specifics are what SURFACE THE SPECIFICS protects.
+
+    Without this split, the FACTS block rendered anchor and child as
+    equal siblings, and A's "surface the specifics" rule pushed the LLM
+    toward whichever fact had MORE named tools — usually the anchor —
+    so the child's distinct content got dropped and three different
+    children rendered as three near-identical anchor paraphrases (the
+    Spotify-clone collapse). Labelling fixes the attention asymmetry by
+    naming which fact is the subject.
+    """
+    context = [f for f in facts if f.type in _BULLET_CONTEXT_TYPES]
+    achievement = [f for f in facts if f.type not in _BULLET_CONTEXT_TYPES]
+    parts: list[str] = []
+    if context:
+        parts.append(
+            "CONTEXT — the role/project this bullet belongs to "
+            "(do NOT write the bullet about this; it is background "
+            "framing, not the subject):"
+        )
+        parts.extend(_fact_brief(f) for f in context)
+        parts.append("")
+    parts.append(
+        "ACHIEVEMENT TO WRITE ABOUT (this is the bullet's content — "
+        "surface ITS specifics, not the context's general stack):"
+    )
+    if achievement:
+        parts.extend(_fact_brief(f) for f in achievement)
+    else:
+        parts.append("(no achievement facts)")
+    parts.append("")
+    parts.append(
+        "NOTE — SURFACE THE SPECIFICS applies to the ACHIEVEMENT fact: "
+        "preserve the tools / systems / techniques named in IT, not the "
+        "CONTEXT's general stack. A bullet that only restates the project "
+        "name + its general tech stack, ignoring this achievement's "
+        "specific contribution, is wrong."
+    )
+    return "\n".join(parts)
+
+
 def _bullet_prompt(
     *, role_hint: str, facts: list[FactRecord], regen_feedback: str = "",
     writing_rules_block: str = "", section: str = "",
     digest_text: str = "",
 ) -> str:
-    facts_block = "\n".join(_fact_brief(f) for f in facts) or "(no facts)"
+    # Summary path: flat fact list — summaries synthesise across marquee facts
+    # rather than anchor+child pairs, so no hierarchy split applies. The
+    # digest_block (Layer 5 Full) carries the post-reviewer prose digest
+    # separately. Bullet path: hierarchical CONTEXT vs ACHIEVEMENT block to
+    # disambiguate which fact is the bullet's subject.
+    if section == "summary":
+        facts_block = "\n".join(_fact_brief(f) for f in facts) or "(no facts)"
+    else:
+        facts_block = _build_bullet_facts_block(facts)
     feedback = ""
     if regen_feedback:
         feedback = (
