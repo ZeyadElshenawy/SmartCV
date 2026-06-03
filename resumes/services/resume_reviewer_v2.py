@@ -173,14 +173,33 @@ def _grounding_findings_from_events(
         user must verify whether the metric is real before adding back).
       - ``action == 'regenerated'`` → WARNING. The guard caught it on
         the first attempt and re-tried successfully. Advisory.
+      - ``action == 'jd_skill_ungrounded'`` → WARNING. The JD-skill
+        grounding guard caught a must-have skill the bullet
+        referenced but the facts didn't support, AFTER one regen.
+        Bullet KEPT (the guard degrades to keep-and-flag rather than
+        drop, since false-positives from paraphrase/aliases are
+        possible). Surfaces as ``unsupported_skill`` so the editor
+        treats it distinctly from metric fabrications.
     """
     out: list[dict] = []
     for ev in events or []:
         action = getattr(ev, "action", "") or ""
         nums = getattr(ev, "ungrounded_numbers", []) or []
+        skills = getattr(ev, "ungrounded_skills", []) or []
         section = getattr(ev, "section", "") or ""
         entity_id = getattr(ev, "entity_id", "") or ""
         bullet_text = getattr(ev, "bullet_text", "") or ""
+        if action == "jd_skill_ungrounded":
+            out.append({
+                "kind": "unsupported_skill",
+                "severity": "warning",
+                "where": f"{section}/{entity_id}" if entity_id else section,
+                "detail": (
+                    f"action={action} ungrounded skills={skills} "
+                    f"original bullet: {bullet_text[:120]!r}"
+                ),
+            })
+            continue
         out.append({
             "kind": "unsupported_metric",
             "severity": "blocking" if action == "dropped" else "warning",

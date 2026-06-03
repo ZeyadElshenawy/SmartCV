@@ -517,3 +517,278 @@ class SectionShapeTests(SimpleTestCase):
             resume = generate_resume_v2(store, plan, job_title="Engineer")
         self.assertIn("Python", resume.sections["skills"].skills_line)
         self.assertNotIn("LLM_LEAK", resume.sections["skills"].skills_line)
+
+
+# ---------------------------------------------------------------------------
+# Fix B — JD emphasis prompt block + JD-skill grounding guard
+# ---------------------------------------------------------------------------
+
+
+class JDEmphasisPromptBlockTests(SimpleTestCase):
+    """The emphasis block renders only when JD lists are non-empty, drops
+    cleanly otherwise, and labels itself as guidance (not facts)."""
+
+    def _facts(self):
+        return [
+            _fact(id="role", type_=FactType.ROLE,
+                  claim="Engineer at Acme",
+                  evidence="Engineer at Acme",
+                  entity_id="cv:role|acme|eng",
+                  entity_display="Engineer @ Acme"),
+            _fact(id="ach", type_=FactType.ACHIEVEMENT,
+                  claim="Built a Python data pipeline",
+                  evidence="Built a Python data pipeline",
+                  entity_id="cv:role|acme|eng"),
+        ]
+
+    def test_block_absent_when_both_lists_empty(self):
+        from resumes.services.resume_generator_v2 import _bullet_prompt
+        p = _bullet_prompt(
+            role_hint="a experience entry: 'Engineer @ Acme' (targeting Engineer)",
+            facts=self._facts(), section="experience",
+            writing_rules_block="", digest_text="",
+            regen_feedback="",
+            jd_must=[], jd_nice=[],
+        )
+        self.assertNotIn("=== JD EMPHASIS", p)
+        self.assertNotIn("must-have skills", p)
+
+    def test_block_present_when_must_have_lists_non_empty(self):
+        from resumes.services.resume_generator_v2 import _bullet_prompt
+        p = _bullet_prompt(
+            role_hint="a experience entry: 'Engineer @ Acme'",
+            facts=self._facts(), section="experience",
+            writing_rules_block="", digest_text="",
+            regen_feedback="",
+            jd_must=["Python", "Flutter"],
+            jd_nice=["Docker"],
+        )
+        self.assertIn("=== JD EMPHASIS", p)
+        self.assertIn("NOT facts about the candidate", p)
+        self.assertIn("JD must-have skills: Python, Flutter", p)
+        self.assertIn("JD nice-to-have skills: Docker", p)
+        self.assertIn("EMPHASIS ONLY", p)
+        self.assertIn("=== END JD EMPHASIS", p)
+
+    def test_block_absent_in_summary_when_lists_empty(self):
+        from resumes.services.resume_generator_v2 import _bullet_prompt
+        p = _bullet_prompt(
+            role_hint="the professional summary for a Engineer role",
+            facts=self._facts(), section="summary",
+            writing_rules_block="", digest_text="",
+            regen_feedback="",
+            jd_must=[], jd_nice=[],
+        )
+        self.assertNotIn("=== JD EMPHASIS", p)
+
+
+class JDSkillGroundingGuardUnitTests(SimpleTestCase):
+    """The _ungrounded_jd_skills helper — match shape + known-limit
+    documentation."""
+
+    def _facts_with_python(self):
+        return [_fact(
+            id="ach", type_=FactType.ACHIEVEMENT,
+            claim="Built a data pipeline in Python",
+            evidence="Built a data pipeline in Python",
+            entity_id="cv:role|acme|eng",
+        )]
+
+    def test_unsupported_skill_in_bullet_flagged(self):
+        from resumes.services.resume_generator_v2 import _ungrounded_jd_skills
+        # Bullet claims Flutter; fact has only Python.
+        bad = _ungrounded_jd_skills(
+            text="Built a Flutter app on top of the pipeline",
+            facts=self._facts_with_python(),
+            jd_must=["Flutter", "Python"],
+        )
+        self.assertEqual(bad, ["Flutter"])
+
+    def test_supported_skill_not_flagged_exact(self):
+        from resumes.services.resume_generator_v2 import _ungrounded_jd_skills
+        bad = _ungrounded_jd_skills(
+            text="Built a Python data pipeline reducing nightly load",
+            facts=self._facts_with_python(),
+            jd_must=["Python"],
+        )
+        self.assertEqual(bad, [])
+
+    def test_supported_skill_not_flagged_case_insensitive(self):
+        """Word-boundary regex is case-insensitive; PYTHON in the bullet
+        still matches Python in the facts."""
+        from resumes.services.resume_generator_v2 import _ungrounded_jd_skills
+        bad = _ungrounded_jd_skills(
+            text="PYTHON pipeline shipped",
+            facts=self._facts_with_python(),
+            jd_must=["Python"],
+        )
+        self.assertEqual(bad, [])
+
+    def test_no_jd_must_means_no_check(self):
+        from resumes.services.resume_generator_v2 import _ungrounded_jd_skills
+        bad = _ungrounded_jd_skills(
+            text="Built a Flutter app",
+            facts=self._facts_with_python(),
+            jd_must=[],
+        )
+        self.assertEqual(bad, [])
+
+    def test_skill_not_in_text_is_never_flagged(self):
+        from resumes.services.resume_generator_v2 import _ungrounded_jd_skills
+        bad = _ungrounded_jd_skills(
+            text="Built a Python data pipeline",
+            facts=self._facts_with_python(),
+            jd_must=["Flutter"],  # Flutter not in text → safe
+        )
+        self.assertEqual(bad, [])
+
+    def test_known_limitation_acronym_false_positive_documented(self):
+        """Documents the known false-positive direction: a bullet using an
+        ACRONYM for a skill the facts spell out fully gets flagged. This
+        is why the caller degrades to KEEP+FLAG instead of dropping."""
+        from resumes.services.resume_generator_v2 import _ungrounded_jd_skills
+        facts = [_fact(
+            id="ach", type_=FactType.ACHIEVEMENT,
+            claim="Trained a machine learning model on tabular data",
+            evidence="Trained a machine learning model on tabular data",
+            entity_id="cv:role|acme|eng",
+        )]
+        bad = _ungrounded_jd_skills(
+            text="Trained an ML model with strong accuracy",
+            facts=facts,
+            jd_must=["ML"],  # bullet says ML, facts say "machine learning"
+        )
+        # This IS a false positive — guard cannot equate "ML" ≡ "Machine Learning".
+        # Documented behavior so future fixes can target it specifically.
+        self.assertEqual(bad, ["ML"])
+
+
+class JDSkillGuardIntegrationTests(SimpleTestCase):
+    """The composed flow inside _generate_one_bullet: regen-with-feedback,
+    keep-and-flag on persistent skill fabrication, and number-lock
+    composition."""
+
+    def _facts(self):
+        return [
+            _fact(id="role", type_=FactType.ROLE,
+                  claim="Engineer at Acme",
+                  evidence="Engineer at Acme",
+                  entity_id="cv:role|acme|eng",
+                  entity_display="Engineer @ Acme"),
+            _fact(id="ach", type_=FactType.ACHIEVEMENT,
+                  claim="Built a Python data pipeline reducing nightly load",
+                  evidence="Built a Python data pipeline reducing nightly load",
+                  entity_id="cv:role|acme|eng"),
+        ]
+
+    def _call(self, *, llm_outputs, jd_must=("Python", "Flutter"),
+              allowed_numbers=None):
+        """Run _generate_one_bullet with a stub LLM that returns the
+        supplied outputs in order across calls."""
+        from resumes.services.resume_generator_v2 import (
+            _generate_one_bullet, FabricationEvent,
+        )
+        events: list = []
+        calls = {"n": 0}
+        def stub(prompt, **kw):
+            i = calls["n"]
+            calls["n"] += 1
+            return llm_outputs[min(i, len(llm_outputs) - 1)]
+        with patch("resumes.services.resume_generator_v2._llm_call",
+                   side_effect=stub):
+            b = _generate_one_bullet(
+                section="experience", entity_id="cv:role|acme|eng",
+                role_hint="a experience entry: 'Engineer @ Acme'",
+                facts=self._facts(),
+                allowed_numbers=set(allowed_numbers or []),
+                events=events,
+                writing_rules_block="",
+                jd_must=list(jd_must),
+                jd_nice=[],
+            )
+        return b, events, calls["n"]
+
+    def test_skill_fabrication_triggers_regen_then_clean_keeps_bullet(self):
+        """First LLM output references Flutter (not in facts) → regen with
+        skill feedback → second output drops Flutter → returns clean."""
+        bullet, events, n_calls = self._call(
+            llm_outputs=[
+                "Built a Flutter app on top of the Python pipeline.",
+                "Built a Python data pipeline reducing nightly load by hours.",
+            ],
+            jd_must=["Python", "Flutter"],
+        )
+        self.assertIsNotNone(bullet)
+        self.assertNotIn("Flutter", bullet.text)
+        self.assertEqual(n_calls, 2)  # one regen
+        # First-attempt regenerate event captured.
+        regen_events = [e for e in events if e.action == "regenerated"]
+        self.assertEqual(len(regen_events), 1)
+        self.assertEqual(regen_events[0].ungrounded_skills, ["Flutter"])
+
+    def test_skill_fabrication_persistent_keeps_bullet_and_records_event(self):
+        """If regen STILL trips the guard, keep+record. Never drop on
+        skill-only failure."""
+        bullet, events, n_calls = self._call(
+            llm_outputs=[
+                "Built a Flutter app",
+                "Designed a Flutter Frontend",
+            ],
+            jd_must=["Python", "Flutter"],
+        )
+        # KEPT — not None.
+        self.assertIsNotNone(bullet)
+        self.assertIn("Flutter", bullet.text)
+        # Event recorded with jd_skill_ungrounded action.
+        flagged = [e for e in events if e.action == "jd_skill_ungrounded"]
+        self.assertEqual(len(flagged), 1)
+        self.assertEqual(flagged[0].ungrounded_skills, ["Flutter"])
+        # And the first-attempt regenerate event for the same skill.
+        regen_events = [e for e in events if e.action == "regenerated"]
+        self.assertEqual(len(regen_events), 1)
+
+    def test_number_lock_and_jd_skill_compose_in_one_regen(self):
+        """A bullet that trips BOTH number-lock AND skill guard gets one
+        combined-feedback regen, not two separate cycles."""
+        bullet, events, n_calls = self._call(
+            llm_outputs=[
+                # First attempt: fabricated number 99 AND fabricated skill Flutter.
+                "Built a Flutter app saving 99 hours weekly with the pipeline",
+                # Regen: clean on both — only allowed grounded content.
+                "Built a Python data pipeline reducing nightly load",
+            ],
+            jd_must=["Python", "Flutter"],
+            allowed_numbers=set(),  # no allowed numbers
+        )
+        self.assertIsNotNone(bullet)
+        self.assertNotIn("Flutter", bullet.text)
+        self.assertNotIn("99", bullet.text)
+        # Exactly ONE regen (n_calls=2), not two separate cycles.
+        self.assertEqual(n_calls, 2)
+        # Both kinds of regenerate events from the first-attempt catch.
+        regen_events = [e for e in events if e.action == "regenerated"]
+        self.assertEqual(len(regen_events), 2)
+        # One records ungrounded_numbers, the other ungrounded_skills.
+        nums = [e for e in regen_events if e.ungrounded_numbers]
+        sks = [e for e in regen_events if e.ungrounded_skills]
+        self.assertEqual(len(nums), 1)
+        self.assertEqual(len(sks), 1)
+        self.assertEqual(nums[0].ungrounded_numbers, [99.0])
+        self.assertEqual(sks[0].ungrounded_skills, ["Flutter"])
+
+    def test_number_persistent_drops_even_if_skill_clean(self):
+        """When numbers persist after regen, drop the bullet (existing
+        rule, unchanged). Existing number-only behaviour stays correct."""
+        bullet, events, n_calls = self._call(
+            llm_outputs=[
+                # Both attempts have the bad number, no skill issue.
+                "Built a Python pipeline saving 99 hours weekly",
+                "Built a Python pipeline saving 99 hours per week",
+            ],
+            jd_must=["Python"],
+            allowed_numbers=set(),
+        )
+        self.assertIsNone(bullet)
+        dropped = [e for e in events if e.action == "dropped"]
+        self.assertEqual(len(dropped), 1)
+        self.assertEqual(dropped[0].ungrounded_numbers, [99.0])

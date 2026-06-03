@@ -62,6 +62,7 @@ from resumes.services.resume_planner_v2 import (
     FactAllocation,
     PlanResult,
     SectionPlan,
+    _text_mentions,
 )
 
 logger = logging.getLogger(__name__)
@@ -107,17 +108,25 @@ class GeneratedSection(BaseModel):
 
 
 class FabricationEvent(BaseModel):
-    """Audit record of every time the number guard caught an
-    ungrounded number in generated prose."""
+    """Audit record of every time the number guard or the JD-skill
+    grounding guard caught fabricated content in generated prose."""
     model_config = ConfigDict(extra="forbid")
     section: str
     entity_id: str = ""
     bullet_text: str
     ungrounded_numbers: list[float]
+    ungrounded_skills: list[str] = Field(
+        default_factory=list,
+        description="JD must-have skills the bullet referenced but the "
+                    "supporting facts didn't contain. Empty for pure "
+                    "number-fabrication events.",
+    )
     action: str = Field(
         ...,
         description='"regenerated" (first catch, retried) | '
-                    '"dropped" (retry also fabricated; bullet refused).',
+                    '"dropped" (retry also fabricated numbers; bullet refused) | '
+                    '"jd_skill_ungrounded" (regen still references a must-have '
+                    "skill the facts don't support; bullet KEPT + flagged).",
     )
 
 
@@ -378,6 +387,97 @@ _BULLET_CONTEXT_TYPES = {
 }
 
 
+def _ungrounded_jd_skills(
+    text: str, facts: list[FactRecord], jd_must: list[str],
+) -> list[str]:
+    """Fix B grounding guard — return JD must-have skills referenced in
+    ``text`` but NOT supported by any of the bullet's source ``facts``.
+
+    Match is the same word-boundary regex the planner uses for JD relevance
+    (``resume_planner_v2._text_mentions``), case-insensitive on the cleaned
+    text. A skill counts as "in the facts" when ``_text_mentions(...)``
+    returns True against the union of every supplied fact's
+    claim + evidence_quote; the same predicate decides "in the text".
+
+    Known limitation (false-positive direction): acronyms, aliases, and
+    paraphrases are NOT cross-matched. If the facts say "Machine Learning"
+    and the bullet uses "ML", the guard flags "ML" as ungrounded. This is
+    why the caller treats a persistent flag as keep-and-record (not drop):
+    a possible-paraphrase false positive surfaces for review without
+    losing the bullet's real content. Cross-matched only against
+    must-have terms (typically ~5-15) for cost; nice-to-have are NOT
+    grounded (they're emphasis-only, not fabrication-critical).
+    """
+    if not text or not jd_must:
+        return []
+    facts_text_parts: list[str] = []
+    for f in facts or []:
+        if f is None:
+            continue
+        facts_text_parts.append(f.claim or "")
+        facts_text_parts.append(f.evidence_quote or "")
+    facts_text = " ".join(facts_text_parts)
+    out: list[str] = []
+    seen: set[str] = set()
+    for skill in jd_must:
+        s = (skill or "").strip()
+        if not s or s.lower() in seen:
+            continue
+        seen.add(s.lower())
+        if _text_mentions(text, s) and not _text_mentions(facts_text, s):
+            out.append(s)
+    return out
+
+
+def _build_jd_emphasis_block(
+    jd_must: list[str] | None, jd_nice: list[str] | None,
+) -> str:
+    """Render the JD-emphasis prompt block. Empty string when both lists
+    are empty/None — caller should drop the section cleanly in that case.
+
+    The block is labelled-boundary in the same envelope shape the KB
+    writing-rules block uses (``=== ... ===`` head + foot, explicit
+    'NOT facts' framing). The instructions explicitly mirror the
+    NUMBERS POLICY's content discipline: JD skills guide emphasis among
+    facts, never license new content.
+    """
+    must = [s for s in (jd_must or []) if s and s.strip()]
+    nice = [s for s in (jd_nice or []) if s and s.strip()]
+    if not must and not nice:
+        return ""
+    parts: list[str] = [
+        "=== JD EMPHASIS (guidance only — these are NOT facts about the "
+        "candidate; NEVER claim content from them) ===",
+    ]
+    if must:
+        parts.append(f"JD must-have skills: {', '.join(must)}")
+    if nice:
+        parts.append(f"JD nice-to-have skills: {', '.join(nice)}")
+    parts.append("")
+    parts.append(
+        "EMPHASIS ONLY: JD skills tell you which specifics already in the "
+        "FACTS to surface prominently. They do NOT license new content — "
+        "same rule as the NUMBERS POLICY: only what's in the FACTS is content."
+    )
+    parts.append(
+        "WHEN A FACT NAMES A JD SKILL: surface it by name (ties to the "
+        "SURFACE THE SPECIFICS rule in the CONTENT POLICY)."
+    )
+    parts.append(
+        "WHEN THE FACTS DO NOT NAME A JD SKILL: do NOT reference it. A "
+        "bullet claiming a JD skill the facts don't support is "
+        "fabrication and will be flagged."
+    )
+    parts.append(
+        "TIE-BREAKER: when specifics compete for the bullet's limited "
+        "length, prefer must-have > nice-to-have > neither."
+    )
+    parts.append(
+        "=== END JD EMPHASIS — facts follow ==="
+    )
+    return "\n".join(parts)
+
+
 def _build_bullet_facts_block(facts: list[FactRecord]) -> str:
     """Hierarchical FACTS block for per-bullet (non-summary) prompts.
 
@@ -432,6 +532,8 @@ def _bullet_prompt(
     *, role_hint: str, facts: list[FactRecord], regen_feedback: str = "",
     writing_rules_block: str = "", section: str = "",
     digest_text: str = "",
+    jd_must: list[str] | None = None,
+    jd_nice: list[str] | None = None,
 ) -> str:
     # Summary path: flat fact list — summaries synthesise across marquee facts
     # rather than anchor+child pairs, so no hierarchy split applies. The
@@ -462,6 +564,17 @@ def _bullet_prompt(
     writing_rules = (
         f"\n{writing_rules_block}\n\n" if writing_rules_block else ""
     )
+    # Fix B — JD emphasis block. Slots BETWEEN the quality-rules and the KB
+    # writing-rules block; same labelled-boundary "NOT facts" envelope as KB.
+    # Empty when both JD lists are absent, so the prompt drops the section
+    # cleanly. Applied to both bullet and summary branches — the same
+    # vague-cliché vs JD-priority decision applies to positioning statements
+    # too. Number-lock is unaffected (allowed_numbers still binds only on
+    # FACTS); JD-skill grounding is a separate guard in _generate_one_bullet.
+    jd_emphasis_text = _build_jd_emphasis_block(jd_must, jd_nice)
+    jd_emphasis = (
+        f"\n{jd_emphasis_text}\n\n" if jd_emphasis_text else ""
+    )
     # Layer 5 Full — when synthesising the summary AFTER the reviewer, the
     # caller passes a digest of the finished/reviewed sections so the LLM
     # synthesises from what actually shipped (post number-lock, post
@@ -481,6 +594,7 @@ def _bullet_prompt(
             f"You are writing a PROFESSIONAL SUMMARY of two to three sentences for {role_hint}. "
             "Synthesize ACROSS the facts below — do not pick just one.\n"
             f"{_SUMMARY_QUALITY_RULES}\n"
+            f"{jd_emphasis}"
             f"{writing_rules}"
             f"{digest_block}"
             f"FACTS (the ONLY content + numbers you may draw from):\n{facts_block}\n"
@@ -493,6 +607,7 @@ def _bullet_prompt(
     return (
         f"You are writing ONE resume bullet for {role_hint}. Use the facts below.\n"
         f"{_BULLET_QUALITY_RULES}\n"
+        f"{jd_emphasis}"
         f"{writing_rules}"
         f"FACTS (the ONLY content + numbers you may draw from):\n{facts_block}\n"
         f"{feedback}\n"
@@ -512,37 +627,70 @@ def _generate_one_bullet(
     writing_rules_block: str = "",
     regen_feedback: str = "",
     digest_text: str = "",
+    jd_must: list[str] | None = None,
+    jd_nice: list[str] | None = None,
 ) -> Optional[GeneratedBullet]:
-    """Generate one bullet, run the number guard, regenerate once on
-    failure, drop on persistent failure.
+    """Generate one bullet, run two grounding guards (numbers + JD skills),
+    regenerate once on either failure with combined feedback, then degrade
+    by category:
 
-    Returns ``None`` when the bullet was dropped — caller skips it.
-    Mutates ``events`` to record every fabrication catch.
+      - persistent NUMBERS fabrication after regen → DROP (existing rule,
+        unchanged: drop loses content, but a fake number is a recruiter-
+        visible lie).
+      - persistent JD-SKILL fabrication after regen (numbers clean) →
+        KEEP + record FabricationEvent(action="jd_skill_ungrounded").
+        Dropping over a possible-paraphrase false-positive loses real
+        content; the event surfaces the issue without erasing the bullet.
+      - both persistent → DROP (numbers win the tie; the bullet is
+        recorded with both fabrication kinds in the dropped event).
 
-    ``regen_feedback`` is REVIEW-DRIVEN feedback the v2 review/regen
-    loop passes when re-generating a flagged bullet (e.g. "bullet
-    starts with banned opening 'Utilized' — FIX: lead with a strong
-    action verb"). When empty, the first attempt runs unchanged.
-    The internal number-guard regen builds its own feedback string on
-    its second attempt — both can be active.
+    The two guards share ONE regen attempt — they don't run independent
+    regen loops. Feedback combines, so the LLM sees both problems at once
+    on the retry.
 
-    ``writing_rules_block`` is the labeled-boundary phrasing-rules
-    section (KB chunks formatted via
-    ``kb_integration.format_writing_rules_block``); pass empty string
-    to disable. It influences PHRASING only — ``allowed_numbers``
-    still comes exclusively from the supplied ``facts``, so the
-    number-lock can't be bypassed by a rule that contains a number.
+    ``regen_feedback`` (caller-supplied) is APPENDED to the guard feedback
+    so the review/regen loop's banned-opening / supervisor feedback still
+    composes. Empty defaults preserve the no-JD path.
     """
+    jd_must = list(jd_must or [])
+    jd_nice = list(jd_nice or [])
+    caller_regen_feedback = regen_feedback or ""
+
+    def _llm_attempt(feedback_text: str) -> str:
+        return _llm_call(_bullet_prompt(
+            role_hint=role_hint, facts=facts,
+            writing_rules_block=writing_rules_block,
+            regen_feedback=feedback_text,
+            section=section,
+            digest_text=digest_text,
+            jd_must=jd_must,
+            jd_nice=jd_nice,
+        ))
+
+    def _build_guard_feedback(bad_nums, bad_skills) -> str:
+        parts: list[str] = []
+        if bad_nums:
+            parts.append(
+                f"You included number(s) {bad_nums} which do NOT appear "
+                f"in the provided facts. Remove them, or use only the "
+                f"given numbers."
+            )
+        if bad_skills:
+            parts.append(
+                f"Your bullet referenced JD skill(s) {bad_skills} but "
+                f"the facts for this bullet don't support them. Remove "
+                f"them; only use skills the facts contain."
+            )
+        out = "\n".join(parts)
+        if caller_regen_feedback:
+            out = (out + "\n" + caller_regen_feedback) if out else caller_regen_feedback
+        return out
+
     # --- First attempt ---
-    text = _llm_call(_bullet_prompt(
-        role_hint=role_hint, facts=facts,
-        writing_rules_block=writing_rules_block,
-        regen_feedback=regen_feedback,
-        section=section,
-        digest_text=digest_text,
-    ))
-    bad = _ungrounded_numbers(text, allowed_numbers)
-    if not bad:
+    text = _llm_attempt(caller_regen_feedback)
+    bad_nums = _ungrounded_numbers(text, allowed_numbers)
+    bad_skills = _ungrounded_jd_skills(text, facts, jd_must)
+    if not bad_nums and not bad_skills:
         hedged = any(f.hedged for f in facts)
         return GeneratedBullet(
             text=text,
@@ -550,29 +698,34 @@ def _generate_one_bullet(
             hedged=hedged,
         )
 
-    # --- Catch + regenerate once ---
-    logger.warning(
-        "resume_generator_v2: number guard caught ungrounded number(s) "
-        "%s in %s[%s] first attempt; regenerating once. Bullet was: %r",
-        bad, section, entity_id or "-", text[:120],
-    )
-    events.append(FabricationEvent(
-        section=section, entity_id=entity_id,
-        bullet_text=text, ungrounded_numbers=bad, action="regenerated",
-    ))
-    regen_feedback = (
-        f"You included number(s) {bad} which do NOT appear in the provided "
-        "facts. Remove them, or use only the given numbers."
-    )
-    text2 = _llm_call(
-        _bullet_prompt(role_hint=role_hint, facts=facts,
-                       regen_feedback=regen_feedback,
-                       writing_rules_block=writing_rules_block,
-                       section=section,
-                       digest_text=digest_text),
-    )
-    bad2 = _ungrounded_numbers(text2, allowed_numbers)
-    if not bad2:
+    # --- Catch + record regenerate-events + retry ONCE with combined feedback ---
+    if bad_nums:
+        logger.warning(
+            "resume_generator_v2: number guard caught ungrounded number(s) "
+            "%s in %s[%s] first attempt; regenerating once. Bullet was: %r",
+            bad_nums, section, entity_id or "-", text[:120],
+        )
+        events.append(FabricationEvent(
+            section=section, entity_id=entity_id,
+            bullet_text=text, ungrounded_numbers=bad_nums,
+            ungrounded_skills=[], action="regenerated",
+        ))
+    if bad_skills:
+        logger.warning(
+            "resume_generator_v2: JD-skill guard caught ungrounded skill(s) "
+            "%s in %s[%s] first attempt; regenerating once. Bullet was: %r",
+            bad_skills, section, entity_id or "-", text[:120],
+        )
+        events.append(FabricationEvent(
+            section=section, entity_id=entity_id,
+            bullet_text=text, ungrounded_numbers=[],
+            ungrounded_skills=bad_skills, action="regenerated",
+        ))
+    feedback2 = _build_guard_feedback(bad_nums, bad_skills)
+    text2 = _llm_attempt(feedback2)
+    bad_nums2 = _ungrounded_numbers(text2, allowed_numbers)
+    bad_skills2 = _ungrounded_jd_skills(text2, facts, jd_must)
+    if not bad_nums2 and not bad_skills2:
         hedged = any(f.hedged for f in facts)
         return GeneratedBullet(
             text=text2,
@@ -580,17 +733,41 @@ def _generate_one_bullet(
             hedged=hedged,
         )
 
-    # --- Persistent failure → DROP ---
+    # --- Persistent failure — categorise the degrade ---
+    if bad_nums2:
+        # Numbers persistent → DROP. Existing behaviour; numbers win even
+        # if skills also tripped (the dropped event records both kinds).
+        logger.warning(
+            "resume_generator_v2: number guard caught ungrounded %s in regen too "
+            "for %s[%s]; DROPPING bullet. Original: %r; Regen: %r",
+            bad_nums2, section, entity_id or "-", text[:120], text2[:120],
+        )
+        events.append(FabricationEvent(
+            section=section, entity_id=entity_id,
+            bullet_text=text2, ungrounded_numbers=bad_nums2,
+            ungrounded_skills=bad_skills2, action="dropped",
+        ))
+        return None
+    # Numbers clean but JD skills persistent → KEEP + record. Don't drop a
+    # bullet over a possible-paraphrase false positive; the event surfaces
+    # the issue for review without erasing real content.
+    assert bad_skills2
     logger.warning(
-        "resume_generator_v2: number guard caught ungrounded %s in regen too "
-        "for %s[%s]; DROPPING bullet. Original: %r; Regen: %r",
-        bad2, section, entity_id or "-", text[:120], text2[:120],
+        "resume_generator_v2: JD-skill guard caught ungrounded %s in regen too "
+        "for %s[%s]; KEEPING bullet + flagging. Original: %r; Regen: %r",
+        bad_skills2, section, entity_id or "-", text[:120], text2[:120],
     )
     events.append(FabricationEvent(
         section=section, entity_id=entity_id,
-        bullet_text=text2, ungrounded_numbers=bad2, action="dropped",
+        bullet_text=text2, ungrounded_numbers=[],
+        ungrounded_skills=bad_skills2, action="jd_skill_ungrounded",
     ))
-    return None
+    hedged = any(f.hedged for f in facts)
+    return GeneratedBullet(
+        text=text2,
+        fact_ids=[f.id for f in facts],
+        hedged=hedged,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -726,6 +903,8 @@ def _generate_summary(
     job_company: str,
     events: list[FabricationEvent],
     writing_rules_block: str = "",
+    jd_must: list[str] | None = None,
+    jd_nice: list[str] | None = None,
 ) -> GeneratedSection:
     """Summary: one short paragraph drawing on the plan's marquee facts.
     Single LLM call; same number guard. Post-processes the LLM output
@@ -743,6 +922,8 @@ def _generate_summary(
         role_hint=role_hint, facts=facts,
         allowed_numbers=allowed, events=events,
         writing_rules_block=writing_rules_block,
+        jd_must=jd_must,
+        jd_nice=jd_nice,
     )
     # Defensive strip — happens AFTER the number guard so the preamble's
     # text doesn't participate in number-grounding (the guard already
@@ -764,6 +945,8 @@ def _synthesize_summary_from_sections(
     job_title: str = "",
     job_company: str = "",
     writing_rules_block: str = "",
+    jd_must: list[str] | None = None,
+    jd_nice: list[str] | None = None,
 ) -> GeneratedResumeV2:
     """Layer 5 Full — synthesise the professional summary from the
     FINISHED, post-reviewer ``resume.sections`` rather than from the
@@ -869,6 +1052,8 @@ def _synthesize_summary_from_sections(
         allowed_numbers=allowed, events=events,
         writing_rules_block=writing_rules_block,
         digest_text=digest_text,
+        jd_must=jd_must,
+        jd_nice=jd_nice,
     )
 
     # ---- 4. Banned-openings re-check (one regen, mirrors reviewer) --------
@@ -892,6 +1077,8 @@ def _synthesize_summary_from_sections(
                 writing_rules_block=writing_rules_block,
                 digest_text=digest_text,
                 regen_feedback=regen_feedback,
+                jd_must=jd_must,
+                jd_nice=jd_nice,
             )
             if bullet_v2 is not None:
                 bullet = bullet_v2
@@ -923,6 +1110,8 @@ def _generate_entity_bullets(
     job_title: str,
     events: list[FabricationEvent],
     writing_rules_block: str = "",
+    jd_must: list[str] | None = None,
+    jd_nice: list[str] | None = None,
 ) -> EntityBlock:
     """One role/project's bullets. Each child fact-allocation
     generates ONE bullet; the entity's metrics are merged into the
@@ -963,6 +1152,8 @@ def _generate_entity_bullets(
             role_hint=role_hint, facts=facts_for_bullet,
             allowed_numbers=allowed, events=events,
             writing_rules_block=writing_rules_block,
+            jd_must=jd_must,
+            jd_nice=jd_nice,
         )
         if b is not None:
             bullets.append(b)
@@ -975,6 +1166,8 @@ def _generate_entity_bullets(
                 role_hint=role_hint, facts=facts_for_bullet,
                 allowed_numbers=allowed, events=events,
                 writing_rules_block=writing_rules_block,
+                jd_must=jd_must,
+                jd_nice=jd_nice,
             )
             if b is not None:
                 bullets.append(b)
@@ -991,12 +1184,16 @@ def _generate_experience(
     store: FactStore, section: SectionPlan,
     *, job_title: str, events: list[FabricationEvent],
     writing_rules_block: str = "",
+    jd_must: list[str] | None = None,
+    jd_nice: list[str] | None = None,
 ) -> GeneratedSection:
     blocks = [
         _generate_entity_bullets(
             store, ent, section="experience",
             job_title=job_title, events=events,
             writing_rules_block=writing_rules_block,
+            jd_must=jd_must,
+            jd_nice=jd_nice,
         )
         for ent in section.entities
     ]
@@ -1007,12 +1204,16 @@ def _generate_projects(
     store: FactStore, section: SectionPlan,
     *, job_title: str, events: list[FabricationEvent],
     writing_rules_block: str = "",
+    jd_must: list[str] | None = None,
+    jd_nice: list[str] | None = None,
 ) -> GeneratedSection:
     blocks = [
         _generate_entity_bullets(
             store, ent, section="projects",
             job_title=job_title, events=events,
             writing_rules_block=writing_rules_block,
+            jd_must=jd_must,
+            jd_nice=jd_nice,
         )
         for ent in section.entities
     ]
@@ -1100,11 +1301,19 @@ def generate_resume_v2(
     if skills is not None:
         sections["skills"] = _generate_skills_line(store, skills)
 
+    # Fix B — read JD signal off the plan. Defaults to [] for any plan
+    # constructed without these fields (backward-compatible with direct
+    # callers / older tests).
+    jd_must = list(getattr(plan, "job_must_have_skills", None) or [])
+    jd_nice = list(getattr(plan, "job_nice_to_have_skills", None) or [])
+
     experience = plan.sections.get("experience")
     if experience is not None:
         sections["experience"] = _generate_experience(
             store, experience, job_title=job_title, events=events,
             writing_rules_block=writing_rules_block,
+            jd_must=jd_must,
+            jd_nice=jd_nice,
         )
 
     projects = plan.sections.get("projects")
@@ -1112,6 +1321,8 @@ def generate_resume_v2(
         sections["projects"] = _generate_projects(
             store, projects, job_title=job_title, events=events,
             writing_rules_block=writing_rules_block,
+            jd_must=jd_must,
+            jd_nice=jd_nice,
         )
 
     edu = plan.sections.get("education")

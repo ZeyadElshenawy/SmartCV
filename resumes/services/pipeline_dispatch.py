@@ -125,6 +125,8 @@ def _generate_via_v2(profile, job, gap_analysis) -> dict:
         job_title=getattr(job, "title", "") or "",
         job_company=getattr(job, "company", "") or "",
         writing_rules_block=writing_rules_block,
+        jd_must=must_have,
+        jd_nice=nice_to_have,
     )
 
     # The adapter's source-merge looks for ``experience`` / ``projects``
