@@ -1218,7 +1218,17 @@ def build_plan(
                                      extras=f"claim={fact.claim!r}"),
             hedged=fact.hedged,
         ))
-        mention_counter.record(fact)
+        # Layer-3-follow-on fix (a): skills do NOT increment the
+        # mention counter. The counter's purpose is to prevent the
+        # same skill being sprayed across narrative prose (bullets in
+        # summary / experience / projects). The structured skills
+        # enumeration is the legitimate place for that keyword to
+        # appear once each; counting those mentions toward the cap
+        # exhausted the budget before experience entities could
+        # allocate, starving roles whose source content uses the same
+        # vocabulary (the DEPI scenario). Skills already has no
+        # ``would_overflow`` gate — it neither gates on nor should
+        # contribute to the narrative cap.
     sections["skills"] = SectionPlan(section="skills", facts=skills_alloc)
 
     # ---- SUMMARY section ----
@@ -1350,12 +1360,31 @@ def build_plan(
                 )
                 break
             overflow = mention_counter.would_overflow(fact)
+            # Layer-3-follow-on fix (c): per-entity floor — when the
+            # mention cap is the ONLY thing blocking and this entity
+            # has zero facts allocated so far, admit ONE fact past the
+            # cap so the role still renders bullets instead of an empty
+            # entry. Fires only on the first-fact slot. Strength gate
+            # below still applies — the floor bypasses the cap, not
+            # validation. Per-entity cap + section budget already
+            # short-circuited above, so they remain authoritative.
             if overflow:
-                notes.append(
-                    f"experience[{eid}]: skipped fact {fact.id} "
-                    f"(mention cap on {sorted(overflow)})"
-                )
-                continue
+                if per_entity_used == 0:
+                    # First fact for this entity — let it through the
+                    # mention cap. _is_weak_fact still gets to veto
+                    # below, so a URL / anchor-restatement / sub-15-char
+                    # fact does NOT become a floor bullet.
+                    notes.append(
+                        f"experience[{eid}]: floor — admitted 1 fact "
+                        f"past mention cap on {sorted(overflow)} to "
+                        f"avoid empty entity"
+                    )
+                else:
+                    notes.append(
+                        f"experience[{eid}]: skipped fact {fact.id} "
+                        f"(mention cap on {sorted(overflow)})"
+                    )
+                    continue
             weak, weak_reason = _is_weak_fact(fact, anchor=role)
             if weak:
                 notes.append(

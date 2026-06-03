@@ -202,18 +202,32 @@ class AntiOverRepresentationTests(SimpleTestCase):
         return count
 
     def test_cap_holds_across_sections(self):
+        """The cap protects NARRATIVE sections (summary / experience /
+        projects) from keyword-spraying — that's its whole purpose. The
+        structured SKILLS enumeration is the legitimate place for a
+        keyword to appear once each and is exempt from the counter
+        (fix (a)). So the total plan-wide count of a tracked keyword is
+        bounded by ``cap + <skill-section facts naming the keyword>``,
+        not by ``cap`` alone. For this fixture there's 1 Python skill
+        fact, so the bound is cap+1=4. The internal counter (which
+        excludes the skill contribution) still respects the cap."""
         store = self._python_heavy_store()
         plan = build_plan(
             store,
             job_must_have_skills=["Python"],
         )
         python_count = self._count_python_mentions(plan, store)
+        # cap + 1 allowance for the single structured skill row that
+        # legitimately enumerates "Python". The cap still binds the
+        # narrative sections.
         self.assertLessEqual(
-            python_count, DEFAULT_PER_SKILL_MENTION_CAP,
+            python_count, DEFAULT_PER_SKILL_MENTION_CAP + 1,
             f"Python mentioned {python_count} times in plan; "
-            f"cap is {DEFAULT_PER_SKILL_MENTION_CAP}",
+            f"bound is cap+1={DEFAULT_PER_SKILL_MENTION_CAP + 1} "
+            f"(cap on narrative + 1 for the skills enumeration)",
         )
-        # The counter should ALSO reflect this.
+        # The counter — which excludes the skills section — should still
+        # be capped at the narrative limit.
         self.assertLessEqual(
             plan.anti_overrep_stats.get("python", 0),
             DEFAULT_PER_SKILL_MENTION_CAP,
@@ -233,6 +247,164 @@ class AntiOverRepresentationTests(SimpleTestCase):
         self.assertTrue(
             any("mention cap" in n for n in plan.notes),
             f"expected cap-skip notes; got {plan.notes!r}",
+        )
+
+    # ------------------------------------------------------------------
+    # Fix (a) — skills section does NOT increment the mention counter
+    # ------------------------------------------------------------------
+
+    def test_skills_section_does_not_increment_counter(self):
+        """Fix (a): the structured skills enumeration is exempt from
+        the mention counter. Allocating N skill rows that name a tracked
+        keyword leaves the counter at 0 for that keyword (until a
+        NARRATIVE section bumps it). Without this, the skills section
+        exhausts the cap before experience even runs (the DEPI scenario).
+        """
+        store = FactStore()
+        # Multiple skill rows each naming the tracked keyword.
+        for i, claim in enumerate([
+            "Python", "Python (Data Science)", "Pythonic patterns",
+            "Python tooling (pip, poetry)",
+        ]):
+            store.add(_fact(
+                id=f"sk_{i}", type_=FactType.SKILL,
+                claim=claim, evidence=claim,
+            ))
+        plan = build_plan(store, job_must_have_skills=["Python"])
+        # All skills allocated.
+        self.assertGreaterEqual(
+            len(plan.sections["skills"].facts), 4,
+            "expected all 4 skill rows to allocate",
+        )
+        # And yet the counter sees zero — they didn't fund the cap.
+        self.assertEqual(
+            plan.anti_overrep_stats.get("python", 0), 0,
+            "skills must not increment the mention counter",
+        )
+
+    # ------------------------------------------------------------------
+    # Fix (c) — per-entity floor in EXPERIENCE
+    # ------------------------------------------------------------------
+
+    def _cap_exhausted_python_store_with_one_role(
+        self, *, role_achievement_claim: str,
+    ) -> "FactStore":
+        """Build a store that drives the SUMMARY section to cap-exhaust
+        Python (3 projects each with a Python achievement become marquee
+        summary candidates) and then adds ONE experience role whose
+        single achievement also mentions Python. Generic — caller
+        supplies the role achievement's claim to control whether the
+        strength gate vetoes it."""
+        store = FactStore()
+        # Three projects → seed the marquee pool with Python-mentioning
+        # achievements until summary's cap is spent.
+        for i, name in enumerate(["projX", "projY", "projZ"], start=1):
+            eid = f"https://github.com/z/{name}"
+            store.add(_fact(
+                id=f"proj_{i}", type_=FactType.PROJECT,
+                claim=f"Project {name}",
+                evidence=f"{name} built with Python",
+                entity_id=eid, entity_display=name,
+            ))
+            store.add(_fact(
+                id=f"ach_{i}", type_=FactType.ACHIEVEMENT,
+                claim=f"Shipped {name} with Python and SQL",
+                evidence=f"Built {name} using Python over six months",
+                entity_id=eid,
+            ))
+        # The experience role — one role, one achievement.
+        role_eid = "cv:role|acme corp|software engineer"
+        store.add(_fact(
+            id="role_anchor", type_=FactType.ROLE,
+            claim="Software Engineer at Acme Corp",
+            evidence="Software Engineer at Acme Corp — Jan 2022 to Dec 2024",
+            entity_id=role_eid,
+            entity_display="Software Engineer @ Acme Corp",
+        ))
+        store.add(_fact(
+            id="role_ach", type_=FactType.ACHIEVEMENT,
+            claim=role_achievement_claim,
+            evidence=role_achievement_claim,
+            entity_id=role_eid,
+        ))
+        return store, role_eid
+
+    def test_experience_entity_gets_floor_fact_when_cap_exhausted(self):
+        """Fix (c): an experience entity whose sole strong-enough fact
+        mentions a cap-exhausted skill must still get that one fact
+        allocated. Without the floor the entity renders empty (DEPI
+        scenario, generalised — no profile-specific data)."""
+        store, role_eid = self._cap_exhausted_python_store_with_one_role(
+            # Long, substantive achievement — passes the strength gate.
+            role_achievement_claim=(
+                "Built a Python data pipeline that reduced nightly load "
+                "by six hours and replaced three legacy ETL jobs."
+            ),
+        )
+        plan = build_plan(store, job_must_have_skills=["Python"])
+
+        # Pre-condition: the counter is at the cap (so the role's fact
+        # WOULD be skipped without the floor).
+        self.assertEqual(
+            plan.anti_overrep_stats.get("python", 0),
+            DEFAULT_PER_SKILL_MENTION_CAP + 1,
+            "expected the role's floor fact to push the counter exactly "
+            "one mention past the cap (cap reached by summary + 1 floor)",
+        )
+
+        exp_sec = plan.sections.get("experience")
+        self.assertIsNotNone(exp_sec)
+        matches = [e for e in (exp_sec.entities or []) if e.entity_id == role_eid]
+        self.assertEqual(len(matches), 1, "experience entity should exist")
+        ent = matches[0]
+        # The floor admitted one fact.
+        self.assertEqual(
+            len(ent.facts), 1,
+            f"floor must admit exactly 1 fact; got {len(ent.facts)}",
+        )
+        self.assertEqual(ent.facts[0].fact_id, "role_ach")
+        # And a note recorded WHY.
+        floor_notes = [n for n in plan.notes
+                       if "floor" in n and role_eid in n]
+        self.assertEqual(
+            len(floor_notes), 1,
+            f"expected one floor note; got {floor_notes!r}",
+        )
+
+    def test_floor_does_not_bypass_strength_gate(self):
+        """Floor admits ONE fact past the mention cap — but NOT past
+        the strength gate. A URL-only claim is structurally weak and
+        must NOT become a floor bullet just because the role would
+        otherwise render empty. The role renders with zero bullets;
+        the strength gate's protection holds."""
+        store, role_eid = self._cap_exhausted_python_store_with_one_role(
+            # Bare URL — strength gate's URL rule drops it.
+            role_achievement_claim="https://github.com/acme/python-stuff",
+        )
+        plan = build_plan(store, job_must_have_skills=["Python"])
+
+        exp_sec = plan.sections.get("experience")
+        matches = [e for e in (exp_sec.entities or []) if e.entity_id == role_eid]
+        self.assertEqual(len(matches), 1)
+        ent = matches[0]
+        # Floor would have admitted past the cap — but the strength gate
+        # vetoes the URL. End result: empty entity, by design.
+        self.assertEqual(
+            len(ent.facts), 0,
+            "URL-only fact must NOT pass the floor; strength gate wins",
+        )
+        # The plan notes should show BOTH events: floor admitted the
+        # fact past the cap, AND the strength gate then dropped it.
+        notes_for_role = [n for n in plan.notes if role_eid in n]
+        self.assertTrue(
+            any("floor" in n for n in notes_for_role),
+            f"expected a floor admission note; got {notes_for_role!r}",
+        )
+        self.assertTrue(
+            any("dropped weak fact" in n and "URL-only" in n
+                for n in notes_for_role),
+            f"expected the strength gate's URL-only drop note; "
+            f"got {notes_for_role!r}",
         )
 
 
