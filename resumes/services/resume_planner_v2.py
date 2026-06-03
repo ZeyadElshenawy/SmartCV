@@ -196,6 +196,13 @@ class PlanResult(BaseModel):
     )
     ranking_method: str = "lexical_jd_overlap_v1"
     notes: list[str] = Field(default_factory=list)
+    # JD signal forwarded to the generator. The planner consumes these for
+    # ranking; carrying them on the plan lets generate_resume_v2 build
+    # JD-emphasis prompt blocks + run the JD-skill grounding guard without
+    # needing a new generator parameter. Defaults preserve backward
+    # compatibility for any direct caller of PlanResult.
+    job_must_have_skills: list[str] = Field(default_factory=list)
+    job_nice_to_have_skills: list[str] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -1581,4 +1588,8 @@ def build_plan(
         anti_overrep_stats=mention_counter.stats(),
         ranking_method="lexical_jd_overlap_v1",
         notes=notes,
+        # Fix B — forward the JD signal so the generator can build its
+        # emphasis prompt block + run the JD-skill grounding guard.
+        job_must_have_skills=list(must_have_terms),
+        job_nice_to_have_skills=list(nice_to_have_terms),
     )
