@@ -1,67 +1,97 @@
 """Adapter: ``GeneratedResumeV2`` → v1 template-dict shape.
 
-Match chain for entities (experience / projects):
+CONTRACT (post-rewrite — stops being a source-passthrough):
 
-  1. ID match — if both the v2 entity_id and the source item's ``id``
-     equal, use that source item. Kept for any source that does carry
-     ids; in the profile-data flow this branch never fires because
-     ``profile.data_content.experiences[]`` / ``projects[]`` don't
-     have ``id`` fields.
+  ``out`` starts as ``{}``. The adapter writes ONLY the keys it
+  intends to write. Nothing from ``source`` leaks through except by
+  an explicit, field-name-based allow-list. The signal blobs
+  (``github_signals`` / ``linkedin_signals`` / ``kaggle_signals`` /
+  ``scholar_signals``), the raw ``experiences`` (plural), the raw
+  74-skill list, and every other profile field are dropped.
 
-  2. Normalised (title, company) match — the v2 ``EntityBlock`` has
-     no separate title / company fields (only ``entity_display``), so
-     we parse ``entity_display`` on the ``" @ "`` separator into
-     (title, company). Both sides are lowercased + whitespace-collapsed
-     before comparison. We require BOTH title overlap AND company
-     overlap (when entity_display carries a company hint); for
-     projects, which have no company, the title alone matches by name.
-     Ambiguous (multiple candidates) → no merge (fall through).
+GROUP A — v2 writes these. NEVER from source.
 
-  3. No match — keep the v2 bullets, but split ``entity_display`` so
-     ``title`` and ``company`` (or ``name`` for projects) are populated
-     separately rather than as the "Title @ Company" composite.
+  - ``professional_summary`` — from ``sections["summary"].summary_text``.
+    Empty → ``logger.warning`` + omit the key (no source fallback).
+  - ``skills`` — from ``sections["skills"].skills_line`` split on
+    ``,`` / ``·``. Empty → warn + omit.
+  - ``experience`` — from ``sections["experience"].entities`` via
+    ``_entity_to_item`` (existing id → normalised title+company match
+    chain unchanged); empty → warn + emit ``[]``.
+  - ``projects`` — same.
+  - ``education`` — hybrid: v2 lines drive count + order (the cap is
+    enforced). For each line, match against ``source["education"]``
+    by normalised name and merge the source entry's allow-listed
+    fields onto the line. No match → ``{"name": line}``.
+  - ``certifications`` — same hybrid.
+  - ``languages`` — flat string list from ``sections["languages"].lines``.
 
-When matched, source metadata (company / location / industry /
-start_date / end_date / is_current / url / technologies / pushed_at /
-duration if present) flows through to the template dict; v2 provides
-the description bullets. ``duration`` is built honestly from
-start/end via ``assemble_duration_honest`` when the source carries
-dates but no pre-computed duration — so dates always reach the
-template ready for the existing render-time heal.
+GROUP B — copy-through allow-list (top-level, source-only).
 
+  Only ``professional_title`` and ``objective`` — both editor-managed
+  fields v2 has no analog for. Copied through ONLY when present and
+  non-empty. Nothing else.
 
-The PDF templates consume the v1 dict shape::
+GROUP C — internal source-lookup tables (NOT copied to output).
 
-    {
-        "professional_summary": str,
-        "skills": list[str],
-        "experience":     [{"title", "company", "duration", "location",
-                            "industry", "description": list[str]}, ...],
-        "projects":       [{"name", "url", "technologies", "duration",
-                            "description": list[str]}, ...],
-        "education":      [{"degree", "field", "institution", "year",
-                            "location", "gpa", "honors"}, ...],
-        "certifications": [{"name", "issuer", "date", "url"}, ...],
-        "languages":      list[str],
-        "professional_title": str,
-        "objective": str,
-        "section_order": list[str],
-        "template_name": str,
-    }
+  ``source["experience"]`` (the singular alias the dispatcher creates
+  from ``experiences``), ``source["projects"]``, ``source["education"]``,
+  ``source["certifications"]`` — consulted by the per-item helpers to
+  enrich v2 entities, never carried as top-level keys.
 
-The v2 generator (``resume_generator_v2.GeneratedResumeV2``) is structurally
-richer: sections carry ``GeneratedBullet`` objects with ``fact_ids`` and
-``hedged`` flags for downstream grounding / supervisor use. This adapter
-FLATTENS to the v1 dict — provenance stays inside the v2 model and is
-NEVER emitted into the HTML / PDF the recruiter sees.
+GROUP D — dropped (everything else in source).
 
-Education / certifications / languages are not enriched by the v2
-content pipeline; for those the adapter prefers the ``source`` v1 dict
-when available, falling back to v2's ``lines`` list otherwise.
+  Contact fields (``full_name`` / ``email`` / ``phone`` / ``location`` /
+  ``*_url``) flow to the PDF template via ``profile.*`` (UserProfile
+  model properties) — they don't need to live in the content dict.
+  Signal blobs are baggage that inflated the ATS keyword count.
+  Both are gone.
+
+EMPTY-SECTION HANDLING.
+
+  v2 producing an empty section is logged at WARNING (so the editor
+  surfaces it via the supervisor / logging path) and the output is
+  either omitted (string sections) or ``[]`` (list sections). The
+  source's value never substitutes. A silent passthrough was the bug.
+
+PER-ITEM ALLOW-LISTS.
+
+  Every item in ``experience`` / ``projects`` / ``education`` /
+  ``certifications`` is filtered to its approved key set before
+  emission, so nothing arbitrary from ``source`` survives even
+  through the per-entity match-and-merge path.
+
+The helpers (``_norm``, ``_split_entity_display``, ``_items_overlap``,
+``_find_source_match``, ``_entity_to_item``) are unchanged. The
+duration-from-source logic at ``_entity_to_item`` is preserved — it
+reads source dates from the Group-C lookups, not from arbitrary
+passthrough.
 """
 from __future__ import annotations
 
+import logging
 import re
+
+logger = logging.getLogger(__name__)
+
+
+# Per-section per-item allow-lists. The adapter never emits any key
+# outside these on the corresponding section's items.
+_EXPERIENCE_ITEM_KEYS = (
+    "title", "company", "location", "industry",
+    "start_date", "end_date", "is_current", "duration", "description",
+)
+_PROJECT_ITEM_KEYS = (
+    "name", "url", "technologies",
+    "start_date", "end_date", "duration", "description",
+)
+_EDUCATION_ITEM_KEYS = (
+    "degree", "field", "institution", "year", "graduation_year",
+    "location", "gpa", "honors",
+)
+_CERTIFICATION_ITEM_KEYS = (
+    "name", "issuer", "date", "url", "duration",
+)
 
 
 def _norm(s) -> str:
@@ -142,6 +172,50 @@ def _find_source_match(entity, source_items):
     return None
 
 
+def _filter_to_keys(d, allowed):
+    """Keep only ``allowed`` keys from ``d``. Drops everything else —
+    the per-item enforcement of the allow-list contract."""
+    if not isinstance(d, dict):
+        return {}
+    return {k: d[k] for k in allowed if k in d}
+
+
+def _enrich_v2_line_with_source(line, source_items, *, allowed_keys):
+    """Hybrid education / certifications: a v2 line drives count +
+    order; source enriches by normalised name match.
+
+    For each v2 line, scan ``source_items`` for an entry whose
+    name/degree/institution overlaps the line (via the existing
+    ``_items_overlap`` — case-insensitive, whitespace-tolerant,
+    substring-tolerant). Exactly one confident match → return that
+    source entry filtered to ``allowed_keys``. Otherwise → return
+    ``{"name": line}`` so the cap is still respected.
+
+    Source entries NOT matched by any v2 line are dropped (this is
+    where the cap enforcement bites).
+    """
+    if not source_items:
+        return {"name": line}
+    norm_line = _norm(line)
+    if not norm_line:
+        return {"name": line}
+    candidates = []
+    for item in source_items:
+        if not isinstance(item, dict):
+            continue
+        # Try the common name-bearing fields, in priority order.
+        for field in ("name", "degree", "institution", "title"):
+            candidate = item.get(field) or ""
+            if _items_overlap(line, candidate):
+                candidates.append(item)
+                break
+    if len(candidates) == 1:
+        return _filter_to_keys(candidates[0], allowed_keys)
+    # Zero or ambiguous matches → cap-respecting fallback. Do NOT
+    # pick one of multiple matches (ambiguity-safe by construction).
+    return {"name": line}
+
+
 def resume_v2_to_template_dict(generated, source=None):
     """Flatten a ``GeneratedResumeV2`` into the v1 template-dict shape.
 
@@ -150,80 +224,177 @@ def resume_v2_to_template_dict(generated, source=None):
     generated : GeneratedResumeV2
         The v2 generator output.
     source : dict | None
-        The original v1 content dict, if any. Header fields
-        (professional_title, objective), education, certifications, and
-        languages are copied through from here when the v2 sections don't
-        carry richer data.
+        The original v1 content dict — consulted ONLY for the explicit
+        allow-list (Group B top-level + Group C per-section lookups).
+        Nothing else from ``source`` reaches the output.
 
     Returns
     -------
     dict
         v1 template-dict — safe to feed to the same PDF templates the
-        v1 path renders. Carries no ``fact_ids`` or other provenance.
+        v1 path renders. Built fresh from ``{}``; carries no
+        provenance, no signal blobs, no unused profile fields.
     """
-    out = dict(source or {})
+    out: dict = {}
+    src = source or {}
     sections = getattr(generated, "sections", None) or {}
 
+    # ---- Group A.1 — Professional summary ---------------------------------
+    summary_text = ""
     summary_sec = sections.get("summary")
     if summary_sec is not None:
-        text = (getattr(summary_sec, "summary_text", "") or "").strip()
-        if text:
-            out["professional_summary"] = text
+        summary_text = (getattr(summary_sec, "summary_text", "") or "").strip()
+    if summary_text:
+        out["professional_summary"] = summary_text
+    else:
+        logger.warning(
+            "resume_v2_adapter: v2 summary section empty — omitting "
+            "professional_summary (no source fallback)."
+        )
 
+    # ---- Group A.2 — Skills ----------------------------------------------
+    skills_items: list[str] = []
     skills_sec = sections.get("skills")
     if skills_sec is not None:
         line = (getattr(skills_sec, "skills_line", "") or "").strip()
         if line:
             # Generator emits a single delimited line; split for the
-            # template, which categorises + joins downstream. Accept ','
-            # and '·' as delimiters.
-            items = [s.strip() for s in line.replace("·", ",").split(",") if s.strip()]
-            if items:
-                out["skills"] = items
+            # template. Accept ',' and '·' as delimiters.
+            skills_items = [s.strip() for s in line.replace("·", ",").split(",") if s.strip()]
+    if skills_items:
+        out["skills"] = skills_items
+    else:
+        logger.warning(
+            "resume_v2_adapter: v2 skills section empty — omitting skills "
+            "(no source fallback)."
+        )
 
+    # ---- Group A.3 — Experience ------------------------------------------
     exp_sec = sections.get("experience")
-    if exp_sec is not None:
+    exp_entities = (
+        getattr(exp_sec, "entities", None) or []
+    ) if exp_sec is not None else []
+    exp_source_items = src.get("experience") or []
+    if exp_entities:
         out["experience"] = [
-            _entity_to_item(e, source_items=(source or {}).get("experience"))
-            for e in (getattr(exp_sec, "entities", None) or [])
+            _filter_to_keys(
+                _entity_to_item(e, source_items=exp_source_items),
+                _EXPERIENCE_ITEM_KEYS,
+            )
+            for e in exp_entities
         ]
+    else:
+        out["experience"] = []
+        logger.warning(
+            "resume_v2_adapter: v2 experience section empty — emitting []."
+        )
 
+    # ---- Group A.4 — Projects --------------------------------------------
     proj_sec = sections.get("projects")
-    if proj_sec is not None:
+    proj_entities = (
+        getattr(proj_sec, "entities", None) or []
+    ) if proj_sec is not None else []
+    proj_source_items = src.get("projects") or []
+    if proj_entities:
         out["projects"] = [
-            _entity_to_item(e, source_items=(source or {}).get("projects"))
-            for e in (getattr(proj_sec, "entities", None) or [])
+            _filter_to_keys(
+                _entity_to_item(e, source_items=proj_source_items),
+                _PROJECT_ITEM_KEYS,
+            )
+            for e in proj_entities
         ]
+    else:
+        out["projects"] = []
+        logger.warning(
+            "resume_v2_adapter: v2 projects section empty — emitting []."
+        )
 
-    # Education / Certifications / Languages: prefer the source v1 dict
-    # (the templates' dicts have richer fields than v2's flat ``lines``).
-    # Fall back to v2 lines only when v1 didn't carry the section.
-    for sec_key in ("education", "certifications", "languages"):
-        sec = sections.get(sec_key)
-        if sec is None or out.get(sec_key):
-            continue
-        lines = [str(l).strip() for l in (getattr(sec, "lines", None) or []) if str(l).strip()]
-        if not lines:
-            continue
-        if sec_key == "languages":
-            out["languages"] = lines
-        else:
-            out[sec_key] = [{"name": l} for l in lines]
+    # ---- Group A.5 — Education (hybrid: v2 lines drive, source enriches) -
+    edu_sec = sections.get("education")
+    edu_lines: list[str] = []
+    if edu_sec is not None:
+        edu_lines = [
+            str(l).strip()
+            for l in (getattr(edu_sec, "lines", None) or [])
+            if str(l).strip()
+        ]
+    edu_source_items = src.get("education") or []
+    if edu_lines:
+        out["education"] = [
+            _enrich_v2_line_with_source(
+                line, edu_source_items, allowed_keys=_EDUCATION_ITEM_KEYS,
+            )
+            for line in edu_lines
+        ]
+    else:
+        out["education"] = []
+        logger.warning(
+            "resume_v2_adapter: v2 education section empty — emitting []."
+        )
+
+    # ---- Group A.6 — Certifications (hybrid) -----------------------------
+    cert_sec = sections.get("certifications")
+    cert_lines: list[str] = []
+    if cert_sec is not None:
+        cert_lines = [
+            str(l).strip()
+            for l in (getattr(cert_sec, "lines", None) or [])
+            if str(l).strip()
+        ]
+    cert_source_items = src.get("certifications") or []
+    if cert_lines:
+        out["certifications"] = [
+            _enrich_v2_line_with_source(
+                line, cert_source_items, allowed_keys=_CERTIFICATION_ITEM_KEYS,
+            )
+            for line in cert_lines
+        ]
+    else:
+        out["certifications"] = []
+        logger.warning(
+            "resume_v2_adapter: v2 certifications section empty — emitting []."
+        )
+
+    # ---- Group A.7 — Languages -------------------------------------------
+    lang_sec = sections.get("languages")
+    lang_lines: list[str] = []
+    if lang_sec is not None:
+        lang_lines = [
+            str(l).strip()
+            for l in (getattr(lang_sec, "lines", None) or [])
+            if str(l).strip()
+        ]
+    if lang_lines:
+        out["languages"] = lang_lines
+    else:
+        out["languages"] = []
+        logger.warning(
+            "resume_v2_adapter: v2 languages section empty — emitting []."
+        )
+
+    # ---- Group B — copy-through allow-list (source-only, non-empty) ------
+    for key in ("professional_title", "objective"):
+        val = src.get(key)
+        if isinstance(val, str) and val.strip():
+            out[key] = val
 
     return out
 
 
 def _entity_to_item(entity, source_items=None):
-    """Convert one v2 ``EntityBlock`` to the v1 experience/project dict.
+    """Convert one v2 ``EntityBlock`` to a v1 experience/project dict.
 
-    Provenance fields (``fact_ids``, ``hedged``, ``anchor_fact_id``)
-    are dropped on purpose. The match chain (id → normalised title +
-    company) decides whether a source item is merged in; when matched,
-    SOURCE metadata flows through (company, location, industry,
-    start_date, end_date, is_current, url, technologies, …) and v2
-    bullets become ``description``. When unmatched, ``entity_display``
-    is split into ``title`` / ``company`` (and ``name`` for projects)
-    so the template renders separate cells rather than the composite.
+    Unchanged from the prior adapter: id → normalised title + company
+    match chain via ``_find_source_match``. On match, source metadata
+    flows through (company, location, industry, start_date, end_date,
+    is_current, url, technologies, …) and v2 bullets become
+    ``description``. On no match, ``entity_display`` is split into
+    ``title`` / ``company`` (and ``name`` for projects).
+
+    The CALLER is responsible for filtering the returned dict to the
+    per-section allow-list — this helper still returns the full
+    matched-source dict so the allow-list can be applied uniformly
+    upstream.
     """
     bullets = [
         getattr(b, "text", "")
