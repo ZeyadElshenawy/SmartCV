@@ -464,13 +464,17 @@ class SectionShapeTests(SimpleTestCase):
     """End-to-end shape: every section yields prose with traceable
     fact_ids, no surprises."""
 
-    def test_full_resume_has_every_section(self):
+    def test_full_resume_has_every_non_summary_section(self):
+        """``generate_resume_v2`` populates skills + experience + projects +
+        education + certifications. Summary is intentionally NOT populated
+        here — Layer 5 Full synthesises it AFTER the reviewer settles, via
+        ``_synthesize_summary_from_sections`` called from the dispatcher.
+        ``_generate_summary`` is still defined and exercised by other tests
+        for the direct-call path."""
         store = _populated_store()
         plan = build_plan(store, job_must_have_skills=["Python"])
         def _stub(prompt, **kw):
             # Trivial grounded text by section keyword.
-            if "professional summary" in prompt.lower():
-                return "Junior data scientist."
             if "DEPI" in prompt:
                 return "Cut nightly load by 6 hours."
             if "Healthcare Prediction" in prompt:
@@ -478,14 +482,15 @@ class SectionShapeTests(SimpleTestCase):
             return "Did stuff."
         with patch("resumes.services.resume_generator_v2._llm_call", side_effect=_stub):
             resume = generate_resume_v2(store, plan, job_title="Data Scientist")
-        # All 6 sections present.
+        # All non-summary sections present.
         self.assertEqual(
             set(resume.sections.keys()),
-            {"summary", "skills", "experience",
+            {"skills", "experience",
              "projects", "education", "certifications"},
         )
-        # Summary is non-empty prose.
-        self.assertTrue(resume.sections["summary"].summary_text)
+        # Summary intentionally absent here — the dispatcher populates it
+        # via ``_synthesize_summary_from_sections`` after the reviewer runs.
+        self.assertNotIn("summary", resume.sections)
         # Skills is a comma-separated line.
         self.assertIn("Python", resume.sections["skills"].skills_line)
         # Education + certs render as lines.

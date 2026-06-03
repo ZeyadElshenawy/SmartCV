@@ -58,18 +58,32 @@ def _fake_gap():
     return SimpleNamespace()
 
 
+@override_settings(RESUME_GENERATOR_PIPELINE="v1")
 class PipelineDispatchSettingTests(SimpleTestCase):
-    """The setting itself — default must be ``'v1'`` for reversibility."""
+    """The setting itself — default must be ``'v1'`` for reversibility.
+
+    The ``@override_settings`` decorator forces the assertion to compare
+    against a known value regardless of what the local ``.env`` sets at
+    process start — Django's settings object is swapped for the duration
+    of the test, and ``pipeline_dispatch.py:42`` reads through it via
+    ``getattr(settings, …)``."""
 
     def test_default_setting_is_v1(self):
         """No env override → ``RESUME_GENERATOR_PIPELINE == 'v1'``."""
         self.assertEqual(getattr(settings, "RESUME_GENERATOR_PIPELINE", None), "v1")
 
 
+@override_settings(RESUME_GENERATOR_PIPELINE="v1")
 class PipelineDispatchV1Tests(SimpleTestCase):
     """With the default ``'v1'`` flag, the dispatcher must delegate to
     ``generate_resume_content_supervised`` byte-for-byte and not touch
-    any v2 entry point."""
+    any v2 entry point.
+
+    Class-level ``@override_settings`` insulates these tests from the
+    process's ``.env`` (which may set the flag to ``'v2'`` in a dev
+    checkout). ``test_unknown_pipeline_falls_back_to_v1`` uses a
+    per-call override (``pipeline="garbage"``) that wins regardless,
+    so the class-level pin is harmless to it."""
 
     @patch("resumes.services.resume_generator.generate_resume_content_supervised")
     @patch("resumes.services.resume_generator_v2.generate_resume_v2")
@@ -148,6 +162,8 @@ class PipelineDispatchV2Tests(SimpleTestCase):
                 "resumes.services.resume_generator_v2.generate_resume_v2"),
             "reviewer": patch(
                 "resumes.services.resume_reviewer_v2.review_and_regenerate"),
+            "synth_summary": patch(
+                "resumes.services.resume_generator_v2._synthesize_summary_from_sections"),
             "vr_shim": patch(
                 "resumes.services.resume_reviewer_v2.build_v2_validation_report"),
             "adapter": patch(
@@ -172,6 +188,7 @@ class PipelineDispatchV2Tests(SimpleTestCase):
         m["planner"].return_value = MagicMock(name="PlanResult")
         m["generator"].return_value = _fake_resume_v2()
         m["reviewer"].return_value = (_fake_resume_v2(), {"rounds_run": 0})
+        m["synth_summary"].return_value = _fake_resume_v2()
         m["vr_shim"].return_value = {
             "findings": [], "grounding_findings": [],
             "supervisor_findings": [], "regression_findings": [],
@@ -204,6 +221,7 @@ class PipelineDispatchV2Tests(SimpleTestCase):
         m["planner"].return_value = MagicMock()
         m["generator"].return_value = _fake_resume_v2()
         m["reviewer"].return_value = (_fake_resume_v2(), {})
+        m["synth_summary"].return_value = _fake_resume_v2()
         m["vr_shim"].return_value = {
             "findings": [], "grounding_findings": [],
             "supervisor_findings": [], "regression_findings": [],
@@ -243,6 +261,7 @@ class PipelineDispatchV2Tests(SimpleTestCase):
         m["planner"].return_value = MagicMock()
         m["generator"].return_value = _fake_resume_v2()
         m["reviewer"].return_value = (_fake_resume_v2(), {})
+        m["synth_summary"].return_value = _fake_resume_v2()
         m["vr_shim"].return_value = {
             "findings": [{"rule_id": "ban-opener", "where": "experience/x[0]"}],
             "grounding_findings": [],
@@ -274,6 +293,8 @@ class PipelineDispatchSettingHonoredTests(SimpleTestCase):
     @patch("resumes.services.resume_reviewer_v2.build_v2_validation_report",
            return_value={"findings": [], "grounding_findings": [],
                          "supervisor_findings": [], "regression_findings": []})
+    @patch("resumes.services.resume_generator_v2._synthesize_summary_from_sections",
+           side_effect=lambda revised, **kw: revised)
     @patch("resumes.services.resume_reviewer_v2.review_and_regenerate")
     @patch("resumes.services.resume_generator_v2.generate_resume_v2")
     @patch("resumes.services.resume_planner_v2.build_plan")
@@ -291,7 +312,8 @@ class PipelineDispatchSettingHonoredTests(SimpleTestCase):
                                      mock_store_cls, mock_extract,
                                      mock_kb_prefetch, mock_kb_split,
                                      mock_kb_rules, mock_plan, mock_v2_gen,
-                                     mock_review, mock_vr, mock_adapter):
+                                     mock_review, mock_synth_summary,
+                                     mock_vr, mock_adapter):
         mock_v2_gen.return_value = _fake_resume_v2()
         mock_review.return_value = (_fake_resume_v2(), {})
 
