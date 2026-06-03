@@ -792,3 +792,403 @@ class JDSkillGuardIntegrationTests(SimpleTestCase):
         dropped = [e for e in events if e.action == "dropped"]
         self.assertEqual(len(dropped), 1)
         self.assertEqual(dropped[0].ungrounded_numbers, [99.0])
+
+
+# ---------------------------------------------------------------------------
+# Fix C — sibling context + opener-collision post-pass
+# ---------------------------------------------------------------------------
+
+
+class SiblingsPromptBlockTests(SimpleTestCase):
+    """The SIBLINGS prompt block renders only when prior bullets exist
+    and labels itself as guidance (not facts)."""
+
+    def _facts(self):
+        return [
+            _fact(id="role", type_=FactType.ROLE,
+                  claim="Engineer at Acme",
+                  evidence="Engineer at Acme",
+                  entity_id="cv:role|acme|eng",
+                  entity_display="Engineer @ Acme"),
+            _fact(id="ach", type_=FactType.ACHIEVEMENT,
+                  claim="Built a Python data pipeline",
+                  evidence="Built a Python data pipeline",
+                  entity_id="cv:role|acme|eng"),
+        ]
+
+    def test_block_absent_when_siblings_none(self):
+        from resumes.services.resume_generator_v2 import _bullet_prompt
+        p = _bullet_prompt(
+            role_hint="a experience entry: 'Engineer @ Acme'",
+            facts=self._facts(), section="experience",
+            writing_rules_block="", digest_text="",
+            regen_feedback="",
+            jd_must=[], jd_nice=[],
+            siblings=None,
+        )
+        self.assertNotIn("=== SIBLINGS", p)
+
+    def test_block_absent_when_siblings_empty_list(self):
+        from resumes.services.resume_generator_v2 import _bullet_prompt
+        p = _bullet_prompt(
+            role_hint="a experience entry: 'Engineer @ Acme'",
+            facts=self._facts(), section="experience",
+            writing_rules_block="", digest_text="",
+            regen_feedback="",
+            jd_must=[], jd_nice=[],
+            siblings=[],
+        )
+        self.assertNotIn("=== SIBLINGS", p)
+
+    def test_block_present_when_siblings_populated(self):
+        from resumes.services.resume_generator_v2 import _bullet_prompt
+        p = _bullet_prompt(
+            role_hint="a experience entry: 'Engineer @ Acme'",
+            facts=self._facts(), section="experience",
+            writing_rules_block="", digest_text="",
+            regen_feedback="",
+            jd_must=[], jd_nice=[],
+            siblings=["Designed the auth flow.", "Built a like system."],
+        )
+        self.assertIn("=== SIBLINGS", p)
+        self.assertIn("NEVER as content", p)
+        self.assertIn("Designed the auth flow.", p)
+        self.assertIn("Built a like system.", p)
+        self.assertIn("=== END SIBLINGS", p)
+        # SIBLINGS block sits BEFORE the FACTS block so the LLM reads the
+        # diversity hints first, then sees the closed content set.
+        self.assertLess(p.index("=== SIBLINGS"), p.index("FACTS (the ONLY"))
+
+
+class OpenerCollisionDetectionTests(SimpleTestCase):
+    """The deterministic _find_opener_collisions helper — its job is to
+    catch repeated opening verbs that the per-bullet banned-openings
+    check (a hard list of forbidden words) structurally cannot."""
+
+    def test_no_collisions_returns_empty(self):
+        from resumes.services.resume_generator_v2 import _find_opener_collisions
+        self.assertEqual(
+            _find_opener_collisions([
+                "Designed the auth flow.",
+                "Built a like system with Firestore.",
+                "Implemented role-based access control.",
+            ]),
+            [],
+        )
+
+    def test_first_occurrence_wins_later_flagged(self):
+        from resumes.services.resume_generator_v2 import _find_opener_collisions
+        result = _find_opener_collisions([
+            "Designed the auth flow.",
+            "Designed flowing patterns.",
+            "Built the data layer.",
+        ])
+        # Index 1 is the "loser" — same opener as index 0.
+        self.assertEqual(result, [(1, "designed")])
+
+    def test_leading_noise_stripped_before_compare(self):
+        from resumes.services.resume_generator_v2 import _find_opener_collisions
+        # LEADING bullet glyphs, quotes, parens, dashes, whitespace are
+        # stripped via the shared _LEADING_NOISE_RE so the detector and
+        # the banned-openings module agree on what counts as "first word".
+        # Trailing punctuation attached to the first token is NOT
+        # stripped — the regex is leading-only by design.
+        result = _find_opener_collisions([
+            "- Designed the auth flow.",
+            "* designed flowing patterns",
+            "  Designed something else",
+        ])
+        # Indices 1 and 2 both collide with index 0 after leading-noise strip.
+        self.assertEqual(result, [(1, "designed"), (2, "designed")])
+
+    def test_empty_text_skipped(self):
+        from resumes.services.resume_generator_v2 import _find_opener_collisions
+        # Empty bullets are skipped (no token to compare), not flagged.
+        self.assertEqual(
+            _find_opener_collisions(["", "Built X", "", "Built Y"]),
+            [(3, "built")],
+        )
+
+    def test_n_equals_one_no_collision_possible(self):
+        from resumes.services.resume_generator_v2 import _find_opener_collisions
+        self.assertEqual(_find_opener_collisions(["only one"]), [])
+
+
+class OpenerCollisionRegenIntegrationTests(SimpleTestCase):
+    """The end-to-end behaviour inside _generate_entity_bullets:
+    (b) collision triggers regen via the same guarded path;
+    (c) regen still passes number-lock + JD-skill;
+    (d) one regen per bullet — persistent collision keeps the bullet;
+    (e) N=1 entity and bullet #1 are no-ops."""
+
+    def _build_entity_with_two_children(self):
+        """Construct a planner-shaped EntityAllocation with one role
+        anchor + two distinct achievement child facts. Generic data —
+        no profile-specific values."""
+        from resumes.services.resume_planner_v2 import (
+            EntityAllocation, FactAllocation,
+        )
+        store = FactStore()
+        store.add(_fact(
+            id="role", type_=FactType.ROLE,
+            claim="Engineer at Acme",
+            evidence="Engineer at Acme",
+            entity_id="cv:role|acme|eng",
+            entity_display="Engineer @ Acme",
+        ))
+        store.add(_fact(
+            id="ach1", type_=FactType.ACHIEVEMENT,
+            claim="Built the user authentication flow",
+            evidence="Built the user authentication flow",
+            entity_id="cv:role|acme|eng",
+        ))
+        store.add(_fact(
+            id="ach2", type_=FactType.ACHIEVEMENT,
+            claim="Built the data sync layer",
+            evidence="Built the data sync layer",
+            entity_id="cv:role|acme|eng",
+        ))
+        entity = EntityAllocation(
+            entity_id="cv:role|acme|eng",
+            entity_display="Engineer @ Acme",
+            anchor_fact_id="role",
+            facts=[
+                FactAllocation(fact_id="ach1"),
+                FactAllocation(fact_id="ach2"),
+            ],
+        )
+        return store, entity
+
+    def test_collision_triggers_regen_via_guarded_path(self):
+        """Two siblings both open with 'Designed' → the loser (index 1) is
+        regenerated. Total LLM calls = 3 (bullet 0, bullet 1 (collides),
+        bullet 1 regen). Final bullets[1].text starts with a different
+        verb."""
+        from resumes.services.resume_generator_v2 import (
+            _generate_entity_bullets,
+        )
+        store, entity = self._build_entity_with_two_children()
+        outputs = [
+            "Designed the user authentication flow with Firebase Auth.",
+            "Designed a data-sync layer with bidirectional updates.",
+            # Regen for bullet[1] — opens with "Built", different verb.
+            "Built the bidirectional data-sync layer with Firestore.",
+        ]
+        n_calls = {"i": 0}
+        def stub(prompt, **kw):
+            i = n_calls["i"]
+            n_calls["i"] += 1
+            return outputs[min(i, len(outputs) - 1)]
+        with patch("resumes.services.resume_generator_v2._llm_call",
+                   side_effect=stub):
+            block = _generate_entity_bullets(
+                store, entity, section="experience",
+                job_title="Engineer", events=[],
+                writing_rules_block="",
+                jd_must=[], jd_nice=[],
+            )
+        self.assertEqual(len(block.bullets), 2)
+        self.assertTrue(
+            block.bullets[1].text.lower().startswith("built"),
+            f"regen should have changed the opener; got {block.bullets[1].text!r}",
+        )
+        # 3 LLM calls = 2 initial + 1 regen.
+        self.assertEqual(n_calls["i"], 3)
+
+    def test_regen_still_runs_number_lock_and_jd_skill_guards(self):
+        """The collision-regen path runs through _generate_one_bullet,
+        so the inline guards (number-lock + JD-skill) still apply on
+        the regen attempt. A regen that fabricates a number triggers
+        the inline number-lock regen."""
+        from resumes.services.resume_generator_v2 import (
+            _generate_entity_bullets,
+        )
+        store, entity = self._build_entity_with_two_children()
+        outputs = [
+            "Designed the auth flow with Firebase Auth.",
+            # bullet[1] first attempt: same opener — triggers collision regen.
+            "Designed a data-sync layer with bidirectional updates.",
+            # Collision regen, first inline attempt — fabricates "99 hours"
+            # which isn't in the facts → triggers inline number-lock regen.
+            "Built the sync layer saving 99 hours weekly.",
+            # Inline number-lock regen — drops the bad number.
+            "Built the sync layer with Firestore-backed updates.",
+        ]
+        n_calls = {"i": 0}
+        def stub(prompt, **kw):
+            i = n_calls["i"]
+            n_calls["i"] += 1
+            return outputs[min(i, len(outputs) - 1)]
+        events: list = []
+        with patch("resumes.services.resume_generator_v2._llm_call",
+                   side_effect=stub):
+            block = _generate_entity_bullets(
+                store, entity, section="experience",
+                job_title="Engineer", events=events,
+                writing_rules_block="",
+                jd_must=[], jd_nice=[],
+            )
+        # Two bullets emitted, both content-clean.
+        self.assertEqual(len(block.bullets), 2)
+        self.assertNotIn("99", block.bullets[1].text)
+        # The inline number-lock regenerated event was recorded —
+        # proving the guard ran on the regen path.
+        from resumes.services.resume_generator_v2 import FabricationEvent
+        regen_events = [e for e in events
+                        if e.action == "regenerated" and e.ungrounded_numbers]
+        self.assertEqual(len(regen_events), 1)
+        self.assertEqual(regen_events[0].ungrounded_numbers, [99.0])
+
+    def test_persistent_collision_keeps_bullet_never_drops(self):
+        """If the collision regen ALSO collides, the (regenerated) bullet
+        is kept rather than dropped. Bound = one regen per bullet."""
+        from resumes.services.resume_generator_v2 import (
+            _generate_entity_bullets,
+        )
+        store, entity = self._build_entity_with_two_children()
+        outputs = [
+            "Designed the auth flow with Firebase Auth.",
+            "Designed a data-sync layer.",
+            # Regen also starts with Designed (still collides — but we
+            # are bounded to one regen; the bullet is KEPT regardless).
+            "Designed the bidirectional data-sync layer.",
+            "Designed unreachable fourth output",  # would fire on a 2nd regen
+        ]
+        n_calls = {"i": 0}
+        def stub(prompt, **kw):
+            i = n_calls["i"]
+            n_calls["i"] += 1
+            return outputs[min(i, len(outputs) - 1)]
+        with patch("resumes.services.resume_generator_v2._llm_call",
+                   side_effect=stub):
+            block = _generate_entity_bullets(
+                store, entity, section="experience",
+                job_title="Engineer", events=[],
+                writing_rules_block="",
+                jd_must=[], jd_nice=[],
+            )
+        # Both bullets KEPT despite persistent collision.
+        self.assertEqual(len(block.bullets), 2)
+        self.assertTrue(block.bullets[1].text.lower().startswith("designed"))
+        # Exactly 3 LLM calls — 2 initial + 1 regen attempt. Never 4.
+        self.assertEqual(n_calls["i"], 3)
+
+    def test_persistent_guard_failure_on_regen_keeps_original(self):
+        """If the collision-regen returns None because a guard
+        persistently failed on the regen attempt, the ORIGINAL colliding
+        bullet remains. Never drop a grounded bullet over an opener."""
+        from resumes.services.resume_generator_v2 import (
+            _generate_entity_bullets,
+        )
+        store, entity = self._build_entity_with_two_children()
+        # First two: succeed. Then regen for bullet[1] tries twice with
+        # fabricated numbers (allowed_numbers is empty since no metric
+        # facts), so the inline number-lock drops the regen → returns None.
+        outputs = [
+            "Designed the auth flow.",
+            "Designed a sync layer.",
+            "Built the sync layer saving 99 hours.",   # collision-regen attempt 1
+            "Built the sync layer saving 99 hours per week.",  # inline regen
+            "Built unreachable fourth output",
+        ]
+        n_calls = {"i": 0}
+        def stub(prompt, **kw):
+            i = n_calls["i"]
+            n_calls["i"] += 1
+            return outputs[min(i, len(outputs) - 1)]
+        with patch("resumes.services.resume_generator_v2._llm_call",
+                   side_effect=stub):
+            block = _generate_entity_bullets(
+                store, entity, section="experience",
+                job_title="Engineer", events=[],
+                writing_rules_block="",
+                jd_must=[], jd_nice=[],
+            )
+        # Both bullets KEPT — bullet[1] is the ORIGINAL collider since
+        # the regen returned None.
+        self.assertEqual(len(block.bullets), 2)
+        self.assertEqual(
+            block.bullets[1].text,
+            "Designed a sync layer.",
+            "regen returned None → original colliding bullet must be kept",
+        )
+
+    def test_n_equals_one_entity_is_noop(self):
+        """A single-bullet entity has no siblings and cannot collide —
+        zero regens fire, exactly one LLM call."""
+        from resumes.services.resume_generator_v2 import (
+            _generate_entity_bullets,
+        )
+        from resumes.services.resume_planner_v2 import (
+            EntityAllocation, FactAllocation,
+        )
+        store = FactStore()
+        store.add(_fact(
+            id="role", type_=FactType.ROLE,
+            claim="Engineer at Acme",
+            evidence="Engineer at Acme",
+            entity_id="cv:role|acme|eng",
+            entity_display="Engineer @ Acme",
+        ))
+        store.add(_fact(
+            id="ach1", type_=FactType.ACHIEVEMENT,
+            claim="Built the user authentication flow",
+            evidence="Built the user authentication flow",
+            entity_id="cv:role|acme|eng",
+        ))
+        entity = EntityAllocation(
+            entity_id="cv:role|acme|eng",
+            entity_display="Engineer @ Acme",
+            anchor_fact_id="role",
+            facts=[FactAllocation(fact_id="ach1")],
+        )
+        captured_prompts: list[str] = []
+        def stub(prompt, **kw):
+            captured_prompts.append(prompt)
+            return "Built the user authentication flow."
+        with patch("resumes.services.resume_generator_v2._llm_call",
+                   side_effect=stub):
+            block = _generate_entity_bullets(
+                store, entity, section="experience",
+                job_title="Engineer", events=[],
+                writing_rules_block="",
+                jd_must=[], jd_nice=[],
+            )
+        self.assertEqual(len(block.bullets), 1)
+        # Exactly one LLM call — no regen path fired.
+        self.assertEqual(len(captured_prompts), 1)
+        # And the single call had NO siblings block (bullet #1 has no
+        # prior siblings to diversify against).
+        self.assertNotIn("=== SIBLINGS", captured_prompts[0])
+
+    def test_bullet_1_has_no_siblings_block(self):
+        """Verifies bullet #1's prompt has no SIBLINGS block; bullet #2's
+        does. Direct prompt-content assertion."""
+        from resumes.services.resume_generator_v2 import (
+            _generate_entity_bullets,
+        )
+        store, entity = self._build_entity_with_two_children()
+        captured: list[str] = []
+        # Use non-colliding openers so we get exactly 2 LLM calls
+        # (no collision regen).
+        outputs = ["Built the auth flow.", "Designed the sync layer."]
+        n_calls = {"i": 0}
+        def stub(prompt, **kw):
+            captured.append(prompt)
+            i = n_calls["i"]
+            n_calls["i"] += 1
+            return outputs[min(i, len(outputs) - 1)]
+        with patch("resumes.services.resume_generator_v2._llm_call",
+                   side_effect=stub):
+            _generate_entity_bullets(
+                store, entity, section="experience",
+                job_title="Engineer", events=[],
+                writing_rules_block="",
+                jd_must=[], jd_nice=[],
+            )
+        self.assertEqual(len(captured), 2)
+        # Bullet #1 — no siblings yet.
+        self.assertNotIn("=== SIBLINGS", captured[0])
+        # Bullet #2 — sees bullet #1 as a sibling.
+        self.assertIn("=== SIBLINGS", captured[1])
+        self.assertIn("Built the auth flow.", captured[1])
