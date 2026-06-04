@@ -116,6 +116,7 @@ from resumes.services.scoring import (
     compute_ats_breakdown,
     compute_evidence_confidence,
     calculate_ats_score,
+    _count_skill_occurrences,
     STUFFING_THRESHOLD,
     STUFFING_PENALTY_PER_SKILL,
     IN_CONTEXT_BONUS_PER_SKILL,
@@ -206,6 +207,319 @@ class ComputeAtsBreakdownTests(SimpleTestCase):
         score = calculate_ats_score(content, ["Python"])
         self.assertIsInstance(score, float)
         self.assertEqual(score, 100.0)
+
+
+# ============================================================
+# Fix (a) — plural / suffix tolerance in _count_skill_occurrences
+# ============================================================
+
+
+class CountSkillOccurrencesPluralToleranceTests(SimpleTestCase):
+    """The scorer's matcher must count trivial plural/suffix variants of
+    the same root as matches, so "REST API" in the JD doesn't miss a
+    resume bullet that says "REST APIs" (and vice-versa). The tolerance
+    is strictly lexical — same root, optional trailing 's'/'es' — never
+    semantic. Synonyms / concept-mapping ("state management" ↔ "BLoC")
+    are deliberately NOT in scope here.
+    """
+
+    # ---- Forward direction: singular skill matches plural in text ------
+
+    def test_singular_skill_matches_plural_in_text(self):
+        # "REST API" (JD) should match "REST APIs" (resume).
+        self.assertEqual(_count_skill_occurrences("Built REST APIs.", "REST API"), 1)
+
+    def test_microservice_matches_microservices(self):
+        self.assertEqual(_count_skill_occurrences("Adopted microservices.", "Microservice"), 1)
+
+    def test_database_matches_databases(self):
+        self.assertEqual(_count_skill_occurrences("Managed databases.", "Database"), 1)
+
+    def test_three_char_acronym_matches_plural(self):
+        # "API" (3 chars, the floor for tolerance) → "APIs".
+        self.assertEqual(_count_skill_occurrences("Exposed APIs to clients.", "API"), 1)
+
+    # ---- Reverse direction: plural skill matches singular in text ------
+
+    def test_plural_skill_matches_singular_in_text(self):
+        # "REST APIs" (JD) should match "REST API" (resume).
+        self.assertEqual(_count_skill_occurrences("Built a REST API.", "REST APIs"), 1)
+
+    def test_microservices_matches_microservice(self):
+        self.assertEqual(
+            _count_skill_occurrences("Decomposed into a microservice.", "Microservices"),
+            1,
+        )
+
+    # ---- Exact match still works (additive, non-regressing) ------------
+
+    def test_exact_match_unchanged(self):
+        self.assertEqual(_count_skill_occurrences("Built REST APIs.", "REST APIs"), 1)
+
+    def test_multiple_occurrences_counted(self):
+        # Mix of singular and plural in same text — both contribute.
+        n = _count_skill_occurrences("Built APIs. Designed an API.", "API")
+        self.assertEqual(n, 2)
+
+    def test_no_double_count_on_same_token(self):
+        # Skill "Microservices" against text "Microservices" must NOT
+        # be counted twice (once via base, once via reverse-strip).
+        self.assertEqual(
+            _count_skill_occurrences("Used Microservices.", "Microservices"),
+            1,
+        )
+
+    # ---- Guards: single-letter skills stay strict ---------------------
+
+    def test_single_letter_C_does_not_match_Cs(self):
+        # The task spec calls this out explicitly: "C" must NOT match "Cs".
+        self.assertEqual(_count_skill_occurrences("Used Cs everywhere.", "C"), 0)
+
+    def test_single_letter_R_does_not_match_Rs(self):
+        self.assertEqual(_count_skill_occurrences("Stats with Rs and Ds.", "R"), 0)
+
+    def test_single_letter_still_matches_itself(self):
+        # Strict word-boundary match for the single letter itself works.
+        self.assertEqual(_count_skill_occurrences("Wrote R for stats.", "R"), 1)
+        self.assertEqual(_count_skill_occurrences("C, Python, Rust.", "C"), 1)
+
+    # ---- Guards: punctuation-bearing names stay strict, never blow up --
+
+    def test_cpp_still_matches_cpp(self):
+        # The task spec calls this out: "C++" still matches "C++".
+        self.assertEqual(_count_skill_occurrences("Wrote C++ daemons.", "C++"), 1)
+
+    def test_cpp_does_not_match_cpps(self):
+        # Trailing-punct guard means no "C++s" / "C++es" matching.
+        self.assertEqual(_count_skill_occurrences("Wrote in C++s code.", "C++"), 0)
+
+    def test_csharp_matches_csharp(self):
+        self.assertEqual(_count_skill_occurrences("Migrated to C# 12.", "C#"), 1)
+
+    def test_node_js_matches_node_js(self):
+        self.assertEqual(_count_skill_occurrences("Built with Node.js.", "Node.js"), 1)
+
+    def test_dotnet_matches_dotnet(self):
+        self.assertEqual(_count_skill_occurrences("Built on .NET 8.", ".NET"), 1)
+
+    # ---- Guards: two-letter alpha skills don't false-positive ----------
+
+    def test_go_does_not_match_goes(self):
+        # "Go" is 2 chars; below the 3-char floor → strict only. Critical:
+        # "Goes" is a common English word; loose tolerance would create
+        # widespread false positives in summaries.
+        self.assertEqual(_count_skill_occurrences("She goes to work.", "Go"), 0)
+
+    def test_go_still_matches_go(self):
+        self.assertEqual(_count_skill_occurrences("Wrote Go services.", "Go"), 1)
+
+    # ---- Guards: short acronyms ending in 's' don't reverse-strip ------
+
+    def test_aws_does_not_match_bare_aw(self):
+        # "AWS" → last_token_len = 3, below the reverse-strip floor of 4.
+        # So we don't strip to "AW" and false-positive on bare 2-letter "AW".
+        self.assertEqual(_count_skill_occurrences("Worked at AW Corp.", "AWS"), 0)
+
+    def test_aws_still_matches_aws(self):
+        self.assertEqual(_count_skill_occurrences("Deployed on AWS.", "AWS"), 1)
+
+    def test_ios_does_not_match_bare_io(self):
+        self.assertEqual(_count_skill_occurrences("Configured IO buffers.", "iOS"), 0)
+
+    # ---- Multi-word skills still work ---------------------------------
+
+    def test_machine_learning_matches_itself(self):
+        self.assertEqual(
+            _count_skill_occurrences("Applied Machine Learning models.", "Machine Learning"),
+            1,
+        )
+
+    def test_machine_learning_matches_plural(self):
+        # Marginal real-world case — but the rule should be uniform.
+        # "Machine Learnings" — improbable text, but tolerance shouldn't crash.
+        self.assertEqual(
+            _count_skill_occurrences("Multiple Machine Learnings ran.", "Machine Learning"),
+            1,
+        )
+
+    def test_power_bi_matches_itself(self):
+        # 2-char trailing token ("BI"); doesn't qualify for tolerance,
+        # but should still match itself.
+        self.assertEqual(_count_skill_occurrences("Built Power BI dashboards.", "Power BI"), 1)
+
+
+# ============================================================
+# Fix (c) — stuffing penalty scoped to prose only
+# ============================================================
+
+
+class StuffingPenaltyScopeTests(SimpleTestCase):
+    """The stuffing penalty must only fire on free-form prose
+    (summary + bullets) — not on structured tagging fields like the
+    skills list or projects' technologies arrays, where one entry per
+    project is correct, not stuffing.
+
+    The threshold (>4) and the -5/skill penalty are unchanged in this
+    pass — only the SCAN WINDOW narrows.
+    """
+
+    def test_structured_tagging_does_not_trip_stuffing(self):
+        # Skills line × 1 + 4 projects each tagging "Flutter" in their
+        # technologies array = 5 structured occurrences. None in prose.
+        # Old behaviour (counting against json.dumps): 5 > 4 → stuffed.
+        # New behaviour (counting against prose only): 0 occurrences in
+        # prose → NOT stuffed.
+        content = {
+            "skills": ["Flutter"],
+            "experience": [],
+            "projects": [
+                {"name": "App A", "technologies": ["Flutter", "Dart"],
+                 "description": ["Shipped iOS build."]},
+                {"name": "App B", "technologies": ["Flutter"],
+                 "description": ["Shipped Android build."]},
+                {"name": "App C", "technologies": ["Flutter"],
+                 "description": ["Localised UI."]},
+                {"name": "App D", "technologies": ["Flutter"],
+                 "description": ["Wired CI."]},
+            ],
+        }
+        out = compute_ats_breakdown(content, ["Flutter"])
+        self.assertNotIn("Flutter", out["stuffed_skills"])
+        self.assertEqual(out["stuffing_penalty"], 0.0)
+
+    def test_prose_overuse_still_trips_stuffing(self):
+        # Same skill, but THIS time we genuinely stuff it in bullet prose:
+        # 6 mentions inside one description bullet. Should flag.
+        stuffed_bullet = "Flutter Flutter Flutter Flutter Flutter Flutter app."
+        content = {
+            "skills": ["Flutter"],
+            "experience": [
+                {"title": "Intern", "description": [stuffed_bullet]},
+            ],
+        }
+        out = compute_ats_breakdown(content, ["Flutter"])
+        self.assertIn("Flutter", out["stuffed_skills"])
+        self.assertEqual(out["stuffing_penalty"], STUFFING_PENALTY_PER_SKILL)
+
+    def test_summary_counts_as_prose(self):
+        # The summary IS prose — 6 mentions there should also flag.
+        content = {
+            "professional_summary": (
+                "Python Python Python Python Python Python developer."
+            ),
+            "skills": ["Python"],
+        }
+        out = compute_ats_breakdown(content, ["Python"])
+        self.assertIn("Python", out["stuffed_skills"])
+
+    def test_certifications_field_excluded(self):
+        # A "Python" string lurking inside `certifications` is structured
+        # tagging, not prose. With 5 such structured mentions and zero
+        # prose mentions, the skill should not be flagged.
+        content = {
+            "skills": ["Python"],
+            "certifications": [
+                "Python Developer Cert (PCAP)",
+                "Python Data Analyst (PCAD)",
+                "Advanced Python (Coursera)",
+                "Python for ML (DeepLearning.AI)",
+                "Python Crash Course",
+            ],
+        }
+        out = compute_ats_breakdown(content, ["Python"])
+        self.assertNotIn("Python", out["stuffed_skills"])
+
+    def test_legitimate_mixed_usage_borderline(self):
+        # Realistic case: 1 in skills + 2 prose bullets + 3 project
+        # tech-arrays. Prose count = 2. Below threshold. Not flagged.
+        content = {
+            "skills": ["Flutter"],
+            "experience": [
+                {"title": "Mobile Intern",
+                 "description": ["Built Flutter onboarding flow.",
+                                 "Migrated screens to Flutter 3."]},
+            ],
+            "projects": [
+                {"name": "P1", "technologies": ["Flutter"],
+                 "description": ["Released v1.0."]},
+                {"name": "P2", "technologies": ["Flutter"],
+                 "description": ["Added dark mode."]},
+                {"name": "P3", "technologies": ["Flutter"],
+                 "description": ["Added i18n."]},
+            ],
+        }
+        out = compute_ats_breakdown(content, ["Flutter"])
+        # Matched in full_text (skills + tech arrays + bullets).
+        self.assertEqual(out["matched_count"], 1)
+        # Not flagged — only 2 prose mentions.
+        self.assertNotIn("Flutter", out["stuffed_skills"])
+
+
+# ============================================================
+# Fix (d) — in-context bonus scans project bullets too
+# ============================================================
+
+
+class InContextBonusIncludesProjectsTests(SimpleTestCase):
+    """The in-context bonus must reward keywords that appear in
+    ``projects[].description`` as well as ``experience[].description``.
+    For juniors / interns whose primary evidence is projects, the
+    prior experience-only scope structurally zeroed the bonus.
+    """
+
+    def test_skill_in_project_bullet_earns_bonus(self):
+        content = {
+            "skills": ["Flutter"],
+            "experience": [],     # no internships
+            "projects": [
+                {"name": "Spotify Clone",
+                 "description": ["Built a Flutter UI for offline playback."]},
+            ],
+        }
+        out = compute_ats_breakdown(content, ["Flutter"])
+        self.assertEqual(out["matched_count"], 1)
+        self.assertEqual(out["in_context_count"], 1)
+        self.assertEqual(out["in_context_bonus"], IN_CONTEXT_BONUS_PER_SKILL)
+
+    def test_skill_only_in_skills_list_does_not_earn_bonus(self):
+        # Sanity check the boundary — without ANY bullet evidence,
+        # the bonus should be zero (this was true before this fix too).
+        content = {"skills": ["Flutter"], "experience": [], "projects": []}
+        out = compute_ats_breakdown(content, ["Flutter"])
+        self.assertEqual(out["in_context_count"], 0)
+        self.assertEqual(out["in_context_bonus"], 0.0)
+
+    def test_skill_in_both_experience_and_project_counted_once(self):
+        # The bonus is per-skill, not per-bullet — appearing in both
+        # exp.description and project.description should still produce
+        # one in-context unit.
+        content = {
+            "skills": ["Python"],
+            "experience": [{"description": ["Wrote Python scripts."]}],
+            "projects": [{"name": "X", "description": ["Used Python here too."]}],
+        }
+        out = compute_ats_breakdown(content, ["Python"])
+        self.assertEqual(out["in_context_count"], 1)
+
+    def test_project_bullet_only_still_caps_at_ten(self):
+        # 6 skills × 2 = 12 raw bonus, capped at 10 — should hold with
+        # projects-only evidence too.
+        content = {
+            "skills": ["Python", "SQL", "Java", "Rust", "Go", "Ruby"],
+            "projects": [{
+                "name": "Multi-stack repo",
+                "description": [
+                    "Python and SQL data pipelines.",
+                    "Java and Go microservices.",
+                    "Rust and Ruby tooling.",
+                ],
+            }],
+        }
+        out = compute_ats_breakdown(
+            content, ["Python", "SQL", "Java", "Rust", "Go", "Ruby"],
+        )
+        self.assertEqual(out["in_context_count"], 6)
+        self.assertEqual(out["in_context_bonus"], 10.0)  # capped
 
 
 class ComputeEvidenceConfidenceTests(SimpleTestCase):
