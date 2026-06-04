@@ -3082,14 +3082,15 @@ def _ensure_profile_data_preserved(resume_content: dict, profile_data: dict) -> 
     return resume_content
 
 
-def calculate_ats_score(resume_content, job_skills):
+def calculate_ats_score(resume_content, job_skills, tiers=None):
     """Backwards-compat shim — delegates to resumes.services.scoring.
 
     The new implementation penalizes keyword stuffing (>4 occurrences), rewards
     keywords that appear in experience descriptions (not just the skills list),
-    and exposes a structured breakdown via compute_ats_breakdown(). Callers
-    that just need the float (tasks.py, views.py) keep calling this; UI code
-    that wants transparency should import compute_ats_breakdown() directly.
+    tier-weights the score when ``tiers`` is supplied, and exposes a structured
+    breakdown via compute_ats_breakdown(). Callers that just need the float
+    (tasks.py, views.py) keep calling this; UI code that wants transparency
+    should import compute_ats_breakdown() directly.
     """
     from .scoring import calculate_ats_score as _calc
-    return _calc(resume_content, job_skills)
+    return _calc(resume_content, job_skills, tiers)

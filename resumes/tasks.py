@@ -31,7 +31,11 @@ def generate_resume_task(job_id, user_id):
         resume_content = generate_resume_content_dispatched(
             profile, job, gap_analysis, previous_best=previous_best,
         )
-        ats_score = calculate_ats_score(resume_content, job.extracted_skills)
+        # Fix (b): pass the must/nice tiers so the score is tier-weighted.
+        # Falsy/missing tiers → None → flat (pre-(b)) scoring (same read
+        # pattern as pipeline_dispatch._generate_via_v2).
+        job_tiers = getattr(job, "extracted_skills_tiers", None) or None
+        ats_score = calculate_ats_score(resume_content, job.extracted_skills, job_tiers)
 
         resume = GeneratedResume.objects.create(
             gap_analysis=gap_analysis,

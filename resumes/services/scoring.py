@@ -130,6 +130,22 @@ class AtsBreakdown(TypedDict):
     stuffed_skills: list[str]   # keywords that appeared > STUFFING_THRESHOLD times
     stuffing_penalty: float     # actual penalty applied
     keyword_counts: dict[str, int]  # per-skill count, useful for debug/UI
+    # --- Fix (b): additive structured breakdown ----------------------------
+    # The nine flat keys above are preserved byte-for-byte (ats_eval.py and
+    # the test suite read them by name and assume their scalar types). The
+    # keys below expose the scorer's per-skill working so a breakdown UI is a
+    # pure rendering job, and the number can never disagree with its
+    # justification — both come from one computation.
+    #
+    # Naming note: the structured in-context / stuffing views are named
+    # ``in_context`` / ``stuffing`` (not ``in_context_bonus`` / ``stuffing_
+    # penalty``) precisely because those latter names are the reserved flat
+    # float keys above — same-name collision would break the float-typed
+    # back-compat consumers.
+    must_have: dict             # {matched: [...], missed: [...], coverage: float}
+    nice_to_have: dict          # {matched: [...], missed: [...], coverage: float}
+    in_context: dict            # {points: float, skills: [...]} — structured bonus view
+    stuffing: dict              # {points: float, skills: [...]} — structured penalty view
 
 
 class EvidenceConfidence(TypedDict):
@@ -139,19 +155,33 @@ class EvidenceConfidence(TypedDict):
     detail: str                 # one-sentence explanation for the UI
 
 
-def compute_ats_breakdown(resume_content: dict, job_skills: list[str]) -> AtsBreakdown:
+def compute_ats_breakdown(
+    resume_content: dict,
+    job_skills: list[str],
+    tiers: dict | None = None,
+) -> AtsBreakdown:
     """Score a tailored resume against the job's required skills.
 
+    ``job_skills`` is the flat union (must ∪ nice) and remains the
+    match-scan list. ``tiers`` — shape ``{"must_have": [...],
+    "nice_to_have": [...]}`` — is optional and only partitions that scan
+    for weighting and the structured breakdown. When ``tiers is None``
+    (the legacy call signature) the whole flat list is treated as one
+    must-have tier, so the weighted formula degrades to the exact
+    pre-(b) ``matched / total × 100`` behaviour and existing callers /
+    tests are unaffected.
+
     Algorithm:
-    1. Count occurrences of each job_skill across the full resume JSON.
-    2. raw_score = matched_count / total_count × 100.
-    3. Apply stuffing penalty: for each skill that appears > 4 times,
-       knock 5 points off (so a resume jamming 5 of the same keyword 6×
-       each loses 25 points).
+    1. Count occurrences of each job_skill across the full resume JSON,
+       bucketing each into its must / nice tier.
+    2. Fix (b) — tier-weighted base: must-have coverage weighted 0.75,
+       nice-to-have 0.25, renormalised onto whichever tiers are actually
+       present (an empty tier must not waste its slice — a perfect
+       must-have score with no nice-to-haves reaches 100, not 75).
+    3. Apply stuffing penalty: for each skill that appears > 4 times in
+       prose, knock 5 points off.
     4. Apply in-context bonus: for each skill that appears in any
-       experience description (not just the skills list), award 2 points,
-       capped at +10 total. Encourages using keywords *in evidence*
-       rather than as stuffed bullet-list filler.
+       experience/project description, award 2 points, capped at +10.
     5. Clamp to [0, 100], round to one decimal.
     """
     if not job_skills:
@@ -159,7 +189,27 @@ def compute_ats_breakdown(resume_content: dict, job_skills: list[str]) -> AtsBre
             score=0.0, raw_score=0.0, matched_count=0, total_count=0,
             in_context_count=0, in_context_bonus=0.0,
             stuffed_skills=[], stuffing_penalty=0.0, keyword_counts={},
+            must_have={"matched": [], "missed": [], "coverage": 0.0},
+            nice_to_have={"matched": [], "missed": [], "coverage": 0.0},
+            in_context={"points": 0.0, "skills": []},
+            stuffing={"points": 0.0, "skills": []},
         )
+
+    # Fix (b): build case-insensitive tier membership sets. ``must_set is
+    # None`` is the sentinel for "no tiers supplied" — every skill then
+    # buckets to must-have and the formula falls back to the flat score.
+    if tiers is None:
+        must_set: set[str] | None = None
+        nice_set: set[str] = set()
+    else:
+        must_set = {
+            s.lower().strip() for s in (tiers.get("must_have") or [])
+            if isinstance(s, str) and s.strip()
+        }
+        nice_set = {
+            s.lower().strip() for s in (tiers.get("nice_to_have") or [])
+            if isinstance(s, str) and s.strip()
+        }
 
     full_text = json.dumps(resume_content).lower()
 
@@ -200,16 +250,42 @@ def compute_ats_breakdown(resume_content: dict, job_skills: list[str]) -> AtsBre
     in_context_count = 0
     stuffed_skills: list[str] = []
 
+    # Fix (b): per-tier matched/missed split + in-context skill names.
+    # All three were derivable from the existing loop but discarded; here
+    # we just collect them. ``in_context_skills`` is gathered at the same
+    # ``skill_lower in evidence_text`` branch that already increments the
+    # counter — nearly free.
+    must_matched: list[str] = []
+    must_missed: list[str] = []
+    nice_matched: list[str] = []
+    nice_missed: list[str] = []
+    in_context_skills: list[str] = []
+
     for skill in job_skills:
         skill_lower = skill.lower().strip()
         if not skill_lower:
             continue
         count = _count_skill_occurrences(full_text, skill_lower)
         keyword_counts[skill] = count
-        if count > 0:
+        is_matched = count > 0
+        if is_matched:
             matched_count += 1
             if skill_lower in evidence_text:
                 in_context_count += 1
+                in_context_skills.append(skill)
+        # Tier bucketing. A skill present in must-have (or in neither
+        # list, or when no tiers were supplied) counts as must-have;
+        # nice-have only when it is exclusively in the nice tier. This
+        # keeps total_must + total_nice == number of scanned skills.
+        is_nice = (
+            must_set is not None
+            and skill_lower in nice_set
+            and skill_lower not in must_set
+        )
+        if is_nice:
+            (nice_matched if is_matched else nice_missed).append(skill)
+        else:
+            (must_matched if is_matched else must_missed).append(skill)
         # Stuffing is detected against prose only, NOT the full JSON
         # (see fix (c) comment above). Threshold and per-skill penalty
         # are unchanged; only the scan window narrows.
@@ -221,12 +297,35 @@ def compute_ats_breakdown(resume_content: dict, job_skills: list[str]) -> AtsBre
                 skill, prose_count,
             )
 
+    # Flat key — preserved exactly: matched / total × 100 over the whole list.
     raw_score = (matched_count / len(job_skills)) * 100.0
+
+    total_must = len(must_matched) + len(must_missed)
+    total_nice = len(nice_matched) + len(nice_missed)
+    must_cov = (len(must_matched) / total_must) if total_must else 0.0
+    nice_cov = (len(nice_matched) / total_nice) if total_nice else 0.0
+
+    # Fix (b): tier-weighted base with renormalisation onto present tiers.
+    # No tiers supplied → fall back to the exact flat score (regression
+    # guard for legacy callers). Both tiers present → 0.75 / 0.25 split.
+    # Only one tier present → that tier takes the full weight (the absent
+    # tier's slice is not wasted — a perfect must-have with no nice-to-haves
+    # reaches 100, not 75).
+    if tiers is None:
+        base = raw_score
+    elif total_must and total_nice:
+        base = (must_cov * 0.75 + nice_cov * 0.25) * 100.0
+    elif total_must:
+        base = must_cov * 100.0
+    elif total_nice:
+        base = nice_cov * 100.0
+    else:
+        base = 0.0
 
     in_context_bonus = min(in_context_count * IN_CONTEXT_BONUS_PER_SKILL, 10.0)
     stuffing_penalty = len(stuffed_skills) * STUFFING_PENALTY_PER_SKILL
 
-    final = raw_score + in_context_bonus - stuffing_penalty
+    final = base + in_context_bonus - stuffing_penalty
     final = max(0.0, min(100.0, final))
 
     return AtsBreakdown(
@@ -239,6 +338,25 @@ def compute_ats_breakdown(resume_content: dict, job_skills: list[str]) -> AtsBre
         stuffed_skills=stuffed_skills,
         stuffing_penalty=round(stuffing_penalty, 1),
         keyword_counts=keyword_counts,
+        # Additive structured breakdown — derived from the same pass.
+        must_have={
+            "matched": must_matched,
+            "missed": must_missed,
+            "coverage": round(must_cov, 3),
+        },
+        nice_to_have={
+            "matched": nice_matched,
+            "missed": nice_missed,
+            "coverage": round(nice_cov, 3),
+        },
+        in_context={
+            "points": round(in_context_bonus, 1),
+            "skills": in_context_skills,
+        },
+        stuffing={
+            "points": round(stuffing_penalty, 1),
+            "skills": list(stuffed_skills),
+        },
     )
 
 
@@ -316,11 +434,17 @@ def compute_evidence_confidence(profile) -> EvidenceConfidence:
     )
 
 
-def calculate_ats_score(resume_content: dict, job_skills: list[str]) -> float:
+def calculate_ats_score(
+    resume_content: dict,
+    job_skills: list[str],
+    tiers: dict | None = None,
+) -> float:
     """Backwards-compat wrapper: returns just the final score float.
 
     Kept as the canonical API for resumes.tasks and resumes.views (which
-    store it on resume.ats_score). New code should prefer
+    store it on resume.ats_score). ``tiers`` is optional and forwarded to
+    compute_ats_breakdown() for tier-weighted scoring; when omitted the
+    flat (pre-(b)) score is returned. New code should prefer
     compute_ats_breakdown() for transparency.
     """
-    return compute_ats_breakdown(resume_content, job_skills)['score']
+    return compute_ats_breakdown(resume_content, job_skills, tiers)['score']
