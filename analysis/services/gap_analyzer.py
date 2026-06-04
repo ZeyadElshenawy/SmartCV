@@ -316,6 +316,10 @@ HONESTY CONSTRAINT:
   Do not inflate proximity to make the candidate feel better. A 0.2 is more useful
   than a fake 0.6 because it tells the user what to focus on. bridge_hint can be
   omitted (left null) if you have nothing concrete to suggest — do not invent one.
+
+  This honesty applies to the matched_* lists too: never list a skill as
+  matched on adjacency or a shared word — only on direct evidence of THAT
+  exact skill. If you are crediting it because it is "close", it is missing_*.
 """
 
 
@@ -445,6 +449,16 @@ score that reflects how close the candidate is. An empty evidence_quote
 on a matched_* entry will be automatically demoted to missing_* with
 proximity 0.0 — don't waste the slot.
 
+HARD RULE — WHOLE-SKILL GROUNDING (no adjacency credit):
+Do NOT credit a multi-word skill unless its DISTINCTIVE component is
+literally in the profile. "Firebase Messaging" needs "Messaging" evidence
+— bare "Firebase" is NOT enough; "GoRouter" / "Dio" need that exact
+package by name. A skill that is merely ADJACENT to one the candidate has
+(same ecosystem, shares one word, transfer-learning value) belongs in
+missing_* with a proximity score — NEVER in matched_*. A deterministic
+grounding check runs after you and auto-demotes any matched skill whose
+name is absent from the profile, so an adjacency guess only loses the slot.
+
 RULE 2 — DIRECTIONAL SPECIFICITY:
 - BROAD JD (e.g. "SQL", "Cloud") + SPECIFIC CV (e.g. "MySQL", "AWS") = MATCH
 - SPECIFIC JD (e.g. "Tableau") + BROAD CV ("Data Viz") = NOT a match
@@ -560,7 +574,9 @@ HARD SCHEMA RULE: You MUST output a single root JSON object `{{ "matched_must_ha
     # but in practice it's hallucination. Treat empty evidence as
     # "actually missing" with proximity 0.0 — Phase 2b reconciliation then
     # carries it forward into the correct missing tier.
-    result = _demote_evidenceless_matches(result)
+    result = _demote_evidenceless_matches(
+        result, profile_data=(profile.data_content or {}),
+    )
 
     # ---- Phase 2b: Tier-aware reconciliation ----
     result = _reconcile_tier(
@@ -598,9 +614,21 @@ HARD SCHEMA RULE: You MUST output a single root JSON object `{{ "matched_must_ha
     }
 
 
-def _demote_evidenceless_matches(result):
-    """Demote matched skills with empty evidence_quote into missing_* with
-    proximity 0.0. An honest match must point at SOMETHING in the profile;
+def _demote_evidenceless_matches(result, profile_data=None):
+    """Demote matched skills that lack real profile evidence into missing_*
+    with proximity 0.0.
+
+    Two gates, both demote:
+      1. Empty ``evidence_quote`` — the LLM couldn't quote anything.
+      2. Profile-grounding (only when ``profile_data`` is supplied) — the
+         skill's NAME is not grounded in the profile via either an exact
+         structured hit (tech array / skills array / cert name — the PR 3e
+         path, unchanged) OR a whole-phrase prose mention. This catches the
+         LLM's adjacency over-claims (e.g. "Firebase Messaging" off bare
+         "Firebase", "GoRouter"/"Dio" with no package evidence) which gate 1
+         misses because the LLM supplies a plausible but unverifiable quote.
+
+    An honest match must point at SOMETHING in the profile;
     if the LLM can't quote anything, the skill is more honestly described as
     "we don't know the candidate has this".
 
@@ -615,18 +643,38 @@ def _demote_evidenceless_matches(result):
 
     def _norm(s): return (s or '').lower().strip()
 
+    # Profile-grounding pass (the real backstop). When ``profile_data`` is
+    # supplied we additionally demote any matched skill whose NAME is not
+    # grounded in the profile — catching the LLM's holistic/adjacency
+    # over-claims (e.g. "Firebase Messaging" credited off bare "Firebase").
+    # When ``profile_data`` is None (callers/tests that don't pass it) only
+    # the legacy empty-quote check runs, preserving prior behaviour.
+    ground = profile_data is not None
+    prose = _grounding_prose_corpus(profile_data or {}) if ground else ""
+
+    def _demotion_reason(m):
+        """Reason string if this matched skill should be demoted, else None.
+        A non-empty evidence_quote is necessary but NOT sufficient — the
+        skill must also be grounded in the profile when grounding is on."""
+        if _ev_empty(m):
+            return 'LLM marked matched without specific evidence'
+        if ground and not _skill_is_grounded(m.name, profile_data, prose):
+            return 'No profile evidence for this skill (grounding check)'
+        return None
+
     existing_missing_must = {_norm(m.name) for m in result.missing_must_have}
     existing_missing_nice = {_norm(m.name) for m in result.missing_nice_to_have}
 
     real_must, demoted_must = [], []
     for m in result.matched_must_have:
-        if _ev_empty(m):
+        reason = _demotion_reason(m)
+        if reason:
             if _norm(m.name) in existing_missing_must:
-                logger.info("Dropped duplicate evidence-less match '%s' (already in missing_must_have)", m.name)
+                logger.info("Dropped duplicate ungrounded match '%s' (already in missing_must_have)", m.name)
                 continue
             demoted_must.append(MissingSkill(
                 name=m.name, source_quote='', proximity=0.0,
-                proximity_reason='LLM marked matched without specific evidence',
+                proximity_reason=reason,
                 bridge_hint=None,
             ))
         else:
@@ -634,13 +682,14 @@ def _demote_evidenceless_matches(result):
 
     real_nice, demoted_nice = [], []
     for m in result.matched_nice_to_have:
-        if _ev_empty(m):
+        reason = _demotion_reason(m)
+        if reason:
             if _norm(m.name) in existing_missing_nice:
-                logger.info("Dropped duplicate evidence-less match '%s' (already in missing_nice_to_have)", m.name)
+                logger.info("Dropped duplicate ungrounded match '%s' (already in missing_nice_to_have)", m.name)
                 continue
             demoted_nice.append(MissingSkill(
                 name=m.name, source_quote='', proximity=0.0,
-                proximity_reason='LLM marked matched without specific evidence',
+                proximity_reason=reason,
                 bridge_hint=None,
             ))
         else:
@@ -648,7 +697,7 @@ def _demote_evidenceless_matches(result):
 
     if demoted_must or demoted_nice:
         logger.info(
-            "Demoted %d evidence-less matched skill(s) → missing (must=%s nice=%s)",
+            "Demoted %d unevidenced/ungrounded matched skill(s) → missing (must=%s nice=%s)",
             len(demoted_must) + len(demoted_nice),
             [m.name for m in demoted_must],
             [m.name for m in demoted_nice],
@@ -805,6 +854,103 @@ def _build_matched_from_evidence(skill: str, evidence: list[dict]) -> 'MatchedSk
         evidence_source=evidence_source,
         evidence_quote=evidence_quote,
     )
+
+
+def _grounding_prose_corpus(profile_data: dict) -> str:
+    """Free-text corpus for whole-phrase skill grounding: professional
+    summary + experience/project description bullets.
+
+    This is DISTINCT from _collect_profile_evidence's structured corpus
+    (project/experience ``technologies`` arrays, ``skills`` array, cert
+    names). Together they let a matched skill ground EITHER via an exact
+    structured hit (the PR 3e path) OR via a whole-phrase prose mention —
+    so a skill legitimately described only in a bullet/summary (e.g.
+    "clean architecture") is not wrongly demoted, while a phantom
+    multi-word skill whose distinctive component is absent everywhere is.
+    """
+    if not isinstance(profile_data, dict):
+        return ""
+    parts: list[str] = []
+    for key in ("professional_summary", "normalized_summary", "summary", "objective"):
+        v = profile_data.get(key)
+        if isinstance(v, str) and v.strip():
+            parts.append(v)
+    for section in ("experiences", "projects"):
+        for item in (profile_data.get(section) or []):
+            if not isinstance(item, dict):
+                continue
+            for field in ("description", "bullets", "summary"):
+                val = item.get(field)
+                if isinstance(val, list):
+                    parts.extend(str(b) for b in val)
+                elif isinstance(val, str) and val.strip():
+                    parts.append(val)
+    return " \n ".join(parts).lower()
+
+
+def _phrase_in_prose(skill_name: str, prose_lower: str) -> bool:
+    """Whole-skill-phrase word-boundary match — NOT substring/token.
+
+    "firebase messaging" must appear as a contiguous phrase; "firebase"
+    sharing a token with "Firebase Messaging" does NOT count. This is the
+    guard against the exact over-claim the LLM makes (crediting a skill
+    because it shares ONE word with real evidence).
+    """
+    s = re.sub(r"\s+", " ", (skill_name or "").strip().lower())
+    if not s or not prose_lower:
+        return False
+    try:
+        return bool(re.search(rf"(?<!\w){re.escape(s)}(?!\w)", prose_lower))
+    except re.error:
+        return s in prose_lower
+
+
+def _skill_in_declared_skills(skill_name: str, profile_data: dict) -> bool:
+    """Exact canonical match against the candidate's declared ``skills[]``.
+
+    A skill the user explicitly listed is legitimate grounding — the
+    candidate claims it. This is the GROUNDING direction and is
+    deliberately UNGATED, distinct from ``_collect_profile_evidence``'s
+    skills-array path, which is corroboration-gated for the RESCUE
+    direction (anti-claim-stuffing) and is left unchanged. The effect:
+    genuine declared skills stay matched, while skills the LLM invented
+    out of adjacency (absent from skills[] AND everywhere else) demote.
+    """
+    if not isinstance(profile_data, dict):
+        return False
+    target = _canonical(skill_name)
+    if not target:
+        return False
+    for entry in (profile_data.get("skills") or []):
+        name = entry.get("name", "") if isinstance(entry, dict) else str(entry or "")
+        if _canonical(name) == target:
+            return True
+    return False
+
+
+def _skill_is_grounded(skill_name: str, profile_data: dict, prose_lower: str) -> bool:
+    """True iff a matched skill has REAL profile evidence.
+
+    Grounds if ANY of:
+      (PR 3e / structured path) ``_collect_profile_evidence`` finds an
+        exact hit — project/experience ``technologies`` array, corroborated
+        ``skills`` array, or a ≥4-char cert-name substring; OR
+      (declared-skill path) an exact canonical match in ``skills[]`` —
+        the candidate explicitly listed it; OR
+      (prose path) the whole skill phrase appears word-boundary in the
+        summary / experience / project bullets.
+
+    Reusing ``_collect_profile_evidence`` verbatim is what keeps PR-3e-
+    credited tech-array skills passing — its exact-match logic is
+    unchanged here.
+    """
+    if not skill_name:
+        return False
+    if _collect_profile_evidence(skill_name, profile_data):
+        return True
+    if _skill_in_declared_skills(skill_name, profile_data):
+        return True
+    return _phrase_in_prose(skill_name, prose_lower)
 
 
 def _reconcile_tier(result, must_skills: list, nice_skills: list,

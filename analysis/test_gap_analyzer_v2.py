@@ -248,6 +248,134 @@ class TestEvidencelessDemotion(SimpleTestCase):
         self.assertEqual([m.name for m in out.missing_nice_to_have], ["MLflow"])
 
 
+class TestProfileGroundingValidator(SimpleTestCase):
+    """Fix (b-grounding): a non-empty evidence_quote is necessary but NOT
+    sufficient — a matched skill must also be GROUNDED in the profile, or it
+    is demoted. Targets the LLM's holistic/adjacency over-claims. Must NOT
+    re-break PR 3e (tech-array / declared / prose-evidenced skills stay
+    matched)."""
+
+    # taher-shaped profile: Firebase + RESTful APIs + Flutter + SQLite are
+    # real (tech array / skills / bullet); the 6 phantoms appear NOWHERE.
+    PROFILE = {
+        "professional_summary": "Junior Flutter developer skilled in clean "
+                                "architecture and state management with BLoC.",
+        "projects": [
+            {
+                "name": "Brain Tumor Classifier",
+                "technologies": ["Flutter", "Firebase", "RESTful APIs", "SQLite"],
+                "description": [
+                    "Implemented authentication using Firebase Auth with persistent sessions.",
+                    "Streamed downloadable audio files via Firestore.",
+                ],
+            },
+        ],
+        "experiences": [
+            {"title": "Mobile Dev",
+             "description": ["Built apps with Flutter and Dart, optimizing performance."]},
+        ],
+        "certifications": [{"name": "Flutter Essential Training"}],
+        "skills": [{"name": "Flutter"}, {"name": "Firebase"},
+                   {"name": "RESTful APIs"}, {"name": "SQLite"}],
+    }
+
+    def _demote(self, result, profile=None):
+        from analysis.services.gap_analyzer import _demote_evidenceless_matches
+        return _demote_evidenceless_matches(result, profile_data=profile)
+
+    def test_six_phantom_skills_with_quotes_are_demoted(self):
+        # Each has a plausible NON-EMPTY quote (legacy check would KEEP them)
+        # but no profile grounding anywhere.
+        phantom_must = ["Firebase Messaging", "GoRouter", "Dio",
+                        "multi-role mobile applications"]
+        phantom_nice = ["analytics", "Arabic/English apps"]
+        result = TieredGapAnalysisResult(
+            matched_must_have=[MatchedSkill(name=n, evidence_quote=f"LLM claim re {n}")
+                               for n in phantom_must],
+            matched_nice_to_have=[MatchedSkill(name=n, evidence_quote=f"LLM claim re {n}")
+                                  for n in phantom_nice],
+        )
+        out = self._demote(result, self.PROFILE)
+        self.assertEqual(out.matched_must_have, [])
+        self.assertEqual(out.matched_nice_to_have, [])
+        self.assertEqual({m.name for m in out.missing_must_have}, set(phantom_must))
+        self.assertEqual({m.name for m in out.missing_nice_to_have}, set(phantom_nice))
+        for m in out.missing_must_have + out.missing_nice_to_have:
+            self.assertEqual(m.proximity, 0.0)
+            self.assertIn("grounding", m.proximity_reason)
+
+    def test_pr3e_tech_array_skill_stays_matched(self):
+        # PR-3e SAFETY: skills present in a project's technologies array MUST
+        # survive the grounding validator — this is the regression to prevent.
+        result = TieredGapAnalysisResult(
+            matched_must_have=[
+                MatchedSkill(name="RESTful APIs", evidence_quote="x"),
+                MatchedSkill(name="Flutter", evidence_quote="x"),
+                MatchedSkill(name="SQLite", evidence_quote="x"),
+            ],
+        )
+        out = self._demote(result, self.PROFILE)
+        self.assertEqual({m.name for m in out.matched_must_have},
+                         {"RESTful APIs", "Flutter", "SQLite"})
+        self.assertEqual(out.missing_must_have, [])
+
+    def test_prose_only_skill_stays_matched(self):
+        # "clean architecture" only in the summary; "authentication" only in a
+        # project bullet. Whole-phrase prose grounding must keep both matched.
+        result = TieredGapAnalysisResult(
+            matched_must_have=[
+                MatchedSkill(name="clean architecture", evidence_quote="x"),
+                MatchedSkill(name="authentication", evidence_quote="x"),
+            ],
+        )
+        out = self._demote(result, self.PROFILE)
+        self.assertEqual({m.name for m in out.matched_must_have},
+                         {"clean architecture", "authentication"})
+        self.assertEqual(out.missing_must_have, [])
+
+    def test_shared_token_does_not_ground_phantom(self):
+        # "Firebase" (real) stays; "Firebase Messaging" (whole phrase absent)
+        # demotes — a shared "Firebase" token must NOT rescue the phantom.
+        result = TieredGapAnalysisResult(
+            matched_must_have=[
+                MatchedSkill(name="Firebase", evidence_quote="x"),
+                MatchedSkill(name="Firebase Messaging", evidence_quote="x"),
+            ],
+        )
+        out = self._demote(result, self.PROFILE)
+        self.assertEqual([m.name for m in out.matched_must_have], ["Firebase"])
+        self.assertEqual([m.name for m in out.missing_must_have], ["Firebase Messaging"])
+
+    def test_dio_does_not_ground_off_audio_substring(self):
+        # "Dio" must not ground off "audio files" in a bullet (substring trap).
+        result = TieredGapAnalysisResult(
+            matched_must_have=[MatchedSkill(name="Dio", evidence_quote="x")],
+        )
+        out = self._demote(result, self.PROFILE)
+        self.assertEqual(out.matched_must_have, [])
+        self.assertEqual([m.name for m in out.missing_must_have], ["Dio"])
+
+    def test_grounding_is_opt_in_skipped_without_profile_data(self):
+        # profile_data omitted (None) → grounding does NOT run; an ungrounded
+        # but quoted skill stays matched (legacy behaviour preserved).
+        result = TieredGapAnalysisResult(
+            matched_must_have=[MatchedSkill(name="GoRouter", evidence_quote="LLM claim")],
+        )
+        out = self._demote(result, None)
+        self.assertEqual([m.name for m in out.matched_must_have], ["GoRouter"])
+        self.assertEqual(out.missing_must_have, [])
+
+    def test_empty_quote_still_demotes_even_when_grounded(self):
+        # Gate 1 (empty quote) still fires independently: a grounded skill with
+        # an EMPTY quote is demoted on the legacy rule.
+        result = TieredGapAnalysisResult(
+            matched_must_have=[MatchedSkill(name="Flutter", evidence_quote="")],
+        )
+        out = self._demote(result, self.PROFILE)
+        self.assertEqual(out.matched_must_have, [])
+        self.assertEqual([m.name for m in out.missing_must_have], ["Flutter"])
+
+
 class TestReconciliation(SimpleTestCase):
 
     def _empty_result(self):
@@ -311,7 +439,16 @@ class TestComputeGapAnalysisIntegration(SimpleTestCase):
             education=[],
             projects=[],
             certifications=[],
-            data_content={},
+            # data_content must mirror the declared skills: in production
+            # profile.skills is a property over data_content, and the
+            # grounding validator reads data_content. An empty data_content
+            # with populated .skills is an unrealistic stub.
+            data_content={
+                'skills': [{'name': 'Python'}, {'name': 'Pandas'}, {'name': 'PyTorch'}],
+                'projects': [],
+                'experiences': [],
+                'certifications': [],
+            },
         )
         job = types.SimpleNamespace(
             title="Data Scientist",
