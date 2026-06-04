@@ -210,6 +210,151 @@ class ComputeAtsBreakdownTests(SimpleTestCase):
 
 
 # ============================================================
+# Fix (b) — tier-weighted scoring (must 0.75 / nice 0.25) with
+# renormalisation onto present tiers, + tiers=None regression guard.
+# ============================================================
+
+
+class TierWeightedScoreTests(SimpleTestCase):
+    # Skills live ONLY in the skills list (never in experience/projects)
+    # so the in-context bonus is 0 and the assertions isolate the base.
+    def test_both_tiers_full_must_zero_nice_is_75(self):
+        content = {"skills": ["Alpha", "Beta"]}
+        tiers = {"must_have": ["Alpha", "Beta"], "nice_to_have": ["Gamma", "Delta"]}
+        out = compute_ats_breakdown(
+            content, ["Alpha", "Beta", "Gamma", "Delta"], tiers,
+        )
+        # must_cov 1.0 * 0.75 + nice_cov 0.0 * 0.25 = 0.75 → 75.0, no bonus.
+        self.assertEqual(out["score"], 75.0)
+        self.assertEqual(out["must_have"]["coverage"], 1.0)
+        self.assertEqual(out["nice_to_have"]["coverage"], 0.0)
+
+    def test_must_only_tier_renormalizes_to_100(self):
+        # The critical taher case: a JD with no nice-to-haves must NOT
+        # cap a perfect must-have score at 75 — the 0.25 slice renormalises
+        # onto the must tier so full coverage reaches 100.
+        content = {"skills": ["Alpha", "Beta"]}
+        tiers = {"must_have": ["Alpha", "Beta"], "nice_to_have": []}
+        out = compute_ats_breakdown(content, ["Alpha", "Beta"], tiers)
+        self.assertEqual(out["score"], 100.0)
+        self.assertEqual(out["must_have"]["coverage"], 1.0)
+        self.assertEqual(out["nice_to_have"]["matched"], [])
+        self.assertEqual(out["nice_to_have"]["missed"], [])
+
+    def test_nice_only_tier_takes_full_weight(self):
+        content = {"skills": ["Gamma", "Delta"]}
+        tiers = {"must_have": [], "nice_to_have": ["Gamma", "Delta"]}
+        out = compute_ats_breakdown(content, ["Gamma", "Delta"], tiers)
+        # No must tier → nice coverage (1.0) takes the full weight → 100.
+        self.assertEqual(out["score"], 100.0)
+        self.assertEqual(out["nice_to_have"]["coverage"], 1.0)
+
+    def test_both_tiers_empty_scores_zero(self):
+        # Empty tiers + only-blank scan skills → no tier populated → the
+        # "neither" branch → base 0.0 (mirrors the empty-job_skills guard).
+        tiers = {"must_have": [], "nice_to_have": []}
+        out = compute_ats_breakdown({"skills": ["Alpha"]}, ["   ", ""], tiers)
+        self.assertEqual(out["score"], 0.0)
+        self.assertEqual(out["must_have"]["coverage"], 0.0)
+        self.assertEqual(out["nice_to_have"]["coverage"], 0.0)
+
+    def test_partial_both_tiers_weighted_blend(self):
+        # must 1/2 = 0.5, nice 1/2 = 0.5 → (0.5*0.75 + 0.5*0.25)*100 = 50.
+        content = {"skills": ["Alpha", "Gamma"]}
+        tiers = {"must_have": ["Alpha", "Beta"], "nice_to_have": ["Gamma", "Delta"]}
+        out = compute_ats_breakdown(
+            content, ["Alpha", "Beta", "Gamma", "Delta"], tiers,
+        )
+        self.assertEqual(out["score"], 50.0)
+
+    def test_tiers_none_matches_pre_b_flat_formula(self):
+        # Regression guard: no tiers → flat matched/total*100, identical to
+        # the legacy behaviour exercised by test_basic_match_score.
+        content = {"skills": ["Python", "SQL"], "experience": []}
+        skills = ["Python", "SQL", "Rust", "Go"]
+        out = compute_ats_breakdown(content, skills, None)
+        self.assertEqual(out["raw_score"], 50.0)
+        self.assertEqual(out["score"], 50.0)  # 2/4*100, no bonus/penalty
+
+    def test_tiers_none_equals_tiers_omitted(self):
+        content = {"skills": ["Python"]}
+        skills = ["Python", "Rust"]
+        self.assertEqual(
+            compute_ats_breakdown(content, skills),
+            compute_ats_breakdown(content, skills, None),
+        )
+
+
+class StructuredBreakdownReturnTests(SimpleTestCase):
+    EXISTING_FLAT_KEYS = {
+        "score", "raw_score", "matched_count", "total_count",
+        "in_context_count", "in_context_bonus", "stuffed_skills",
+        "stuffing_penalty", "keyword_counts",
+    }
+
+    def test_all_nine_flat_keys_present_with_unchanged_types(self):
+        out = compute_ats_breakdown({"skills": ["Python"]}, ["Python", "SQL"])
+        for key in self.EXISTING_FLAT_KEYS:
+            self.assertIn(key, out)
+        # Types of the back-compat keys read by ats_eval.py + tests.py.
+        self.assertIsInstance(out["score"], float)
+        self.assertIsInstance(out["raw_score"], float)
+        self.assertIsInstance(out["matched_count"], int)
+        self.assertIsInstance(out["total_count"], int)
+        self.assertIsInstance(out["in_context_bonus"], float)
+        self.assertIsInstance(out["stuffing_penalty"], float)
+        self.assertIsInstance(out["stuffed_skills"], list)
+        self.assertIsInstance(out["keyword_counts"], dict)
+
+    def test_new_structured_keys_present(self):
+        out = compute_ats_breakdown({"skills": ["Python"]}, ["Python"])
+        for key in ("must_have", "nice_to_have", "in_context", "stuffing"):
+            self.assertIn(key, out)
+        for tier in ("must_have", "nice_to_have"):
+            self.assertEqual(set(out[tier]), {"matched", "missed", "coverage"})
+        self.assertEqual(set(out["in_context"]), {"points", "skills"})
+        self.assertEqual(set(out["stuffing"]), {"points", "skills"})
+
+    def test_must_have_matched_missed_and_coverage(self):
+        content = {"skills": ["Alpha"]}
+        tiers = {"must_have": ["Alpha", "Beta"], "nice_to_have": ["Gamma"]}
+        out = compute_ats_breakdown(content, ["Alpha", "Beta", "Gamma"], tiers)
+        self.assertEqual(out["must_have"]["matched"], ["Alpha"])
+        self.assertEqual(out["must_have"]["missed"], ["Beta"])
+        self.assertEqual(out["must_have"]["coverage"], 0.5)
+        self.assertEqual(out["nice_to_have"]["matched"], [])
+        self.assertEqual(out["nice_to_have"]["missed"], ["Gamma"])
+        self.assertEqual(out["nice_to_have"]["coverage"], 0.0)
+
+    def test_in_context_skills_collected(self):
+        content = {
+            "skills": ["Python"],
+            "experience": [{"description": ["Built Python services"]}],
+        }
+        out = compute_ats_breakdown(content, ["Python"])
+        self.assertEqual(out["in_context"]["skills"], ["Python"])
+        self.assertEqual(out["in_context"]["points"], 2.0)
+        self.assertEqual(out["in_context"]["points"], out["in_context_bonus"])
+
+    def test_stuffing_structured_mirrors_flat(self):
+        stuffed = " ".join(["Python"] * 6)
+        content = {
+            "skills": ["Python"],
+            "experience": [{"description": [stuffed]}],
+        }
+        out = compute_ats_breakdown(content, ["Python"])
+        self.assertEqual(out["stuffing"]["skills"], out["stuffed_skills"])
+        self.assertEqual(out["stuffing"]["points"], out["stuffing_penalty"])
+
+    def test_empty_job_skills_guard_includes_new_keys(self):
+        out = compute_ats_breakdown({"skills": ["Python"]}, [])
+        for key in self.EXISTING_FLAT_KEYS:
+            self.assertIn(key, out)
+        self.assertEqual(out["must_have"], {"matched": [], "missed": [], "coverage": 0.0})
+        self.assertEqual(out["in_context"], {"points": 0.0, "skills": []})
+
+
+# ============================================================
 # Fix (a) — plural / suffix tolerance in _count_skill_occurrences
 # ============================================================
 

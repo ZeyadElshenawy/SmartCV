@@ -201,7 +201,10 @@ def trigger_resume_regeneration_api(request, resume_id):
         new_content = generate_resume_content_dispatched(
             profile, job, gap_analysis, previous_best=previous_best,
         )
-        new_score = calculate_ats_score(new_content, job.extracted_skills)
+        # Fix (b): tier-weight the regenerated score too (same read
+        # pattern as the task path). Falsy/missing tiers → flat scoring.
+        job_tiers = getattr(job, "extracted_skills_tiers", None) or None
+        new_score = calculate_ats_score(new_content, job.extracted_skills, job_tiers)
         # Preserve the user's template choice across regeneration (same
         # contract as the previous inline Path B behaviour).
         if resume.content and resume.content.get('template_name'):
