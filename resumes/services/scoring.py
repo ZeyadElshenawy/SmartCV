@@ -25,7 +25,7 @@ from typing import TypedDict
 
 
 def _count_skill_occurrences(text: str, skill: str) -> int:
-    """Word-boundary-aware substring count.
+    """Word-boundary-aware substring count with plural/suffix tolerance.
 
     Plain ``text.count(skill)`` is unsafe for short / single-character
     skills: counting the literal letter "r" inside a JSON dump of a
@@ -42,15 +42,74 @@ def _count_skill_occurrences(text: str, skill: str) -> int:
         care about the very first / last character)
       - multi-word skills: ``Power BI``, ``Machine Learning`` (still
         single regex; spaces inside are matched literally).
+
+    Plural / suffix tolerance — additive, never subtractive:
+      On top of the exact word-boundary match, we ALSO count two trivial
+      variants so a JD listing "REST API" (singular) doesn't miss a
+      resume bullet that says "REST APIs" (plural), and vice-versa:
+
+        forward direction:  skill + ``s|es`` at the boundary
+          → "Microservice" matches "Microservices"; "API" matches "APIs".
+        reverse direction:  skill with a trailing alpha-``s`` stripped
+          → "Microservices" matches "Microservice"; "REST APIs" matches
+            "REST API".
+
+      Both branches are guarded so the existing safety stays intact:
+        * last char must be alphabetic — skips ``C++``, ``Node.js``,
+          ``.NET``, ``C#`` (their trailing punctuation already
+          differentiates and we don't want ``C++s`` / ``.NETs`` matches).
+        * last alpha-token must be ≥3 chars — skips ``R``, ``C``, ``D``
+          (no ``Rs`` / ``Cs`` convention for these) and ``Go`` (where
+          the English word ``Goes`` would otherwise false-positive
+          through ``Go`` + ``es``).
+        * reverse-strip additionally requires last alpha-token ≥4 chars
+          so de-pluralising ``AWS`` → ``AW`` (false-positive vector on
+          bare 2-letter token) doesn't trigger.
+
+      No synonym / concept mapping is added here — we strictly stay on
+      lexical variants of the same root term. "state management" still
+      won't match "BLoC" alone; that would be a different, riskier
+      change with semantic-classifier characteristics.
     """
     if not text or not skill:
         return 0
-    pattern = rf"(?<!\w){re.escape(skill)}(?!\w)"
+    # Always: exact word-boundary match (preserves byte-for-byte the
+    # prior behaviour for every skill — the variant branches below are
+    # purely additive).
+    base_pattern = rf"(?<!\w){re.escape(skill)}(?!\w)"
     try:
-        return len(re.findall(pattern, text, flags=re.IGNORECASE))
+        count = len(re.findall(base_pattern, text, flags=re.IGNORECASE))
     except re.error:
         # Defensive — re.escape should make this unreachable.
         return text.lower().count(skill.lower())
+
+    last_char = skill[-1]
+    last_token = re.search(r"\w+$", skill)
+    last_token_len = len(last_token.group(0)) if last_token else 0
+    if not (last_char.isalpha() and last_token_len >= 3):
+        return count
+
+    # Forward: skill="REST API" → also hit "REST APIs" / "REST APIes".
+    plural_pattern = rf"(?<!\w){re.escape(skill)}(?:es|s)(?!\w)"
+    try:
+        count += len(re.findall(plural_pattern, text, flags=re.IGNORECASE))
+    except re.error:
+        pass
+
+    # Reverse: skill="REST APIs" → also hit "REST API".
+    # Only when the skill itself ends in an alpha 's' (a likely plural
+    # inflection) AND removing it leaves a ≥4-char alpha token (guards
+    # AWS / iOS — short acronyms where stripping the 's' produces a
+    # bare 2-letter token that risks false matches).
+    if skill[-1].lower() == "s" and last_token_len >= 4:
+        singular = skill[:-1]
+        singular_pattern = rf"(?<!\w){re.escape(singular)}(?!\w)"
+        try:
+            count += len(re.findall(singular_pattern, text, flags=re.IGNORECASE))
+        except re.error:
+            pass
+
+    return count
 
 logger = logging.getLogger(__name__)
 
@@ -103,17 +162,38 @@ def compute_ats_breakdown(resume_content: dict, job_skills: list[str]) -> AtsBre
         )
 
     full_text = json.dumps(resume_content).lower()
-    # In-context = appearing in any experience.description bullet (not just the skills list)
-    experience_text = ""
-    for exp in (resume_content.get('experience') or []):
-        if not isinstance(exp, dict):
-            continue
-        desc = exp.get('description')
-        if isinstance(desc, list):
-            experience_text += " " + " ".join(str(b) for b in desc)
-        elif isinstance(desc, str):
-            experience_text += " " + desc
-    experience_text = experience_text.lower()
+
+    # Evidence text — the bullets that demonstrate a skill in context.
+    # Fix (d): include ``projects[].description`` alongside
+    # ``experience[].description``. For juniors / interns whose primary
+    # evidence lives in projects, the prior experience-only scope gave a
+    # structural zero on the in-context bonus even when every keyword
+    # showed up in their project bullets.
+    evidence_parts: list[str] = []
+    for section_key in ("experience", "projects"):
+        for item in (resume_content.get(section_key) or []):
+            if not isinstance(item, dict):
+                continue
+            desc = item.get('description')
+            if isinstance(desc, list):
+                evidence_parts.extend(str(b) for b in desc)
+            elif isinstance(desc, str):
+                evidence_parts.append(desc)
+    evidence_text = " ".join(evidence_parts).lower()
+
+    # Prose text — what counts as "stuffing-able" content. Fix (c):
+    # narrow the stuffing scan to free-form prose (summary + bullets) so
+    # legitimate structured tagging — one skills-line entry per skill,
+    # one ``technologies`` array entry per project — doesn't push a
+    # candidate's strongest skill past the threshold. Genuine stuffing
+    # is "Python Python Python" inside a bullet; correct tagging is
+    # "Python" in the skills line and "Python" in three projects'
+    # tech arrays.
+    prose_parts: list[str] = list(evidence_parts)
+    summary = resume_content.get('professional_summary')
+    if isinstance(summary, str):
+        prose_parts.append(summary)
+    prose_text = " ".join(prose_parts).lower()
 
     keyword_counts: dict[str, int] = {}
     matched_count = 0
@@ -128,11 +208,18 @@ def compute_ats_breakdown(resume_content: dict, job_skills: list[str]) -> AtsBre
         keyword_counts[skill] = count
         if count > 0:
             matched_count += 1
-            if skill_lower in experience_text:
+            if skill_lower in evidence_text:
                 in_context_count += 1
-        if count > STUFFING_THRESHOLD:
+        # Stuffing is detected against prose only, NOT the full JSON
+        # (see fix (c) comment above). Threshold and per-skill penalty
+        # are unchanged; only the scan window narrows.
+        prose_count = _count_skill_occurrences(prose_text, skill_lower)
+        if prose_count > STUFFING_THRESHOLD:
             stuffed_skills.append(skill)
-            logger.warning("Keyword stuffing detected: '%s' appears %d times", skill, count)
+            logger.warning(
+                "Keyword stuffing detected: '%s' appears %d times in prose",
+                skill, prose_count,
+            )
 
     raw_score = (matched_count / len(job_skills)) * 100.0
 
