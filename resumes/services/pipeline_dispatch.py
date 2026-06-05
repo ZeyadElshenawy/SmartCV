@@ -59,6 +59,7 @@ def _generate_via_v2(profile, job, gap_analysis) -> dict:
     """
     from profiles.services.role_classifier import classify_for_jd
     from .fact_extractor import FactStore, extract_into_store
+    from profiles.services.profile_sanitizer import sanitize_profile_data
     from .kb_integration import (
         format_writing_rules_block,
         prefetch_kb_for_pipeline,
@@ -73,6 +74,12 @@ def _generate_via_v2(profile, job, gap_analysis) -> dict:
     from .resume_v2_adapter import resume_v2_to_template_dict
 
     data_content: dict[str, Any] = dict(profile.data_content or {})
+    # v1/v2 parity: sanitize the profile before extraction, exactly as v1
+    # (resume_generator.py) does. Strips label-leaked skill names
+    # ("Programming Languages: Flutter/Dart" -> "Flutter/Dart"), soft-skill
+    # noise, paren breaks, ALL-CAPS titles, first-person bullets, zero-width
+    # chars. Returns a cleaned copy (input not mutated); idempotent.
+    data_content = sanitize_profile_data(data_content)
     jd_text = (getattr(job, "description", "") or "")
 
     store = FactStore()

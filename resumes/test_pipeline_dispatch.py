@@ -55,7 +55,11 @@ def _fake_job():
 
 
 def _fake_gap():
-    return SimpleNamespace()
+    # Mirror the GapAnalysis model shape the dispatcher reads: matched_* are
+    # JSONFields (default=list). A bare SimpleNamespace lacks them and fix A's
+    # user_asserted collection (gap_analysis.matched_must_have) would
+    # AttributeError — production always passes a real GapAnalysis row.
+    return SimpleNamespace(matched_must_have=[], matched_nice_to_have=[])
 
 
 @override_settings(RESUME_GENERATOR_PIPELINE="v1")
@@ -208,6 +212,49 @@ class PipelineDispatchV2Tests(SimpleTestCase):
         m["reviewer"].assert_called_once()
         m["adapter"].assert_called_once()
         m["v1_sup"].assert_not_called()
+
+    def test_v2_sanitizes_profile_before_extraction(self):
+        """v1/v2 parity: the dispatcher runs sanitize_profile_data BEFORE
+        extraction, so label-leaked skill names reach extract_into_store
+        already cleaned (v1 sanitizes; v2 used to skip it)."""
+        from resumes.services.pipeline_dispatch import (
+            generate_resume_content_dispatched,
+        )
+        m = self._patch_v2_leaves()  # extract_into_store mocked → captures args
+        m["kb_split"].return_value = ([], [])
+        m["kb_rules"].return_value = ""
+        m["planner"].return_value = MagicMock()
+        m["generator"].return_value = _fake_resume_v2()
+        m["reviewer"].return_value = (_fake_resume_v2(), {})
+        m["synth_summary"].return_value = _fake_resume_v2()
+        m["vr_shim"].return_value = {
+            "findings": [], "grounding_findings": [],
+            "supervisor_findings": [], "regression_findings": [],
+        }
+        m["adapter"].return_value = {"skills": [], "experience": [], "projects": []}
+
+        profile = SimpleNamespace(data_content={
+            "skills": [
+                {"name": "Programming Languages: Flutter/Dart"},
+                {"name": "Databases & Backend: Firestore"},
+                {"name": "Flutter"},
+            ],
+            "experiences": [], "projects": [], "education": [],
+        })
+        generate_resume_content_dispatched(
+            profile, _fake_job(), _fake_gap(), pipeline="v2",
+        )
+
+        self.assertTrue(m["extract"].called)
+        passed = m["extract"].call_args.kwargs["data_content"]
+        names = [s["name"] for s in passed["skills"]]
+        # Heading-leaked skills are cleaned before extraction…
+        self.assertNotIn("Programming Languages: Flutter/Dart", names)
+        self.assertNotIn("Databases & Backend: Firestore", names)
+        self.assertIn("Flutter/Dart", names)
+        self.assertIn("Firestore", names)
+        # …and a clean skill is untouched.
+        self.assertIn("Flutter", names)
 
     def test_v2_output_has_v1_dict_shape(self):
         """The dispatcher must return what the adapter produced PLUS a
