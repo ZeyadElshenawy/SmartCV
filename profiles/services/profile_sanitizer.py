@@ -132,6 +132,20 @@ _LABEL_PREFIX_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Compound heading-prefix leaks: the CV parser sometimes captures a section
+# header as a single skill name ("Programming Languages: Flutter/Dart",
+# "Databases & Backend: Firestore", "Core Concepts: UI/UX principles"). Strip a
+# leading run of TWO-OR-MORE Title-Case words (joined by spaces, & or /) that
+# ends in a colon + space. The two-word minimum is deliberate: a real
+# single-word skill that happens to carry a colon (e.g. "Python: ...") is left
+# to the curated _LABEL_PREFIX_RE allowlist above, never blanket-stripped. The
+# first word must start uppercase (a heading signal) so a lowercase mid-string
+# colon is not matched, and the caller only applies it when the remainder is
+# non-empty (so a skill is never emptied to "").
+_HEADING_PREFIX_RE = re.compile(
+    r"^\s*[A-Z][\w+#.]*(?:[ &/]+[A-Za-z0-9][\w+#.]*)+\s*:\s+",
+)
+
 # LinkedIn-style "(Programming Language)" suffix — strip.
 _LINKEDIN_VERBOSE_RE = re.compile(
     r"\s*\(\s*(?:programming\s+language|software|library)\s*\)\s*$",
@@ -496,6 +510,12 @@ def sanitize_skills(skills: Any) -> list[dict]:
 
         # Label-prefix strip ("Libraries: Pandas" → "Pandas").
         name = _LABEL_PREFIX_RE.sub('', name).strip()
+        # Compound heading-prefix strip ("Programming Languages: Flutter/Dart"
+        # → "Flutter/Dart"). Guard: keep the pre-strip value if removing the
+        # heading would empty the skill, so we never drop a skill to "".
+        _heading_stripped = _HEADING_PREFIX_RE.sub('', name).strip()
+        if _heading_stripped:
+            name = _heading_stripped
         # LinkedIn-verbose strip ("Python (Programming Language)" → "Python").
         name = _LINKEDIN_VERBOSE_RE.sub('', name).strip()
         # Paren-balance fix ("Transfer Learning (TensorFlow").

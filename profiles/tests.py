@@ -849,6 +849,54 @@ class ProfileSanitizerTests(SimpleTestCase):
         names = [s['name'] for s in out]
         self.assertEqual(names, ['Pandas', 'DAX', 'MySQL'])
 
+    def test_compound_heading_prefix_strip(self):
+        # Multi-word section headings the CV parser baked into skill names —
+        # the case _LABEL_PREFIX_RE's single-word allowlist misses.
+        from profiles.services.profile_sanitizer import sanitize_skills
+        out = sanitize_skills([
+            {'name': 'Programming Languages: Flutter/Dart'},
+            {'name': 'Databases & Backend: Firestore'},
+            {'name': 'Core Concepts: UI/UX principles'},
+            {'name': 'Frameworks & Tools: React'},
+        ])
+        names = [s['name'] for s in out]
+        self.assertEqual(
+            names, ['Flutter/Dart', 'Firestore', 'UI/UX principles', 'React'])
+
+    def test_compound_heading_no_overstrip(self):
+        # No colon, or a single-word skill carrying a colon, or a clean skill:
+        # none should be heading-stripped (single-word colon is left to the
+        # curated allowlist, which doesn't list "Python").
+        from profiles.services.profile_sanitizer import sanitize_skills
+        out = sanitize_skills([
+            {'name': 'Flutter'},
+            {'name': 'Machine Learning'},
+            {'name': 'Node.js'},
+            {'name': 'Python: The Complete Guide'},
+        ])
+        names = [s['name'] for s in out]
+        self.assertIn('Flutter', names)
+        self.assertIn('Machine Learning', names)
+        self.assertIn('Node.js', names)
+        # Single-word "Python:" is NOT a compound heading → left intact.
+        self.assertIn('Python: The Complete Guide', names)
+
+    def test_compound_heading_never_empties_skill(self):
+        # A heading with no value after the colon must not be emptied to "";
+        # the guard keeps the pre-strip value so it isn't silently dropped.
+        from profiles.services.profile_sanitizer import sanitize_skills
+        out = sanitize_skills([{'name': 'Frameworks & Tools: '}])
+        names = [s['name'] for s in out]
+        self.assertEqual(len(names), 1)
+        self.assertTrue(names[0])  # non-empty
+
+    def test_sanitize_profile_data_cleans_compound_heading(self):
+        # The exact entry point the v2 dispatcher now calls.
+        from profiles.services.profile_sanitizer import sanitize_profile_data
+        clean = sanitize_profile_data(
+            {'skills': [{'name': 'Programming Languages: Flutter/Dart'}]})
+        self.assertEqual([s['name'] for s in clean['skills']], ['Flutter/Dart'])
+
     def test_unbalanced_paren_close(self):
         from profiles.services.profile_sanitizer import sanitize_skills
         out = sanitize_skills([
