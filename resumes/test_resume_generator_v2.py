@@ -520,6 +520,116 @@ class SectionShapeTests(SimpleTestCase):
 
 
 # ---------------------------------------------------------------------------
+# Fix A — user-asserted (self-reported) skills: skills-line only, never bullets
+# ---------------------------------------------------------------------------
+
+
+class FixAUserAssertedSkillsTests(SimpleTestCase):
+    """A user_asserted (chip-moved, unevidenced) skill appears in the rendered
+    skills LINE as a plain keyword — never a fact, never a bullet, never the
+    summary's grounded fact pool. The safety property is structural: no fact
+    => the entity-bullet path (which consumes facts) cannot reach it."""
+
+    def _skills_store(self):
+        store = FactStore()
+        store.add(_fact(id="s_py", type_=FactType.SKILL, claim="Python",
+                        evidence="Python skill"))
+        store.add(_fact(id="s_rest", type_=FactType.SKILL, claim="RESTful APIs",
+                        evidence="REST skill"))
+        return store
+
+    def test_surfacing_and_safety_in_skills_line(self):
+        from resumes.services.resume_generator_v2 import _generate_skills_line
+        store = self._skills_store()
+        section = build_plan(store, job_must_have_skills=["Python"]).sections["skills"]
+        out = _generate_skills_line(store, section, extra_list_only=["GoRouter", "Dio"])
+        # (surfacing) asserted keywords are in the rendered line
+        self.assertIn("GoRouter", out.skills_line)
+        self.assertIn("Dio", out.skills_line)
+        # (SAFETY) no skills "bullet" carries them, no fact_id resolves to them,
+        # and crucially no fact was ever created for them.
+        self.assertNotIn("GoRouter", [b.text for b in out.bullets])
+        self.assertNotIn("Dio", [b.text for b in out.bullets])
+        for b in out.bullets:
+            for fid in (b.fact_ids or []):
+                self.assertNotIn(store.get(fid).claim, ("GoRouter", "Dio"))
+        self.assertFalse(
+            any(f.claim in ("GoRouter", "Dio") for f in store.all()),
+            "asserted skills must NOT become facts",
+        )
+
+    def test_dedupe_against_evidenced(self):
+        from resumes.services.resume_generator_v2 import _generate_skills_line
+        store = self._skills_store()
+        section = build_plan(store, job_must_have_skills=["Python"]).sections["skills"]
+        # "python" asserted (different case) is already evidenced -> not doubled.
+        out = _generate_skills_line(store, section, extra_list_only=["python", "GoRouter"])
+        self.assertEqual(out.skills_line.lower().count("python"), 1)
+        self.assertIn("GoRouter", out.skills_line)
+
+    def test_back_compat_none_and_empty(self):
+        from resumes.services.resume_generator_v2 import _generate_skills_line
+        store = self._skills_store()
+        section = build_plan(store, job_must_have_skills=["Python"]).sections["skills"]
+        base = _generate_skills_line(store, section)
+        none_ = _generate_skills_line(store, section, extra_list_only=None)
+        empty = _generate_skills_line(store, section, extra_list_only=[])
+        self.assertEqual(base.skills_line, none_.skills_line)
+        self.assertEqual(base.skills_line, empty.skills_line)
+        self.assertEqual([b.text for b in base.bullets], [b.text for b in none_.bullets])
+
+    def test_edge_no_skills_section_still_surfaces(self):
+        from resumes.services.resume_generator_v2 import _generate_skills_line
+        store = FactStore()
+        out = _generate_skills_line(store, None, extra_list_only=["GoRouter"])
+        self.assertIn("GoRouter", out.skills_line)
+        self.assertEqual(out.bullets, [])
+
+    def test_generate_resume_v2_surfaces_excludes_bullets_and_pool(self):
+        store = _populated_store()
+        plan = build_plan(store, job_must_have_skills=["Python"])
+
+        def _stub(prompt, **kw):
+            return "Built scalable services improving throughput for users."
+
+        with patch("resumes.services.resume_generator_v2._llm_call", side_effect=_stub):
+            resume = generate_resume_v2(
+                store, plan, job_title="Engineer", user_asserted_skills=["GoRouter"],
+            )
+        # (surfacing)
+        self.assertIn("GoRouter", resume.sections["skills"].skills_line)
+        # (SAFETY) no experience/project bullet text or fact references it
+        for name in ("experience", "projects"):
+            sec = resume.sections.get(name)
+            for ent in (getattr(sec, "entities", None) or []):
+                for b in ent.bullets:
+                    self.assertNotIn("GoRouter", b.text)
+                    for fid in (b.fact_ids or []):
+                        self.assertNotEqual(getattr(store.get(fid), "claim", None), "GoRouter")
+        # (no summary leak) not a skills-section bullet -> no fact_id -> the
+        # summary harvest (which collects skills_sec.bullets fact_ids) can't
+        # pull it into the grounded pool. And no fact exists for it at all.
+        self.assertNotIn("GoRouter", [b.text for b in resume.sections["skills"].bullets])
+        self.assertFalse(any(f.claim == "GoRouter" for f in store.all()))
+
+    def test_generate_resume_v2_back_compat_without_param(self):
+        store = _populated_store()
+        plan = build_plan(store, job_must_have_skills=["Python"])
+
+        def _stub(prompt, **kw):
+            return "Built scalable services."
+
+        with patch("resumes.services.resume_generator_v2._llm_call", side_effect=_stub):
+            base = generate_resume_v2(store, plan, job_title="Engineer")
+            withp = generate_resume_v2(
+                store, plan, job_title="Engineer", user_asserted_skills=[],
+            )
+        self.assertEqual(
+            base.sections["skills"].skills_line, withp.sections["skills"].skills_line,
+        )
+
+
+# ---------------------------------------------------------------------------
 # Fix B — JD emphasis prompt block + JD-skill grounding guard
 # ---------------------------------------------------------------------------
 

@@ -825,17 +825,50 @@ def _resolve_ids(store: FactStore, ids: list[str]) -> list[FactRecord]:
 # ---------------------------------------------------------------------------
 
 
+def _merge_list_only(existing_names: list[str], extra: Optional[list[str]]) -> list[str]:
+    """Fix A: de-dupe user-asserted (self-reported) skill names against the
+    fact-derived names AND each other, case-insensitively, preserving order.
+    These are appended to the skills LINE as plain keywords only — they carry
+    no fact and no fact_id, so they can never be allocated to or referenced by
+    a bullet, nor harvested into the summary's grounded fact pool."""
+    if not extra:
+        return []
+    seen = {n.strip().lower() for n in (existing_names or []) if n and n.strip()}
+    out: list[str] = []
+    for raw in extra:
+        name = (raw or "").strip()
+        if not name:
+            continue
+        key = name.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(name)
+    return out
+
+
 def _generate_skills_line(
-    store: FactStore, section: SectionPlan,
+    store: FactStore, section: Optional[SectionPlan],
+    extra_list_only: Optional[list[str]] = None,
 ) -> GeneratedSection:
     """Skills section: no LLM — just emit the planner-allocated skill
     names as a comma-separated line. The planner already ranked them
-    by JD relevance + reliability and applied the cap."""
-    facts = _resolve_facts(store, section.facts)
+    by JD relevance + reliability and applied the cap.
+
+    Fix A: ``extra_list_only`` are user-asserted (chip-moved, unevidenced)
+    skill names. They are appended to the rendered ``skills_line`` ONLY —
+    never added to ``bullets`` and never backed by a fact/fact_id — so they
+    are ATS-matchable self-reported keywords that the entity-bullet path
+    (which consumes facts) structurally cannot reach, and that the summary
+    harvest (which collects bullet fact_ids) cannot pull into its grounded
+    pool. ``section`` may be None (no planned skills section) — then only the
+    list-only keywords are emitted, still as a string with no facts."""
+    facts = _resolve_facts(store, section.facts) if section is not None else []
     names = [f.claim.strip() for f in facts if f.claim and f.claim.strip()]
+    list_only = _merge_list_only(names, extra_list_only)
     return GeneratedSection(
         section="skills",
-        skills_line=", ".join(names),
+        skills_line=", ".join(names + list_only),
         bullets=[
             GeneratedBullet(text=name, fact_ids=[fid])
             for name, fid in zip(names, [f.id for f in facts])
@@ -1370,6 +1403,7 @@ def generate_resume_v2(
     job_title: str = "",
     job_company: str = "",
     kb_chunks: Optional[list] = None,
+    user_asserted_skills: Optional[list[str]] = None,
 ) -> GeneratedResumeV2:
     """Render the plan into prose.
 
@@ -1435,9 +1469,19 @@ def generate_resume_v2(
     # the pre-section synthesis behaviour (e.g. unit tests of the
     # number-lock prompt path).
 
+    # Fix A: user-asserted (self-reported) skills surface in the skills LINE
+    # only — string-only, no fact, no fact_id. Defaults to [] for callers that
+    # don't pass them (back-compatible with direct/test callers).
+    asserted = list(user_asserted_skills or [])
     skills = plan.sections.get("skills")
     if skills is not None:
-        sections["skills"] = _generate_skills_line(store, skills)
+        sections["skills"] = _generate_skills_line(store, skills, extra_list_only=asserted)
+    elif asserted:
+        # Edge: the plan emitted no skills section, but the user asserted
+        # self-reported skills — emit a skills section carrying ONLY those
+        # keywords so they still surface. No facts involved, so the
+        # never-reaches-a-bullet guarantee holds identically.
+        sections["skills"] = _generate_skills_line(store, None, extra_list_only=asserted)
 
     # Fix B — read JD signal off the plan. Defaults to [] for any plan
     # constructed without these fields (backward-compatible with direct
