@@ -72,6 +72,7 @@ def _generate_via_v2(profile, job, gap_analysis) -> dict:
     from .resume_planner_v2 import build_plan
     from .resume_reviewer_v2 import build_v2_validation_report, review_and_regenerate
     from .resume_v2_adapter import resume_v2_to_template_dict
+    from .seniority import honest_job_title
 
     data_content: dict[str, Any] = dict(profile.data_content or {})
     # v1/v2 parity: sanitize the profile before extraction, exactly as v1
@@ -114,10 +115,29 @@ def _generate_via_v2(profile, job, gap_analysis) -> dict:
         kb_chunks=kb_chunks,
     )
 
+    # Seniority overclaim fix — replace the JD's raw title (which carries
+    # the JD's TARGET seniority prefix, e.g. "Mid Flutter Developer") with
+    # an honest, candidate-grounded equivalent. Option (c) with (a)
+    # fallback: prepend the candidate's COMPUTED actual stage when we can
+    # tell ("Junior Flutter Developer"), otherwise strip the prefix
+    # entirely ("Flutter Developer"). The JD's level NEVER survives into
+    # what the candidate appears to claim about themselves.
+    #
+    # Cap calibration is explicitly NOT affected — build_plan still reads
+    # classification.seniority (the JD's level) via seniority_calibration,
+    # which is a legitimate content-allocation knob unrelated to the
+    # identity claim. See resumes/services/seniority.py docstring for
+    # the full background.
+    raw_job_title = getattr(job, "title", "") or ""
+    safe_job_title = honest_job_title(
+        raw_job_title,
+        data_content.get("experiences") or [],
+    )
+
     resume_v2 = generate_resume_v2(
         store,
         plan,
-        job_title=getattr(job, "title", "") or "",
+        job_title=safe_job_title,
         job_company=getattr(job, "company", "") or "",
         kb_chunks=kb_chunks,
         user_asserted_skills=user_asserted_skills,
@@ -127,7 +147,7 @@ def _generate_via_v2(profile, job, gap_analysis) -> dict:
         resume_v2,
         store=store,
         plan=plan,
-        job_title=getattr(job, "title", "") or "",
+        job_title=safe_job_title,
         writing_rules_block=writing_rules_block,
     )
 
@@ -141,7 +161,7 @@ def _generate_via_v2(profile, job, gap_analysis) -> dict:
     revised = _synthesize_summary_from_sections(
         revised,
         store=store,
-        job_title=getattr(job, "title", "") or "",
+        job_title=safe_job_title,
         job_company=getattr(job, "company", "") or "",
         writing_rules_block=writing_rules_block,
         jd_must=must_have,
