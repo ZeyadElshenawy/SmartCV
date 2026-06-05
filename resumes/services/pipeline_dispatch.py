@@ -87,6 +87,17 @@ def _generate_via_v2(profile, job, gap_analysis) -> dict:
     must_have = list(tiers.get("must_have") or getattr(job, "extracted_skills", None) or [])
     nice_to_have = list(tiers.get("nice_to_have") or [])
 
+    # Fix A: self-reported skills the user moved into "matched" on the gap page
+    # WITHOUT profile evidence (fix C's user_asserted marker on the persisted
+    # GapAnalysis row). These surface in the skills LINE only — never a fact,
+    # never a bullet, never the summary's grounded pool. Evidenced matches are
+    # not flagged and keep their normal fact-driven behaviour.
+    user_asserted_skills = [
+        c["name"] for c in
+        ((gap_analysis.matched_must_have or []) + (gap_analysis.matched_nice_to_have or []))
+        if isinstance(c, dict) and c.get("user_asserted") and c.get("name")
+    ] if gap_analysis else []
+
     plan = build_plan(
         store,
         job_must_have_skills=must_have,
@@ -102,6 +113,7 @@ def _generate_via_v2(profile, job, gap_analysis) -> dict:
         job_title=getattr(job, "title", "") or "",
         job_company=getattr(job, "company", "") or "",
         kb_chunks=kb_chunks,
+        user_asserted_skills=user_asserted_skills,
     )
 
     revised, _report = review_and_regenerate(
