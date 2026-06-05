@@ -490,3 +490,99 @@ class UpdateGapSkillsRecomputesScoreTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.gap.refresh_from_db()
         self.assertAlmostEqual(self.gap.similarity_score, 0.30, places=3)
+
+
+class UpdateGapSkillsProvenanceTests(TestCase):
+    """Fix C — honest chip-moves: a user-moved match with no profile evidence is
+    marked ``user_asserted`` (not silently treated as evidenced), the move is
+    still allowed, and the response flags it so the UI can warn. A variant-named
+    REAL skill (grounded via fix B) is NOT flagged."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from jobs.models import Job
+        from analysis.models import GapAnalysis
+        from profiles.models import UserProfile
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='prov@example.com', email='prov@example.com', password='x',
+        )
+        self.client.force_login(self.user)
+        # Profile evidences a REST variant (skills[] + project tech) but NOT GoRouter.
+        UserProfile.objects.create(
+            user=self.user,
+            data_content={
+                'skills': [{'name': 'RESTful APIs'}, {'name': 'Flutter'}],
+                'projects': [{
+                    'name': 'Brain Tumor',
+                    'technologies': ['Flutter', 'RESTful APIs'],
+                    'description': ['Built REST integrations with a Flutter front-end.'],
+                }],
+                'experiences': [],
+                'certifications': [],
+            },
+        )
+        self.job = Job.objects.create(user=self.user, title='Mobile Dev')
+        self.gap = GapAnalysis.objects.create(
+            job=self.job, user=self.user, similarity_score=0.4,
+        )
+
+    def _post(self, matched):
+        from django.urls import reverse
+        import json as _json
+        return self.client.post(
+            reverse('update_gap_skills', args=[self.job.id]),
+            data=_json.dumps({
+                'matched_skills': matched,
+                'critical_missing': [],
+                'soft_skill_gaps': [],
+            }),
+            content_type='application/json',
+        )
+
+    def test_evidenced_variant_move_not_flagged(self):
+        # (a) JD "REST API integration" grounds via the candidate's "RESTful APIs"
+        # (fix B) — marked evidenced, no warning.
+        resp = self._post([{'name': 'REST API integration', 'tier': 'must'}])
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['user_asserted_skills'], [])
+        self.gap.refresh_from_db()
+        chip = self.gap.matched_must_have[0]
+        self.assertEqual(chip['name'], 'REST API integration')
+        self.assertFalse(chip['user_asserted'])
+
+    def test_unevidenced_move_flagged_but_allowed(self):
+        # (b) GoRouter is nowhere in the profile -> user_asserted, warning flagged,
+        # but the move still persists.
+        resp = self._post([{'name': 'GoRouter', 'tier': 'must'}])
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['user_asserted_skills'], ['GoRouter'])
+        self.gap.refresh_from_db()
+        self.assertEqual([c['name'] for c in self.gap.matched_must_have], ['GoRouter'])
+        chip = self.gap.matched_must_have[0]
+        self.assertTrue(chip['user_asserted'])
+        self.assertEqual(chip['evidence_source'], 'user')
+
+    def test_provenance_persists_and_is_distinguishable(self):
+        # (c) both in one save: evidenced vs user-asserted distinguishable in storage.
+        resp = self._post([
+            {'name': 'REST API integration', 'tier': 'must'},
+            {'name': 'GoRouter', 'tier': 'must'},
+        ])
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['user_asserted_skills'], ['GoRouter'])
+        self.gap.refresh_from_db()
+        by_name = {c['name']: c for c in self.gap.matched_must_have}
+        self.assertFalse(by_name['REST API integration']['user_asserted'])
+        self.assertTrue(by_name['GoRouter']['user_asserted'])
+
+    def test_gap_template_renders_self_reported_affordance(self):
+        # (d) the UI affordance (chip marker + honesty banner) is present in the
+        # rendered gap page so user-asserted matches render distinctly.
+        from django.urls import reverse
+        resp = self.client.get(reverse('gap_analysis', args=[self.job.id]))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('self-reported', html)
+        self.assertIn('userAssertedNotice', html)
+        self.assertIn('user_asserted', html)

@@ -15,6 +15,11 @@ from analysis.services.skill_score import (
     compute_match_score,
     match_band,
 )
+# Shared variant-aware skill matcher (canonical alias table + trailing-noun
+# strip + difflib typo fallback). Same matcher the planner's JD-relevance uses,
+# so a skill named by a variant ("RESTful APIs" <- JD "REST API integration")
+# is credited identically at both sites.
+from jobs.services.skill_extractor import skills_match
 
 logger = logging.getLogger(__name__)
 
@@ -777,7 +782,7 @@ def _collect_profile_evidence(skill_name: str, profile_data: dict) -> list[dict]
             # Comma-separated string is the CV-parser's other shape.
             techs = [t.strip() for t in re.split(r"[,;|]", techs) if t.strip()]
         for tech in techs:
-            if _canonical(tech) == skill_canon:
+            if skills_match(skill_name, tech):
                 proj_name = proj.get('name') or proj.get('title') or ''
                 evidence.append({
                     'source': 'projects',
@@ -813,7 +818,7 @@ def _collect_profile_evidence(skill_name: str, profile_data: dict) -> list[dict]
         if isinstance(techs, str):
             techs = [t.strip() for t in re.split(r"[,;|]", techs) if t.strip()]
         for tech in techs:
-            if _canonical(tech) == skill_canon:
+            if skills_match(skill_name, tech):
                 title = exp.get('title') or ''
                 company = exp.get('company') or ''
                 ref = f"{title} @ {company}".strip(' @')
@@ -828,7 +833,7 @@ def _collect_profile_evidence(skill_name: str, profile_data: dict) -> list[dict]
     if evidence:
         for entry in (profile_data.get('skills') or []):
             name = entry.get('name', '') if isinstance(entry, dict) else str(entry or '')
-            if _canonical(name) == skill_canon:
+            if name and skills_match(skill_name, name):
                 corroborator = evidence[0]['source']
                 evidence.append({
                     'source': 'skills',
@@ -916,14 +921,11 @@ def _skill_in_declared_skills(skill_name: str, profile_data: dict) -> bool:
     genuine declared skills stay matched, while skills the LLM invented
     out of adjacency (absent from skills[] AND everywhere else) demote.
     """
-    if not isinstance(profile_data, dict):
-        return False
-    target = _canonical(skill_name)
-    if not target:
+    if not isinstance(profile_data, dict) or not skill_name:
         return False
     for entry in (profile_data.get("skills") or []):
         name = entry.get("name", "") if isinstance(entry, dict) else str(entry or "")
-        if _canonical(name) == target:
+        if name and skills_match(skill_name, name):
             return True
     return False
 
