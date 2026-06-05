@@ -7,7 +7,11 @@ from jobs.models import Job
 from profiles.models import UserProfile
 from django.db import transaction
 from .models import GapAnalysis
-from .services.gap_analyzer import compute_gap_analysis
+from .services.gap_analyzer import (
+    compute_gap_analysis,
+    _skill_is_grounded,
+    _grounding_prose_corpus,
+)
 from .services.learning_path_generator import generate_learning_path
 from .services.salary_negotiator import generate_negotiation_script
 from resumes.services.scoring import compute_evidence_confidence
@@ -343,9 +347,37 @@ def update_gap_skills(request, job_id):
 
     # Re-split into the 4 visible columns, applying per-column proximity/tier
     # rules per the proximity-aware-gap spec (see prompts above the endpoint).
+    # Provenance (fix C — honest chip-moves): a user can drag a skill into
+    # "matched" that the profile doesn't actually evidence (GoRouter, Dio). We
+    # don't BLOCK the move — the reorganize feature exists to let users correct
+    # genuine gaps the parser missed — but we mark it ``user_asserted`` so it's
+    # distinguishable from an evidenced match, the UI can flag it
+    # "self-reported", and the user is warned it won't reach the generated
+    # resume without evidence. Grounding reuses the SAME matcher as the
+    # gap-analyzer grounding validator (skills_match / _skill_is_grounded), so
+    # a real variant-named skill ("RESTful APIs" <- "REST API integration")
+    # correctly grounds and is NOT flagged.
+    profile = UserProfile.objects.filter(user=request.user).first()
+    profile_data = (getattr(profile, 'data_content', None) or {}) if profile else {}
+    ground_enabled = bool(profile_data)
+    prose_lower = _grounding_prose_corpus(profile_data) if ground_enabled else ""
+
     matched_must, matched_nice = [], []
+    user_asserted_skills: list[str] = []
     for chip in matched:
         norm = _normalize_matched(chip)
+        # When we have no profile to check against, assume grounded (never
+        # flag spuriously); otherwise demand real evidence for the skill name.
+        grounded = (not ground_enabled) or (
+            bool(norm['name']) and _skill_is_grounded(norm['name'], profile_data, prose_lower)
+        )
+        norm['user_asserted'] = not grounded
+        if not grounded:
+            # Durable provenance: a self-reported match carries no profile
+            # evidence, so force the source marker too.
+            norm['evidence_source'] = 'user'
+            if norm['name']:
+                user_asserted_skills.append(norm['name'])
         if norm['tier'] == 'nice':
             matched_nice.append(norm)
         else:
@@ -415,6 +447,10 @@ def update_gap_skills(request, job_id):
         'similarity_score': new_score,
         'match_band': new_band,
         'avg_proximity': new_avg_p,
+        # Matched skills with no profile evidence — kept (still count toward the
+        # score, score-weighting unchanged this pass) but flagged self-reported
+        # so the client can show the honesty notice and the "self-reported" chip.
+        'user_asserted_skills': user_asserted_skills,
     })
 
 @login_required

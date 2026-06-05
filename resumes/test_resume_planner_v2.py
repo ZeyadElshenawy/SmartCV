@@ -50,6 +50,46 @@ def _fact(*, id, type_, claim, evidence, entity_id="", entity_display="",
 
 
 # ---------------------------------------------------------------------------
+# Fix B — _jd_relevance_score variant-aware skill bonus
+# ---------------------------------------------------------------------------
+
+
+class JdRelevanceVariantMatchTests(SimpleTestCase):
+    """A candidate skill under a variant name must still earn its JD-relevance
+    bonus (so it survives the skills cap), via the shared skills_match. Pre-fix
+    the exact word-boundary test scored these 0."""
+
+    def _rel(self, claim, *, must=(), nice=()):
+        from resumes.services.resume_planner_v2 import _jd_relevance_score
+        return _jd_relevance_score(
+            _fact(id="s", type_=FactType.SKILL, claim=claim, evidence=claim),
+            must_have_terms=list(must), nice_to_have_terms=list(nice),
+        )
+
+    def test_variant_skill_earns_must_have_bonus(self):
+        # JD token "REST API integration"; candidate skill "REST APIs".
+        # Exact word-boundary scored 0 -> cut by the skills cap. Now grounded.
+        self.assertGreaterEqual(
+            self._rel("REST APIs", must=["REST API integration"]), 5.0)
+
+    def test_restful_apis_variant_also_scores(self):
+        self.assertGreaterEqual(
+            self._rel("RESTful APIs", must=["REST API integration"]), 5.0)
+
+    def test_nice_tier_variant_scores_two(self):
+        self.assertGreaterEqual(
+            self._rel("REST APIs", nice=["REST API integration"]), 2.0)
+
+    def test_phantom_skill_scores_zero(self):
+        # "GoRouter" is not the JD's "REST API integration" — no bonus, no base.
+        self.assertEqual(
+            self._rel("GoRouter", must=["REST API integration"]), 0.0)
+
+    def test_exact_skill_still_scores(self):
+        self.assertGreaterEqual(self._rel("Flutter", must=["Flutter"]), 5.0)
+
+
+# ---------------------------------------------------------------------------
 # validate_fact_store
 # ---------------------------------------------------------------------------
 

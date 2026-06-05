@@ -18,7 +18,13 @@ class GapAnalysis(models.Model):
 
     # ----- Tier-aware proximity-enriched fields (v2, 2026-05-14) -----
     # Each entry shape:
-    #   matched_*:   {"name": str, "evidence_source": str, "evidence_quote": str}
+    #   matched_*:   {"name": str, "evidence_source": str, "evidence_quote": str,
+    #                  "user_asserted": bool}
+    #       user_asserted=True marks a match the user moved here via the
+    #       reorganize UI that has NO profile evidence (evidence_source='user').
+    #       It still counts toward similarity_score, but the UI flags it
+    #       "self-reported" and the resume generator won't surface it without
+    #       grounded evidence. Set by analysis.views.update_gap_skills.
     #   missing_*:   {"name": str, "source_quote": str, "proximity": float,
     #                  "proximity_reason": str, "bridge_hint": str | None}
     matched_must_have = models.JSONField(default=list, blank=True)

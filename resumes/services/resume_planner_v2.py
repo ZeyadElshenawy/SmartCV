@@ -45,6 +45,10 @@ from resumes.services.fact_store import (
     SourceReliability,
 )
 from resumes.services.text_norm import norm as _norm
+# Shared variant-aware skill matcher — same one the gap-analyzer grounding
+# validator uses, so a candidate skill under a variant name ("RESTful APIs")
+# scores its JD-relevance bonus against the JD token ("REST API integration").
+from jobs.services.skill_extractor import skills_match
 
 logger = logging.getLogger(__name__)
 
@@ -446,10 +450,12 @@ def _jd_relevance_score(
     nice_hits = sum(1 for t in nice_to_have_terms if _text_mentions(text, t))
     score = (must_hits * 2.0) + (nice_hits * 1.0)
     if fact.type == FactType.SKILL:
-        norm = _normalize_skill(fact.claim)
-        if any(_text_mentions(norm, t) for t in must_have_terms):
+        # Variant-aware: a skill named "REST APIs"/"RESTful APIs" still earns
+        # the bonus against the JD token "REST API integration" (canonical
+        # "REST API"), instead of scoring 0 and being cut by the skills cap.
+        if any(skills_match(fact.claim, t) for t in must_have_terms):
             score += 5.0
-        elif any(_text_mentions(norm, t) for t in nice_to_have_terms):
+        elif any(skills_match(fact.claim, t) for t in nice_to_have_terms):
             score += 2.0
     return score
 

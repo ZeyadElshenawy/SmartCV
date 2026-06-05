@@ -375,6 +375,64 @@ class TestProfileGroundingValidator(SimpleTestCase):
         self.assertEqual(out.matched_must_have, [])
         self.assertEqual([m.name for m in out.missing_must_have], ["Flutter"])
 
+    def test_rest_variant_is_re_grounded(self):
+        # Fix B: the JD token "REST API integration" is grounded by the
+        # candidate's variant-named REST skill ("RESTful APIs" in skills[] AND
+        # the project tech array) via the shared canonical matcher. Exact-match
+        # previously demoted it (restapiintegration != restfulapis) — the
+        # category-II false demotion this fix repairs.
+        result = TieredGapAnalysisResult(
+            matched_must_have=[MatchedSkill(name="REST API integration", evidence_quote="x")],
+        )
+        out = self._demote(result, self.PROFILE)
+        self.assertEqual([m.name for m in out.matched_must_have], ["REST API integration"])
+        self.assertEqual(out.missing_must_have, [])
+
+
+class TestSkillsMatch(SimpleTestCase):
+    """Fix B shared matcher: variant spellings of a real skill match; phantoms
+    and shared-token near-misses do not. Used identically by the grounding
+    validator and the planner's JD-relevance."""
+
+    def _m(self, a, b):
+        from jobs.services.skill_extractor import skills_match
+        return skills_match(a, b)
+
+    def test_rest_variants_all_match_via_canonical(self):
+        # The short variants ("REST APIs" 0.552, "RESTful APIs" 0.500) that
+        # difflib alone misses now match via the alias table + trailing-noun
+        # strip — both sides canonicalize to "REST API".
+        for variant in ["RESTful API Integration", "REST APIs", "RESTful APIs"]:
+            self.assertTrue(self._m("REST API integration", variant), variant)
+        self.assertTrue(self._m("REST APIs", "RESTful APIs"))  # both -> REST API
+
+    def test_phantoms_do_not_match_nearest_token(self):
+        # (phantom, candidate's nearest real token) — all canonical-distinct
+        # AND below the 0.85 difflib fallback.
+        pairs = [
+            ("GoRouter", "Flutter"), ("GoRouter", "GetX (State Management)"),
+            ("Dio", "just_audio"),
+            ("Firebase Messaging", "Firebase"),
+            ("multi-role mobile applications", "GitHub Actions"),
+            ("analytics", "Data Analysis"),
+            ("Token handling", "Testing"),
+            ("Arabic/English apps", "REST APIs"),
+        ]
+        for a, b in pairs:
+            self.assertFalse(self._m(a, b), "%r should NOT match %r" % (a, b))
+
+    def test_substring_is_not_a_match(self):
+        # ratio() is substring-safe: 0.615 < 0.85, distinct canonical.
+        self.assertFalse(self._m("Firebase Messaging", "Firebase"))
+
+    def test_exact_and_typo_fallback(self):
+        self.assertTrue(self._m("Flutter", "Flutter"))
+        self.assertTrue(self._m("PostgreSQL", "postgres"))  # alias map
+
+    def test_empty_inputs(self):
+        self.assertFalse(self._m("", "Flutter"))
+        self.assertFalse(self._m("Flutter", ""))
+
 
 class TestReconciliation(SimpleTestCase):
 

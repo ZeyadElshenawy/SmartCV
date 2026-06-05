@@ -1,5 +1,6 @@
 import re
 import logging
+from difflib import SequenceMatcher
 from profiles.services.llm_engine import get_structured_llm
 from profiles.services.schemas import JobExtractionResult, SkillListResult
 
@@ -181,11 +182,76 @@ def _build_skill_canonical_map():
 _SKILL_CANONICAL_MAP = _build_skill_canonical_map()
 
 
+# Generic trailing role-nouns that pad a JD skill phrase without changing the
+# underlying skill ("REST API integration" == "REST API"; "mobile applications"
+# == "mobile"). One such noun is stripped from the END before alias lookup so a
+# padded JD form collapses onto the same canonical as the bare token that
+# "REST APIs"/"RESTful APIs" already map to. Principled small set — NOT
+# per-skill enumeration. Singular "application" is intentionally ABSENT so
+# "mobile application" is not reduced to "mobile".
+_GENERIC_TRAILING_NOUNS = {"integration", "development", "applications", "apps"}
+
+
+def _strip_trailing_generic_noun(key: str) -> str:
+    """Drop ONE trailing generic role-noun from a lowercased skill key.
+
+    Returns the key UNCHANGED when stripping would empty it or leave no other
+    token (so a bare "apps"/"integration" is preserved, never blanked).
+    """
+    parts = key.split()
+    if len(parts) >= 2 and parts[-1] in _GENERIC_TRAILING_NOUNS:
+        return " ".join(parts[:-1])
+    return key
+
+
 def _canonicalize_skill(s: str) -> str:
-    """Return the canonical surface form for s if known, else s.strip()."""
+    """Return the canonical surface form for s if known, else s.strip().
+
+    Lookup order: the verbatim (lowercased) form first; on a miss, the form
+    with one trailing generic role-noun stripped — so JD padding like
+    "REST API integration" collapses onto the "REST API" canonical that
+    "REST APIs"/"RESTful APIs" already map to. The strip only fires when the
+    verbatim form is NOT already a known alias, so it never overrides an
+    existing _CANONICAL_COLLAPSE / SKILL_KB key.
+    """
     if not s:
         return s
-    return _SKILL_CANONICAL_MAP.get(s.strip().lower(), s.strip())
+    key = s.strip().lower()
+    if key in _SKILL_CANONICAL_MAP:
+        return _SKILL_CANONICAL_MAP[key]
+    stripped = _strip_trailing_generic_noun(key)
+    if stripped != key:
+        # Prefer the alias canonical of the stripped form; else return the
+        # stripped form itself so two differently-padded variants reduce alike.
+        return _SKILL_CANONICAL_MAP.get(stripped, stripped)
+    return s.strip()
+
+
+def skills_match(a: str, b: str, *, cutoff: float = 0.85) -> bool:
+    """True iff two skill names denote the same skill.
+
+    Shared by the gap-analyzer grounding validator and the planner's
+    JD-relevance so both sites treat variant spellings identically:
+      1. exact equality of canonical forms (alias table + trailing-noun
+         strip) — "REST APIs" / "RESTful APIs" / "REST API integration" all
+         canonicalize to "REST API";
+      2. ``difflib.SequenceMatcher.ratio() >= cutoff`` on the canonical forms
+         as a typo-only fallback.
+
+    Uses ``ratio()``, NOT token-set/containment: ratio() is substring-safe
+    ("Firebase Messaging" vs "Firebase" = 0.615 < 0.85), so a phantom that
+    merely shares one token with a real skill is NOT admitted. token_set/
+    containment would score that ~1.0 and wrongly re-admit it.
+    """
+    if not a or not b:
+        return False
+    ca = _canonicalize_skill(a).strip().lower()
+    cb = _canonicalize_skill(b).strip().lower()
+    if not ca or not cb:
+        return False
+    if ca == cb:
+        return True
+    return SequenceMatcher(None, ca, cb).ratio() >= cutoff
 
 
 # --------------------------------------------------

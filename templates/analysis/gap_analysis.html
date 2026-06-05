@@ -328,6 +328,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 </p>
             </div>
             {% endif %}
+            {# Honesty notice — fires when the user moves an UNEVIDENCED skill into Matched. #}
+            <div x-show="userAssertedNotice" x-cloak x-transition
+                 class="rounded-xl bg-amber-50 dark:bg-amber-950/40 ring-1 ring-amber-200/70 dark:ring-amber-900 px-5 py-3 flex items-start gap-3">
+                <span aria-hidden="true" class="mt-1 h-2 w-2 rounded-full bg-amber-500 flex-shrink-0"></span>
+                <p class="text-sm text-neutral-700 dark:text-neutral-200 leading-relaxed">
+                    We couldn't find <span class="font-semibold" x-text="userAssertedNotice"></span> in your profile, GitHub, or projects.
+                    We'll keep it as <span class="font-semibold">self-reported</span> — but it won't appear in your generated resume unless you add evidence
+                    (a project, a bullet, or a skill entry), because the resume only includes skills it can back.
+                    <a href="{% url 'profile_chatbot' job.id %}" class="font-medium text-brand-700 dark:text-brand-400 underline underline-offset-2 hover:text-brand-800">Add it to your profile</a> to surface it.
+                </p>
+                <button type="button" @click="userAssertedNotice = null"
+                        class="ml-auto flex-shrink-0 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 text-xs uppercase tracking-wide">Dismiss</button>
+            </div>
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <template x-for="col in columns" :key="col.key">
                     <div class="relative overflow-hidden rounded-xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 transition-shadow duration-200"
@@ -360,6 +373,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <div class="inline-flex items-center gap-1.5 leading-[1.4]">
                                             <span aria-hidden="true" class="h-1.5 w-1.5 rounded-full flex-shrink-0" :class="col.dotClass"></span>
                                             <span x-text="chipName(chip)"></span>
+                                            {# Self-reported marker: a matched chip the user added that the profile does not evidence. #}
+                                            <template x-if="col.key === 'matched' && chip.user_asserted">
+                                                <span class="ml-0.5 inline-flex items-center rounded px-1 leading-[1.5] text-[8px] font-semibold uppercase tracking-wide ring-1 ring-current opacity-70"
+                                                      title="Self-reported — we couldn't find this in your profile. It won't appear in your generated resume until you add evidence.">self-reported</span>
+                                            </template>
                                         </div>
                                         <template x-if="col.key !== 'matched' && hasRealProximity(chip)">
                                             <div class="mt-0.5 h-[2px] w-full rounded-full bg-neutral-200/60 dark:bg-neutral-800/60 overflow-hidden">
@@ -474,6 +492,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 dropTarget: null,
                 saveStatus: null,
                 saveTimeout: null,
+                // Honesty notice (fix C): name of the skill the user just moved
+                // into Matched that the server flagged as having no profile
+                // evidence. Drives the non-blocking "self-reported" banner.
+                userAssertedNotice: null,
+                noticeTimeout: null,
+                _pendingAssertCheck: null,
 
                 // Initial LLM-computed similarity (0..1). Used as fallback when
                 // all three buckets are empty. Otherwise computedScore drives
@@ -520,6 +544,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (!chip || typeof chip !== 'object') return chip;
                     const lines = [];
                     if (colKey === 'matched') {
+                        if (chip.user_asserted) lines.push("Self-reported — no profile evidence; won't appear on the resume until you add some.");
                         if (chip.evidence_quote) lines.push(`Evidence: "${chip.evidence_quote}"`);
                         if (chip.evidence_source) lines.push(`Source: ${chip.evidence_source}`);
                     } else {
@@ -682,6 +707,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         newChip = base;
                     }
 
+                    // Remember a move INTO matched so persistSkills can warn if
+                    // the server flags it unevidenced (the key honesty moment).
+                    this._pendingAssertCheck = targetCol === 'matched' ? this._rawName(base) : null;
                     this.skills[targetCol].push(newChip);
                     this.persistSkills();
                 },
@@ -699,9 +727,19 @@ document.addEventListener('DOMContentLoaded', function() {
                         }),
                     })
                     .then(r => { if (!r.ok) throw new Error('Save failed'); return r.json(); })
-                    .then(() => {
+                    .then(data => {
                         this.saveStatus = 'saved';
                         this.saveTimeout = setTimeout(() => { this.saveStatus = null; }, 2500);
+                        // Honesty notice: did the skill the user just moved into
+                        // Matched come back flagged as unevidenced?
+                        const pending = this._pendingAssertCheck;
+                        this._pendingAssertCheck = null;
+                        const asserted = (data && data.user_asserted_skills) || [];
+                        if (pending && asserted.some(s => String(s).toLowerCase() === pending.toLowerCase())) {
+                            this.userAssertedNotice = pending;
+                            if (this.noticeTimeout) clearTimeout(this.noticeTimeout);
+                            this.noticeTimeout = setTimeout(() => { this.userAssertedNotice = null; }, 12000);
+                        }
                     })
                     .catch(err => {
                         console.error('Persist error:', err);
