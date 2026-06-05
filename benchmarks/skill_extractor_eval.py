@@ -31,7 +31,11 @@ from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Iterable
 
-from benchmarks._io import FIXTURES_DIR, summary, write_section
+from benchmarks._io import (
+    FIXTURES_DIR, summary, write_section,
+    append_partial, completed_keys, assemble_rows, clear_partial, partial_path,
+)
+from profiles.services.llm_engine import AllGroqKeysExhausted
 from jobs.services.skill_extractor import extract_skills
 
 FUZZY_CUTOFF = 0.85
@@ -103,52 +107,80 @@ def _load_jds() -> list[dict]:
 
 def run(repeats: int = 3, sleep: float = 0.0) -> dict:
     jds = _load_jds()
-    per_job: list[dict] = []
+    name = "skill_extractor_eval"
+    def _key(r):  # item key = jd_id
+        return r.get("jd_id")
+    completed = completed_keys(name, _key)
+    started = time.perf_counter()
+
+    try:
+        for jd in jds:
+            if jd["id"] in completed:
+                continue
+            runs = []
+            for _ in range(repeats):
+                t0 = time.perf_counter()
+                try:
+                    extracted = extract_skills(jd["description"])
+                    err = None
+                except AllGroqKeysExhausted:
+                    raise
+                except Exception as exc:  # noqa: BLE001
+                    extracted = []
+                    err = f"{exc.__class__.__name__}: {exc}"
+                elapsed_ms = round((time.perf_counter() - t0) * 1000.0, 2)
+                if sleep > 0:
+                    time.sleep(sleep)
+                scored = _score(extracted, jd["expected_skills"])
+                scored["extracted_raw"] = extracted
+                scored["latency_ms"] = elapsed_ms
+                scored["error"] = err
+                runs.append(scored)
+
+            f1s = [r["f1"] for r in runs]
+            ps = [r["precision"] for r in runs]
+            rs = [r["recall"] for r in runs]
+            hs = [r["hallucination_rate"] for r in runs]
+            append_partial(name, {
+                "jd_id": jd["id"],
+                "title": jd["title"],
+                "expected_skills_count": len(jd["expected_skills"]),
+                "repeats": repeats,
+                "f1_mean": round(statistics.fmean(f1s), 4) if f1s else None,
+                "f1_std": round(statistics.pstdev(f1s), 4) if len(f1s) > 1 else 0.0,
+                "precision_mean": round(statistics.fmean(ps), 4) if ps else None,
+                "recall_mean": round(statistics.fmean(rs), 4) if rs else None,
+                "hallucination_mean": round(statistics.fmean(hs), 4) if hs else None,
+                "runs": runs,
+            })
+    except AllGroqKeysExhausted as exc:
+        done = len(completed_keys(name, _key))
+        print(f"[skill_extractor_eval] STOPPED at {done}/{len(jds)} — all Groq keys hit "
+              f"the daily cap (task={getattr(exc, 'task', '?')}). Re-run the SAME command "
+              f"after the cap resets to resume.")
+        return {"benchmark": name, "status": "partial_exhausted", "completed": done,
+                "total": len(jds), "partial_path": str(partial_path(name)), "resumable": True}
+
+    # ---- All JDs done → rebuild the summary from the partial JSONL ----
+    per_job = assemble_rows(name, _key)
     all_f1: list[float] = []
     all_precision: list[float] = []
     all_recall: list[float] = []
     all_hallucination: list[float] = []
     all_latency_ms: list[float] = []
-    started = time.perf_counter()
-
-    for jd in jds:
-        runs = []
-        for _ in range(repeats):
-            t0 = time.perf_counter()
-            try:
-                extracted = extract_skills(jd["description"])
-                err = None
-            except Exception as exc:  # noqa: BLE001
-                extracted = []
-                err = f"{exc.__class__.__name__}: {exc}"
-            elapsed_ms = round((time.perf_counter() - t0) * 1000.0, 2)
-            if sleep > 0:
-                time.sleep(sleep)
-            scored = _score(extracted, jd["expected_skills"])
-            scored["extracted_raw"] = extracted
-            scored["latency_ms"] = elapsed_ms
-            scored["error"] = err
-            runs.append(scored)
-            all_latency_ms.append(elapsed_ms)
-
-        f1s = [r["f1"] for r in runs]
-        ps = [r["precision"] for r in runs]
-        rs = [r["recall"] for r in runs]
-        hs = [r["hallucination_rate"] for r in runs]
-        all_f1.extend(f1s); all_precision.extend(ps); all_recall.extend(rs); all_hallucination.extend(hs)
-
-        per_job.append({
-            "jd_id": jd["id"],
-            "title": jd["title"],
-            "expected_skills_count": len(jd["expected_skills"]),
-            "repeats": repeats,
-            "f1_mean": round(statistics.fmean(f1s), 4) if f1s else None,
-            "f1_std": round(statistics.pstdev(f1s), 4) if len(f1s) > 1 else 0.0,
-            "precision_mean": round(statistics.fmean(ps), 4) if ps else None,
-            "recall_mean": round(statistics.fmean(rs), 4) if rs else None,
-            "hallucination_mean": round(statistics.fmean(hs), 4) if hs else None,
-            "runs": runs,
-        })
+    for row in per_job:
+        for run in (row.get("runs") or []):
+            all_f1.append(run.get("f1"))
+            all_precision.append(run.get("precision"))
+            all_recall.append(run.get("recall"))
+            all_hallucination.append(run.get("hallucination_rate"))
+            lm = run.get("latency_ms")
+            if lm is not None:
+                all_latency_ms.append(lm)
+    all_f1 = [v for v in all_f1 if v is not None]
+    all_precision = [v for v in all_precision if v is not None]
+    all_recall = [v for v in all_recall if v is not None]
+    all_hallucination = [v for v in all_hallucination if v is not None]
 
     payload = {
         "benchmark": "skill_extractor_eval",
@@ -179,6 +211,7 @@ def run(repeats: int = 3, sleep: float = 0.0) -> dict:
     }
     out_path = write_section("skill_extractor_eval", payload)
     payload["written_to"] = str(out_path)
+    clear_partial(name)
     return payload
 
 

@@ -40,6 +40,95 @@ def write_section(name: str, payload: dict) -> Path:
     return out_path
 
 
+# ─── Crash-safe / resumable checkpointing ────────────────────────────────────
+# Each eval appends one completed item as a single JSON line to a per-eval
+# ``<name>.partial.jsonl`` IMMEDIATELY after it's produced (fsync'd), so a crash
+# never loses completed work and a re-run resumes from where it stopped.
+#
+# The partial path is deliberately DATE-INDEPENDENT (unlike write_section's
+# dated summary): a multi-day sweep that pauses on a daily-cap exhaustion and
+# resumes the *next* day must find the prior progress, so it can't be stamped
+# with the run date. The dated summary is still written on full completion.
+
+def partial_path(name: str) -> Path:
+    return results_dir() / f"{name}.partial.jsonl"
+
+
+def append_partial(name: str, row: dict) -> Path:
+    """Append one completed item as a JSON line and fsync, so disk reflects
+    per-item progress (crash-safe)."""
+    path = partial_path(name)
+    with open(path, 'a', encoding='utf-8') as f:
+        f.write(json.dumps(row, default=str) + '\n')
+        f.flush()
+        try:
+            os.fsync(f.fileno())
+        except OSError:
+            pass
+    return path
+
+
+def read_partial(name: str) -> list:
+    """All rows from the partial, tolerating a torn final line from a crash
+    mid-write (that item simply reprocesses on resume)."""
+    path = partial_path(name)
+    if not path.exists():
+        return []
+    out = []
+    for line in path.read_text(encoding='utf-8').splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            out.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return out
+
+
+def row_has_error(row: dict) -> bool:
+    """True if a partial row represents a FAILED item — top-level ``error`` /
+    ``stage`` marker, or any errored sub-run. Such items must be RETRIED on
+    resume, never skipped."""
+    if not isinstance(row, dict):
+        return True
+    if row.get('error') or row.get('stage'):
+        return True
+    for run in (row.get('runs') or []):
+        if isinstance(run, dict) and run.get('error'):
+            return True
+    return False
+
+
+def completed_keys(name: str, key_of) -> set:
+    """Keys of items with a genuinely SUCCESSFUL partial row. Errored rows are
+    EXCLUDED so they retry on resume (the load-bearing correctness rule)."""
+    done = set()
+    for row in read_partial(name):
+        if not row_has_error(row):
+            done.add(key_of(row))
+    return done
+
+
+def assemble_rows(name: str, key_of) -> list:
+    """One row per item from the partial, success-preferred: a retried item has
+    both its old error row and its new success row — keep the success."""
+    by_key = {}
+    for row in read_partial(name):
+        k = key_of(row)
+        if k not in by_key or not row_has_error(row):
+            by_key[k] = row
+    return list(by_key.values())
+
+
+def clear_partial(name: str) -> None:
+    """Remove the checkpoint (called only AFTER the final summary write succeeds,
+    so a subsequent fresh run doesn't resume a finished sweep)."""
+    p = partial_path(name)
+    if p.exists():
+        p.unlink()
+
+
 # ─── Stats helpers ───────────────────────────────────────────────────────────
 
 def percentile(values, p: float):

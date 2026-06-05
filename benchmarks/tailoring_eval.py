@@ -28,7 +28,11 @@ import time
 import types
 from typing import Iterable
 
-from benchmarks._io import FIXTURES_DIR, REPO_ROOT, summary, write_section
+from benchmarks._io import (
+    FIXTURES_DIR, REPO_ROOT, summary, write_section,
+    append_partial, completed_keys, assemble_rows, clear_partial, partial_path,
+)
+from profiles.services.llm_engine import AllGroqKeysExhausted
 from benchmarks.llm_judge import banned_phrase_hits, factuality_check, judge
 from analysis.services.gap_analyzer import compute_gap_analysis
 from profiles.services.cv_parser import parse_cv
@@ -151,21 +155,32 @@ def run(
             parsed_cache[cv_meta["id"]] = {"_error": f"{exc.__class__.__name__}: {exc}"}
     parse_seconds = round(time.perf_counter() - parse_started, 2)
 
+    name = section_name
+    def _key(r):  # item key = (cv_id, jd_id)
+        return (r.get("cv_id"), r.get("jd_id"))
+    completed = completed_keys(name, _key)   # success-only; errored pairs retry
+    stopped = None   # set to the AllGroqKeysExhausted on a clean exhaustion stop
+
     eval_started = time.perf_counter()
     for cv_id, jd_id, bucket in pairs:
+        if (cv_id, jd_id) in completed:
+            continue
         parsed = parsed_cache.get(cv_id) or {}
         if parsed.get("_error"):
-            rows.append({"cv_id": cv_id, "jd_id": jd_id, "bucket": bucket,
-                         "error": parsed["_error"]})
+            append_partial(name, {"cv_id": cv_id, "jd_id": jd_id, "bucket": bucket,
+                                  "error": parsed["_error"]})
             continue
         profile = _profile_from_parsed(parsed)
         job = _job_stub(jds[jd_id])
 
         try:
             gap_result = compute_gap_analysis(profile, job)
+        except AllGroqKeysExhausted as _exh:
+            stopped = _exh
+            break  # clean stop — no fake error row for this or remaining pairs
         except Exception as exc:  # noqa: BLE001
-            rows.append({"cv_id": cv_id, "jd_id": jd_id, "bucket": bucket,
-                         "stage": "gap_analysis", "error": f"{exc.__class__.__name__}: {exc}"})
+            append_partial(name, {"cv_id": cv_id, "jd_id": jd_id, "bucket": bucket,
+                                  "stage": "gap_analysis", "error": f"{exc.__class__.__name__}: {exc}"})
             continue
 
         try:
@@ -177,9 +192,12 @@ def run(
             generated = generate_resume_content_dispatched(
                 profile, job, _gap_stub(gap_result),
             )
+        except AllGroqKeysExhausted as _exh:
+            stopped = _exh
+            break
         except Exception as exc:  # noqa: BLE001
-            rows.append({"cv_id": cv_id, "jd_id": jd_id, "bucket": bucket,
-                         "stage": "generate", "error": f"{exc.__class__.__name__}: {exc}"})
+            append_partial(name, {"cv_id": cv_id, "jd_id": jd_id, "bucket": bucket,
+                                  "stage": "generate", "error": f"{exc.__class__.__name__}: {exc}"})
             continue
 
         # Programmatic checks. `confirmed_projects` lets enriched projects
@@ -201,14 +219,17 @@ def run(
                 generated_resume=generated,
             )
             verdict_dict = verdict.model_dump()
+        except AllGroqKeysExhausted as _exh:
+            stopped = _exh
+            break
         except Exception as exc:  # noqa: BLE001
-            rows.append({"cv_id": cv_id, "jd_id": jd_id, "bucket": bucket,
-                         "stage": "judge", "error": f"{exc.__class__.__name__}: {exc}",
-                         "programmatic_factuality": prog_fact,
-                         "voice_hits": voice_hits})
+            append_partial(name, {"cv_id": cv_id, "jd_id": jd_id, "bucket": bucket,
+                                  "stage": "judge", "error": f"{exc.__class__.__name__}: {exc}",
+                                  "programmatic_factuality": prog_fact,
+                                  "voice_hits": voice_hits})
             continue
 
-        rows.append({
+        append_partial(name, {
             "cv_id": cv_id,
             "jd_id": jd_id,
             "bucket": bucket,
@@ -217,13 +238,34 @@ def run(
             "voice_hits": voice_hits,
             "voice_hit_count": len(voice_hits),
         })
-        fact_scores.append(verdict_dict["factuality"]["score"])
-        rel_scores.append(verdict_dict["relevance"]["score"])
-        ats_scores.append(verdict_dict["ats_fit"]["score"])
-        voice_scores.append(verdict_dict["human_voice"]["score"])
-        if prog_fact.get("ratio") is not None:
-            grounded_ratios.append(prog_fact["ratio"])
-        voice_hit_counts.append(len(voice_hits))
+
+    # ---- Clean exhaustion stop: completed pairs are saved; unreached pairs
+    # are simply absent from the partial and resume on the next run. ----
+    if stopped is not None:
+        done = len(completed_keys(name, _key))
+        print(f"[tailoring_eval] STOPPED at {done}/{len(pairs)} — all Groq keys hit the "
+              f"daily cap (task={getattr(stopped, 'task', '?')}). Re-run the SAME command "
+              f"after the cap resets to resume; completed pairs are saved and skipped.")
+        return {"benchmark": "tailoring_eval", "status": "partial_exhausted",
+                "completed": done, "total": len(pairs),
+                "partial_path": str(partial_path(name)), "resumable": True}
+
+    # ---- All pairs done → rebuild the summary from the partial JSONL ----
+    rows = assemble_rows(name, _key)
+    fact_scores, rel_scores, ats_scores, voice_scores = [], [], [], []
+    grounded_ratios, voice_hit_counts = [], []
+    for row in rows:
+        j = row.get("judge")
+        if not j:
+            continue  # error / stage rows contribute no judge scores
+        fact_scores.append(j["factuality"]["score"])
+        rel_scores.append(j["relevance"]["score"])
+        ats_scores.append(j["ats_fit"]["score"])
+        voice_scores.append(j["human_voice"]["score"])
+        pf = row.get("programmatic_factuality") or {}
+        if pf.get("ratio") is not None:
+            grounded_ratios.append(pf["ratio"])
+        voice_hit_counts.append(row.get("voice_hit_count", len(row.get("voice_hits") or [])))
 
     payload = {
         "benchmark": "tailoring_eval",
@@ -267,6 +309,7 @@ def run(
     }
     out_path = write_section(section_name, payload)
     payload["written_to"] = str(out_path)
+    clear_partial(name)
     return payload
 
 
