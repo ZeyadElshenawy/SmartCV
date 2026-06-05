@@ -38,7 +38,20 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
-from benchmarks._io import REPO_ROOT, RESULTS_DIR, write_section
+from benchmarks._io import (
+    REPO_ROOT, RESULTS_DIR, write_section,
+    append_partial, read_partial, clear_partial, partial_path,
+)
+
+# A phase's eval returns this shape (instead of an aggregate block) when it
+# stopped mid-run because every Groq key for one of its tasks hit the daily
+# (TPD) cap. The run is then resumable: completed phases + items are
+# checkpointed; re-running the same command after the cap resets continues.
+_PROGRESS = "run_all_progress"
+
+
+def _is_partial(payload) -> bool:
+    return isinstance(payload, dict) and payload.get("status") == "partial_exhausted"
 
 
 PHASES = ("ats_eval", "latency_runner", "parser_eval", "skill_extractor_eval",
@@ -116,7 +129,7 @@ def _headlines(results: dict) -> dict:
         }
 
     parser = results.get("parser_eval", {}).get("payload")
-    if parser:
+    if parser and not _is_partial(parser):
         agg = parser["aggregate"]
         # `skills_f1_with_section` is the headline (parser is designed to read
         # explicit skills sections). `skills_f1` keeps the unconditional
@@ -134,7 +147,7 @@ def _headlines(results: dict) -> dict:
         }
 
     sx = results.get("skill_extractor_eval", {}).get("payload")
-    if sx:
+    if sx and not _is_partial(sx):
         agg = sx["aggregate"]
         h["skill_extractor"] = {
             "n_jds": sx["n_jds"],
@@ -146,7 +159,7 @@ def _headlines(results: dict) -> dict:
         }
 
     tailor = results.get("tailoring_eval", {}).get("payload")
-    if tailor:
+    if tailor and not _is_partial(tailor):
         a = tailor["axes"]
         prog = tailor["programmatic"]
         h["tailoring"] = {
@@ -161,7 +174,7 @@ def _headlines(results: dict) -> dict:
         }
 
     gap = results.get("gap_eval", {}).get("payload")
-    if gap:
+    if gap and not _is_partial(gap):
         h["gap"] = {
             "n_pairs": gap["n_pairs_evaluated"],
             "repeats_per_pair": gap["repeats_per_pair"],
@@ -187,6 +200,12 @@ def _format_md(combined: dict) -> str:
         f"- **Platform:** {combined['platform']['system']} "
         f"{combined['platform']['release']} / Python {combined['platform']['python']}",
         f"- **Phases:** {', '.join(combined['phases_run'])}",
+        f"- **Status:** {combined.get('status', 'complete')}" + (
+            f" — STOPPED at phase `{(combined.get('stopped_phase') or {}).get('phase')}` "
+            f"({(combined.get('stopped_phase') or {}).get('completed')}/"
+            f"{(combined.get('stopped_phase') or {}).get('total')}); "
+            f"re-run the same command after the cap resets to resume"
+            if combined.get('status') == 'partial_exhausted' else ""),
         "",
         "## Headline Metrics",
         "",
@@ -349,21 +368,64 @@ def run(skip: Iterable[str] = (), *, gap_repeats: int = 1, sx_repeats: int = 1,
     if with_tailoring:
         plan.append(("tailoring_eval", {"buckets": tailoring_buckets}))
 
+    # Resume support: a prior run records each FULLY-completed phase (with its
+    # payload) in a run_all progress checkpoint. On re-run we skip those phases
+    # (don't re-burn tokens) and load their payloads so the final report is
+    # complete; the previously-exhausted phase re-runs and its eval resumes its
+    # own items from its per-item checkpoint.
+    done_payloads = {
+        r["phase"]: r.get("payload")
+        for r in read_partial(_PROGRESS)
+        if isinstance(r, dict) and r.get("phase")
+    }
+    stopped = None   # (phase, partial_payload) when a phase exhausts its keys
+
     for phase, kwargs in plan:
         if phase in skip_set:
             phase_info[phase] = {"ok": None, "skipped": True, "wall_seconds": 0}
             continue
+        if phase in done_payloads:
+            # Already finished in a prior run — reuse its result, don't re-run.
+            phase_info[phase] = {"ok": True, "skipped_complete": True, "wall_seconds": 0}
+            payloads[phase] = {"ok": True, "payload": done_payloads[phase]}
+            phases_run.append(phase)
+            continue
+
         info = _run_phase(phase, **kwargs)
         phases_run.append(phase)
         phase_info[phase] = {k: v for k, v in info.items() if k != "payload"}
         payloads[phase] = info
 
+        payload = info.get("payload") if info.get("ok") else None
+        if _is_partial(payload):
+            # Keys hit the daily cap mid-phase. The eval saved a per-item
+            # checkpoint. Stop the remaining phases — they share Groq accounts
+            # (see notes) and would exhaust immediately too. Re-run to resume.
+            phase_info[phase]["partial_exhausted"] = True
+            stopped = (phase, payload)
+            break
+        if info.get("ok"):
+            append_partial(_PROGRESS, {"phase": phase, "payload": payload})  # mark complete
+
     headlines = _headlines(payloads)
+
+    # Run status: partial (resumable) if a phase exhausted its keys; errors if
+    # any phase raised a non-partial failure; otherwise complete.
+    any_error = any(pi.get("ok") is False for pi in phase_info.values())
+    if stopped is not None:
+        run_status = "partial_exhausted"
+    elif any_error:
+        run_status = "errors"
+    else:
+        run_status = "complete"
+
     combined = {
         "benchmark": "run_all",
         "version": 1,
         "run_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "wall_seconds": round(time.perf_counter() - started, 2),
+        "status": run_status,
+        "resumable": run_status != "complete",
         "platform": {
             "python": sys.version.split()[0],
             "system": platform.system(),
@@ -373,12 +435,29 @@ def run(skip: Iterable[str] = (), *, gap_repeats: int = 1, sx_repeats: int = 1,
         "phases_run": phases_run,
         "phase_info": phase_info,
         "headlines": headlines,
+        "account_sharing_note": (
+            "The LLM phases (skill_extractor_eval, gap_eval, tailoring_eval) draw "
+            "from a small shared pool of Groq accounts (key-value collisions "
+            "across tasks), so exhausting one phase's keys means the others will "
+            "exhaust too — hence the clean stop on the first exhaustion. Phases "
+            "run light->heavy (non-LLM ats/latency/parser first, then the "
+            "one-call-per-item skill_extractor/gap, then the heavy multi-call "
+            "tailoring) so the cheap results bank before the heavy phase can cap."
+        ),
         "phase_payloads": {
             # Embed each phase's payload (already saved as standalone JSON too).
             name: payloads[name].get("payload") if payloads[name].get("ok") else None
             for name in phases_run
         },
     }
+    if stopped is not None:
+        sp_name, sp_payload = stopped
+        combined["stopped_phase"] = {
+            "phase": sp_name,
+            "completed": sp_payload.get("completed"),
+            "total": sp_payload.get("total"),
+            "partial_path": sp_payload.get("partial_path"),
+        }
 
     md = _format_md(combined)
     json_path = write_section("run_all", combined)
@@ -391,6 +470,13 @@ def run(skip: Iterable[str] = (), *, gap_repeats: int = 1, sx_repeats: int = 1,
         "markdown": str(md_path),
         "docs": str(docs_path) if docs_path else None,
     }
+
+    # On a fully-clean completion, clear the progress checkpoint so a future
+    # FRESH run starts over. On partial/errors, KEEP it so a re-run skips the
+    # already-completed phases and resumes the remainder.
+    if run_status == "complete":
+        clear_partial(_PROGRESS)
+
     return combined
 
 
@@ -423,6 +509,19 @@ if __name__ == "__main__":
         with_tailoring=args.with_tailoring,
         tailoring_buckets=tuple(args.tailoring_buckets),
     )
+    status = out.get("status", "complete")
+    if status == "partial_exhausted":
+        sp = out.get("stopped_phase") or {}
+        print(f"\n-- run_all STOPPED (resumable) in {out['wall_seconds']}s --")
+        print(f"  Phase '{sp.get('phase')}' exhausted at {sp.get('completed')}/{sp.get('total')} "
+              f"— all Groq keys hit the daily cap.")
+        print("  Re-run the SAME command after the cap resets; completed phases and "
+              "items are checkpointed and will be skipped.")
+        print(f"  Partial  : {sp.get('partial_path')}")
+        print(f"  JSON     : {out['written_to']['json']}")
+        print(f"  Markdown : {out['written_to']['markdown']}")
+        sys.exit(2)   # distinct from full-success (0) and crash/error (1)
+
     print(f"-- run_all complete in {out['wall_seconds']}s --")
     print(f"  JSON     : {out['written_to']['json']}")
     print(f"  Markdown : {out['written_to']['markdown']}")
@@ -430,3 +529,4 @@ if __name__ == "__main__":
         print(f"  Docs     : {out['written_to']['docs']}")
     else:
         print("  Docs     : (docs/benchmarks.md not found or missing autogen markers)")
+    sys.exit(1 if status == "errors" else 0)

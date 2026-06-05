@@ -32,7 +32,11 @@ import time
 import types
 from typing import Iterable
 
-from benchmarks._io import FIXTURES_DIR, REPO_ROOT, cohens_d, summary, write_section
+from benchmarks._io import (
+    FIXTURES_DIR, REPO_ROOT, cohens_d, summary, write_section,
+    append_partial, completed_keys, assemble_rows, clear_partial, partial_path,
+)
+from profiles.services.llm_engine import AllGroqKeysExhausted
 from analysis.services.gap_analyzer import compute_gap_analysis
 from profiles.services.cv_parser import parse_cv
 
@@ -133,60 +137,84 @@ def run(repeats: int = 1, max_pairs: int | None = None, sleep: float = 0.0) -> d
     if max_pairs is not None:
         pairs = pairs[:max_pairs]
 
-    rows: list[dict] = []
+    name = "gap_eval"
+    def _key(r):  # item key = (cv_id, jd_id)
+        return (r.get("cv_id"), r.get("jd_id"))
+    completed = completed_keys(name, _key)   # success-only; errored items retry
+    started = time.perf_counter()
+
+    try:
+        for cv_id, jd_id, expected in pairs:
+            if (cv_id, jd_id) in completed:
+                continue  # already succeeded in a prior run
+            parsed = parsed_cache.get(cv_id)
+            if parsed is None:
+                append_partial(name, {"cv_id": cv_id, "jd_id": jd_id, "expected": expected,
+                                      "error": "parse_failed", "scores": []})
+                continue
+            profile = _profile_from_parsed(parsed)
+            job = _job_stub(jds[jd_id])
+
+            runs: list[dict] = []
+            for _ in range(repeats):
+                t0 = time.perf_counter()
+                try:
+                    result = compute_gap_analysis(profile, job)
+                    err = None
+                except AllGroqKeysExhausted:
+                    raise  # bubble to the clean-stop handler — NOT an error row
+                except Exception as exc:  # noqa: BLE001
+                    result = {}
+                    err = f"{exc.__class__.__name__}: {exc}"
+                elapsed_ms = round((time.perf_counter() - t0) * 1000.0, 2)
+                if sleep > 0:
+                    time.sleep(sleep)
+                cov = _coverage(result, jds[jd_id]["expected_skills"])
+                runs.append({
+                    "similarity_score": result.get("similarity_score"),
+                    "n_matched": len(result.get("matched_skills") or []),
+                    "n_missing": len(result.get("missing_skills") or []),
+                    "n_partial": len(result.get("partial_skills") or []),
+                    "analysis_method": result.get("analysis_method"),
+                    "coverage": cov,
+                    "latency_ms": elapsed_ms,
+                    "error": err,
+                })
+
+            scores = [r["similarity_score"] for r in runs if r["similarity_score"] is not None]
+            append_partial(name, {
+                "cv_id": cv_id,
+                "jd_id": jd_id,
+                "expected": expected,
+                "similarity_mean": round(statistics.fmean(scores), 4) if scores else None,
+                "similarity_std": round(statistics.pstdev(scores), 4) if len(scores) > 1 else 0.0,
+                "runs": runs,
+            })
+    except AllGroqKeysExhausted as exc:
+        done = len(completed_keys(name, _key))
+        print(f"[gap_eval] STOPPED at {done}/{len(pairs)} — all Groq keys hit the daily "
+              f"cap (task={getattr(exc, 'task', '?')}). Re-run the SAME command after the "
+              f"cap resets to resume; completed items are saved and will be skipped.")
+        return {"benchmark": name, "status": "partial_exhausted", "completed": done,
+                "total": len(pairs), "partial_path": str(partial_path(name)), "resumable": True}
+
+    # ---- All pairs done → rebuild the summary from the partial JSONL ----
+    rows = assemble_rows(name, _key)
     bucket_scores: dict[str, list[float]] = {"strong": [], "partial": [], "weak": []}
     coverage_ratios: list[float] = []
     latencies_ms: list[float] = []
-    started = time.perf_counter()
-
-    for cv_id, jd_id, expected in pairs:
-        parsed = parsed_cache.get(cv_id)
-        if parsed is None:
-            rows.append({"cv_id": cv_id, "jd_id": jd_id, "expected": expected,
-                         "error": "parse_failed", "scores": []})
-            continue
-        profile = _profile_from_parsed(parsed)
-        job = _job_stub(jds[jd_id])
-
-        runs: list[dict] = []
-        for _ in range(repeats):
-            t0 = time.perf_counter()
-            try:
-                result = compute_gap_analysis(profile, job)
-                err = None
-            except Exception as exc:  # noqa: BLE001
-                result = {}
-                err = f"{exc.__class__.__name__}: {exc}"
-            elapsed_ms = round((time.perf_counter() - t0) * 1000.0, 2)
-            if sleep > 0:
-                time.sleep(sleep)
-            cov = _coverage(result, jds[jd_id]["expected_skills"])
-            runs.append({
-                "similarity_score": result.get("similarity_score"),
-                "n_matched": len(result.get("matched_skills") or []),
-                "n_missing": len(result.get("missing_skills") or []),
-                "n_partial": len(result.get("partial_skills") or []),
-                "analysis_method": result.get("analysis_method"),
-                "coverage": cov,
-                "latency_ms": elapsed_ms,
-                "error": err,
-            })
-            latencies_ms.append(elapsed_ms)
-            if cov.get("coverage_ratio") is not None:
-                coverage_ratios.append(cov["coverage_ratio"])
-            ss = result.get("similarity_score")
-            if ss is not None and expected in bucket_scores:
-                bucket_scores[expected].append(float(ss))
-
-        scores = [r["similarity_score"] for r in runs if r["similarity_score"] is not None]
-        rows.append({
-            "cv_id": cv_id,
-            "jd_id": jd_id,
-            "expected": expected,
-            "similarity_mean": round(statistics.fmean(scores), 4) if scores else None,
-            "similarity_std": round(statistics.pstdev(scores), 4) if len(scores) > 1 else 0.0,
-            "runs": runs,
-        })
+    for row in rows:
+        exp = row.get("expected")
+        for run in (row.get("runs") or []):
+            lm = run.get("latency_ms")
+            if lm is not None:
+                latencies_ms.append(lm)
+            cr = (run.get("coverage") or {}).get("coverage_ratio")
+            if cr is not None:
+                coverage_ratios.append(cr)
+            ss = run.get("similarity_score")
+            if ss is not None and exp in bucket_scores:
+                bucket_scores[exp].append(float(ss))
 
     payload = {
         "benchmark": "gap_eval",
@@ -232,6 +260,7 @@ def run(repeats: int = 1, max_pairs: int | None = None, sleep: float = 0.0) -> d
     }
     out_path = write_section("gap_eval", payload)
     payload["written_to"] = str(out_path)
+    clear_partial(name)   # only AFTER the final write succeeds → fresh next run
     return payload
 
 

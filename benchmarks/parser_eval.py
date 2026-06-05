@@ -32,7 +32,11 @@ import time
 from difflib import SequenceMatcher
 from typing import Iterable
 
-from benchmarks._io import FIXTURES_DIR, REPO_ROOT, summary, write_section
+from benchmarks._io import (
+    FIXTURES_DIR, REPO_ROOT, summary, write_section,
+    append_partial, completed_keys, assemble_rows, clear_partial, partial_path,
+)
+from profiles.services.llm_engine import AllGroqKeysExhausted
 from profiles.services.cv_parser import parse_cv
 from profiles.services.llm_validator import validate_and_map_cv_data
 
@@ -186,84 +190,110 @@ def _label_for(cv_id: str) -> dict | None:
 
 def run(repeats: int = 1, llm_validate: bool = False, sleep: float = 0.0) -> dict:
     manifest = _load_manifest()
-    rows: list[dict] = []
+    name = "parser_eval"
+    def _key(r):  # item key = cv_id
+        return r.get("cv_id")
+    completed = completed_keys(name, _key)
+    started = time.perf_counter()
+
+    try:
+        for cv_meta in manifest["cvs"]:
+            cv_id = cv_meta["id"]
+            if cv_id in completed:
+                continue
+            cv_path = REPO_ROOT / cv_meta["path"]
+            labeled = _label_for(cv_id)
+            if labeled is None:
+                append_partial(name, {"cv_id": cv_id, "error": "no_label_file"})
+                continue
+
+            runs: list[dict] = []
+            for _ in range(repeats):
+                t0 = time.perf_counter()
+                try:
+                    parsed = parse_cv(str(cv_path))
+                    if llm_validate:
+                        # Match the production upload pipeline: regex parse → LLM validate.
+                        # parse_cv already includes raw_text in its return.
+                        raw_text = parsed.get("raw_text") or ""
+                        parsed = validate_and_map_cv_data(parsed, raw_text)
+                    err = None
+                except AllGroqKeysExhausted:
+                    raise
+                except Exception as exc:  # noqa: BLE001
+                    parsed = {}
+                    err = f"{exc.__class__.__name__}: {exc}"
+                elapsed_ms = round((time.perf_counter() - t0) * 1000.0, 2)
+                if llm_validate and sleep > 0:
+                    time.sleep(sleep)
+                pi = _personal_info(parsed, labeled.get("personal_info") or {})
+                sp = _section_presence(parsed, labeled)
+                sk = _skill_jaccard(parsed, labeled)
+                counts = _counts(parsed, labeled)
+                runs.append({
+                    "personal_info": pi,
+                    "section_presence": sp,
+                    "skills": sk,
+                    "counts": counts,
+                    "latency_ms": elapsed_ms,
+                    "error": err,
+                })
+
+            pi_means = [r["personal_info"]["accuracy"] for r in runs if r["personal_info"]["accuracy"] is not None]
+            sp_means = [r["section_presence"]["accuracy"] for r in runs if r["section_presence"]["accuracy"] is not None]
+            sk_jacc = [r["skills"]["jaccard"] for r in runs]
+            sk_f1 = [r["skills"]["f1"] for r in runs]
+
+            append_partial(name, {
+                "cv_id": cv_id,
+                "primary_role": cv_meta.get("primary_role"),
+                "skills_section_present": (labeled.get("section_presence") or {}).get("skills"),
+                "personal_info_accuracy_mean": round(statistics.fmean(pi_means), 4) if pi_means else None,
+                "section_presence_accuracy_mean": round(statistics.fmean(sp_means), 4) if sp_means else None,
+                "skill_jaccard_mean": round(statistics.fmean(sk_jacc), 4) if sk_jacc else None,
+                "skill_f1_mean": round(statistics.fmean(sk_f1), 4) if sk_f1 else None,
+                "runs": runs,
+            })
+    except AllGroqKeysExhausted as exc:
+        done = len(completed_keys(name, _key))
+        print(f"[parser_eval] STOPPED at {done}/{len(manifest['cvs'])} — all Groq keys hit "
+              f"the daily cap (task={getattr(exc, 'task', '?')}). Re-run the SAME command "
+              f"after the cap resets to resume.")
+        return {"benchmark": name, "status": "partial_exhausted", "completed": done,
+                "total": len(manifest["cvs"]), "partial_path": str(partial_path(name)),
+                "resumable": True}
+
+    # ---- All CVs done → rebuild the summary from the partial JSONL ----
+    rows = assemble_rows(name, _key)
     all_pi_acc: list[float] = []
     all_section_acc: list[float] = []
     all_jaccard: list[float] = []
     all_skill_f1: list[float] = []
-    # Headline metric: skills accuracy on CVs that *have* a skills section.
-    # CVs without one are an out-of-scope task for the parser — it extracts
-    # from explicit skills sections, not by inferring from experience text —
-    # so averaging them in drags the number for a job the parser isn't
-    # designed to do. We still report the all-CVs aggregate alongside.
     skills_f1_with_section: list[float] = []
     skills_jaccard_with_section: list[float] = []
     all_latency_ms: list[float] = []
-    started = time.perf_counter()
-
-    for cv_meta in manifest["cvs"]:
-        cv_id = cv_meta["id"]
-        cv_path = REPO_ROOT / cv_meta["path"]
-        labeled = _label_for(cv_id)
-        if labeled is None:
-            rows.append({"cv_id": cv_id, "error": "no_label_file"})
-            continue
-
-        runs: list[dict] = []
-        for _ in range(repeats):
-            t0 = time.perf_counter()
-            try:
-                parsed = parse_cv(str(cv_path))
-                if llm_validate:
-                    # Match the production upload pipeline: regex parse → LLM validate.
-                    # parse_cv already includes raw_text in its return.
-                    raw_text = parsed.get("raw_text") or ""
-                    parsed = validate_and_map_cv_data(parsed, raw_text)
-                err = None
-            except Exception as exc:  # noqa: BLE001
-                parsed = {}
-                err = f"{exc.__class__.__name__}: {exc}"
-            elapsed_ms = round((time.perf_counter() - t0) * 1000.0, 2)
-            if llm_validate and sleep > 0:
-                time.sleep(sleep)
-            pi = _personal_info(parsed, labeled.get("personal_info") or {})
-            sp = _section_presence(parsed, labeled)
-            sk = _skill_jaccard(parsed, labeled)
-            counts = _counts(parsed, labeled)
-            runs.append({
-                "personal_info": pi,
-                "section_presence": sp,
-                "skills": sk,
-                "counts": counts,
-                "latency_ms": elapsed_ms,
-                "error": err,
-            })
-            all_latency_ms.append(elapsed_ms)
-            if pi["accuracy"] is not None:
-                all_pi_acc.append(pi["accuracy"])
-            if sp["accuracy"] is not None:
-                all_section_acc.append(sp["accuracy"])
-            all_jaccard.append(sk["jaccard"])
-            all_skill_f1.append(sk["f1"])
-            if (labeled.get("section_presence") or {}).get("skills") is True:
-                skills_f1_with_section.append(sk["f1"])
-                skills_jaccard_with_section.append(sk["jaccard"])
-
-        pi_means = [r["personal_info"]["accuracy"] for r in runs if r["personal_info"]["accuracy"] is not None]
-        sp_means = [r["section_presence"]["accuracy"] for r in runs if r["section_presence"]["accuracy"] is not None]
-        sk_jacc = [r["skills"]["jaccard"] for r in runs]
-        sk_f1 = [r["skills"]["f1"] for r in runs]
-
-        rows.append({
-            "cv_id": cv_id,
-            "primary_role": cv_meta.get("primary_role"),
-            "skills_section_present": (labeled.get("section_presence") or {}).get("skills"),
-            "personal_info_accuracy_mean": round(statistics.fmean(pi_means), 4) if pi_means else None,
-            "section_presence_accuracy_mean": round(statistics.fmean(sp_means), 4) if sp_means else None,
-            "skill_jaccard_mean": round(statistics.fmean(sk_jacc), 4) if sk_jacc else None,
-            "skill_f1_mean": round(statistics.fmean(sk_f1), 4) if sk_f1 else None,
-            "runs": runs,
-        })
+    for row in rows:
+        with_section = row.get("skills_section_present") is True
+        for run in (row.get("runs") or []):
+            lm = run.get("latency_ms")
+            if lm is not None:
+                all_latency_ms.append(lm)
+            pi_a = (run.get("personal_info") or {}).get("accuracy")
+            if pi_a is not None:
+                all_pi_acc.append(pi_a)
+            sp_a = (run.get("section_presence") or {}).get("accuracy")
+            if sp_a is not None:
+                all_section_acc.append(sp_a)
+            sk = run.get("skills") or {}
+            if sk.get("jaccard") is not None:
+                all_jaccard.append(sk["jaccard"])
+            if sk.get("f1") is not None:
+                all_skill_f1.append(sk["f1"])
+            if with_section:
+                if sk.get("f1") is not None:
+                    skills_f1_with_section.append(sk["f1"])
+                if sk.get("jaccard") is not None:
+                    skills_jaccard_with_section.append(sk["jaccard"])
 
     payload = {
         "benchmark": "parser_eval",
@@ -315,6 +345,7 @@ def run(repeats: int = 1, llm_validate: bool = False, sleep: float = 0.0) -> dic
     }
     out_path = write_section("parser_eval", payload)
     payload["written_to"] = str(out_path)
+    clear_partial(name)
     return payload
 
 
