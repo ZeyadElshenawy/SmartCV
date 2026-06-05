@@ -406,3 +406,27 @@ class ProductionTriggerSitesUseDispatcherTests(SimpleTestCase):
                       "trigger_resume_regeneration_api no longer goes "
                       "through the dispatcher — flipping the flag would "
                       "skip Path B.")
+
+
+class TailoringEvalProductionPathTests(SimpleTestCase):
+    """The tailoring benchmark must generate resumes through the PRODUCTION
+    dispatcher (which honours RESUME_GENERATOR_PIPELINE + sanitize), not the
+    v1 generator directly — the harness-vs-production gap that burned us
+    before. It must NOT hardcode a pipeline; it mirrors the prod setting."""
+
+    def test_tailoring_eval_routes_through_dispatcher(self):
+        import inspect
+        import benchmarks.tailoring_eval as te
+        import resumes.services.pipeline_dispatch as pd
+
+        # The imported symbol IS the real production dispatcher.
+        self.assertIs(te.generate_resume_content_dispatched,
+                      pd.generate_resume_content_dispatched)
+
+        src = inspect.getsource(te.run)
+        # Generation goes through the dispatcher…
+        self.assertIn("generate_resume_content_dispatched(", src)
+        # …never the v1 generator directly…
+        self.assertNotIn("generate_resume_content(", src)
+        # …and never hardcodes a pipeline flag (must mirror prod's setting).
+        self.assertNotIn("pipeline=", src)

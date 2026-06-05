@@ -32,7 +32,8 @@ from benchmarks._io import FIXTURES_DIR, REPO_ROOT, summary, write_section
 from benchmarks.llm_judge import banned_phrase_hits, factuality_check, judge
 from analysis.services.gap_analyzer import compute_gap_analysis
 from profiles.services.cv_parser import parse_cv
-from resumes.services.resume_generator import generate_resume_content
+from resumes.services.pipeline_dispatch import generate_resume_content_dispatched
+from django.conf import settings as _dj_settings
 
 
 def _snapshot_treatment_config() -> dict:
@@ -83,10 +84,17 @@ def _job_stub(jd: dict) -> types.SimpleNamespace:
 
 
 def _gap_stub(gap_result: dict) -> types.SimpleNamespace:
-    """The generator reads gap_analysis.matched_skills as an attribute."""
+    """Duck-typed GapAnalysis the production dispatcher reads. v1 reads
+    matched_skills; the v2 path (fix A) reads matched_must_have /
+    matched_nice_to_have directly, so carry those through from the gap result
+    (empty when absent) — otherwise routing through v2 would AttributeError."""
     raw = gap_result.get("matched_skills") or []
     names = [s.get("name") if isinstance(s, dict) else str(s) for s in raw]
-    return types.SimpleNamespace(matched_skills=[n for n in names if n])
+    return types.SimpleNamespace(
+        matched_skills=[n for n in names if n],
+        matched_must_have=gap_result.get("matched_must_have") or [],
+        matched_nice_to_have=gap_result.get("matched_nice_to_have") or [],
+    )
 
 
 def _select_pairs(manifest: dict, jds: dict[str, dict], buckets: tuple[str, ...]) -> list[tuple[str, str, str]]:
@@ -161,7 +169,14 @@ def run(
             continue
 
         try:
-            generated = generate_resume_content(profile, job, _gap_stub(gap_result))
+            # Route through the PRODUCTION dispatcher (not the v1 generator
+            # directly), so the benchmark exercises the exact path real users
+            # travel: dispatcher → sanitize → (v1 or v2 per the production
+            # RESUME_GENERATOR_PIPELINE setting) → adapter. We pass no pipeline
+            # override, so it mirrors whatever production actually runs.
+            generated = generate_resume_content_dispatched(
+                profile, job, _gap_stub(gap_result),
+            )
         except Exception as exc:  # noqa: BLE001
             rows.append({"cv_id": cv_id, "jd_id": jd_id, "bucket": bucket,
                          "stage": "generate", "error": f"{exc.__class__.__name__}: {exc}"})
@@ -233,7 +248,8 @@ def run(
         },
         "rows": rows,
         "method": {
-            "generator": "resumes.services.resume_generator.generate_resume_content",
+            "generator": "resumes.services.pipeline_dispatch.generate_resume_content_dispatched",
+            "pipeline": getattr(_dj_settings, "RESUME_GENERATOR_PIPELINE", "v1"),
             "judge_module": "benchmarks.llm_judge",
             "judge_axes": ["factuality", "relevance", "ats_fit", "human_voice"],
             "judge_scale": "1-10 per axis",
