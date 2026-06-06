@@ -42,18 +42,57 @@ from profiles.services.cv_parser import parse_cv
 
 
 def _profile_from_parsed(parsed: dict) -> types.SimpleNamespace:
-    """Build a duck-typed profile that the gap analyzer can read like a UserProfile."""
+    """Build a duck-typed profile that the gap analyzer reads like a real
+    UserProfile.
+
+    CRITICAL: the gap analyzer's grounding validator reads
+    ``profile.data_content`` (analysis/services/gap_analyzer.py), exactly as a
+    production UserProfile stores the whole parsed CV in its data_content JSONB
+    (profiles/models.py: ``profile.skills`` == ``data_content['skills']``, etc.).
+    The earlier stub left data_content WITHOUT skills/experiences/projects, so
+    grounding saw an empty profile and demoted every matched skill — collapsing
+    benchmark separation while production (full data_content) was fine. We now
+    mirror production: data_content carries the full parsed profile, with
+    experience/project bullets folded into ``description`` (the field
+    ``_grounding_prose_corpus`` reads — parse_cv emits them as
+    ``responsibilities``), plus the github/scholar/kaggle signal stubs the
+    analyzer's signal readers expect.
+    """
+    def _norm_section(items):
+        out = []
+        for it in (items or []):
+            if not isinstance(it, dict):
+                continue
+            d = dict(it)
+            if not d.get("description"):
+                d["description"] = it.get("responsibilities") or it.get("bullets") or []
+            out.append(d)
+        return out
+
+    skills = parsed.get("skills") or []
+    experiences = _norm_section(parsed.get("experiences"))
+    projects = _norm_section(parsed.get("projects"))
+    certifications = parsed.get("certifications") or []
+    education = parsed.get("education") or []
+    summary = parsed.get("professional_summary") or parsed.get("summary") or ""
+    data_content = {
+        "skills": skills,
+        "experiences": experiences,
+        "projects": projects,
+        "certifications": certifications,
+        "education": education,
+        "professional_summary": summary,
+        "github_signals": {},
+        "scholar_signals": {},
+        "kaggle_signals": {},
+    }
     return types.SimpleNamespace(
-        skills=parsed.get("skills") or [],
-        experiences=parsed.get("experiences") or [],
-        projects=parsed.get("projects") or [],
-        certifications=parsed.get("certifications") or [],
-        education=parsed.get("education") or [],
-        data_content={
-            "github_signals": {},
-            "scholar_signals": {},
-            "kaggle_signals": {},
-        },
+        skills=skills,
+        experiences=experiences,
+        projects=projects,
+        certifications=certifications,
+        education=education,
+        data_content=data_content,
     )
 
 
