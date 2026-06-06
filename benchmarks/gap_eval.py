@@ -179,6 +179,14 @@ def run(repeats: int = 1, max_pairs: int | None = None, sleep: float = 0.0) -> d
                     "coverage": cov,
                     "latency_ms": elapsed_ms,
                     "error": err,
+                    # Raw tier-aware breakdown (name + proximity per skill) so a
+                    # future scorer change can be re-measured OFFLINE with no
+                    # Groq. Persisted on the post-grounding result (what the
+                    # similarity_score was computed from).
+                    "matched_must_have":    result.get("matched_must_have") or [],
+                    "matched_nice_to_have": result.get("matched_nice_to_have") or [],
+                    "missing_must_have":    result.get("missing_must_have") or [],
+                    "missing_nice_to_have": result.get("missing_nice_to_have") or [],
                 })
 
             scores = [r["similarity_score"] for r in runs if r["similarity_score"] is not None]
