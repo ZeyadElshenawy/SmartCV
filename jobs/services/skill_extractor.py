@@ -227,21 +227,29 @@ def _canonicalize_skill(s: str) -> str:
     return s.strip()
 
 
+_SKILL_GROUP_SPLIT = re.compile(r"[/&,]| and ")
+
+
+def _skill_atoms(s: str) -> list:
+    """Split a grouped skill token into its member skill names (else [s])."""
+    return [p.strip() for p in _SKILL_GROUP_SPLIT.split(s or "") if p.strip()]
+
+
 def skills_match(a: str, b: str, *, cutoff: float = 0.85) -> bool:
     """True iff two skill names denote the same skill.
 
     Shared by the gap-analyzer grounding validator and the planner's
     JD-relevance so both sites treat variant spellings identically:
-      1. exact equality of canonical forms (alias table + trailing-noun
-         strip) — "REST APIs" / "RESTful APIs" / "REST API integration" all
-         canonicalize to "REST API";
-      2. ``difflib.SequenceMatcher.ratio() >= cutoff`` on the canonical forms
-         as a typo-only fallback.
+      1. exact equality of canonical forms (alias table + trailing-noun strip);
+      2. difflib SequenceMatcher.ratio() >= cutoff on the canonical forms;
+      3. grouped enumerations: "JavaScript/TypeScript" matches "JavaScript"
+         (and vice versa) by matching any member atom under (1)/(2).
 
-    Uses ``ratio()``, NOT token-set/containment: ratio() is substring-safe
-    ("Firebase Messaging" vs "Firebase" = 0.615 < 0.85), so a phantom that
-    merely shares one token with a real skill is NOT admitted. token_set/
-    containment would score that ~1.0 and wrongly re-admit it.
+    Uses ratio(), NOT token-set/containment, for whole phrases: ratio() is
+    substring-safe ("Firebase Messaging" vs "Firebase" = 0.615 < 0.85), so a
+    phantom sharing one token is NOT admitted. The atom split (3) only fires on
+    explicit enumeration delimiters (/ & , "and"), so "React Native" (no
+    delimiter) still does NOT match "React".
     """
     if not a or not b:
         return False
@@ -251,7 +259,19 @@ def skills_match(a: str, b: str, *, cutoff: float = 0.85) -> bool:
         return False
     if ca == cb:
         return True
-    return SequenceMatcher(None, ca, cb).ratio() >= cutoff
+    if SequenceMatcher(None, ca, cb).ratio() >= cutoff:
+        return True
+    atoms_a, atoms_b = _skill_atoms(a), _skill_atoms(b)
+    if len(atoms_a) > 1 or len(atoms_b) > 1:
+        for pa in atoms_a:
+            for pb in atoms_b:
+                cpa = _canonicalize_skill(pa).strip().lower()
+                cpb = _canonicalize_skill(pb).strip().lower()
+                if not cpa or not cpb:
+                    continue
+                if cpa == cpb or SequenceMatcher(None, cpa, cpb).ratio() >= cutoff:
+                    return True
+    return False
 
 
 # --------------------------------------------------
