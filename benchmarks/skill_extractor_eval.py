@@ -10,9 +10,12 @@ Metrics per job:
     f1        = harmonic mean
     hallucination_rate = |extracted \\ labeled| / |extracted|
 
-Synonym normalization mirrors the gap analyzer: lowercased exact match
-plus ``difflib.SequenceMatcher >= 0.85`` fallback for fuzzy hits like
-``react.js`` ↔ ``react``.
+Synonym normalization mirrors the gap analyzer: the canonical
+``skills_match`` (alias table + trailing-noun strip + ``difflib >= 0.85`` on
+the canonical forms) catches ``react.js`` ↔ ``react``. On top of that, an
+eval-side generic-qualifier strip + grouping split fixes the verbose-phrasing
+double-penalty (``Tailwind CSS`` ↔ ``Tailwind``, ``npm/yarn`` ↔ ``npm``)
+without crediting absent skills.
 
 The eval is run ``--repeats`` times per JD (default 3) so we can disclose
 LLM stochasticity. Outputs aggregate mean + std across runs.
@@ -25,9 +28,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import statistics
 import time
-from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Iterable
 
@@ -36,29 +39,100 @@ from benchmarks._io import (
     append_partial, completed_keys, assemble_rows, clear_partial, partial_path,
 )
 from profiles.services.llm_engine import AllGroqKeysExhausted
-from jobs.services.skill_extractor import extract_skills
+from jobs.services.skill_extractor import (
+    extract_skills, skills_match, _canonicalize_skill,
+)
 
 FUZZY_CUTOFF = 0.85
+
+# --- Scoring matcher -------------------------------------------------------
+# The eval scores extractor output against hand-curated gold labels. Raw
+# difflib at 0.85 double-PENALIZED verbose/grouped phrasing: the tier-split
+# extractor (de59b38) emits "Tailwind CSS" / "REST API design" / "Linux
+# systems" / "npm/yarn" while gold holds the canonical "Tailwind" / "REST API"
+# / "Linux" / "npm". difflib("tailwind css","tailwind")=0.80 < 0.85, so the
+# SAME real skill counted as BOTH a hallucination (extra) AND a miss.
+#
+# We now match via the PRODUCTION canonical matcher (skills_match, the same one
+# fix B added), plus a scoring-side canonicalization that strips trailing
+# GENERIC-QUALIFIER nouns and splits slash/"and" groupings. The qualifier set
+# is curated to category words that pad a skill phrase WITHOUT creating a
+# distinct skill; it deliberately EXCLUDES skill-distinguishing modifiers
+# ("native", "script", "server", ...) so "React Native" != "React". This
+# credits variant phrasing of a REAL match only — it never credits an absent
+# skill (a genuine recall miss stays a miss) or a true hallucination.
+_EVAL_QUALIFIER_NOUNS = {
+    "css", "systems", "system", "design", "workflow", "workflows",
+    "service", "services", "chart", "charts", "gitops", "framework",
+    "frameworks", "library", "libraries", "tooling", "pipeline", "pipelines",
+    "client", "clients",
+}
+_EVAL_SPLIT = re.compile(r"[\\/&+,]| and ")
 
 
 def _normalize(s: str) -> str:
     return (s or "").lower().strip()
 
 
-def _matches_any(needle: str, haystack: Iterable[str]) -> bool:
-    """True if ``needle`` matches any string in ``haystack`` (lowercase exact or fuzzy)."""
-    n = _normalize(needle)
-    if not n:
+def _eval_canon(s: str) -> str:
+    """Production canonical form, then strip trailing generic-qualifier nouns.
+
+    "Tailwind CSS" -> "tailwind"; "REST API design" -> "rest api";
+    "Linux systems" -> "linux". Skill-distinguishing modifiers are NOT in the
+    set, so "React Native" stays "react native" (!= "react").
+    """
+    c = _canonicalize_skill(s).strip().lower()
+    parts = c.split()
+    while len(parts) >= 2 and parts[-1] in _EVAL_QUALIFIER_NOUNS:
+        parts = parts[:-1]
+    return " ".join(parts)
+
+
+def _eval_atoms(s: str) -> list[str]:
+    """Split a grouped phrase ("npm/yarn", "REST and GraphQL") into atoms."""
+    return [p.strip() for p in _EVAL_SPLIT.split(s or "") if p.strip()]
+
+
+def _skill_equiv(a: str, b: str) -> bool:
+    """True iff two skill names denote the same skill, for SCORING.
+
+    Layered, each strictly more permissive but still phantom-safe:
+      1. skills_match — production canonical (alias + trailing-noun strip) +
+         difflib>=0.85 on the canonical forms (catches Vue.js<->Vue etc.);
+      2. equal eval-canonical forms (strips css/design/systems/... qualifiers
+         that the production strip set doesn't — Tailwind CSS<->Tailwind);
+      3. grouping: any atom of a ("npm" in "npm/yarn") matches any atom of b
+         under (1) or (2).
+    """
+    if not a or not b:
         return False
-    for h in haystack:
-        hn = _normalize(h)
-        if not hn:
-            continue
-        if n == hn:
-            return True
-        if SequenceMatcher(None, n, hn).ratio() >= FUZZY_CUTOFF:
-            return True
+    if skills_match(a, b):
+        return True
+    ea, eb = _eval_canon(a), _eval_canon(b)
+    if ea and ea == eb:
+        return True
+    atoms_a, atoms_b = _eval_atoms(a), _eval_atoms(b)
+    if len(atoms_a) > 1 or len(atoms_b) > 1:
+        for pa in atoms_a:
+            for pb in atoms_b:
+                if skills_match(pa, pb):
+                    return True
+                cpa, cpb = _eval_canon(pa), _eval_canon(pb)
+                if cpa and cpa == cpb:
+                    return True
     return False
+
+
+def _matches_any(needle: str, haystack: Iterable[str]) -> bool:
+    """True if ``needle`` denotes the same skill as any string in ``haystack``.
+
+    Uses the canonical/variant-aware matcher (``_skill_equiv``), NOT raw
+    difflib, so verbose phrasing of a real skill is neither a miss nor a
+    hallucination. Absent skills and true hallucinations still fail to match.
+    """
+    if not _normalize(needle):
+        return False
+    return any(_skill_equiv(needle, h) for h in haystack if _normalize(h))
 
 
 def _score(extracted: list[str], labeled: list[str]) -> dict:
@@ -200,13 +274,18 @@ def run(repeats: int = 3, sleep: float = 0.0) -> dict:
         "method": {
             "fuzzy_cutoff": FUZZY_CUTOFF,
             "service": "jobs.services.skill_extractor.extract_skills",
-            "scoring": "lowercased exact + difflib SequenceMatcher >= 0.85",
+            "scoring": ("canonical skills_match (alias + trailing-noun strip + "
+                        "difflib>=0.85 on canonical forms) + eval-side "
+                        "generic-qualifier strip + slash/and grouping split"),
         },
         "disclosure": (
             f"LLM-driven metric — Groq llama-4-scout, temperature=0.0 in the "
             f"service call. Mean of {repeats} run(s) per JD. Variance shown as "
-            f"std. Skills compared via lowercased exact + difflib >= "
-            f"{FUZZY_CUTOFF} fuzzy fallback (matches gap-analyzer cutoff)."
+            f"std. Skills compared via the canonical skills_match (alias + "
+            f"trailing-noun strip + difflib >= {FUZZY_CUTOFF} on canonical "
+            f"forms; matches gap-analyzer) plus an eval-side generic-qualifier "
+            f"strip + grouping split so verbose phrasing of a real skill is "
+            f"not double-penalized as both a miss and a hallucination."
         ),
     }
     out_path = write_section("skill_extractor_eval", payload)
