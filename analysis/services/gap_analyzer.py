@@ -910,6 +910,35 @@ def _phrase_in_prose(skill_name: str, prose_lower: str) -> bool:
         return s in prose_lower
 
 
+def _phrase_variant_in_prose(skill_name: str, prose_lower: str) -> bool:
+    """Variant-aware prose grounding: slide MULTI-WORD windows over the prose
+    and ``skills_match`` each against the skill name.
+
+    The plain ``_phrase_in_prose`` check is LITERAL, so a skill the candidate
+    genuinely has under different phrasing demotes wrongly -- e.g. a JD
+    must-have "REST API" against an experience bullet that says "developed
+    RESTful API services". The window "restful api" canonicalizes to the same
+    "REST API" as the JD skill, so ``skills_match`` grounds it.
+
+    MULTI-WORD windows only (2-3 tokens). A single bare alias word
+    ("rest", "go", "c") would collide with ordinary English prose and could
+    false-ground; a multi-word window like "restful api" / "rest api
+    integration" does not. Phantom-demotion is preserved: a skill with no
+    textual mention anywhere produces no matching window, so it still demotes.
+    """
+    if not skill_name or not prose_lower:
+        return False
+    toks = re.findall(r"[a-z0-9.+#]+", prose_lower)
+    for size in (2, 3):
+        if len(toks) < size:
+            break
+        for i in range(len(toks) - size + 1):
+            window = " ".join(toks[i:i + size])
+            if skills_match(skill_name, window):
+                return True
+    return False
+
+
 def _skill_in_declared_skills(skill_name: str, profile_data: dict) -> bool:
     """Exact canonical match against the candidate's declared ``skills[]``.
 
@@ -952,7 +981,14 @@ def _skill_is_grounded(skill_name: str, profile_data: dict, prose_lower: str) ->
         return True
     if _skill_in_declared_skills(skill_name, profile_data):
         return True
-    return _phrase_in_prose(skill_name, prose_lower)
+    if _phrase_in_prose(skill_name, prose_lower):
+        return True
+    # Variant-aware prose fallback: the candidate mentioned the skill under
+    # different phrasing (e.g. "RESTful API services" for a "REST API"
+    # must-have). Closes the last LITERAL hole -- the structured paths above
+    # (declared skills[], tech arrays) are already variant-aware via
+    # skills_match; only the prose phrase check was literal.
+    return _phrase_variant_in_prose(skill_name, prose_lower)
 
 
 def _reconcile_tier(result, must_skills: list, nice_skills: list,

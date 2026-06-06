@@ -123,8 +123,9 @@ class TestComputeMatchScore(SimpleTestCase):
         matched = [MatchedSkill(name="A")]
         score = compute_match_score(matched, miss, [], [])
         # must_ratio = (1 + 0.4) / 2 = 0.70
-        # score      = 0.05 + 0.75*0.70 + 0.20*1.0 = 0.05 + 0.525 + 0.20 = 0.775
-        self.assertEqual(score, 0.775)
+        # No nice tier -> renormalized must weight = 0.95 (no free nice credit).
+        # score = 0.05 + 0.95*0.70 = 0.715
+        self.assertEqual(score, 0.715)
 
     def test_lseg_screenshot_shape(self):
         # Mirror the spec's LSEG expectation: 8 matched_must / 0 missing_must
@@ -154,8 +155,8 @@ class TestComputeMatchScore(SimpleTestCase):
         self.assertEqual(score, 1.0)
 
     def test_all_buckets_empty_returns_baseline(self):
-        # Edge: no JD skills at all. Both ratios = 1.0 → 1.0
-        self.assertEqual(compute_match_score([], [], [], []), 1.0)
+        # Edge: no JD skills at all -> empty contract, no tier to satisfy -> BASE.
+        self.assertEqual(compute_match_score([], [], [], []), 0.05)
 
 
 class TestMatchBand(SimpleTestCase):
