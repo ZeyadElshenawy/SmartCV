@@ -1,99 +1,104 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code working in this repo. This is the **short** map; the deep reference is
+[`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md) — drill into it by section when you need detail.
 
-## Project Overview
+## What SmartCV is
 
-SmartCV is an AI-powered career assistant that helps job seekers tailor CVs, analyze skill gaps, and generate ATS-optimized resumes. Built with Django 5.2+, PostgreSQL (Supabase with pgvector), Tailwind CSS, and Groq LLM (LangChain).
+AI career assistant: upload a CV → paste/scrape a job → get a **two-phase gap analysis**, an
+**ATS-scored tailored résumé**, and an **outreach campaign**. Django 5.2 monolith, Groq LLM,
+PostgreSQL (Supabase + pgvector), Tailwind v4. Core bet: **the LLM proposes, deterministic Python
+disposes** — every model output is reconciled, grounded, and number-checked in code.
+→ [Pitch & overview](PROJECT_CONTEXT.md#0--the-60-second-pitch) · [System tiers](PROJECT_CONTEXT.md#1--system-overview)
 
 ## Commands
 
 ```bash
-# Run dev server
 python manage.py runserver
-
-# Database
-python manage.py makemigrations
-python manage.py migrate
-
-# Tailwind CSS v4 — one-time build
-npm run build:css
-# Tailwind CSS v4 — watch mode (recommended during template work)
-npm run dev:css
-
-# Tests
-python manage.py test                                              # all
-python manage.py test profiles                                     # single app
-python manage.py test profiles.tests.CVParserTest.test_pdf_extraction  # single test
-
-# Interactive shell
-python manage.py shell
+python manage.py makemigrations && python manage.py migrate
+python manage.py build_knowledge_index          # populate the RAG KnowledgeChunk corpus
+npm run build:css                               # Tailwind v4 (output.css is committed; rebuild after template edits)
+npm run dev:css                                 # Tailwind watch mode
+python manage.py test                           # app tests (in-memory SQLite; no network)
+python manage.py test profiles                  # single app
+pytest                                          # tests/ dir only (services + integration replay)
+python -m benchmarks.run_all                    # evaluation suite
 ```
+No linter/formatter configured. → [Full dev setup](PROJECT_CONTEXT.md#12--config--environment)
 
-No linter or formatter is configured.
+## Architecture (6 apps)
 
-## Architecture
+- **accounts** — custom UUID `User` (`AUTH_USER_MODEL='accounts.User'`), email auth, outreach token.
+- **profiles** — CV parsing, the JSONB **master profile** (`UserProfile.data_content`), chatbot,
+  aggregators (GitHub/Scholar/Kaggle/LinkedIn), RAG, outreach, project enrichment.
+- **jobs** — job input (URL/paste), tiered LLM skill extraction, discovery scrapers + ranking.
+- **analysis** — the headline **two-phase gap analysis**, learning paths, salary, skill scoring.
+- **resumes** — tailored résumé generation (v1 default + v2 flagged), ATS scorer, findings UX, exporters.
+- **core** — landing/dashboard/insights, agent chat, career-stage logic, health/metrics middleware.
 
-### Django Apps
+→ [Repository map](PROJECT_CONTEXT.md#3--repository-map) · [Data model + ER diagram](PROJECT_CONTEXT.md#4--the-data-model)
 
-- **accounts** - Custom UUID-based User model (`AUTH_USER_MODEL = 'accounts.User'`), email-based auth
-- **profiles** - CV upload/parsing, user profile (JSONB `data_content`), chatbot for profile building
-- **jobs** - Job input (LinkedIn scraping or manual paste), LLM-based skill extraction
-- **analysis** - Gap analysis engine (LLM + fuzzy reconciliation), learning paths, salary negotiation
-- **resumes** - Tailored resume generation, cover letters, PDF export (xhtml2pdf)
-- **core** - Landing page, error handlers
+## Key data flow
 
-### Key Data Flow
+1. CV upload → `profiles/services/cv_parser.py` (deterministic) → `llm_validator.py` structures into
+   `ResumeSchema` → `UserProfile.data_content` (JSONB). → [§7.1](PROJECT_CONTEXT.md#71--cv-parsing--profilesservicescv_parserpy-deterministic--llm_validatorpy-llm)
+2. Job → `jobs/services/skill_extractor.py` → `Job.extracted_skills_tiers`. → [§7.7](PROJECT_CONTEXT.md#77--job-discovery--two-distinct-scraper-systems)
+3. Gap → `analysis/services/gap_analyzer.py`: Phase 1 LLM categorises, **Phase 2 deterministic
+   reconciliation guarantees 100% JD-skill coverage** + grounds every match → `GapAnalysis` (cached).
+   → [§7.2](PROJECT_CONTEXT.md#72--two-phase-gap-analysis--analysisservicesgap_analyzerpy-the-headline-feature)
+4. Résumé → `resumes/services/pipeline_dispatch.py` → v1 `resume_generator.py` →
+   `scoring.py` ATS (σ=0) → `GeneratedResume` (FKs **GapAnalysis**, not Job). → [§7.3](PROJECT_CONTEXT.md#73--resume-generation--resume_generatorpy-v1-and-resume__v2py-v2) · [§7.4](PROJECT_CONTEXT.md#74--deterministic-ats-scoring--resumesservicesscoringpy)
 
-1. User uploads CV (PDF/DOCX) -> `profiles/services/cv_parser.py` extracts text -> LLM structures into Pydantic `ResumeSchema` -> stored in `UserProfile.data_content` (JSONB)
-2. User adds job (URL or text) -> `jobs/services/linkedin_scraper.py` + `skill_extractor.py` -> `Job.extracted_skills` (JSON array)
-3. Gap analysis -> `analysis/services/gap_analyzer.py` sends full profile + job skills to LLM -> `GapAnalysisResult` Pydantic output -> Phase 2 fuzzy reconciliation ensures 100% skill coverage -> cached in `GapAnalysis` model
-4. Resume generation -> LLM tailors profile for job -> `GeneratedResume.content` (JSON) -> preview/edit/PDF export
+## The LLM hub
 
-### LLM Integration
+**Every** Groq call goes through `profiles/services/llm_engine.py`: `get_llm()` (text),
+`get_structured_llm(Schema)` (Pydantic-validated), `get_llm_client()` (deprecated shim). Per-task key
+rotation (`GROQ_API_KEY_<TASK>[2-4]` → global), TPM throttle + TPD key rotation, and
+`AllGroqKeysExhausted` (loud, never a silent degrade). Model: Groq
+`meta-llama/llama-4-scout-17b-16e-instruct` (`GROQ_MODEL`). Pydantic schemas live in
+`profiles/services/schemas.py`. → [§5 hub](PROJECT_CONTEXT.md#5--the-llm-hub--per-task-routing) · [§6 schema catalog](PROJECT_CONTEXT.md#6--pydantic-schema-catalog)
 
-Central hub: `profiles/services/llm_engine.py`
+## Conventions that bite
 
-- `get_llm()` - plain text generation (ChatGroq)
-- `get_structured_llm(PydanticSchema)` - guaranteed Pydantic-validated output via `with_structured_output()`
-- `get_llm_client()` - legacy shim mimicking OpenAI client API (deprecated, use `get_llm()` for new code)
-- Model: Groq `meta-llama/llama-4-scout-17b-16e-instruct`, configurable via `GROQ_MODEL` env var
-- Pydantic schemas live in `profiles/services/schemas.py`
-
-All LLM calls are synchronous (django-q was removed). Typical latency is 2-3 seconds.
-
-The one exception is the job-discovery scraper at `jobs/services/job_sources/runner.py`, which spawns a daemon thread per scrape (Playwright requires its own asyncio loop on Windows). It owns its own DB connection via `close_old_connections` and is the only place `DJANGO_ALLOW_ASYNC_UNSAFE` is set. Don't generalise this pattern — for any other long-running work, keep it synchronous in the request thread or fan out via a management command.
-
-### Profile Data Storage
-
-`UserProfile.data_content` is a single JSONB field storing the entire parsed CV. Property accessors (`profile.skills`, `profile.experiences`, etc.) provide backward compatibility. This avoids rigid per-section DB tables and preserves arbitrary CV sections.
-
-`JobProfileSnapshot` stores per-job profile variants when users customize for a specific job, with `pre_chatbot_data` for rollback.
-
-### Gap Analysis Reconciliation
-
-Two-phase approach: (1) LLM categorizes skills as matched/missing/partial, (2) programmatic fuzzy matching (cutoff 0.85) ensures every job skill is accounted for. Key rules: holistic evidence matching across all CV sections, directional specificity (broad matches narrow, not vice versa), no duplicates, case-insensitive.
-
-### Resume Editing: List/String Conversion
-
-Schemas store descriptions as `List[str]` (bullet points). Views in `resumes/views.py` convert list->multiline string for textarea display and back on POST. This was a source of bugs (bracket notation corruption) -- see commit `fd90299`. The conversion is centralized in `_description_text_to_list` / `_description_list_to_text` helpers (tested in `resumes/tests.py`).
-
-### Frontend Toolchain
-
-Tailwind CSS v4 via the standalone CLI (`@tailwindcss/cli`), built from `static/src/input.css` to `static/css/output.css`. Config is CSS-first (`@theme { ... }` inside `input.css`) — there is no `tailwind.config.js`. Alpine.js is still loaded via CDN. Fonts: Inter (UI), Fraunces variable serif (display), IBM Plex Mono (code), loaded from Google Fonts.
-
-The built `output.css` is committed so `python manage.py runserver` works without running npm. Rebuild after template changes (to refresh the content scan) with `npm run build:css`, or run `npm run dev:css` in a watcher while iterating.
-
-Legacy `rn-*` color tokens (rn-blue, rn-navy, rn-gold, rn-pill radius) are preserved alongside the new `brand-*` / `accent-*` palette so the phased redesign doesn't break existing templates mid-flight.
+- **Model proposes, code disposes; ground before fluency; fail toward honesty.** → [§17](PROJECT_CONTEXT.md#17--conventions--design-philosophy)
+- **Bullets are `List[str]`** in schemas; `resumes/views.py` converts list↔multiline for textareas
+  (`_description_*` helpers; was a bug source — commit `fd90299`). `mode='before'` validators in
+  `schemas.py` fold `highlights`/`achievements`/… into `description`.
+- **Anti-AI-tell** is centralized in `profiles/services/prompt_guards.py` (`HUMAN_VOICE_RULE` +
+  `BANNED_PHRASES`) and enforced deterministically in `resumes/services/bullet_validator.py`. → [§8](PROJECT_CONTEXT.md#8--the-anti-ai-tell--prompt-guard-system)
+- **All LLM calls are synchronous** (django-q removed). The **only** thread is the Playwright job
+  scraper (`jobs/services/job_sources/runner.py`) — don't generalize that pattern.
+- **Tests use in-memory SQLite** (forced when `'test' in sys.argv`); a secure `SECRET_KEY` is
+  required outside tests.
+- **Front-end has NO custom JS files** — inline Alpine.js + Tailwind v4 CSS-first `@theme` (no
+  `tailwind.config.js`). Legacy `rn-*` tokens coexist with `brand-*`/`accent-*`. → [§9](PROJECT_CONTEXT.md#9--front-end-architecture)
 
 ## Database
 
-PostgreSQL via Supabase PgBouncer (port 6543). Requires:
-- `DISABLE_SERVER_SIDE_CURSORS = True`
-- `sslmode = 'require'`
+PostgreSQL via Supabase PgBouncer (port 6543): requires `DISABLE_SERVER_SIDE_CURSORS=True`,
+`sslmode='require'`, `conn_max_age=60`. pgvector fields are **384-dim** (all-MiniLM-L6-v2); profile
+vectors are dormant (LLM analysis replaced them). → [§4](PROJECT_CONTEXT.md#4--the-data-model)
 
-pgvector fields use 384 dimensions (all-MiniLM-L6-v2). Vector embeddings are largely deprecated in favor of pure LLM-based analysis.
+## Gotchas & live state (read before trusting docs)
 
-## Environment Variables
+- **Production ships v1 résumé generation.** `RESUME_GENERATOR_PIPELINE=v1` (default) — the v2
+  evidence-first stack (FactStore/fact_extractor/planner_v2/…) is real but **flag-gated OFF**.
+  `SUPERVISOR_ENABLED=False` (vision supervisor dormant). → [§18](PROJECT_CONTEXT.md#18--known-issues-tech-debt--stubs)
+- **Benchmark numbers conflict** across README / `docs/benchmarks.md` / latest `benchmarks/results/`
+  JSON. The **newest JSON wins**; both docs lag. Latest (2026-06-06): gap Cohen's d 2.58, skill F1
+  0.835, ATS σ=0. → [§14](PROJECT_CONTEXT.md#14--evaluation--benchmarks)
+- **Test counts:** ~1,800 real `def test_` methods; README badges (337/398) are stale. The suite is
+  **not always green** (`benchmarks/results/_test_failures.txt`). → [§15](PROJECT_CONTEXT.md#15--testing)
+- `RAG_ENABLED` defaults `True` despite a comment saying `False`. `smartcv/settings_constants.py`
+  describes an unused Gemini/768-dim stack — ignore it.
+- Live scrapers (LinkedIn/Kaggle/Indeed/Glassdoor) break **silently** on site re-renders. → [§11](PROJECT_CONTEXT.md#11--external-integrations)
 
-Required in `.env`: `DATABASE_URL`, `GROQ_API_KEY`. Optional: `GROQ_MODEL`, `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`.
+## Environment
+
+Required in `.env`: `DATABASE_URL`, `GROQ_API_KEY`. Common optional: `GROQ_MODEL`,
+`GROQ_API_KEY_<TASK>[2-4]`, `GITHUB_TOKEN`, `RAG_ENABLED`, `RESUME_GENERATOR_PIPELINE`,
+`SUPERVISOR_ENABLED`, `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`. → [full table §12](PROJECT_CONTEXT.md#12--config--environment)
+
+---
+_See [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md) for the exhaustive reference (data model, schema
+catalog, every pipeline, benchmarks, file index). Regenerate per its [§21 Maintenance](PROJECT_CONTEXT.md#21--maintenance) note._
