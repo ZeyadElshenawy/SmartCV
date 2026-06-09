@@ -12,105 +12,111 @@ exactly score% of the arc — the browser only APPLIES the server's number (same
 category as the {% templatetag openblock %} widthratio {% templatetag closeblock %} coverage bars). The number at the gauge
 centre (data-ats-score) is the SINGLE source the toggle badge and the Edit-tab
 score block mirror via syncTab() — one source, three displays, never client math.
+
+Card groups default-collapse via the [data-group-toggle]/[data-group-body]
++ hidden pattern: Quick wins open, Add evidence + Watch-outs collapsed behind
+their counted headers (the wrapper's delegated toggleGroup() flips the hidden
+attr + aria-expanded; the chevron rotation is CSS keyed off aria-expanded).
 {% endcomment %}
 {% load ats_cards_extras %}
-<div class="p-5 sm:p-6">
+<div class="p-5 sm:p-6 lg:p-8">
   {% if ats_breakdown %}
-  <div class="grid gap-6 lg:gap-8 lg:grid-cols-2">
+  <div class="grid gap-8 lg:gap-12 lg:grid-cols-2">
 
-    {# ============ LEFT — gauge focal + the four real readouts ============ #}
-    <div>
-      {% comment %} Radial gauge. The value ring's length IS the server score:
-      pathLength normalizes the circle to 100 units, dasharray draws score% of it. {% endcomment %}
-      <div class="relative mx-auto w-44 h-44">
-        <svg viewBox="0 0 120 120" class="w-full h-full -rotate-90" aria-hidden="true">
-          <circle cx="60" cy="60" r="52" fill="none" stroke-width="9"
-                  class="stroke-neutral-200 dark:stroke-neutral-800" />
-          <circle cx="60" cy="60" r="52" fill="none" stroke-width="9" stroke-linecap="round"
-                  pathLength="100" stroke-dasharray="{{ ats_breakdown.score|floatformat:1 }} 100"
-                  class="{% if ats_score_display >= 80 %}stroke-brand-500 dark:stroke-brand-400{% elif ats_score_display >= 50 %}stroke-accent-500 dark:stroke-accent-400{% else %}stroke-red-500 dark:stroke-red-400{% endif %}" />
-        </svg>
-        <div class="absolute inset-0 flex flex-col items-center justify-center">
-          {# data-ats-score — the single canonical figure syncTab() mirrors out. #}
-          <span data-ats-score class="font-display italic tabular-nums text-5xl font-semibold leading-none
-                {% if ats_score_display >= 80 %}text-brand-600 dark:text-brand-400{% elif ats_score_display >= 50 %}text-accent-600 dark:text-accent-400{% else %}text-red-600 dark:text-red-400{% endif %}"
-                style="font-variation-settings: 'opsz' 144;">{{ ats_score_display }}</span>
-          <span class="mt-0.5 text-[10px] uppercase tracking-[0.16em] font-medium text-neutral-500 dark:text-neutral-400">ATS score</span>
+    {# ============ LEFT — large gauge focal + the four real readouts ============ #}
+    <div class="flex flex-col items-center text-center gap-8 lg:justify-between lg:min-h-[32rem]">
+
+      <div class="flex flex-col items-center gap-5">
+        {% comment %} Radial gauge — large focal. The value ring's length IS the
+        server score: pathLength normalizes the circle to 100 units, dasharray
+        draws score% of it (no client-side math). {% endcomment %}
+        <div class="relative w-72 h-72 sm:w-80 sm:h-80">
+          <svg viewBox="0 0 120 120" class="w-full h-full -rotate-90" aria-hidden="true">
+            <circle cx="60" cy="60" r="53" fill="none" stroke-width="7"
+                    class="stroke-neutral-200 dark:stroke-neutral-800" />
+            <circle cx="60" cy="60" r="53" fill="none" stroke-width="7" stroke-linecap="round"
+                    pathLength="100" stroke-dasharray="{{ ats_breakdown.score|floatformat:1 }} 100"
+                    class="{% if ats_score_display >= 80 %}stroke-brand-500 dark:stroke-brand-400{% elif ats_score_display >= 50 %}stroke-accent-500 dark:stroke-accent-400{% else %}stroke-red-500 dark:stroke-red-400{% endif %}" />
+          </svg>
+          <div class="absolute inset-0 flex flex-col items-center justify-center">
+            {# data-ats-score — the single canonical figure syncTab() mirrors out. #}
+            <span data-ats-score class="font-display italic tabular-nums leading-none
+                  {% if ats_score_display >= 80 %}text-brand-600 dark:text-brand-400{% elif ats_score_display >= 50 %}text-accent-600 dark:text-accent-400{% else %}text-red-600 dark:text-red-400{% endif %}"
+                  style="font-variation-settings: 'opsz' 144; font-size: 5.5rem;">{{ ats_score_display }}</span>
+            <span class="mt-1 text-[11px] uppercase tracking-[0.2em] font-medium text-neutral-500 dark:text-neutral-400">ATS score</span>
+          </div>
         </div>
+
+        {% comment %} base / in-context / stuffing chips — real fields, shown in
+        ADDITION to the literal equation below (never instead of it). {% endcomment %}
+        <div class="flex flex-wrap items-center justify-center gap-2">
+          <span class="inline-flex items-center rounded-full bg-neutral-100 dark:bg-neutral-800 px-3 py-1 text-xs font-medium text-neutral-600 dark:text-neutral-300 tabular-nums">base {{ ats_breakdown.base|floatformat:1 }}</span>
+          {% if ats_breakdown.in_context.points %}
+          <span class="inline-flex items-center rounded-full bg-brand-50 dark:bg-brand-950/40 px-3 py-1 text-xs font-medium text-brand-700 dark:text-brand-300 tabular-nums">+{{ ats_breakdown.in_context.points|floatformat:1 }} in-context</span>
+          {% endif %}
+          {% if ats_breakdown.stuffing.points %}
+          <span class="inline-flex items-center rounded-full bg-red-50 dark:bg-red-950/40 px-3 py-1 text-xs font-medium text-red-700 dark:text-red-300 tabular-nums">−{{ ats_breakdown.stuffing.points|floatformat:1 }} stuffing</span>
+          {% endif %}
+        </div>
+
+        {% comment %} Reconciliation — KEPT (Slice 1 invariant: the number derivable
+        by hand). Only assert the equation when the [0,100] clamp didn't bind. {% endcomment %}
+        <p class="text-[11px] text-neutral-500 dark:text-neutral-400 tabular-nums">
+          {% if ats_reconciles %}
+            Weighted base {{ ats_breakdown.base|floatformat:1 }}{% if ats_breakdown.in_context.points %} + {{ ats_breakdown.in_context.points|floatformat:1 }} in-context{% endif %}{% if ats_breakdown.stuffing.points %} − {{ ats_breakdown.stuffing.points|floatformat:1 }} stuffing{% endif %} = {{ ats_breakdown.score|floatformat:1 }}
+          {% elif ats_breakdown.score >= 100 %}
+            Components exceed the maximum — capped at 100.
+          {% else %}
+            Components fall below zero — floored at 0.
+          {% endif %}
+        </p>
       </div>
 
-      {% comment %} base / in-context / stuffing chips — real fields, shown in
-      ADDITION to the literal equation below (never instead of it). {% endcomment %}
-      <div class="mt-4 flex flex-wrap items-center justify-center gap-1.5">
-        <span class="inline-flex items-center rounded-full bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 text-[11px] font-medium text-neutral-600 dark:text-neutral-300 tabular-nums">base {{ ats_breakdown.base|floatformat:1 }}</span>
-        {% if ats_breakdown.in_context.points %}
-        <span class="inline-flex items-center rounded-full bg-brand-50 dark:bg-brand-950/40 px-2 py-0.5 text-[11px] font-medium text-brand-700 dark:text-brand-300 tabular-nums">+{{ ats_breakdown.in_context.points|floatformat:1 }} in-context</span>
-        {% endif %}
-        {% if ats_breakdown.stuffing.points %}
-        <span class="inline-flex items-center rounded-full bg-red-50 dark:bg-red-950/40 px-2 py-0.5 text-[11px] font-medium text-red-700 dark:text-red-300 tabular-nums">−{{ ats_breakdown.stuffing.points|floatformat:1 }} stuffing</span>
-        {% endif %}
-      </div>
-
-      {% comment %} Reconciliation — KEPT (Slice 1 invariant: the number derivable
-      by hand). Only assert the equation when the [0,100] clamp didn't bind. {% endcomment %}
-      <p class="mt-3 text-center text-[11px] text-neutral-500 dark:text-neutral-400 tabular-nums">
-        {% if ats_reconciles %}
-          Weighted base {{ ats_breakdown.base|floatformat:1 }}{% if ats_breakdown.in_context.points %} + {{ ats_breakdown.in_context.points|floatformat:1 }} in-context{% endif %}{% if ats_breakdown.stuffing.points %} − {{ ats_breakdown.stuffing.points|floatformat:1 }} stuffing{% endif %} = {{ ats_breakdown.score|floatformat:1 }}
-        {% elif ats_breakdown.score >= 100 %}
-          Components exceed the maximum — capped at 100.
-        {% else %}
-          Components fall below zero — floored at 0.
-        {% endif %}
-      </p>
-
+      <div class="w-full">
       {% if ats_breakdown.total_count == 0 %}
-        <p class="mt-5 text-xs text-neutral-500 dark:text-neutral-400">
+        <p class="text-xs text-neutral-500 dark:text-neutral-400">
           No job skills available to score against yet.
         </p>
       {% else %}
-        {# The four REAL readouts — these ARE the compute_ats_breakdown fields. #}
-        <div class="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
+        {# The four REAL readouts (compute_ats_breakdown fields), row beneath the gauge. #}
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-x-5 gap-y-6">
           <div>
-            <div class="flex items-baseline justify-between">
-              <span class="font-medium text-neutral-800 dark:text-neutral-200">Must-have</span>
-              {% with mm=ats_breakdown.must_have.matched|length md=ats_breakdown.must_have.missed|length %}
-              <span class="tabular-nums text-neutral-500 dark:text-neutral-400">{{ mm }}/{{ mm|add:md }}</span>
-              {% endwith %}
+            <div class="text-xs font-medium text-neutral-600 dark:text-neutral-300">Must-have</div>
+            {% with mm=ats_breakdown.must_have.matched|length md=ats_breakdown.must_have.missed|length %}
+            <div class="mt-1.5 font-display italic tabular-nums text-3xl leading-none text-neutral-900 dark:text-neutral-100">{{ mm }}<span class="text-xl text-neutral-400 dark:text-neutral-500">/{{ mm|add:md }}</span></div>
+            {% endwith %}
+            <div class="mt-2.5 h-1 rounded-full bg-neutral-200 dark:bg-neutral-800 overflow-hidden">
+              <div class="h-full bg-brand-500 dark:bg-brand-400 rounded-full" style="width: {% widthratio ats_breakdown.must_have.coverage 1 100 %}%;"></div>
             </div>
-            <div class="mt-1 h-1.5 rounded-full bg-neutral-100 dark:bg-neutral-800 overflow-hidden">
-              <div class="h-full bg-brand-600 dark:bg-brand-400 rounded-full"
-                   style="width: {% widthratio ats_breakdown.must_have.coverage 1 100 %}%;"></div>
-            </div>
+            <div class="mt-1.5 text-[11px] tabular-nums text-neutral-500 dark:text-neutral-400">{% widthratio ats_breakdown.must_have.coverage 1 100 %}%</div>
           </div>
           <div>
-            <div class="flex items-baseline justify-between">
-              <span class="font-medium text-neutral-800 dark:text-neutral-200">Nice-to-have</span>
-              {% if ats_breakdown.nice_to_have.matched or ats_breakdown.nice_to_have.missed %}
-              {% with nm=ats_breakdown.nice_to_have.matched|length nd=ats_breakdown.nice_to_have.missed|length %}
-              <span class="tabular-nums text-neutral-500 dark:text-neutral-400">{{ nm }}/{{ nm|add:nd }}</span>
-              {% endwith %}
-              {% else %}
-              <span class="text-neutral-400 dark:text-neutral-500 italic">none specified</span>
-              {% endif %}
-            </div>
+            <div class="text-xs font-medium text-neutral-600 dark:text-neutral-300">Nice-to-have</div>
             {% if ats_breakdown.nice_to_have.matched or ats_breakdown.nice_to_have.missed %}
-            <div class="mt-1 h-1.5 rounded-full bg-neutral-100 dark:bg-neutral-800 overflow-hidden">
-              <div class="h-full bg-accent-600 dark:bg-accent-400 rounded-full"
-                   style="width: {% widthratio ats_breakdown.nice_to_have.coverage 1 100 %}%;"></div>
+            {% with nm=ats_breakdown.nice_to_have.matched|length nd=ats_breakdown.nice_to_have.missed|length %}
+            <div class="mt-1.5 font-display italic tabular-nums text-3xl leading-none text-neutral-900 dark:text-neutral-100">{{ nm }}<span class="text-xl text-neutral-400 dark:text-neutral-500">/{{ nm|add:nd }}</span></div>
+            {% endwith %}
+            <div class="mt-2.5 h-1 rounded-full bg-neutral-200 dark:bg-neutral-800 overflow-hidden">
+              <div class="h-full bg-accent-500 dark:bg-accent-400 rounded-full" style="width: {% widthratio ats_breakdown.nice_to_have.coverage 1 100 %}%;"></div>
             </div>
+            <div class="mt-1.5 text-[11px] tabular-nums text-neutral-500 dark:text-neutral-400">{% widthratio ats_breakdown.nice_to_have.coverage 1 100 %}%</div>
+            {% else %}
+            <div class="mt-1.5 font-display italic tabular-nums text-3xl leading-none text-neutral-300 dark:text-neutral-600">—</div>
+            <div class="mt-2.5 h-1"></div>
+            <div class="mt-1.5 text-[11px] italic text-neutral-400 dark:text-neutral-500">none specified</div>
             {% endif %}
           </div>
           <div>
-            <div class="font-medium text-neutral-800 dark:text-neutral-200">In-context</div>
-            <div class="mt-1 tabular-nums {% if ats_breakdown.in_context.points %}text-brand-700 dark:text-brand-400{% else %}text-neutral-400 dark:text-neutral-500{% endif %}">
-              {% if ats_breakdown.in_context.points %}+{{ ats_breakdown.in_context.points|floatformat:1 }} <span class="text-neutral-400 dark:text-neutral-500">bonus</span>{% else %}none{% endif %}
-            </div>
+            <div class="text-xs font-medium text-neutral-600 dark:text-neutral-300">In-context</div>
+            <div class="mt-1.5 font-display italic tabular-nums text-3xl leading-none {% if ats_breakdown.in_context.points %}text-brand-600 dark:text-brand-400{% else %}text-neutral-300 dark:text-neutral-600{% endif %}">{% if ats_breakdown.in_context.points %}+{{ ats_breakdown.in_context.points|floatformat:1 }}{% else %}0{% endif %}</div>
+            <div class="mt-2.5 h-1"></div>
+            <div class="mt-1.5 text-[11px] text-neutral-500 dark:text-neutral-400">bonus</div>
           </div>
           <div>
-            <div class="font-medium text-neutral-800 dark:text-neutral-200">Stuffing</div>
-            <div class="mt-1 tabular-nums {% if ats_breakdown.stuffing.points %}text-red-600 dark:text-red-400{% else %}text-neutral-400 dark:text-neutral-500{% endif %}">
-              {% if ats_breakdown.stuffing.points %}−{{ ats_breakdown.stuffing.points|floatformat:1 }} <span class="text-neutral-400 dark:text-neutral-500">penalty</span>{% else %}none{% endif %}
-            </div>
+            <div class="text-xs font-medium text-neutral-600 dark:text-neutral-300">Stuffing</div>
+            <div class="mt-1.5 font-display italic tabular-nums text-3xl leading-none {% if ats_breakdown.stuffing.points %}text-red-600 dark:text-red-400{% else %}text-neutral-300 dark:text-neutral-600{% endif %}">{% if ats_breakdown.stuffing.points %}−{{ ats_breakdown.stuffing.points|floatformat:1 }}{% else %}0{% endif %}</div>
+            <div class="mt-2.5 h-1"></div>
+            <div class="mt-1.5 text-[11px] text-neutral-500 dark:text-neutral-400">penalty</div>
           </div>
         </div>
 
@@ -118,11 +124,11 @@ score block mirror via syncTab() — one source, three displays, never client ma
         toggles [data-details] via a delegated click so this fragment survives an
         innerHTML swap with no Alpine re-init. {% endcomment %}
         <button type="button" data-toggle-details
-                class="mt-4 text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400 hover:text-brand-700 dark:hover:text-brand-400">
+                class="mt-5 text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400 hover:text-brand-700 dark:hover:text-brand-400">
           See details
         </button>
 
-        <div data-details hidden class="mt-4 space-y-4 border-t border-neutral-200 dark:border-neutral-800 pt-4 text-xs">
+        <div data-details hidden class="mt-4 space-y-4 border-t border-neutral-200 dark:border-neutral-800 pt-4 text-xs text-left">
           <div>
             <div class="text-[11px] uppercase tracking-[0.12em] font-medium text-neutral-500 dark:text-neutral-400">Must-have skills</div>
             {% if ats_breakdown.must_have.matched %}
@@ -161,6 +167,7 @@ score block mirror via syncTab() — one source, three displays, never client ma
           {% endif %}
         </div>
       {% endif %}
+      </div>
     </div>
 
     {# ============ RIGHT — the ranked card groups (cards VERBATIM) ============ #}
@@ -169,21 +176,25 @@ score block mirror via syncTab() — one source, three displays, never client ma
     same shapes — no logic touched). Card markup + Slice-4 copy are VERBATIM. Group
     collapse uses the plain-HTML / delegated pattern (data-group-toggle /
     data-group-body) so the server-swapped fragment needs no Alpine re-init. Empty
-    groups are omitted; Quick wins open by default, the others collapsed. {% endcomment %}
+    groups are omitted; Quick wins open by default, the others collapsed (hidden);
+    the chevron rotation is CSS keyed off aria-expanded — no wiring change. {% endcomment %}
     <div>
       {% with qw=ats_cards|cards_of_kind:'actionable' ev=ats_cards|cards_of_kind:'quantify' wo=ats_cards|cards_of_kind:'advisory' %}
       <div class="text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400">Suggestions</div>
       {% if qw or ev or wo %}
-      <div class="mt-3 space-y-4">
+      <div class="mt-3 space-y-3">
 
         {% if qw %}
-        <div>
+        <div class="rounded-xl ring-1 ring-neutral-200 dark:ring-neutral-800 overflow-hidden">
           <button type="button" data-group-toggle="quick_wins" aria-expanded="true"
-                  class="w-full flex items-center justify-between gap-2 text-left text-xs font-semibold text-neutral-800 dark:text-neutral-200 hover:text-brand-700 dark:hover:text-brand-400">
-            <span class="inline-flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-brand-500"></span>Quick wins</span>
-            <span class="tabular-nums text-neutral-400 dark:text-neutral-500">{{ qw|length }}</span>
+                  class="group w-full flex items-center justify-between gap-2 text-left text-sm font-semibold text-neutral-800 dark:text-neutral-200 p-3.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/40">
+            <span class="inline-flex items-center gap-2.5"><span aria-hidden="true" class="w-2 h-2 rounded-full bg-brand-500"></span>Quick wins</span>
+            <span class="inline-flex items-center gap-2">
+              <span class="tabular-nums text-xs font-medium text-neutral-500 dark:text-neutral-400 rounded-full bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 ring-1 ring-neutral-200 dark:ring-neutral-700">{{ qw|length }}</span>
+              <svg aria-hidden="true" class="w-4 h-4 text-neutral-400 transition-transform group-aria-[expanded=true]:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </span>
           </button>
-          <div data-group-body="quick_wins" class="mt-2 space-y-3">
+          <div data-group-body="quick_wins" class="px-3.5 pb-3.5 space-y-3">
             {% for card in qw %}
             <div class="rounded-lg ring-1 ring-brand-200 dark:ring-brand-900 bg-brand-50/40 dark:bg-brand-950/20 p-3">
               <div class="flex items-start justify-between gap-2">
@@ -212,13 +223,16 @@ score block mirror via syncTab() — one source, three displays, never client ma
         {% endif %}
 
         {% if ev %}
-        <div>
+        <div class="rounded-xl ring-1 ring-neutral-200 dark:ring-neutral-800 overflow-hidden">
           <button type="button" data-group-toggle="add_evidence" aria-expanded="false"
-                  class="w-full flex items-center justify-between gap-2 text-left text-xs font-semibold text-neutral-800 dark:text-neutral-200 hover:text-indigo-700 dark:hover:text-indigo-400">
-            <span class="inline-flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>Add evidence</span>
-            <span class="tabular-nums text-neutral-400 dark:text-neutral-500">{{ ev|length }}</span>
+                  class="group w-full flex items-center justify-between gap-2 text-left text-sm font-semibold text-neutral-800 dark:text-neutral-200 p-3.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/40">
+            <span class="inline-flex items-center gap-2.5"><span aria-hidden="true" class="w-2 h-2 rounded-full bg-indigo-500"></span>Add evidence</span>
+            <span class="inline-flex items-center gap-2">
+              <span class="tabular-nums text-xs font-medium text-neutral-500 dark:text-neutral-400 rounded-full bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 ring-1 ring-neutral-200 dark:ring-neutral-700">{{ ev|length }}</span>
+              <svg aria-hidden="true" class="w-4 h-4 text-neutral-400 transition-transform group-aria-[expanded=true]:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </span>
           </button>
-          <div data-group-body="add_evidence" hidden class="mt-2 space-y-3">
+          <div data-group-body="add_evidence" hidden class="px-3.5 pb-3.5 space-y-3">
             {% for card in ev %}
             {% comment %} Category-2: ASK for a real number. Empty field, no suggested
             value, no delta — the user supplies everything; declining is a no-op. {% endcomment %}
@@ -249,13 +263,16 @@ score block mirror via syncTab() — one source, three displays, never client ma
         {% endif %}
 
         {% if wo %}
-        <div>
+        <div class="rounded-xl ring-1 ring-neutral-200 dark:ring-neutral-800 overflow-hidden">
           <button type="button" data-group-toggle="watch_outs" aria-expanded="false"
-                  class="w-full flex items-center justify-between gap-2 text-left text-xs font-semibold text-neutral-800 dark:text-neutral-200 hover:text-amber-700 dark:hover:text-amber-400">
-            <span class="inline-flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Watch-outs</span>
-            <span class="tabular-nums text-neutral-400 dark:text-neutral-500">{{ wo|length }}</span>
+                  class="group w-full flex items-center justify-between gap-2 text-left text-sm font-semibold text-neutral-800 dark:text-neutral-200 p-3.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/40">
+            <span class="inline-flex items-center gap-2.5"><span aria-hidden="true" class="w-2 h-2 rounded-full bg-amber-500"></span>Watch-outs</span>
+            <span class="inline-flex items-center gap-2">
+              <span class="tabular-nums text-xs font-medium text-neutral-500 dark:text-neutral-400 rounded-full bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 ring-1 ring-neutral-200 dark:ring-neutral-700">{{ wo|length }}</span>
+              <svg aria-hidden="true" class="w-4 h-4 text-neutral-400 transition-transform group-aria-[expanded=true]:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </span>
           </button>
-          <div data-group-body="watch_outs" hidden class="mt-2 space-y-3">
+          <div data-group-body="watch_outs" hidden class="px-3.5 pb-3.5 space-y-3">
             {% for card in wo %}
             <div class="rounded-lg ring-1 ring-amber-200 dark:ring-amber-900/50 bg-amber-50/40 dark:bg-amber-950/15 p-3">
               <div class="flex items-center gap-2">
@@ -279,7 +296,7 @@ score block mirror via syncTab() — one source, three displays, never client ma
   </div>
 
   {# Footer — honest disclaimer (no invented "how ATS works" destination). #}
-  <p class="mt-6 pt-4 border-t border-neutral-200 dark:border-neutral-800 text-center text-[11px] leading-relaxed text-neutral-400 dark:text-neutral-500">
+  <p class="mt-8 pt-4 border-t border-neutral-200 dark:border-neutral-800 text-center text-[11px] leading-relaxed text-neutral-400 dark:text-neutral-500">
     ATS scoring is approximate. Results vary by system and role. Focus on clear, relevant, and honest content.
   </p>
   {% endif %}

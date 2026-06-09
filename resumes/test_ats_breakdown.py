@@ -303,7 +303,9 @@ class NiceTierRenderTests(TestCase):
         )
         html = self._edit_html(user, resume)
         self.assertNotIn("none specified", html)   # NOT the absent branch
-        self.assertIn("0/1", html)                  # matched/total readout (0 of 1)
+        # populated zero-coverage readout: matched count + 0% coverage (the
+        # matched/total figure is split across a <span>, so assert the % label)
+        self.assertIn("0%", html)
         self.assertIn("Kubernetes", html)           # missed skill in the details
 
 
