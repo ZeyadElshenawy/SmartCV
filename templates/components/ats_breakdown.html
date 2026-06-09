@@ -9,7 +9,7 @@ PURE RENDER. Every number is server-supplied; there is NO client-side score
 math here — we deliberately do NOT repeat the gap_analysis.html JS score-mirror.
 The only client state is the `expanded` disclosure toggle.
 {% endcomment %}
-<div class="p-6 border-t border-neutral-200 dark:border-neutral-800" x-data="{ expanded: false }">
+<div class="p-6 border-t border-neutral-200 dark:border-neutral-800">
   {% if ats_breakdown %}
   {# Headline — reuse the house score primitive (auto-derives the colour band). #}
   {% include "components/score.html" with value=ats_score_display label="ATS score" %}
@@ -68,12 +68,15 @@ The only client state is the `expanded` disclosure toggle.
       {% endif %}
     </p>
 
-    <button type="button" @click="expanded = !expanded"
+    {% comment %} Disclosure toggle — plain HTML; the stable atsPanel() wrapper
+    toggles [data-details] via a delegated click so this fragment survives an
+    innerHTML swap with no Alpine re-init. {% endcomment %}
+    <button type="button" data-toggle-details
             class="mt-4 text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400 hover:text-brand-700 dark:hover:text-brand-400">
-      <span x-text="expanded ? 'Hide details' : 'See details'"></span>
+      See details
     </button>
 
-    <div x-show="expanded" x-transition class="mt-4 space-y-4 border-t border-neutral-200 dark:border-neutral-800 pt-4 text-xs">
+    <div data-details hidden class="mt-4 space-y-4 border-t border-neutral-200 dark:border-neutral-800 pt-4 text-xs">
       <div>
         <div class="text-[11px] uppercase tracking-[0.12em] font-medium text-neutral-500 dark:text-neutral-400">Must-have skills</div>
         {% if ats_breakdown.must_have.matched %}
@@ -129,8 +132,16 @@ The only client state is the `expanded` disclosure toggle.
           </span>
         </div>
         <p class="mt-1 text-xs leading-relaxed text-neutral-600 dark:text-neutral-400">{{ card.message }}</p>
-        <div class="mt-1.5 text-[11px] tabular-nums text-neutral-500 dark:text-neutral-400">
-          {{ card.current_score|floatformat:0 }}% &rarr; {{ card.projected_score|floatformat:0 }}%
+        <div class="mt-1.5 flex items-center justify-between gap-2">
+          <span class="text-[11px] tabular-nums text-neutral-500 dark:text-neutral-400">
+            {{ card.current_score|floatformat:0 }}% &rarr; {{ card.projected_score|floatformat:0 }}%
+          </span>
+          {% comment %} Apply button — plain HTML; the wrapper handles the click
+          (delegated) so a swapped-in button still works. No client-side score math. {% endcomment %}
+          <button type="button" data-apply-card="{{ card.id }}"
+                  class="shrink-0 inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            Add to skills
+          </button>
         </div>
       </div>
       {% else %}
