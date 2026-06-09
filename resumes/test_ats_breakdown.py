@@ -303,7 +303,7 @@ class NiceTierRenderTests(TestCase):
         )
         html = self._edit_html(user, resume)
         self.assertNotIn("none specified", html)   # NOT the absent branch
-        self.assertIn("0 matched", html)            # zero-coverage count row
+        self.assertIn("0/1", html)                  # matched/total readout (0 of 1)
         self.assertIn("Kubernetes", html)           # missed skill in the details
 
 
@@ -864,6 +864,25 @@ class AtsPanelRedesignTests(TestCase):
         self.assertIn("add a real number", html)     # Slice-4 copy intact
         # the reconciliation equation is kept (not replaced with prose)
         self.assertIn("Weighted base", html)
+        # the radial gauge — fill is server-data-bound (pathLength-normalized arc),
+        # NOT computed in JS
+        self.assertIn('pathLength="100"', html)
+        self.assertRegex(html, r'stroke-dasharray="[0-9.]+ 100"')
+        # the four REAL readouts (compute_ats_breakdown fields)
+        self.assertIn("Must-have", html)
+        self.assertIn("Nice-to-have", html)
+        self.assertIn("In-context", html)
+        self.assertIn(">Stuffing<", html)
+        # the honest footer disclaimer (no invented authority / impact numbers)
+        self.assertIn("ATS scoring is approximate", html)
+        # the Edit-tab score block + "View analysis" button (flips mode, no reload)
+        self.assertIn("View analysis", html)
+        self.assertIn("mode = 'analyze'", html)
+        # the score is one server source mirrored to two badges (toggle + Edit block)
+        self.assertGreaterEqual(html.count("data-ats-tab"), 2)
+        # the mockup's fabrications must NOT appear (the honesty line)
+        self.assertNotIn("high-performing", html.lower())
+        self.assertNotIn("+2%", html)
         for token in ("{#", "#}", "{% comment %}", "{% endcomment %}"):
             self.assertNotIn(token, html)
 
