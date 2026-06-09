@@ -110,7 +110,12 @@ document.addEventListener('DOMContentLoaded', function() {
             // Mark every step done before reloading so the user briefly
             // sees the "completed" state instead of an in-flight panel.
             liNodes.forEach((li, i) => _renderStep(li, 'done', op.steps[i].label));
-            setTimeout(() => { window.location.reload(); }, 400);
+            // Navigate to the bare path (drop any ?refresh=1) so the next load
+            // hits the cached-render branch. A plain reload() would preserve
+            // ?refresh=1 and re-trigger the computing screen forever. For the
+            // first-analysis flow the URL has no query string, so this is
+            // identical to a reload.
+            setTimeout(() => { window.location.href = window.location.pathname; }, 400);
         } else {
             throw new Error(data.error || 'Unknown error');
         }
@@ -219,6 +224,34 @@ document.addEventListener('DOMContentLoaded', function() {
                     <p class="pt-2 text-[11px] uppercase tracking-[0.16em] font-medium text-neutral-500 dark:text-neutral-400">
                         Analyzed your resume, GitHub, and projects.
                     </p>
+
+                    {% comment %}
+                    Reanalyze — re-runs the exact same trigger as the first
+                    analysis. Navigating to ?refresh=1 forces the view's
+                    recompute branch, which renders the shared "Reading the
+                    job…" progress screen; that screen POSTs to compute_gap_api,
+                    overwrites this job+profile's single GapAnalysis row
+                    (update_or_create), and reloads with fresh results. No new
+                    analysis logic — this is a link into the existing path. The
+                    @click busy state only bridges the navigation delay so the
+                    click is acknowledged before the progress screen paints.
+                    {% endcomment %}
+                    <div x-data="{ going: false }" class="pt-3">
+                        <a href="{% url 'gap_analysis' job.id %}?refresh=1"
+                           @click="going = true"
+                           :aria-disabled="going"
+                           :class="going ? 'pointer-events-none opacity-70' : ''"
+                           class="group/re inline-flex items-center gap-2 text-[13px] font-medium text-neutral-500 dark:text-neutral-400 hover:text-brand-700 dark:hover:text-brand-400 transition-colors">
+                            <svg x-show="!going" class="w-3.5 h-3.5 opacity-70 transition-transform duration-500 group-hover/re:rotate-180" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                            </svg>
+                            <svg x-show="going" x-cloak class="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                            </svg>
+                            <span x-text="going ? 'Reanalyzing…' : 'Reanalyze'">Reanalyze</span>
+                        </a>
+                    </div>
                 </div>
 
                 {# Right: tier-dependent primary action + quiet alternates #}
