@@ -22,7 +22,10 @@ from resumes.services.ats_breakdown import (
     breakdown_for_resume,
     refresh_ats_score,
     score_reconciles,
+    apply_edit_to_content,
+    score_with_edit,
 )
+from resumes.services.ats_cards import build_ats_cards, _ats_card_id
 
 # Keys the panel/endpoint depend on. `base` is the Slice-1 addition.
 ATS_BREAKDOWN_KEYS = {
@@ -296,3 +299,164 @@ class NiceTierRenderTests(TestCase):
         self.assertNotIn("none specified", html)   # NOT the absent branch
         self.assertIn("0 matched", html)            # zero-coverage count row
         self.assertIn("Kubernetes", html)           # missed skill in the details
+
+
+# ===========================================================================
+# Slice 2 — Category-1 cards (read-only, real deltas)
+# ===========================================================================
+
+class CandidateBuilderTests(TestCase):
+    """The pure hypothetical-edit constructor reused unchanged by Slice 3."""
+
+    def test_apply_edit_is_pure_and_deterministic(self):
+        content = {"skills": ["Python"]}
+        edit = {"op": "add_skill", "skill": "Docker"}
+        out1 = apply_edit_to_content(content, edit)
+        out2 = apply_edit_to_content(content, edit)
+        self.assertEqual(out1, out2)                       # deterministic
+        self.assertEqual(content, {"skills": ["Python"]})  # input NOT mutated
+        self.assertIn("Docker", out1["skills"])
+
+    def test_apply_edit_is_variant_idempotent(self):
+        # skills_match dedupe: a case/variant of an existing skill is not re-added.
+        out = apply_edit_to_content({"skills": ["Python"]}, {"op": "add_skill", "skill": "python"})
+        self.assertEqual(out["skills"], ["Python"])
+
+    def test_card_id_is_stable_and_type_scoped(self):
+        self.assertEqual(_ats_card_id("add_skill", "Docker"), _ats_card_id("add_skill", "docker"))
+        self.assertNotEqual(_ats_card_id("add_skill", "Docker"), _ats_card_id("stuffing", "Docker"))
+
+
+# A general fixture: 4 must-have skills; the candidate demonstrably HAS Docker
+# (evidence-backed gap match) but it's not in the résumé; Python is matched AND
+# present (so no card) and is also stuffed; Kubernetes is user-asserted and SQL
+# is unevidenced (both must be filtered out).
+def _producer_chain(user):
+    job = Job.objects.create(
+        user=user, title="Engineer", description="JD",
+        extracted_skills=["Python", "SQL", "Docker", "Kubernetes"],
+        extracted_skills_tiers={},   # no tiers → all must-have
+    )
+    gap = GapAnalysis.objects.create(
+        user=user, job=job,
+        matched_must_have=[
+            {"name": "Docker", "evidence_source": "projects",
+             "evidence_quote": "built CI/CD with Docker"},
+            {"name": "Python", "evidence_source": "experience",
+             "evidence_quote": "Used Python daily."},
+            {"name": "Kubernetes", "evidence_source": "user",
+             "evidence_quote": "", "user_asserted": True},
+            {"name": "SQL", "evidence_source": "", "evidence_quote": ""},
+        ],
+    )
+    resume = GeneratedResume.objects.create(
+        gap_analysis=gap,
+        content={
+            "skills": ["Python"],
+            "experience": [{"title": "E",
+                            "description": ["Used Python Python Python Python Python daily."]}],
+        },
+    )
+    return job, gap, resume
+
+
+class AtsCardProducerTests(TestCase):
+    def setUp(self):
+        self.user = _user("producer@example.com")
+        self.job, self.gap, self.resume = _producer_chain(self.user)
+        self.cards = build_ats_cards(self.resume)
+        self.actionable = [c for c in self.cards if c["kind"] == "actionable"]
+        self.advisory = [c for c in self.cards if c["kind"] == "advisory"]
+
+    def _docker(self):
+        return next(c for c in self.actionable if c["skill"] == "Docker")
+
+    def test_only_evidence_backed_missing_skill_is_carded(self):
+        # Docker is the ONLY actionable card: it's evidence-backed AND missing.
+        self.assertEqual([c["skill"] for c in self.actionable], ["Docker"])
+
+    def test_provenance_filter_excludes_user_asserted_and_unevidenced(self):
+        skills = [c["skill"] for c in self.actionable]
+        self.assertNotIn("Kubernetes", skills)   # user_asserted → dropped
+        self.assertNotIn("SQL", skills)          # no evidence_source/quote → dropped
+
+    def test_skill_already_in_resume_is_not_carded(self):
+        # Python is matched-with-evidence but PRESENT in the résumé (not missed).
+        self.assertNotIn("Python", [c["skill"] for c in self.actionable])
+
+    def test_delta_is_real_recompute(self):
+        card = self._docker()
+        current = breakdown_for_resume(self.resume)["score"]
+        hypo = apply_edit_to_content(self.resume.content, card["edit"])
+        expected = round(breakdown_for_resume(self.resume, hypo)["score"] - current, 1)
+        self.assertEqual(card["delta"], expected)
+        self.assertGreater(card["delta"], 0.0)
+        self.assertIn("Docker", hypo["skills"])
+
+    def test_previewed_equals_realized(self):
+        # The card's projected_score == scoring the content Slice 3 will persist.
+        card = self._docker()
+        applied = apply_edit_to_content(self.resume.content, card["edit"])
+        self.assertEqual(breakdown_for_resume(self.resume, applied)["score"],
+                         card["projected_score"])
+
+    def test_card_a_is_coverage_only(self):
+        # Adding to the skills line must NOT earn the in-context bonus.
+        current = breakdown_for_resume(self.resume)
+        hypo = apply_edit_to_content(self.resume.content, self._docker()["edit"])
+        new_bd = breakdown_for_resume(self.resume, hypo)
+        self.assertEqual(new_bd["in_context_count"], current["in_context_count"])
+
+    def test_card_a_copy_says_ats_score_not_match(self):
+        msg = self._docker()["message"]
+        self.assertIn("ATS score", msg)
+        self.assertNotIn("raises your match", msg)
+        self.assertIn("coverage", msg)
+        self.assertIn("built CI/CD with Docker", msg)   # grounded in real evidence
+
+    def test_stuffing_card_is_advisory_only(self):
+        py = next(c for c in self.advisory if c["skill"] == "Python")
+        self.assertEqual(py["recoverable"], 5.0)
+        self.assertNotIn("delta", py)
+        self.assertNotIn("edit", py)
+
+    def test_cards_render_distinct_with_no_leaked_syntax(self):
+        self.client.force_login(self.user)
+        resp = self.client.get(reverse("resume_edit", args=[self.resume.id]))
+        self.assertIn("ats_cards", resp.context)
+        html = resp.content.decode()
+        for token in ("{#", "#}", "{% comment %}", "{% endcomment %}"):
+            self.assertNotIn(token, html)
+        self.assertIn("Docker", html)            # actionable card
+        self.assertIn("ATS score", html)         # honesty wording
+        self.assertNotIn("raises your match", html)
+        self.assertIn("advisory", html)          # advisory card distinguishable
+
+
+class ZeroDeltaCardTests(TestCase):
+    def test_zero_delta_card_is_filtered(self):
+        # Construct a clamp at 100 with one missed, evidence-backed skill:
+        # 9 of 10 skills matched AND in a bullet (in-context bonus maxes at +10),
+        # base = 90 → score 100. Adding the 10th keeps it clamped → delta 0.
+        user = _user("zerodelta@example.com")
+        matched = [f"S{i}" for i in range(9)]
+        all_skills = matched + ["Sgap"]
+        job = Job.objects.create(
+            user=user, title="E", description="JD",
+            extracted_skills=all_skills, extracted_skills_tiers={},
+        )
+        gap = GapAnalysis.objects.create(
+            user=user, job=job,
+            matched_must_have=[{"name": "Sgap", "evidence_source": "projects",
+                                "evidence_quote": "used Sgap in a project"}],
+        )
+        resume = GeneratedResume.objects.create(
+            gap_analysis=gap,
+            content={"skills": matched,
+                     "experience": [{"title": "E", "description": [" ".join(matched)]}]},
+        )
+        self.assertEqual(breakdown_for_resume(resume)["score"], 100.0)   # clamped
+        _bd, delta = score_with_edit(resume, {"op": "add_skill", "skill": "Sgap"})
+        self.assertEqual(delta, 0.0)
+        actionable = [c for c in build_ats_cards(resume) if c["kind"] == "actionable"]
+        self.assertNotIn("Sgap", [c["skill"] for c in actionable])
