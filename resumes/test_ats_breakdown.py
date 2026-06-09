@@ -789,7 +789,12 @@ class QuantifySubmitTests(TestCase):
         self.assertIn("data-quantify-input", html)
         # The textarea has no pre-filled content: between the opening tag's '>'
         # and </textarea> there is nothing but whitespace (no suggested number).
-        i = html.find("data-quantify-input")
+        # Anchor on the real <textarea> element, not the bare attribute — the
+        # atsPanel() <script> also contains a [data-quantify-input] selector and
+        # (post v2 redesign) renders before the panel, so a substring search
+        # would otherwise latch onto the JS occurrence.
+        i = html.find("<textarea data-quantify-input")
+        self.assertNotEqual(i, -1)
         j = html.find("</textarea>", i)
         self.assertNotEqual(j, -1)
         after_open_tag = html[i:j].split(">", 1)[1]   # content after the opening tag closes
@@ -844,11 +849,15 @@ class AtsPanelRedesignTests(TestCase):
         self.assertIn("Add evidence", html)
         self.assertIn("Watch-outs", html)
         self.assertIn("data-group-toggle", html)
-        # the slide-over hooks
-        self.assertIn("data-panel-toggle", html)    # the persistent score tab
-        self.assertIn("data-panel-close", html)
-        self.assertIn("data-ats-score", html)        # syncTab() source
-        self.assertIn("data-ats-tab", html)          # syncTab() target
+        # the Edit | Analyze mode toggle (replaces the removed slide-over tab/close)
+        self.assertIn('role="tablist"', html)        # the segmented toggle
+        self.assertIn("mode = 'edit'", html)         # Edit segment
+        self.assertIn("mode = 'analyze'", html)      # Analyze segment
+        self.assertIn("x-show=\"mode === 'analyze'\"", html)  # the Analyze-view container
+        self.assertNotIn("data-panel-toggle", html)  # slide-over removed
+        self.assertNotIn("data-panel-close", html)
+        self.assertIn("data-ats-score", html)        # syncTab() source (in panel)
+        self.assertIn("data-ats-tab", html)          # syncTab() target (toggle badge)
         # the card hooks survive verbatim inside the groups
         self.assertIn("data-apply-card", html)
         self.assertIn("data-quantify-submit", html)

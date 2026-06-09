@@ -13,7 +13,7 @@ The only client state is the `expanded` disclosure toggle.
 <div class="p-5">
   {% if ats_breakdown %}
   {# Headline — reuse the house score primitive (auto-derives the colour band). #}
-  {% include "components/score.html" with value=ats_score_display label="ATS score" %}
+  {% include "components/score.html" with value=ats_score_display label="ATS score" size="lg" %}
   {# Hook the edge score tab mirrors via syncTab() — a value copy, never client math. #}
   <span data-ats-score class="hidden">{{ ats_score_display }}</span>
 
