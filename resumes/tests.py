@@ -941,7 +941,7 @@ class DocxExportTests(TestCase):
             self.assertIn('word/document.xml', names)
             doc_xml = z.read('word/document.xml').decode('utf-8')
         # Spot-check: the candidate's name should appear in the document XML
-        self.assertIn('ADA LOVELACE', doc_xml)
+        self.assertIn('Ada Lovelace', doc_xml)   # mixed case — name is a title, not a caps block
         # Section headings the saved order asks for should all be present
         self.assertIn('PROFESSIONAL SUMMARY', doc_xml)
         self.assertIn('SKILLS', doc_xml)
@@ -997,7 +997,7 @@ class DocxExportTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
             doc_xml = z.read('word/document.xml').decode('utf-8')
-        self.assertIn('ADA LOVELACE', doc_xml)
+        self.assertIn('Ada Lovelace', doc_xml)   # mixed case — name is a title, not a caps block
         # No Skills heading because skills was empty
         self.assertNotIn('SKILLS', doc_xml)
 
