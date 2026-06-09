@@ -41,16 +41,23 @@ DEFAULT_SECTION_ORDER = list(RESUME_SECTION_KEYS)
 # All visual choices live here so a future tweak (e.g. brand color) is
 # one-line. Sizes intentionally restrained — ATS parsers do better with
 # plain text than with stylized blocks.
-NAME_PT = 18
+# Type scale mirrors the PDF reference's hierarchy (pdf_base.html): a clear
+# three-tier name > section-heading > body. The PDF runs name 22 / section 14 /
+# body 10.5 (≈2.1x / 1.33x); these reproduce those PROPORTIONS on a 10pt body so
+# the DOCX is scannable instead of flat.
+NAME_PT = 20            # ≈2.0x body — a clear title (PDF: 22pt on 10.5)
 TITLE_PT = 12
-CONTACT_PT = 9
-SECTION_HEADING_PT = 11
+CONTACT_PT = 9.5
+SECTION_HEADING_PT = 13  # ≈1.3x body — the middle tier (was 11 ≈ 1.1x: too flat)
 ITEM_TITLE_PT = 10.5
 ITEM_SUB_PT = 10
 BODY_PT = 10
 BULLET_PT = 10
 
 ACCENT_RGB = RGBColor(0x1E, 0x3A, 0x8A)  # brand-900 — used sparingly
+RULE_RGB = '334155'  # slate-700 — section + header underline; the PDF uses a
+                     # dark rule (#000). Darker than the old slate-400 so the
+                     # section separators actually read as separators.
 
 
 def _add_hyperlink(paragraph, url: str, text: str, color: Optional[RGBColor] = None) -> None:
@@ -105,10 +112,11 @@ def _add_section_heading(doc: Document, text: str) -> None:
     looks like an empty block above the body content.
     """
     p = doc.add_paragraph()
-    # Tighter top-space (was 10pt) so a heading that gets pushed to a
-    # new page doesn't leave a visible whitespace band above itself.
-    p.paragraph_format.space_before = Pt(6)
-    p.paragraph_format.space_after = Pt(2)
+    # Breathing room that mirrors the PDF's rhythm: a clear gap ABOVE each
+    # heading separates sections; the gap below sits the rule off the body so
+    # the heading reads as a header, not another body line.
+    p.paragraph_format.space_before = Pt(14)
+    p.paragraph_format.space_after = Pt(6)
     run = p.add_run(text.upper())
     _set_run_font(run, size_pt=SECTION_HEADING_PT, bold=True, color=ACCENT_RGB)
     # Bottom border on the heading paragraph for the underlined look,
@@ -121,8 +129,8 @@ def _add_section_heading(doc: Document, text: str) -> None:
     bottom = OxmlElement('w:bottom')
     bottom.set(qn('w:val'), 'single')
     bottom.set(qn('w:sz'), '6')
-    bottom.set(qn('w:space'), '1')
-    bottom.set(qn('w:color'), '94A3B8')  # slate-400
+    bottom.set(qn('w:space'), '2')
+    bottom.set(qn('w:color'), RULE_RGB)
     pBdr.append(bottom)
     pPr.append(pBdr)
 
@@ -139,7 +147,7 @@ def _bullet(doc: Document, text: str) -> None:
     if not text:
         return
     p = doc.add_paragraph(style='List Bullet')
-    p.paragraph_format.space_after = Pt(2)
+    p.paragraph_format.space_after = Pt(3)
     run = p.runs[0] if p.runs else p.add_run()
     if not p.runs[0].text:
         # python-docx creates an empty run with the style; use it.
@@ -284,7 +292,9 @@ def _write_header(doc: Document, profile, content: dict) -> None:
     p = doc.add_paragraph()
     p.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
     p.paragraph_format.space_after = Pt(2)
-    run = p.add_run(name.upper())
+    # Mixed case, like the PDF — an UPPERCASED name reads as a heavy block, not
+    # a title. The size + the header rule below carry the prominence instead.
+    run = p.add_run(name)
     _set_run_font(run, size_pt=NAME_PT, bold=True)
 
     # Professional title (skip when empty so we don't render a blank line)
@@ -300,7 +310,19 @@ def _write_header(doc: Document, profile, content: dict) -> None:
     # readable while LinkedIn/GitHub/etc. stay clickable.
     contact_p = doc.add_paragraph()
     contact_p.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-    contact_p.paragraph_format.space_after = Pt(8)
+    contact_p.paragraph_format.space_after = Pt(10)
+    # Header rule — a thin underline beneath the whole header block, mirroring
+    # the PDF's .resume-header border-bottom; it separates the header from the
+    # first section so the name/contact read as one unit.
+    _hdr_pPr = contact_p._p.get_or_add_pPr()
+    _hdr_pBdr = OxmlElement('w:pBdr')
+    _hdr_bottom = OxmlElement('w:bottom')
+    _hdr_bottom.set(qn('w:val'), 'single')
+    _hdr_bottom.set(qn('w:sz'), '6')
+    _hdr_bottom.set(qn('w:space'), '4')
+    _hdr_bottom.set(qn('w:color'), RULE_RGB)
+    _hdr_pBdr.append(_hdr_bottom)
+    _hdr_pPr.append(_hdr_pBdr)
 
     SEP = ' · '
     first = True
@@ -388,7 +410,7 @@ def _write_experience(doc: Document, content: dict) -> None:
         # Title + duration on the same paragraph: title left-aligned,
         # duration right-aligned via a tab stop.
         head = doc.add_paragraph()
-        head.paragraph_format.space_before = Pt(4)
+        head.paragraph_format.space_before = Pt(8)
         head.paragraph_format.space_after = Pt(0)
         # Round 1.5.2: keep_with_next pins the job title to its
         # sub-header (company line). The audit caught an orphan widow
@@ -459,7 +481,7 @@ def _write_education(doc: Document, content: dict) -> None:
         else:
             degree_text = degree
         head = doc.add_paragraph()
-        head.paragraph_format.space_before = Pt(2)
+        head.paragraph_format.space_before = Pt(6)
         head.paragraph_format.space_after = Pt(0)
         head.paragraph_format.tab_stops.add_tab_stop(Inches(6.5), WD_PARAGRAPH_ALIGNMENT.RIGHT)
         title_run = head.add_run(degree_text)
@@ -497,7 +519,7 @@ def _write_projects(doc: Document, content: dict) -> None:
         name = proj.get('name', '')
         url = proj.get('url', '')
         head = doc.add_paragraph()
-        head.paragraph_format.space_before = Pt(2)
+        head.paragraph_format.space_before = Pt(8)
         head.paragraph_format.space_after = Pt(2)
         # Round 1.5: explicitly disable keep_with_next on project title
         # paragraphs so Word never sticks them to the following bullets
