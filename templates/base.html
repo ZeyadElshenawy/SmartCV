@@ -156,6 +156,7 @@
 <main class="flex-grow bg-neutral-50 dark:bg-neutral-950">
         {% block content %}{% endblock %}
     </main>
+{% block footer %}
 <footer class="border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
             <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
@@ -192,6 +193,7 @@
             </div>
         </div>
     </footer>
+{% endblock %}
 <div id="loading-overlay" class="hidden fixed inset-0 bg-neutral-900/70 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
         <div class="max-w-md w-full text-center space-y-6 px-6">
             {# Idle hero — single-line legacy mode + headline for substep mode #}
