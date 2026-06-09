@@ -794,3 +794,86 @@ class QuantifySubmitTests(TestCase):
         self.assertNotEqual(j, -1)
         after_open_tag = html[i:j].split(">", 1)[1]   # content after the opening tag closes
         self.assertEqual(after_open_tag.strip(), "")
+
+
+# ===========================================================================
+# Editor redesign — hybrid ATS slide-over (presentation only)
+# ===========================================================================
+
+class AtsPanelRedesignTests(TestCase):
+    def test_cards_of_kind_filter(self):
+        from resumes.templatetags.ats_cards_extras import cards_of_kind
+        cards = [{"kind": "actionable"}, {"kind": "quantify"},
+                 {"kind": "quantify"}, {"kind": "advisory"}]
+        self.assertEqual(len(cards_of_kind(cards, "quantify")), 2)
+        self.assertEqual(len(cards_of_kind(cards, "actionable")), 1)
+        self.assertEqual(len(cards_of_kind(cards, "advisory")), 1)
+        self.assertEqual(cards_of_kind([], "actionable"), [])
+        self.assertEqual(cards_of_kind(None, "advisory"), [])
+
+    def _all_kinds(self, email):
+        user = _user(email)
+        UserProfile.objects.create(user=user, data_content={
+            "experiences": [{"title": "Backend Engineer", "company": "PriorCo",
+                             "description": ["Maintained services."]}]})
+        job = Job.objects.create(
+            user=user, title="E", description="JD",
+            extracted_skills=["Python", "Docker"],
+            extracted_skills_tiers={"must_have": ["Python", "Docker"], "nice_to_have": []})
+        gap = GapAnalysis.objects.create(user=user, job=job, matched_must_have=[
+            {"name": "Docker", "evidence_source": "projects",
+             "evidence_quote": "Built CI/CD with Docker"}])
+        resume = GeneratedResume.objects.create(gap_analysis=gap, content={
+            "skills": ["Python"],
+            "experience": [{"title": "Backend Engineer", "company": "PriorCo", "description": [
+                "Led the migration of the billing service to a new datastore.",
+                "Shipped 12 services in Python. Python Python Python Python Python."]}]})
+        return user, resume
+
+    def test_three_groups_render_with_counts_and_hooks(self):
+        user, resume = self._all_kinds("redesign@example.com")
+        kinds = [c["kind"] for c in build_ats_cards(resume)]
+        self.assertIn("actionable", kinds)
+        self.assertIn("quantify", kinds)
+        self.assertIn("advisory", kinds)
+        self.client.force_login(user)
+        html = self.client.get(reverse("resume_edit", args=[resume.id]),
+                               HTTP_HOST="localhost").content.decode()
+        # the three counted groups
+        self.assertIn("Quick wins", html)
+        self.assertIn("Add evidence", html)
+        self.assertIn("Watch-outs", html)
+        self.assertIn("data-group-toggle", html)
+        # the slide-over hooks
+        self.assertIn("data-panel-toggle", html)    # the persistent score tab
+        self.assertIn("data-panel-close", html)
+        self.assertIn("data-ats-score", html)        # syncTab() source
+        self.assertIn("data-ats-tab", html)          # syncTab() target
+        # the card hooks survive verbatim inside the groups
+        self.assertIn("data-apply-card", html)
+        self.assertIn("data-quantify-submit", html)
+        self.assertIn("add a real number", html)     # Slice-4 copy intact
+        # the reconciliation equation is kept (not replaced with prose)
+        self.assertIn("Weighted base", html)
+        for token in ("{#", "#}", "{% comment %}", "{% endcomment %}"):
+            self.assertNotIn(token, html)
+
+    def test_empty_groups_omitted(self):
+        # Only a quantify card → no Quick wins / Watch-outs headers.
+        user = _user("onlyquant@example.com")
+        UserProfile.objects.create(user=user, data_content={
+            "experiences": [{"title": "Eng", "company": "Co", "description": ["x"]}]})
+        job = Job.objects.create(user=user, title="E", description="JD",
+                                 extracted_skills=["Python"], extracted_skills_tiers={})
+        gap = GapAnalysis.objects.create(user=user, job=job)
+        resume = GeneratedResume.objects.create(gap_analysis=gap, content={
+            "skills": ["Python"],
+            "experience": [{"title": "Eng", "company": "Co", "description": [
+                "Led the migration of the billing service to a new datastore."]}]})
+        self.assertEqual([c["kind"] for c in build_ats_cards(resume)], ["quantify"])
+        self.client.force_login(user)
+        html = self.client.get(reverse("resume_edit", args=[resume.id]),
+                               HTTP_HOST="localhost").content.decode()
+        self.assertIn("Add evidence", html)
+        self.assertNotIn("Quick wins", html)
+        self.assertNotIn("Watch-outs", html)

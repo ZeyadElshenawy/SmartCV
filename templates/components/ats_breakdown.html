@@ -9,10 +9,13 @@ PURE RENDER. Every number is server-supplied; there is NO client-side score
 math here — we deliberately do NOT repeat the gap_analysis.html JS score-mirror.
 The only client state is the `expanded` disclosure toggle.
 {% endcomment %}
-<div class="p-6 border-t border-neutral-200 dark:border-neutral-800">
+{% load ats_cards_extras %}
+<div class="p-5">
   {% if ats_breakdown %}
   {# Headline — reuse the house score primitive (auto-derives the colour band). #}
   {% include "components/score.html" with value=ats_score_display label="ATS score" %}
+  {# Hook the edge score tab mirrors via syncTab() — a value copy, never client math. #}
+  <span data-ats-score class="hidden">{{ ats_score_display }}</span>
 
   {% if ats_breakdown.total_count == 0 %}
     <p class="mt-3 text-xs text-neutral-500 dark:text-neutral-400">
@@ -117,68 +120,111 @@ The only client state is the `expanded` disclosure toggle.
   {% endif %}
   {% endif %}
 
-  {% comment %} Category-1 cards (Slice 2) — read-only; every delta is server-computed, no client math. {% endcomment %}
-  {% if ats_cards %}
-  <div class="mt-6 pt-5 border-t border-neutral-200 dark:border-neutral-800 space-y-3">
-    <div class="text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400">Raise your score</div>
-    {% for card in ats_cards %}
-      {% if card.kind == 'actionable' %}
-      <div class="rounded-lg ring-1 ring-brand-200 dark:ring-brand-900 bg-brand-50/40 dark:bg-brand-950/20 p-3">
-        <div class="flex items-start justify-between gap-2">
-          <span class="text-sm font-medium text-neutral-900 dark:text-neutral-100">{{ card.skill }}</span>
-          <span class="shrink-0 inline-flex items-baseline gap-1 text-xs font-semibold text-brand-700 dark:text-brand-300 tabular-nums">
-            +{{ card.delta|floatformat:1 }}
-            <span class="text-[10px] font-medium uppercase tracking-wide opacity-70">coverage</span>
-          </span>
-        </div>
-        <p class="mt-1 text-xs leading-relaxed text-neutral-600 dark:text-neutral-400">{{ card.message }}</p>
-        <div class="mt-1.5 flex items-center justify-between gap-2">
-          <span class="text-[11px] tabular-nums text-neutral-500 dark:text-neutral-400">
-            {{ card.current_score|floatformat:0 }}% &rarr; {{ card.projected_score|floatformat:0 }}%
-          </span>
-          {% comment %} Apply button — plain HTML; the wrapper handles the click
-          (delegated) so a swapped-in button still works. No client-side score math. {% endcomment %}
-          <button type="button" data-apply-card="{{ card.id }}"
-                  class="shrink-0 inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-            Add to skills
-          </button>
-        </div>
-      </div>
-      {% elif card.kind == 'quantify' %}
-      {% comment %} Category-2: ASK for a real number. Empty field, no suggested
-      value, no delta — the user supplies everything; declining is a no-op. {% endcomment %}
-      <div class="rounded-lg ring-1 ring-indigo-200 dark:ring-indigo-900/50 bg-indigo-50/40 dark:bg-indigo-950/15 p-3"
-           data-quantify-card="{{ card.id }}">
-        <div class="flex items-center gap-2">
-          <span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
-          <span class="text-[10px] font-medium uppercase tracking-wide text-indigo-700 dark:text-indigo-400">add a real number</span>
-        </div>
-        <p class="mt-1.5 text-xs text-neutral-700 dark:text-neutral-300">{{ card.bullet_text }}</p>
-        <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{{ card.message }}</p>
-        <div data-quantify-body class="mt-2">
-          <textarea data-quantify-input rows="2"
-                    placeholder="what changed, by how much — in your own words"
-                    class="w-full text-xs rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"></textarea>
-          <p class="mt-1 text-[11px] text-neutral-400 dark:text-neutral-500">{{ card.save_note }}</p>
-          <div class="mt-2 flex items-center gap-2">
-            <button type="button" data-quantify-submit
-                    class="px-2.5 py-1 rounded-md text-xs font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">Save to profile</button>
-            <button type="button" data-quantify-dismiss
-                    class="px-2.5 py-1 rounded-md text-xs font-medium text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300">Not now</button>
+  {% comment %} Suggestions — the Slice 2-4 cards, grouped into three counted,
+  collapsible groups via the presentation-only cards_of_kind filter (same cards,
+  same shapes — no logic touched). Card markup + Slice-4 copy are VERBATIM. Group
+  collapse uses the plain-HTML / delegated pattern (data-group-toggle /
+  data-group-body) so the server-swapped fragment needs no Alpine re-init. Empty
+  groups are omitted; Quick wins open by default, the others collapsed. {% endcomment %}
+  {% with qw=ats_cards|cards_of_kind:'actionable' ev=ats_cards|cards_of_kind:'quantify' wo=ats_cards|cards_of_kind:'advisory' %}
+  {% if qw or ev or wo %}
+  <div class="mt-6 pt-5 border-t border-neutral-200 dark:border-neutral-800 space-y-4">
+    <div class="text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400">Suggestions</div>
+
+    {% if qw %}
+    <div>
+      <button type="button" data-group-toggle="quick_wins" aria-expanded="true"
+              class="w-full flex items-center justify-between gap-2 text-left text-xs font-semibold text-neutral-800 dark:text-neutral-200 hover:text-brand-700 dark:hover:text-brand-400">
+        <span class="inline-flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-brand-500"></span>Quick wins</span>
+        <span class="tabular-nums text-neutral-400 dark:text-neutral-500">{{ qw|length }}</span>
+      </button>
+      <div data-group-body="quick_wins" class="mt-2 space-y-3">
+        {% for card in qw %}
+        <div class="rounded-lg ring-1 ring-brand-200 dark:ring-brand-900 bg-brand-50/40 dark:bg-brand-950/20 p-3">
+          <div class="flex items-start justify-between gap-2">
+            <span class="text-sm font-medium text-neutral-900 dark:text-neutral-100">{{ card.skill }}</span>
+            <span class="shrink-0 inline-flex items-baseline gap-1 text-xs font-semibold text-brand-700 dark:text-brand-300 tabular-nums">
+              +{{ card.delta|floatformat:1 }}
+              <span class="text-[10px] font-medium uppercase tracking-wide opacity-70">coverage</span>
+            </span>
+          </div>
+          <p class="mt-1 text-xs leading-relaxed text-neutral-600 dark:text-neutral-400">{{ card.message }}</p>
+          <div class="mt-1.5 flex items-center justify-between gap-2">
+            <span class="text-[11px] tabular-nums text-neutral-500 dark:text-neutral-400">
+              {{ card.current_score|floatformat:0 }}% &rarr; {{ card.projected_score|floatformat:0 }}%
+            </span>
+            {% comment %} Apply button — plain HTML; the wrapper handles the click
+            (delegated) so a swapped-in button still works. No client-side score math. {% endcomment %}
+            <button type="button" data-apply-card="{{ card.id }}"
+                    class="shrink-0 inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+              Add to skills
+            </button>
           </div>
         </div>
+        {% endfor %}
       </div>
-      {% else %}
-      <div class="rounded-lg ring-1 ring-amber-200 dark:ring-amber-900/50 bg-amber-50/40 dark:bg-amber-950/15 p-3">
-        <div class="flex items-center gap-2">
-          <span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-          <span class="text-sm font-medium text-neutral-900 dark:text-neutral-100">{{ card.skill }}</span>
-          <span class="ml-auto text-[10px] font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">advisory</span>
+    </div>
+    {% endif %}
+
+    {% if ev %}
+    <div>
+      <button type="button" data-group-toggle="add_evidence" aria-expanded="false"
+              class="w-full flex items-center justify-between gap-2 text-left text-xs font-semibold text-neutral-800 dark:text-neutral-200 hover:text-indigo-700 dark:hover:text-indigo-400">
+        <span class="inline-flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>Add evidence</span>
+        <span class="tabular-nums text-neutral-400 dark:text-neutral-500">{{ ev|length }}</span>
+      </button>
+      <div data-group-body="add_evidence" hidden class="mt-2 space-y-3">
+        {% for card in ev %}
+        {% comment %} Category-2: ASK for a real number. Empty field, no suggested
+        value, no delta — the user supplies everything; declining is a no-op. {% endcomment %}
+        <div class="rounded-lg ring-1 ring-indigo-200 dark:ring-indigo-900/50 bg-indigo-50/40 dark:bg-indigo-950/15 p-3"
+             data-quantify-card="{{ card.id }}">
+          <div class="flex items-center gap-2">
+            <span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+            <span class="text-[10px] font-medium uppercase tracking-wide text-indigo-700 dark:text-indigo-400">add a real number</span>
+          </div>
+          <p class="mt-1.5 text-xs text-neutral-700 dark:text-neutral-300">{{ card.bullet_text }}</p>
+          <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{{ card.message }}</p>
+          <div data-quantify-body class="mt-2">
+            <textarea data-quantify-input rows="2"
+                      placeholder="what changed, by how much — in your own words"
+                      class="w-full text-xs rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"></textarea>
+            <p class="mt-1 text-[11px] text-neutral-400 dark:text-neutral-500">{{ card.save_note }}</p>
+            <div class="mt-2 flex items-center gap-2">
+              <button type="button" data-quantify-submit
+                      class="px-2.5 py-1 rounded-md text-xs font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">Save to profile</button>
+              <button type="button" data-quantify-dismiss
+                      class="px-2.5 py-1 rounded-md text-xs font-medium text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300">Not now</button>
+            </div>
+          </div>
         </div>
-        <p class="mt-1 text-xs leading-relaxed text-neutral-600 dark:text-neutral-400">{{ card.message }}</p>
+        {% endfor %}
       </div>
-      {% endif %}
-    {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if wo %}
+    <div>
+      <button type="button" data-group-toggle="watch_outs" aria-expanded="false"
+              class="w-full flex items-center justify-between gap-2 text-left text-xs font-semibold text-neutral-800 dark:text-neutral-200 hover:text-amber-700 dark:hover:text-amber-400">
+        <span class="inline-flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Watch-outs</span>
+        <span class="tabular-nums text-neutral-400 dark:text-neutral-500">{{ wo|length }}</span>
+      </button>
+      <div data-group-body="watch_outs" hidden class="mt-2 space-y-3">
+        {% for card in wo %}
+        <div class="rounded-lg ring-1 ring-amber-200 dark:ring-amber-900/50 bg-amber-50/40 dark:bg-amber-950/15 p-3">
+          <div class="flex items-center gap-2">
+            <span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+            <span class="text-sm font-medium text-neutral-900 dark:text-neutral-100">{{ card.skill }}</span>
+            <span class="ml-auto text-[10px] font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">advisory</span>
+          </div>
+          <p class="mt-1 text-xs leading-relaxed text-neutral-600 dark:text-neutral-400">{{ card.message }}</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
   </div>
   {% endif %}
+  {% endwith %}
 </div>

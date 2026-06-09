@@ -44,6 +44,41 @@
         <span class="text-sm font-medium">Saved.</span>
     </div>
 
+{% comment %} ATS analysis — page-level summonable slide-over (replaces the old
+resident rail). The STABLE atsPanel() wrapper (never torn down) owns: the
+persistent score tab, the open/close of the slide-over, and — unchanged from
+Slices 1-4 — the apply/quantify/details delegated handlers + the $refs.panel
+swap. Open/close is a CSS transform (always mounted), so $refs.panel and the
+listeners survive open/close AND apply swaps. Zero client-side score math —
+syncTab() copies the server's score into the tab. {% endcomment %}
+<div x-data="atsPanel('{% url 'resume_ats_apply_api' resume.id %}', '{% url 'resume_ats_quantify_api' resume.id %}')"
+     x-init="syncTab()" @click="onClick($event)" @keydown.escape.window="open = false">
+  {# Persistent score tab — right edge (md+), bottom-right pill (mobile). #}
+  <button type="button" data-panel-toggle aria-label="Open ATS analysis"
+          class="fixed z-30 right-0 top-1/2 -translate-y-1/2 flex flex-col items-center gap-0.5 rounded-l-xl px-2.5 py-3 shadow-lg bg-brand-600 text-white hover:bg-brand-700 transition-opacity
+                 max-md:top-auto max-md:bottom-5 max-md:right-5 max-md:translate-y-0 max-md:flex-row max-md:gap-1.5 max-md:rounded-full max-md:px-4 max-md:py-2.5"
+          :class="open ? 'opacity-0 pointer-events-none' : 'opacity-100'">
+    <span data-ats-tab class="text-lg font-display font-semibold tabular-nums leading-none" style="font-variation-settings:'opsz' 48;">{{ ats_score_display }}</span>
+    <span class="text-[9px] uppercase tracking-wider opacity-85 leading-none">ATS</span>
+  </button>
+  {# Slide-over — always mounted (off-screen via transform when closed) so $refs.panel + listeners persist across open/close and apply swaps. #}
+  <div :aria-hidden="open ? 'false' : 'true'"
+       class="fixed z-40 right-0 inset-y-0 w-[380px] max-w-[88vw] flex flex-col bg-white dark:bg-neutral-900 shadow-2xl border-l border-neutral-200 dark:border-neutral-800 transition-transform duration-300 ease-out
+              max-md:inset-x-0 max-md:inset-y-auto max-md:bottom-0 max-md:w-full max-md:max-w-none max-md:h-[82vh] max-md:rounded-t-2xl max-md:border-l-0 max-md:border-t"
+       :class="open ? 'translate-x-0 max-md:translate-y-0' : 'translate-x-full max-md:translate-x-0 max-md:translate-y-full pointer-events-none'">
+    <header class="flex items-center justify-between gap-3 px-5 py-4 border-b border-neutral-200 dark:border-neutral-800">
+      <span class="text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400">ATS analysis</span>
+      <button type="button" data-panel-close aria-label="Close analysis"
+              class="w-7 h-7 inline-flex items-center justify-center rounded-md text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800">
+        <span aria-hidden="true" class="text-lg leading-none">&times;</span>
+      </button>
+    </header>
+    <div x-ref="panel" class="flex-1 overflow-y-auto">{% include "components/ats_breakdown.html" %}</div>
+    <p x-show="error" x-text="error" style="display:none"
+       class="px-5 pb-4 text-xs text-red-600 dark:text-red-400"></p>
+  </div>
+</div>
+
 <div class="min-h-[calc(100vh-80px)] bg-neutral-50 dark:bg-neutral-950 flex flex-col md:flex-row">
 <aside class="w-full md:w-64 flex-shrink-0 hidden md:flex flex-col border-r border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
         <div class="p-6 flex-1 space-y-6">
@@ -124,24 +159,27 @@
             </nav>
         </div>
 
-        {% comment %}
-        ATS score breakdown panel (Slices 1-3). The stable atsPanel() wrapper owns
-        apply + details-toggle via DELEGATED clicks; the inner $refs.panel fragment
-        is plain server-rendered HTML that is swapped wholesale after an apply
-        (server is the sole rescore authority — zero client-side score math, and no
-        Alpine re-init inside the swapped fragment).
-        {% endcomment %}
-        <div x-data="atsPanel('{% url 'resume_ats_apply_api' resume.id %}', '{% url 'resume_ats_quantify_api' resume.id %}')" @click="onClick($event)">
-          <div x-ref="panel">{% include "components/ats_breakdown.html" %}</div>
-          <p x-show="error" x-text="error" style="display:none"
-             class="px-6 pb-4 -mt-2 text-xs text-red-600 dark:text-red-400"></p>
-        </div>
+        {% comment %} The ATS analysis (atsPanel) moved OUT of this rail to a
+        page-level summonable slide-over (rendered near the top of the layout) so
+        the editor breathes and the panel is visible on mobile too. The atsPanel()
+        factory itself stays defined here — it's a global function; the slide-over
+        wrapper above uses it. apply()/quantify()/toggleDetails() are unchanged;
+        only open/syncTab/toggleGroup + their delegated branches are added. {% endcomment %}
         <script>
           function atsPanel(applyUrl, quantifyUrl) {
             return {
               applying: false,
               error: '',
+              open: false,
               onClick(e) {
+                // --- redesign-added branches (slide-over + groups) ---
+                const ptoggle = e.target.closest('[data-panel-toggle]');
+                if (ptoggle) { this.open = !this.open; return; }
+                const pclose = e.target.closest('[data-panel-close]');
+                if (pclose) { this.open = false; return; }
+                const gtoggle = e.target.closest('[data-group-toggle]');
+                if (gtoggle) { this.toggleGroup(gtoggle); return; }
+                // --- existing Slice 2-4 branches (unchanged) ---
                 const applyBtn = e.target.closest('[data-apply-card]');
                 if (applyBtn) { this.apply(applyBtn.getAttribute('data-apply-card'), applyBtn); return; }
                 const toggle = e.target.closest('[data-toggle-details]');
@@ -150,6 +188,23 @@
                 if (qSubmit) { this.quantify(qSubmit.closest('[data-quantify-card]'), qSubmit); return; }
                 const qDismiss = e.target.closest('[data-quantify-dismiss]');
                 if (qDismiss) { const c = qDismiss.closest('[data-quantify-card]'); if (c) c.remove(); }
+              },
+              // Mirror the server's score (data-ats-score) into the edge tab — a
+              // value copy, never client-side math. Runs on init + after each swap.
+              syncTab() {
+                const src = this.$refs.panel && this.$refs.panel.querySelector('[data-ats-score]');
+                const tab = this.$root && this.$root.querySelector('[data-ats-tab]');
+                if (src && tab) tab.textContent = src.textContent.trim();
+              },
+              // Collapse/expand a suggestion group — plain-HTML delegated toggle,
+              // same swap-safe pattern as toggleDetails().
+              toggleGroup(btn) {
+                const key = btn.getAttribute('data-group-toggle');
+                const body = this.$refs.panel.querySelector('[data-group-body="' + key + '"]');
+                if (!body) return;
+                const wasHidden = body.hasAttribute('hidden');
+                if (wasHidden) { body.removeAttribute('hidden'); } else { body.setAttribute('hidden', ''); }
+                btn.setAttribute('aria-expanded', wasHidden ? 'true' : 'false');
               },
               toggleDetails(btn) {
                 const det = this.$refs.panel.querySelector('[data-details]');
@@ -178,6 +233,7 @@
                   }
                   const data = await r.json();
                   this.$refs.panel.innerHTML = data.panel_html;   // server-rendered; zero client math
+                  this.syncTab();                                  // mirror new score to the edge tab (value copy)
                 } catch (err) {
                   this.error = 'Could not reach the server. Check your connection.';
                   if (btn) { btn.disabled = false; btn.textContent = label; }
