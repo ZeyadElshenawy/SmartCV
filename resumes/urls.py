@@ -40,4 +40,7 @@ urlpatterns = [
     # scorer's structured breakdown for the editor panel.
     path('api/<uuid:resume_id>/ats-breakdown/',
          views.resume_ats_breakdown_api, name='resume_ats_breakdown_api'),
+    # Apply one actionable Category-1 card (Slice 3) — card-id-only trust path.
+    path('api/<uuid:resume_id>/ats-apply/',
+         views.resume_ats_apply_api, name='resume_ats_apply_api'),
 ]

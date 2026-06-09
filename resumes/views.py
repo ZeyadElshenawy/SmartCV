@@ -9,7 +9,9 @@ from profiles.models import UserProfile
 from analysis.models import GapAnalysis
 from .models import GeneratedResume, CoverLetter
 from .services.resume_generator import generate_resume_content, calculate_ats_score, regenerate_section
-from .services.ats_breakdown import breakdown_for_resume, refresh_ats_score, score_reconciles
+from .services.ats_breakdown import (
+    breakdown_for_resume, refresh_ats_score, score_reconciles, apply_edit_to_content,
+)
 from .services.ats_cards import build_ats_cards
 
 
@@ -611,15 +613,6 @@ def resume_edit_view(request, resume_id):
     # and the headline render ONE number (invariant #1). The pure scorer is the
     # sole authority; nothing here re-derives the score. `ats_stuffed` pairs each
     # over-used keyword with its count for the (server-supplied) penalty copy.
-    ats_breakdown = breakdown_for_resume(resume)
-    ats_stuffed = [
-        {'skill': s, 'count': ats_breakdown['keyword_counts'].get(s, 0)}
-        for s in ats_breakdown['stuffing']['skills']
-    ]
-    # Category-1 cards (Slice 2): honest-mechanical findings with real, server-
-    # computed deltas. Read-only — they advise; nothing is editable yet.
-    ats_cards = build_ats_cards(resume, current=ats_breakdown)
-
     return render(request, 'resumes/edit.html', {
         'resume': resume,
         'profile': profile,
@@ -628,11 +621,10 @@ def resume_edit_view(request, resume_id):
         'section_order_with_labels': section_order_with_labels,
         'sync_banner': sync_banner,
         'review_summary': review_summary,
-        'ats_breakdown': ats_breakdown,
-        'ats_score_display': round(ats_breakdown['score']),
-        'ats_reconciles': score_reconciles(ats_breakdown),
-        'ats_stuffed': ats_stuffed,
-        'ats_cards': ats_cards,
+        # The ATS panel context (breakdown + Category-1 cards) is built by the
+        # shared helper so this initial render and the post-apply panel_html swap
+        # can never drift (Slice 3).
+        **_ats_panel_context(resume),
     })
 
 
@@ -1371,4 +1363,72 @@ def resume_ats_breakdown_api(request, resume_id):
     resume = get_object_or_404(GeneratedResume, id=resume_id)
     if resume.gap_analysis.job.user != request.user:
         raise Http404
-    return JsonResponse(breakdown_for_resume(resume))
+    bd = breakdown_for_resume(resume)
+    return JsonResponse({"breakdown": bd, "cards": build_ats_cards(resume, current=bd)})
+
+
+def _ats_panel_context(resume):
+    """Single source for the ATS panel context (breakdown + Category-1 cards) —
+    used by resume_edit_view's initial render AND the apply endpoint's panel_html,
+    so the two render from identical data and cannot drift."""
+    bd = breakdown_for_resume(resume)
+    return {
+        "ats_breakdown": bd,
+        "ats_score_display": round(bd["score"]),
+        "ats_reconciles": score_reconciles(bd),
+        "ats_stuffed": [
+            {"skill": s, "count": bd["keyword_counts"].get(s, 0)}
+            for s in bd["stuffing"]["skills"]
+        ],
+        "ats_cards": build_ats_cards(resume, current=bd),
+    }
+
+
+def _render_ats_panel(resume, request):
+    """Server-render the panel fragment to a string for the post-apply swap."""
+    from django.template.loader import render_to_string
+    return render_to_string(
+        "components/ats_breakdown.html", _ats_panel_context(resume), request=request,
+    )
+
+
+@login_required
+@require_POST
+def resume_ats_apply_api(request, resume_id):
+    """Apply ONE actionable ATS card, then persist + rescore.
+
+    CARD-ID-ONLY TRUST PATH: the server re-derives the card list from current
+    state and applies the SERVER-produced ``card['edit']``. Nothing from the
+    request body except ``card_id`` is read, so a tampered or stale client
+    payload (content / edit / skill / delta) can never persist arbitrary content
+    — and this simultaneously guarantees previewed == realized (same producer +
+    same pure constructor the panel used). Reuses Slice-2 ``apply_edit_to_content``
+    and Slice-1 ``refresh_ats_score`` unchanged.
+    """
+    resume = get_object_or_404(GeneratedResume, id=resume_id)
+    if resume.gap_analysis.job.user != request.user:
+        raise Http404
+    try:
+        card_id = json.loads((request.body or b"").decode("utf-8") or "{}").get("card_id")
+    except (ValueError, UnicodeDecodeError):
+        return JsonResponse({"error": "bad_request"}, status=400)
+    if not card_id:
+        return JsonResponse({"error": "bad_request"}, status=400)
+    # Re-derive cards from CURRENT state and match by id. A card id that no longer
+    # resolves to an actionable card (stale gap, or the skill is already applied →
+    # no longer "missed" → no card) is rejected 409 with NO write.
+    card = next(
+        (c for c in build_ats_cards(resume)
+         if c["id"] == card_id and c["kind"] == "actionable"),
+        None,
+    )
+    if card is None:
+        return JsonResponse({"error": "stale_card"}, status=409)
+    # The applied edit is the SERVER-produced card["edit"] — never the request body.
+    resume.content = apply_edit_to_content(resume.content or {}, card["edit"])
+    resume.save(update_fields=["content"])
+    refresh_ats_score(resume)
+    return JsonResponse({
+        "applied_skill": card["skill"],
+        "panel_html": _render_ats_panel(resume, request),
+    })

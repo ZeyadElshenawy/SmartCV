@@ -8,6 +8,7 @@ Run: ``python manage.py test resumes`` (Django TestCase — these resolve
 resume.gap_analysis.job over the ORM and exercise the view via the test
 Client, so they belong in the app suite, not pytest tests/).
 """
+import json
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -183,16 +184,20 @@ class AtsBreakdownEndpointTests(TestCase):
         )
         self.url = reverse("resume_ats_breakdown_api", args=[self.resume.id])
 
-    def test_get_returns_full_breakdown_contract(self):
+    def test_get_returns_breakdown_and_cards_contract(self):
+        # Slice 3 extends the endpoint shape to {breakdown, cards}.
         self.client.force_login(self.user)
         resp = self.client.get(self.url)
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
-        self.assertTrue(ATS_BREAKDOWN_KEYS.issubset(data.keys()))
-        self.assertIsInstance(data["base"], (int, float))
-        self.assertIsInstance(data["must_have"], dict)
+        self.assertIn("breakdown", data)
+        self.assertIn("cards", data)
+        self.assertIsInstance(data["cards"], list)
+        bd = data["breakdown"]
+        self.assertTrue(ATS_BREAKDOWN_KEYS.issubset(bd.keys()))
+        self.assertIsInstance(bd["base"], (int, float))
         # One computation across the HTTP boundary too.
-        self.assertEqual(data["score"], breakdown_for_resume(self.resume)["score"])
+        self.assertEqual(bd["score"], breakdown_for_resume(self.resume)["score"])
 
     def test_empty_skills_endpoint_200_zeroed(self):
         user = _user("noskills2@example.com")
@@ -200,7 +205,7 @@ class AtsBreakdownEndpointTests(TestCase):
         self.client.force_login(user)
         resp = self.client.get(reverse("resume_ats_breakdown_api", args=[resume.id]))
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.json()["score"], 0.0)
+        self.assertEqual(resp.json()["breakdown"]["score"], 0.0)
 
     def test_ownership_guard_rejects_other_user(self):
         other = _user("intruder@example.com")
@@ -460,3 +465,138 @@ class ZeroDeltaCardTests(TestCase):
         self.assertEqual(delta, 0.0)
         actionable = [c for c in build_ats_cards(resume) if c["kind"] == "actionable"]
         self.assertNotIn("Sgap", [c["skill"] for c in actionable])
+
+
+# ===========================================================================
+# Slice 3 — apply + persist + rescore
+# ===========================================================================
+
+class AtsApplyTests(TestCase):
+    def setUp(self):
+        self.user = _user("apply@example.com")
+        self.job, self.gap, self.resume = _producer_chain(self.user)
+        self.client.force_login(self.user)
+        self.url = reverse("resume_ats_apply_api", args=[self.resume.id])
+
+    def _docker_card(self):
+        return next(c for c in build_ats_cards(self.resume) if c["skill"] == "Docker")
+
+    def _post(self, body, url=None):
+        return self.client.post(url or self.url, data=json.dumps(body),
+                                content_type="application/json")
+
+    def test_apply_persists_previewed_content(self):
+        card = self._docker_card()
+        original = dict(self.resume.content)
+        resp = self._post({"card_id": card["id"]})
+        self.assertEqual(resp.status_code, 200)
+        self.resume.refresh_from_db()
+        self.assertEqual(self.resume.content,
+                         apply_edit_to_content(original, card["edit"]))
+
+    def test_apply_persists_projected_score(self):
+        card = self._docker_card()
+        self._post({"card_id": card["id"]})
+        self.resume.refresh_from_db()
+        self.assertEqual(self.resume.ats_score, card["projected_score"])
+
+    def test_apply_ignores_client_sent_payload(self):
+        # THE boundary test — only card_id is trusted; content/edit/skill ignored.
+        card = self._docker_card()
+        original = dict(self.resume.content)
+        resp = self._post({
+            "card_id": card["id"],
+            "content": {"skills": ["TOTALLY_FAKE"], "professional_summary": "HACKED"},
+            "edit": {"op": "add_skill", "skill": "HACKED"},
+            "skill": "HACKED",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.resume.refresh_from_db()
+        self.assertEqual(self.resume.content,
+                         apply_edit_to_content(original, card["edit"]))
+        blob = json.dumps(self.resume.content)
+        self.assertNotIn("HACKED", blob)
+        self.assertNotIn("TOTALLY_FAKE", blob)
+
+    def test_apply_stale_card_id_409_no_write(self):
+        before = dict(self.resume.content)
+        resp = self._post({"card_id": "deadbeefdeadbeef"})
+        self.assertEqual(resp.status_code, 409)
+        self.resume.refresh_from_db()
+        self.assertEqual(self.resume.content, before)
+
+    def test_apply_advisory_card_id_409(self):
+        stuffing = next(c for c in build_ats_cards(self.resume) if c["kind"] == "advisory")
+        before = dict(self.resume.content)
+        resp = self._post({"card_id": stuffing["id"]})
+        self.assertEqual(resp.status_code, 409)
+        self.resume.refresh_from_db()
+        self.assertEqual(self.resume.content, before)
+
+    def test_apply_is_idempotent_on_reapply(self):
+        card = self._docker_card()
+        self.assertEqual(self._post({"card_id": card["id"]}).status_code, 200)
+        # Docker now present → no longer missed → no Docker card → second apply 409.
+        resp2 = self._post({"card_id": card["id"]})
+        self.assertEqual(resp2.status_code, 409)
+        self.resume.refresh_from_db()
+        dockers = [s for s in self.resume.content["skills"] if s.lower() == "docker"]
+        self.assertEqual(len(dockers), 1)
+
+    def test_apply_bad_request_without_card_id(self):
+        resp = self._post({})
+        self.assertEqual(resp.status_code, 400)
+
+    def test_apply_ownership_guard(self):
+        other = _user("intruder3@example.com")
+        self.client.force_login(other)
+        resp = self._post({"card_id": "x"})
+        self.assertEqual(resp.status_code, 404)
+
+    def test_coverage_only_survives_apply(self):
+        before_ic = breakdown_for_resume(self.resume)["in_context_count"]
+        self._post({"card_id": self._docker_card()["id"]})
+        self.resume.refresh_from_db()
+        self.assertEqual(breakdown_for_resume(self.resume)["in_context_count"], before_ic)
+
+    def test_apply_response_panel_html_is_clean(self):
+        resp = self._post({"card_id": self._docker_card()["id"]})
+        data = resp.json()
+        self.assertEqual(data["applied_skill"], "Docker")
+        html = data["panel_html"]
+        for token in ("{#", "#}", "{% comment %}", "{% endcomment %}"):
+            self.assertNotIn(token, html)
+        self.assertIn("ATS score", html)
+
+    def test_remaining_cards_rebaseline_after_apply(self):
+        # Two actionable cards (Docker, Redis); apply Docker; Redis re-baselines.
+        user = _user("rebaseline@example.com")
+        job = Job.objects.create(
+            user=user, title="E", description="JD",
+            extracted_skills=["Python", "Docker", "Redis", "SQL"],
+            extracted_skills_tiers={},
+        )
+        gap = GapAnalysis.objects.create(
+            user=user, job=job,
+            matched_must_have=[
+                {"name": "Docker", "evidence_source": "projects",
+                 "evidence_quote": "built CI/CD with Docker"},
+                {"name": "Redis", "evidence_source": "projects",
+                 "evidence_quote": "used Redis for caching"},
+            ],
+        )
+        resume = GeneratedResume.objects.create(
+            gap_analysis=gap,
+            content={"skills": ["Python"],
+                     "experience": [{"title": "E", "description": ["Used Python."]}]},
+        )
+        self.client.force_login(user)
+        docker = next(c for c in build_ats_cards(resume) if c["skill"] == "Docker")
+        self._post({"card_id": docker["id"]},
+                   url=reverse("resume_ats_apply_api", args=[resume.id]))
+        resume.refresh_from_db()
+        after = build_ats_cards(resume)
+        # Docker card gone (now present); Redis card's baseline == the new score.
+        self.assertNotIn("Docker", [c["skill"] for c in after if c["kind"] == "actionable"])
+        redis = next(c for c in after if c["skill"] == "Redis")
+        self.assertEqual(redis["current_score"], breakdown_for_resume(resume)["score"])
