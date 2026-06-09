@@ -12,11 +12,12 @@ import json
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from jobs.models import Job
 from analysis.models import GapAnalysis
+from profiles.models import UserProfile
 from resumes.models import GeneratedResume
 from resumes.services.scoring import compute_ats_breakdown
 from resumes.services.ats_breakdown import (
@@ -600,3 +601,196 @@ class AtsApplyTests(TestCase):
         self.assertNotIn("Docker", [c["skill"] for c in after if c["kind"] == "actionable"])
         redis = next(c for c in after if c["skill"] == "Redis")
         self.assertEqual(redis["current_score"], breakdown_for_resume(resume)["score"])
+
+
+# ===========================================================================
+# Slice 4 — Category-2 quantification (the anti-fabrication backbone)
+# ===========================================================================
+
+_DIGITLESS_BULLET = "Led the migration of the billing service to a new datastore."
+
+
+def _quantify_chain(user, *, profile_experiences=None, resume_exp_desc=None):
+    """A chain with a profile whose experiences[] matches the résumé experience,
+    so a quantify card's profile-write has a target. Profile is created BEFORE
+    the résumé (older) so the editor doesn't auto-regen."""
+    profile = UserProfile.objects.create(
+        user=user,
+        data_content={
+            "experiences": profile_experiences if profile_experiences is not None else [
+                {"title": "Backend Engineer", "company": "PriorCo",
+                 "description": ["Maintained backend services."]},
+            ],
+        },
+    )
+    job = Job.objects.create(
+        user=user, title="E", description="JD",
+        extracted_skills=["Python"], extracted_skills_tiers={},
+    )
+    gap = GapAnalysis.objects.create(user=user, job=job)
+    resume = GeneratedResume.objects.create(
+        gap_analysis=gap,
+        content={
+            "skills": ["Python"],
+            "experience": [{
+                "title": "Backend Engineer", "company": "PriorCo",
+                "description": resume_exp_desc if resume_exp_desc is not None else [_DIGITLESS_BULLET],
+            }],
+        },
+    )
+    return profile, job, gap, resume
+
+
+class QuantifyCardProducerTests(TestCase):
+    def setUp(self):
+        self.user = _user("qcard@example.com")
+        self.profile, self.job, self.gap, self.resume = _quantify_chain(self.user)
+        self.qcards = [c for c in build_ats_cards(self.resume) if c["kind"] == "quantify"]
+
+    def test_quantify_card_carries_no_number(self):
+        # THE anti-fabrication invariant — nothing numeric on the card.
+        self.assertTrue(self.qcards)
+        for c in self.qcards:
+            for forbidden in ("delta", "projected_score", "number", "suggested", "edit", "current_score"):
+                self.assertNotIn(forbidden, c)
+
+    def test_per_bullet_selection(self):
+        # Digit-less achievement bullet → exactly one quantify card at (exp, 0, 0).
+        self.assertEqual(len(self.qcards), 1)
+        c = self.qcards[0]
+        self.assertEqual((c["section"], c["item_idx"], c["bullet_idx"]), ("experience", 0, 0))
+        # A bullet that already has a number → no quantify card.
+        _p, _j, _g, r2 = _quantify_chain(
+            _user("q2@example.com"),
+            resume_exp_desc=["Cut deploy time from 40 minutes to 6 minutes last quarter."],
+        )
+        self.assertEqual([c for c in build_ats_cards(r2) if c["kind"] == "quantify"], [])
+
+    def test_building_cards_writes_nothing(self):
+        # Declining / merely viewing must not mutate anything (no submit).
+        before_p = dict(self.profile.data_content)
+        before_r = dict(self.resume.content)
+        build_ats_cards(self.resume)
+        self.profile.refresh_from_db(); self.resume.refresh_from_db()
+        self.assertEqual(self.profile.data_content, before_p)
+        self.assertEqual(self.resume.content, before_r)
+
+
+class QuantifySubmitTests(TestCase):
+    def setUp(self):
+        self.user = _user("qsubmit@example.com")
+        self.profile, self.job, self.gap, self.resume = _quantify_chain(self.user)
+        self.client.force_login(self.user)
+        self.url = reverse("resume_ats_quantify_api", args=[self.resume.id])
+        self.card = next(c for c in build_ats_cards(self.resume) if c["kind"] == "quantify")
+
+    def _post(self, body, url=None):
+        return self.client.post(url or self.url, data=json.dumps(body),
+                                content_type="application/json")
+
+    def test_verbatim_capture_becomes_a_fact(self):
+        text = "cut deploy time from 40 to 6 min"
+        resp = self._post({"card_id": self.card["id"], "text": text})
+        self.assertEqual(resp.status_code, 200)
+        self.profile.refresh_from_db()
+        # Stored VERBATIM on the matched profile experience.
+        descs = self.profile.data_content["experiences"][0]["description"]
+        self.assertIn(text, descs)
+        # → an ACHIEVEMENT fact → the user's digits enter the number-lock allow-set.
+        from resumes.services.fact_extractor import extract_from_structured_profile
+        from resumes.services.resume_generator_v2 import _allowed_numbers_from_facts
+        facts = extract_from_structured_profile(data_content=self.profile.data_content)
+        allowed = _allowed_numbers_from_facts(facts)
+        self.assertIn(40.0, allowed)
+        self.assertIn(6.0, allowed)
+
+    def test_write_targets_profile_not_resume(self):
+        before_resume = dict(self.resume.content)
+        self._post({"card_id": self.card["id"], "text": "reduced errors by 30%"})
+        self.profile.refresh_from_db(); self.resume.refresh_from_db()
+        self.assertIn("reduced errors by 30%",
+                      self.profile.data_content["experiences"][0]["description"])
+        self.assertEqual(self.resume.content, before_resume)   # résumé untouched
+
+    def test_declining_is_a_noop(self):
+        before_p = dict(self.profile.data_content)
+        # No POST at all (the user dismissed client-side).
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.data_content, before_p)
+
+    def test_forged_card_id_409_no_write(self):
+        before = dict(self.profile.data_content)
+        resp = self._post({"card_id": "deadbeefdeadbeef", "text": "40%"})
+        self.assertEqual(resp.status_code, 409)
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.data_content, before)
+
+    def test_no_entity_match_no_write(self):
+        self.profile.data_content = {"experiences": [
+            {"title": "Different Role", "company": "Other", "description": []}]}
+        self.profile.save()
+        before = dict(self.profile.data_content)
+        resp = self._post({"card_id": self.card["id"], "text": "did 40%"})
+        self.assertEqual(resp.status_code, 409)
+        self.assertEqual(resp.json().get("error"), "no_match")
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.data_content, before)
+
+    def test_ambiguous_match_no_write(self):
+        self.profile.data_content = {"experiences": [
+            {"title": "Backend Engineer", "company": "PriorCo", "description": []},
+            {"title": "Backend Engineer", "company": "PriorCo", "description": []}]}
+        self.profile.save()
+        before = dict(self.profile.data_content)
+        resp = self._post({"card_id": self.card["id"], "text": "did 40%"})
+        self.assertEqual(resp.status_code, 409)
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.data_content, before)
+
+    def test_idempotent_no_duplicate(self):
+        text = "improved throughput by 25%"
+        self._post({"card_id": self.card["id"], "text": text})
+        self._post({"card_id": self.card["id"], "text": text})
+        self.profile.refresh_from_db()
+        descs = self.profile.data_content["experiences"][0]["description"]
+        self.assertEqual(descs.count(text), 1)
+
+    def test_empty_text_rejected_no_write(self):
+        before = dict(self.profile.data_content)
+        resp = self._post({"card_id": self.card["id"], "text": "   "})
+        self.assertEqual(resp.status_code, 400)
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.data_content, before)
+
+    def test_ownership_guard(self):
+        other = _user("qintruder@example.com")
+        self.client.force_login(other)
+        resp = self._post({"card_id": self.card["id"], "text": "40%"})
+        self.assertEqual(resp.status_code, 404)
+
+    def test_pipeline_honest_copy(self):
+        with override_settings(RESUME_GENERATOR_PIPELINE="v1"):
+            c = next(x for x in build_ats_cards(self.resume) if x["kind"] == "quantify")
+            self.assertFalse(c["grounds_on_regen"])
+            msg = self._post({"card_id": c["id"], "text": "x up by 11%"}).json()["message"]
+            self.assertNotIn("ground this bullet when you regenerate", msg)
+        with override_settings(RESUME_GENERATOR_PIPELINE="v2"):
+            c = next(x for x in build_ats_cards(self.resume) if x["kind"] == "quantify")
+            self.assertTrue(c["grounds_on_regen"])
+            msg = self._post({"card_id": c["id"], "text": "y up by 22%"}).json()["message"]
+            self.assertIn("ground this bullet when you regenerate", msg)
+
+    def test_rendered_input_is_empty(self):
+        resp = self.client.get(reverse("resume_edit", args=[self.resume.id]),
+                               HTTP_HOST="localhost")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn("data-quantify-card", html)   # the quantify card rendered
+        self.assertIn("data-quantify-input", html)
+        # The textarea has no pre-filled content: between the opening tag's '>'
+        # and </textarea> there is nothing but whitespace (no suggested number).
+        i = html.find("data-quantify-input")
+        j = html.find("</textarea>", i)
+        self.assertNotEqual(j, -1)
+        after_open_tag = html[i:j].split(">", 1)[1]   # content after the opening tag closes
+        self.assertEqual(after_open_tag.strip(), "")

@@ -131,13 +131,13 @@
         (server is the sole rescore authority — zero client-side score math, and no
         Alpine re-init inside the swapped fragment).
         {% endcomment %}
-        <div x-data="atsPanel('{% url 'resume_ats_apply_api' resume.id %}')" @click="onClick($event)">
+        <div x-data="atsPanel('{% url 'resume_ats_apply_api' resume.id %}', '{% url 'resume_ats_quantify_api' resume.id %}')" @click="onClick($event)">
           <div x-ref="panel">{% include "components/ats_breakdown.html" %}</div>
           <p x-show="error" x-text="error" style="display:none"
              class="px-6 pb-4 -mt-2 text-xs text-red-600 dark:text-red-400"></p>
         </div>
         <script>
-          function atsPanel(applyUrl) {
+          function atsPanel(applyUrl, quantifyUrl) {
             return {
               applying: false,
               error: '',
@@ -145,7 +145,11 @@
                 const applyBtn = e.target.closest('[data-apply-card]');
                 if (applyBtn) { this.apply(applyBtn.getAttribute('data-apply-card'), applyBtn); return; }
                 const toggle = e.target.closest('[data-toggle-details]');
-                if (toggle) { this.toggleDetails(toggle); }
+                if (toggle) { this.toggleDetails(toggle); return; }
+                const qSubmit = e.target.closest('[data-quantify-submit]');
+                if (qSubmit) { this.quantify(qSubmit.closest('[data-quantify-card]'), qSubmit); return; }
+                const qDismiss = e.target.closest('[data-quantify-dismiss]');
+                if (qDismiss) { const c = qDismiss.closest('[data-quantify-card]'); if (c) c.remove(); }
               },
               toggleDetails(btn) {
                 const det = this.$refs.panel.querySelector('[data-details]');
@@ -177,6 +181,38 @@
                 } catch (err) {
                   this.error = 'Could not reach the server. Check your connection.';
                   if (btn) { btn.disabled = false; btn.textContent = label; }
+                } finally {
+                  this.applying = false;
+                }
+              },
+              async quantify(cardEl, btn) {
+                if (!cardEl || this.applying) return;
+                const input = cardEl.querySelector('[data-quantify-input]');
+                const text = (input ? input.value : '').trim();
+                if (!text) { if (input) input.focus(); return; }   // declining/empty = no-op
+                this.applying = true; this.error = '';
+                if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+                try {
+                  const csrf = document.querySelector('input[name=csrfmiddlewaretoken]')?.value || '';
+                  const r = await fetch(quantifyUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                    body: JSON.stringify({ card_id: cardEl.getAttribute('data-quantify-card'), text: text }),
+                  });
+                  const data = await r.json().catch(() => ({}));
+                  const body = cardEl.querySelector('[data-quantify-body]');
+                  if (r.ok && data.saved) {
+                    if (body) body.textContent = data.message || 'Saved to your profile.';
+                  } else if (r.status === 409 && data.error === 'no_match') {
+                    this.error = "Couldn't match this bullet to a profile entry, so nothing was saved.";
+                    if (btn) { btn.disabled = false; btn.textContent = 'Save to profile'; }
+                  } else {
+                    this.error = 'Could not save. Please try again.';
+                    if (btn) { btn.disabled = false; btn.textContent = 'Save to profile'; }
+                  }
+                } catch (err) {
+                  this.error = 'Could not reach the server. Check your connection.';
+                  if (btn) { btn.disabled = false; btn.textContent = 'Save to profile'; }
                 } finally {
                   this.applying = false;
                 }

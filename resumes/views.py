@@ -12,7 +12,7 @@ from .services.resume_generator import generate_resume_content, calculate_ats_sc
 from .services.ats_breakdown import (
     breakdown_for_resume, refresh_ats_score, score_reconciles, apply_edit_to_content,
 )
-from .services.ats_cards import build_ats_cards
+from .services.ats_cards import build_ats_cards, save_quantification_to_profile
 
 
 # The full set of body-section keys a resume can render. The user can
@@ -534,6 +534,13 @@ def resume_edit_view(request, resume_id):
         logger.exception(f"Failed to auto-regenerate resume {resume.id}: {e}")
         # Non-fatal — fall through and render with existing content
 
+    # Build the ATS panel context from the CANONICAL content (list-of-bullets)
+    # BEFORE the form-prep below collapses each description into one newline-
+    # joined textarea string. Otherwise the per-bullet Category-2 quantify scan
+    # would see a single merged bullet (and a stuffed bullet's number could mask
+    # a quantify candidate). Slices 1-3 cards are unaffected either way.
+    ats_panel_context = _ats_panel_context(resume)
+
     # Create a deep copy for the form so we can convert lists to newline-separated strings
     import copy
     form_content = copy.deepcopy(resume.content)
@@ -624,7 +631,7 @@ def resume_edit_view(request, resume_id):
         # The ATS panel context (breakdown + Category-1 cards) is built by the
         # shared helper so this initial render and the post-apply panel_html swap
         # can never drift (Slice 3).
-        **_ats_panel_context(resume),
+        **ats_panel_context,
     })
 
 
@@ -1431,4 +1438,60 @@ def resume_ats_apply_api(request, resume_id):
     return JsonResponse({
         "applied_skill": card["skill"],
         "panel_html": _render_ats_panel(resume, request),
+    })
+
+
+@login_required
+@require_POST
+def resume_ats_quantify_api(request, resume_id):
+    """Category-2: capture the user's REAL figure for a quantifiable bullet and
+    append it VERBATIM to the matched PROFILE entry (where
+    extract_from_structured_profile reads it → a grounded ACHIEVEMENT fact).
+
+    Card-id trust path: only ``card_id`` and the user's ``text`` are read; the
+    server re-derives the card and requires a CONFIDENT profile-entity match
+    (ambiguous → 409, no write). NEVER suggests, generates, or scores a number.
+
+    Returns the pipeline-honest confirmation message (NOT panel_html): this write
+    touches the profile, not the résumé, so the breakdown/cards are unchanged —
+    re-rendering would just re-prompt the same card. The client shows the message
+    on the card instead.
+    """
+    resume = get_object_or_404(GeneratedResume, id=resume_id)
+    if resume.gap_analysis.job.user != request.user:
+        raise Http404
+    try:
+        body = json.loads((request.body or b"").decode("utf-8") or "{}")
+    except (ValueError, UnicodeDecodeError):
+        return JsonResponse({"error": "bad_request"}, status=400)
+    card_id = body.get("card_id")
+    text = (body.get("text") or "").strip()
+    if not card_id or not text:
+        return JsonResponse({"error": "bad_request"}, status=400)
+    card = next(
+        (c for c in build_ats_cards(resume)
+         if c["id"] == card_id and c["kind"] == "quantify"),
+        None,
+    )
+    if card is None:
+        return JsonResponse({"error": "stale_card"}, status=409)
+    profile = UserProfile.objects.filter(user=request.user).first()
+    if profile is None:
+        return JsonResponse({"error": "no_profile"}, status=409)
+    status = save_quantification_to_profile(
+        profile, resume.content or {},
+        section=card["section"], item_idx=card["item_idx"],
+        bullet_idx=card["bullet_idx"], text=text,
+    )
+    if status == "no_match":
+        return JsonResponse({"error": "no_match"}, status=409)
+    if status in ("bad_address", "empty"):
+        return JsonResponse({"error": "bad_request"}, status=400)
+    # 'saved' or 'duplicate' — both end with the figure durable in the profile.
+    regen_line = ("It'll ground this bullet when you regenerate."
+                  if card["grounds_on_regen"]
+                  else "Regenerate to use it where it fits.")
+    return JsonResponse({
+        "saved": True,
+        "message": "Saved to your profile as evidence. " + card["save_note"] + " " + regen_line,
     })
