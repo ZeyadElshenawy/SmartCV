@@ -124,9 +124,11 @@
             </nav>
         </div>
 
-        {# ATS score breakdown — read-only "why this score" panel (Slice 1).
-           Renders the recomputed score (one computation, server-side) and its
-           must/nice/in-context/stuffing explanation. Subsumes the old headline. #}
+        {% comment %}
+        ATS score breakdown — read-only "why this score" panel (Slice 1).
+        Renders the recomputed score (one computation, server-side) and its
+        must/nice/in-context/stuffing explanation. Subsumes the old headline.
+        {% endcomment %}
         {% include "components/ats_breakdown.html" %}
     </aside>
 <div id="editor-scroll" class="flex-grow p-4 sm:p-8 lg:p-12 overflow-y-auto" style="max-height: calc(100vh - 80px);">

@@ -215,6 +215,25 @@ class AtsBreakdownEndpointTests(TestCase):
             breakdown_for_resume(self.resume)["score"],
         )
 
+    def test_rendered_panel_has_no_leaked_template_syntax(self):
+        # Regression guard for the multi-line {# #} leak: raw template tokens
+        # must never reach the rendered panel. (The bug was render-only, so the
+        # data tests above could not catch it — this one renders the HTML.)
+        self.client.force_login(self.user)
+        html = self.client.get(reverse("resume_edit", args=[self.resume.id])).content.decode()
+        for token in ("{#", "#}", "{% comment %}", "{% endcomment %}"):
+            self.assertNotIn(token, html, f"leaked template token {token!r} in rendered panel")
+
+    def test_reconciliation_line_renders_and_sums(self):
+        # RICH_CONTENT scores 59.3 with the [0,100] clamp NOT bound, so the
+        # equation form must render and reconcile (58.3 + 6.0 − 5.0 = 59.3).
+        self.client.force_login(self.user)
+        html = self.client.get(reverse("resume_edit", args=[self.resume.id])).content.decode()
+        bd = breakdown_for_resume(self.resume)
+        self.assertTrue(score_reconciles(bd))
+        self.assertIn("Weighted base", html)
+        self.assertIn(f"= {bd['score']:.1f}", html)   # "= 59.3"
+
 
 class RefreshAtsScoreTests(TestCase):
     def setUp(self):
@@ -239,3 +258,41 @@ class RefreshAtsScoreTests(TestCase):
         with patch.object(self.resume, "save") as mock_save:
             refresh_ats_score(self.resume)      # already correct → no write
         mock_save.assert_not_called()
+
+
+class NiceTierRenderTests(TestCase):
+    """The absent nice-tier and the populated-but-zero-matched nice-tier are two
+    distinct states that must not collapse into each other in the render."""
+
+    def _edit_html(self, user, resume):
+        self.client.force_login(user)
+        return self.client.get(reverse("resume_edit", args=[resume.id])).content.decode()
+
+    def test_absent_nice_tier_renders_none_specified(self):
+        user = _user("absentnice@example.com")
+        _job, _gap, resume = _make_chain(
+            user,
+            skills=["Python"],
+            tiers={"must_have": ["Python"], "nice_to_have": []},
+            content={"skills": ["Python"]},
+        )
+        bd = breakdown_for_resume(resume)
+        self.assertEqual(bd["nice_to_have"], {"matched": [], "missed": [], "coverage": 0.0})
+        self.assertIn("none specified", self._edit_html(user, resume))
+
+    def test_populated_zero_nice_tier_renders_bar_and_missed_not_none(self):
+        user = _user("zeronice@example.com")
+        _job, _gap, resume = _make_chain(
+            user,
+            skills=["Python", "Kubernetes"],
+            tiers={"must_have": ["Python"], "nice_to_have": ["Kubernetes"]},
+            content={"skills": ["Python"]},   # Kubernetes absent → 0 matched / 1 missed
+        )
+        bd = breakdown_for_resume(resume)
+        self.assertEqual(
+            bd["nice_to_have"], {"matched": [], "missed": ["Kubernetes"], "coverage": 0.0},
+        )
+        html = self._edit_html(user, resume)
+        self.assertNotIn("none specified", html)   # NOT the absent branch
+        self.assertIn("0 matched", html)            # zero-coverage count row
+        self.assertIn("Kubernetes", html)           # missed skill in the details
