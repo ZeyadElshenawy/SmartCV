@@ -43,4 +43,7 @@ urlpatterns = [
     # Apply one actionable Category-1 card (Slice 3) — card-id-only trust path.
     path('api/<uuid:resume_id>/ats-apply/',
          views.resume_ats_apply_api, name='resume_ats_apply_api'),
+    # Category-2 (Slice 4): capture a user-supplied real number → profile fact.
+    path('api/<uuid:resume_id>/ats-quantify/',
+         views.resume_ats_quantify_api, name='resume_ats_quantify_api'),
 ]

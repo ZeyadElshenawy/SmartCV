@@ -22,10 +22,14 @@ build_ats_cards to resolve a card by id and apply its `edit`.
 from __future__ import annotations
 
 import hashlib
+import re
+
+from django.conf import settings
 
 from jobs.services.skill_extractor import skills_match
 
 from .ats_breakdown import breakdown_for_resume, score_with_edit
+from .bullet_validator import _has_quantification, _LEN_MIN
 from .scoring import STUFFING_PENALTY_PER_SKILL
 
 # Human label for a matched entry's evidence_source (the gap analyzer's values).
@@ -148,4 +152,129 @@ def build_ats_cards(resume, *, current=None) -> list[dict]:
             ),
         })
 
+    # --- (d) Quantify (Category-2) — ask the user for a REAL number; never
+    #     suggest, generate, estimate, or score one. Per-bullet + deterministic:
+    #     an achievement-shaped bullet with NO number (the validator's own
+    #     _has_quantification, one source of truth) in an experience/project
+    #     entry. No delta, no projected_score, no edit, no number field — the
+    #     card asks; the user answers verbatim or declines.
+    content = resume.content or {}
+    grounds_on_regen = (getattr(settings, "RESUME_GENERATOR_PIPELINE", "v1") == "v2")
+    for section in ("experience", "projects"):
+        for item_idx, item in enumerate(content.get(section) or []):
+            if not isinstance(item, dict):
+                continue
+            for bullet_idx, bullet in enumerate(item.get("description") or []):
+                if not isinstance(bullet, str):
+                    continue
+                b = bullet.strip()
+                # Skip bullets that already carry a number, fragments, and
+                # non-achievement lines. "Achievement-shaped" is approximated
+                # deterministically as ≥ _LEN_MIN chars with an alphabetic start.
+                if not b or _has_quantification(b) or len(b) < _LEN_MIN or not b[0].isalpha():
+                    continue
+                addr = f"{section}:{item_idx}:{bullet_idx}"
+                cards.append({
+                    "id": _ats_card_id("quantify", addr),
+                    "type": "quantify",
+                    "kind": "quantify",
+                    "section": section,
+                    "item_idx": item_idx,
+                    "bullet_idx": bullet_idx,
+                    "bullet_text": b,
+                    # No delta / projected_score / edit / number / suggestion.
+                    "message": (
+                        "This describes work but has no number. If you have a "
+                        "real figure, add it in your own words — SmartCV never "
+                        "guesses one for you."
+                    ),
+                    "save_note": "This adds it to your profile so future résumés can use it.",
+                    "grounds_on_regen": grounds_on_regen,
+                })
+
     return cards
+
+
+# ---------------------------------------------------------------------------
+# Category-2 fact-first write (Slice 4). The user's verbatim figure is appended
+# to the matched PROFILE experience/project — NOT the résumé — because
+# extract_from_structured_profile reads the profile (UserProfile.data_content),
+# and that's the only path by which a number becomes a grounded ACHIEVEMENT fact
+# number-lock permits. CONFIDENT entity match required: ambiguous/none → drop
+# (the user's master profile is at stake). Never transforms the text; no LLM.
+# ---------------------------------------------------------------------------
+def _norm_entity(s) -> str:
+    return re.sub(r"[^a-z0-9]", "", (s or "").lower())
+
+
+def _match_profile_entry(data_content: dict, section: str, resume_item: dict):
+    """Return ``(profile_key, index)`` of the SINGLE profile entry that matches
+    the résumé item by entity, or ``None`` when zero or ambiguous."""
+    if not isinstance(data_content, dict) or not isinstance(resume_item, dict):
+        return None
+    if section == "experience":
+        rt = _norm_entity(resume_item.get("title"))
+        rc = _norm_entity(resume_item.get("company"))
+        if not rt:
+            return None
+        hits = []
+        for i, e in enumerate(data_content.get("experiences") or []):
+            if not isinstance(e, dict):
+                continue
+            if _norm_entity(e.get("title")) != rt:
+                continue
+            ec = _norm_entity(e.get("company"))
+            if rc and ec and rc != ec:        # title matches but companies conflict
+                continue
+            hits.append(("experiences", i))
+        return hits[0] if len(hits) == 1 else None
+    if section == "projects":
+        rn = _norm_entity(resume_item.get("name"))
+        if not rn:
+            return None
+        hits = []
+        for key in ("projects_enriched", "projects"):
+            for i, p in enumerate(data_content.get(key) or []):
+                if isinstance(p, dict) and _norm_entity(p.get("name")) == rn:
+                    hits.append((key, i))
+        return hits[0] if len(hits) == 1 else None
+    return None
+
+
+def save_quantification_to_profile(profile, resume_content, *, section, item_idx, bullet_idx, text) -> str:
+    """Append the user's VERBATIM quantified achievement to the matched profile
+    entry. Returns a status string:
+      ``'saved'``       — appended + profile saved
+      ``'duplicate'``   — already present (idempotent no-op)
+      ``'no_match'``    — no confident entity match → NOT written
+      ``'bad_address'`` — the résumé bullet address is invalid → NOT written
+      ``'empty'``       — blank text → NOT written
+    Stores the string exactly as typed (no rounding, no recomposition, no LLM,
+    no splicing a digit into a sentence) and never writes the résumé.
+    """
+    clean = (text or "").strip()
+    if not clean:
+        return "empty"
+    items = (resume_content or {}).get(section) or []
+    if not (isinstance(item_idx, int) and 0 <= item_idx < len(items)):
+        return "bad_address"
+    resume_item = items[item_idx]
+    desc = resume_item.get("description") or []
+    if not (isinstance(bullet_idx, int) and 0 <= bullet_idx < len(desc)):
+        return "bad_address"
+
+    data_content = profile.data_content or {}
+    match = _match_profile_entry(data_content, section, resume_item)
+    if match is None:
+        return "no_match"
+    key, idx = match
+    entry = dict(data_content[key][idx])
+    entry_desc = list(entry.get("description") or [])
+    if any(isinstance(d, str) and d.strip() == clean for d in entry_desc):
+        return "duplicate"
+    entry_desc.append(clean)            # VERBATIM — the user's words, the user's number
+    entry["description"] = entry_desc
+    data_content[key][idx] = entry
+    profile.data_content = data_content
+    profile.save(update_fields=["data_content"])
+    return "saved"
