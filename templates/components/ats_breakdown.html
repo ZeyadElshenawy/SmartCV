@@ -1,0 +1,116 @@
+{% comment %}
+Interactive ATS breakdown — read-only "why this score" panel (Slice 1).
+
+Context (from resume_edit_view): ats_breakdown (the AtsBreakdown dict),
+ats_score_display (rounded int headline), ats_reconciles (bool — clamp didn't
+bind), ats_stuffed (list of {skill, count}).
+
+PURE RENDER. Every number is server-supplied; there is NO client-side score
+math here — we deliberately do NOT repeat the gap_analysis.html JS score-mirror.
+The only client state is the `expanded` disclosure toggle.
+{% endcomment %}
+<div class="p-6 border-t border-neutral-200 dark:border-neutral-800" x-data="{ expanded: false }">
+  {% if ats_breakdown %}
+  {# Headline — reuse the house score primitive (auto-derives the colour band). #}
+  {% include "components/score.html" with value=ats_score_display label="ATS score" %}
+
+  {% if ats_breakdown.total_count == 0 %}
+    <p class="mt-3 text-xs text-neutral-500 dark:text-neutral-400">
+      No job skills available to score against yet.
+    </p>
+  {% else %}
+    {# Coverage bars — widths are server-supplied (widthratio over coverage). #}
+    <div class="mt-5 space-y-3">
+      <div>
+        <div class="flex items-baseline justify-between text-xs">
+          <span class="font-medium text-neutral-800 dark:text-neutral-200">Must-have</span>
+          <span class="text-neutral-500 dark:text-neutral-400 tabular-nums">
+            {{ ats_breakdown.must_have.matched|length }} matched ·
+            {{ ats_breakdown.must_have.missed|length }} not found
+          </span>
+        </div>
+        <div class="mt-1 h-1.5 rounded-full bg-neutral-100 dark:bg-neutral-800 overflow-hidden">
+          <div class="h-full bg-brand-600 dark:bg-brand-400 rounded-full"
+               style="width: {% widthratio ats_breakdown.must_have.coverage 1 100 %}%;"></div>
+        </div>
+      </div>
+      <div>
+        <div class="flex items-baseline justify-between text-xs">
+          <span class="font-medium text-neutral-800 dark:text-neutral-200">Nice-to-have</span>
+          {% if ats_breakdown.nice_to_have.matched or ats_breakdown.nice_to_have.missed %}
+          <span class="text-neutral-500 dark:text-neutral-400 tabular-nums">
+            {{ ats_breakdown.nice_to_have.matched|length }} matched ·
+            {{ ats_breakdown.nice_to_have.missed|length }} not found
+          </span>
+          {% else %}
+          <span class="text-neutral-400 dark:text-neutral-500 italic">none specified</span>
+          {% endif %}
+        </div>
+        {# Render the bar only when the job actually has nice-to-have skills —
+           an absent tier is shown as absence, never an empty/full bar. #}
+        {% if ats_breakdown.nice_to_have.matched or ats_breakdown.nice_to_have.missed %}
+        <div class="mt-1 h-1.5 rounded-full bg-neutral-100 dark:bg-neutral-800 overflow-hidden">
+          <div class="h-full bg-accent-600 dark:bg-accent-400 rounded-full"
+               style="width: {% widthratio ats_breakdown.nice_to_have.coverage 1 100 %}%;"></div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# Reconciliation — only assert the equation when the [0,100] clamp didn't bind. #}
+    <p class="mt-4 text-[11px] text-neutral-500 dark:text-neutral-400 tabular-nums">
+      {% if ats_reconciles %}
+        Weighted base {{ ats_breakdown.base|floatformat:1 }}{% if ats_breakdown.in_context.points %} + {{ ats_breakdown.in_context.points|floatformat:1 }} in-context{% endif %}{% if ats_breakdown.stuffing.points %} − {{ ats_breakdown.stuffing.points|floatformat:1 }} stuffing{% endif %} = {{ ats_breakdown.score|floatformat:1 }}
+      {% elif ats_breakdown.score >= 100 %}
+        Components exceed the maximum — capped at 100.
+      {% else %}
+        Components fall below zero — floored at 0.
+      {% endif %}
+    </p>
+
+    <button type="button" @click="expanded = !expanded"
+            class="mt-4 text-[11px] uppercase tracking-[0.14em] font-medium text-neutral-500 dark:text-neutral-400 hover:text-brand-700 dark:hover:text-brand-400">
+      <span x-text="expanded ? 'Hide details' : 'See details'"></span>
+    </button>
+
+    <div x-show="expanded" x-transition class="mt-4 space-y-4 border-t border-neutral-200 dark:border-neutral-800 pt-4 text-xs">
+      <div>
+        <div class="text-[11px] uppercase tracking-[0.12em] font-medium text-neutral-500 dark:text-neutral-400">Must-have skills</div>
+        {% if ats_breakdown.must_have.matched %}
+        <p class="mt-1 text-neutral-700 dark:text-neutral-300">Found: {{ ats_breakdown.must_have.matched|join:", " }}</p>
+        {% endif %}
+        {% if ats_breakdown.must_have.missed %}
+        <p class="mt-1 text-neutral-500 dark:text-neutral-400">Not found in résumé: {{ ats_breakdown.must_have.missed|join:", " }}</p>
+        {% endif %}
+      </div>
+      {% if ats_breakdown.nice_to_have.matched or ats_breakdown.nice_to_have.missed %}
+      <div>
+        <div class="text-[11px] uppercase tracking-[0.12em] font-medium text-neutral-500 dark:text-neutral-400">Nice-to-have skills</div>
+        {% if ats_breakdown.nice_to_have.matched %}
+        <p class="mt-1 text-neutral-700 dark:text-neutral-300">Found: {{ ats_breakdown.nice_to_have.matched|join:", " }}</p>
+        {% endif %}
+        {% if ats_breakdown.nice_to_have.missed %}
+        <p class="mt-1 text-neutral-500 dark:text-neutral-400">Not found in résumé: {{ ats_breakdown.nice_to_have.missed|join:", " }}</p>
+        {% endif %}
+      </div>
+      {% endif %}
+      {% if ats_breakdown.in_context.skills %}
+      <div>
+        <div class="text-[11px] uppercase tracking-[0.12em] font-medium text-neutral-500 dark:text-neutral-400">In-context bonus +{{ ats_breakdown.in_context.points|floatformat:1 }}</div>
+        <p class="mt-1 text-neutral-700 dark:text-neutral-300">{{ ats_breakdown.in_context.skills|join:", " }} appear in your experience or project bullets, not only the skills list.</p>
+      </div>
+      {% endif %}
+      {% if ats_stuffed %}
+      <div>
+        <div class="text-[11px] uppercase tracking-[0.12em] font-medium text-neutral-500 dark:text-neutral-400">Keyword-density penalty −{{ ats_breakdown.stuffing.points|floatformat:1 }}</div>
+        <ul class="mt-1 space-y-0.5 text-neutral-700 dark:text-neutral-300">
+          {% for item in ats_stuffed %}
+          <li>"{{ item.skill }}" appears {{ item.count }}× in your prose (the limit is 4 before it counts as stuffing).</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+  {% endif %}
+  {% endif %}
+</div>

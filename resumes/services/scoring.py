@@ -123,6 +123,11 @@ IN_CONTEXT_BONUS_PER_SKILL = 2.0  # bonus when a keyword shows up in experience 
 class AtsBreakdown(TypedDict):
     score: float                # final 0–100 score after bonuses & penalties
     raw_score: float            # matched_count / total_count * 100, before adjustments
+    base: float                 # tier-weighted base BEFORE bonus/penalty, pre-clamp
+                                # (== raw_score when tiers is None). Surfaced so a
+                                # breakdown UI can show base + bonus − penalty = score
+                                # whenever the [0,100] clamp didn't bind. Purely
+                                # additive metadata — never affects `score`.
     matched_count: int
     total_count: int
     in_context_count: int       # how many keywords appeared in experience descriptions
@@ -186,7 +191,7 @@ def compute_ats_breakdown(
     """
     if not job_skills:
         return AtsBreakdown(
-            score=0.0, raw_score=0.0, matched_count=0, total_count=0,
+            score=0.0, raw_score=0.0, base=0.0, matched_count=0, total_count=0,
             in_context_count=0, in_context_bonus=0.0,
             stuffed_skills=[], stuffing_penalty=0.0, keyword_counts={},
             must_have={"matched": [], "missed": [], "coverage": 0.0},
@@ -331,6 +336,7 @@ def compute_ats_breakdown(
     return AtsBreakdown(
         score=round(final, 1),
         raw_score=round(raw_score, 1),
+        base=round(base, 1),
         matched_count=matched_count,
         total_count=len(job_skills),
         in_context_count=in_context_count,
