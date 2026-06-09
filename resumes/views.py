@@ -10,6 +10,7 @@ from analysis.models import GapAnalysis
 from .models import GeneratedResume, CoverLetter
 from .services.resume_generator import generate_resume_content, calculate_ats_score, regenerate_section
 from .services.ats_breakdown import breakdown_for_resume, refresh_ats_score, score_reconciles
+from .services.ats_cards import build_ats_cards
 
 
 # The full set of body-section keys a resume can render. The user can
@@ -615,6 +616,9 @@ def resume_edit_view(request, resume_id):
         {'skill': s, 'count': ats_breakdown['keyword_counts'].get(s, 0)}
         for s in ats_breakdown['stuffing']['skills']
     ]
+    # Category-1 cards (Slice 2): honest-mechanical findings with real, server-
+    # computed deltas. Read-only — they advise; nothing is editable yet.
+    ats_cards = build_ats_cards(resume, current=ats_breakdown)
 
     return render(request, 'resumes/edit.html', {
         'resume': resume,
@@ -628,6 +632,7 @@ def resume_edit_view(request, resume_id):
         'ats_score_display': round(ats_breakdown['score']),
         'ats_reconciles': score_reconciles(ats_breakdown),
         'ats_stuffed': ats_stuffed,
+        'ats_cards': ats_cards,
     })
 
 

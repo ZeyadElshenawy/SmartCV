@@ -11,6 +11,10 @@ Nothing here re-implements scoring; it only resolves inputs and delegates.
 """
 from __future__ import annotations
 
+import copy
+
+from jobs.services.skill_extractor import skills_match
+
 from .scoring import compute_ats_breakdown, AtsBreakdown
 
 
@@ -67,3 +71,45 @@ def score_reconciles(breakdown) -> bool:
         - breakdown["stuffing_penalty"]
     )
     return abs(round(unclamped, 1) - breakdown["score"]) <= 0.1
+
+
+# ---------------------------------------------------------------------------
+# Candidate-builder (Slice 2) — score a HYPOTHETICAL mechanical edit.
+# `apply_edit_to_content` is the single content constructor: Slice 2 scores its
+# output for a preview delta; Slice 3's apply will call the SAME function then
+# persist the result, so the previewed hypothetical is byte-identical to what
+# gets saved (previewed == realized). Deltas come only from breakdown_for_resume
+# — one rescore authority, no second scoring path, no client-side math.
+# ---------------------------------------------------------------------------
+def apply_edit_to_content(content: dict, edit: dict) -> dict:
+    """PURE. Return a NEW content dict with *edit* applied; never mutate *content*.
+
+    Supported ops:
+      - ``add_skill``: append ``edit['skill']`` to ``content['skills']`` (a
+        ``List[str]``) ONLY when no existing skill already ``skills_match``-es it
+        (idempotent, variant-safe — won't double-add "python" next to "Python").
+    Unknown ops return a faithful deep copy unchanged.
+    """
+    new = copy.deepcopy(content or {})
+    op = edit.get("op")
+    if op == "add_skill":
+        skill = edit["skill"]
+        skills = list(new.get("skills") or [])
+        if not any(isinstance(s, str) and skills_match(skill, s) for s in skills):
+            skills.append(skill)
+        new["skills"] = skills
+    return new
+
+
+def score_with_edit(resume, edit, *, current=None):
+    """Score a hypothetical mechanical *edit*. Returns ``(new_breakdown, delta)``.
+
+    *delta* is ``round(new_score − current_score, 1)``. Pass *current* (the
+    already-computed breakdown) to avoid a redundant recompute; both the
+    baseline and the hypothetical are scored through ``breakdown_for_resume`` —
+    the one rescore authority. Writes nothing.
+    """
+    base = current if current is not None else breakdown_for_resume(resume)
+    hypo = apply_edit_to_content(resume.content or {}, edit)
+    new_bd = breakdown_for_resume(resume, hypo)
+    return new_bd, round(new_bd["score"] - base["score"], 1)
