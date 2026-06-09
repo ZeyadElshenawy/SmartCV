@@ -46,8 +46,8 @@ The only client state is the `expanded` disclosure toggle.
           <span class="text-neutral-400 dark:text-neutral-500 italic">none specified</span>
           {% endif %}
         </div>
-        {# Render the bar only when the job actually has nice-to-have skills —
-           an absent tier is shown as absence, never an empty/full bar. #}
+        {% comment %} Render the bar only when the job actually has nice-to-have
+        skills — an absent tier is shown as absence, never an empty/full bar. {% endcomment %}
         {% if ats_breakdown.nice_to_have.matched or ats_breakdown.nice_to_have.missed %}
         <div class="mt-1 h-1.5 rounded-full bg-neutral-100 dark:bg-neutral-800 overflow-hidden">
           <div class="h-full bg-accent-600 dark:bg-accent-400 rounded-full"
