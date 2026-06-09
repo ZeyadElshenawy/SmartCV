@@ -147,6 +147,24 @@ it just under the 80px base nav. {% endcomment %}
             </nav>
         </div>
 
+        {% comment %} Edit-tab ATS score block — fills the empty space below the
+        section nav (the flex-1 nav above pushes it to the bottom of the rail).
+        The big figure carries [data-ats-tab], so syncTab() keeps it in lockstep
+        with the toggle badge + the Analyze gauge centre — one server source, three
+        displays. "View analysis" just flips resumeEditor's mode (state already
+        exists); no second value path, no client-side score math. {% endcomment %}
+        <div class="p-6 border-t border-neutral-200 dark:border-neutral-800">
+          <span data-ats-tab class="block font-display italic tabular-nums text-5xl font-semibold leading-none
+                {% if ats_score_display >= 80 %}text-brand-600 dark:text-brand-400{% elif ats_score_display >= 50 %}text-accent-600 dark:text-accent-400{% else %}text-red-600 dark:text-red-400{% endif %}"
+                style="font-variation-settings: 'opsz' 144;">{{ ats_score_display }}</span>
+          <span class="mt-1 block text-[10px] uppercase tracking-[0.16em] font-medium text-neutral-500 dark:text-neutral-400">ATS score</span>
+          <button type="button" @click="mode = 'analyze'"
+                  class="mt-3 w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-brand-600 text-white hover:bg-brand-700 transition-colors">
+            View analysis
+            <svg aria-hidden="true" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+
         {% comment %} The ATS analysis (atsPanel) lives in the full-width Analyze
         view (rendered after this layout); this rail only carries the section nav.
         The atsPanel() factory stays defined here — it's a global function the
@@ -172,14 +190,16 @@ it just under the 80px base nav. {% endcomment %}
                 const qDismiss = e.target.closest('[data-quantify-dismiss]');
                 if (qDismiss) { const c = qDismiss.closest('[data-quantify-card]'); if (c) c.remove(); }
               },
-              // Mirror the server's score (data-ats-score) into the toggle-bar
-              // badge — a value copy, never client-side math. The badge now lives
-              // in resumeEditor scope (the toggle bar), outside this component, so
-              // reach it globally. Runs on init + after each apply swap.
+              // Mirror the server's score (data-ats-score) into EVERY score badge —
+              // the toggle-bar badge AND the Edit-tab block both carry [data-ats-tab],
+              // so one value copy keeps all displays in lockstep. Never client-side
+              // math. The Analyze gauge centre re-renders from the server on the apply
+              // swap, so it stays in step too. Runs on init + after each apply swap.
               syncTab() {
                 const src = this.$refs.panel && this.$refs.panel.querySelector('[data-ats-score]');
-                const tab = document.querySelector('[data-ats-tab]');
-                if (src && tab) tab.textContent = src.textContent.trim();
+                if (!src) return;
+                const val = src.textContent.trim();
+                document.querySelectorAll('[data-ats-tab]').forEach(el => { el.textContent = val; });
               },
               // Collapse/expand a suggestion group — plain-HTML delegated toggle,
               // same swap-safe pattern as toggleDetails().
@@ -1037,7 +1057,7 @@ header, close) was dropped. x-show (never x-if) keeps $refs.panel mounted, so an
 apply-swapped score persists across Edit↔Analyze toggles and dirty edits in the
 Edit form survive a round-trip. {% endcomment %}
 <div x-show="mode === 'analyze'" x-cloak class="min-h-[calc(100vh-80px)] bg-neutral-50 dark:bg-neutral-950">
-  <div class="max-w-2xl mx-auto py-8 px-4 sm:px-6">
+  <div class="max-w-5xl mx-auto py-8 px-4 sm:px-6">
     <div x-data="atsPanel('{% url 'resume_ats_apply_api' resume.id %}', '{% url 'resume_ats_quantify_api' resume.id %}')"
          x-init="syncTab()" @click="onClick($event)">
       <div x-ref="panel" class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 shadow-sm overflow-hidden">{% include "components/ats_breakdown.html" %}</div>
