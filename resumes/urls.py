@@ -46,4 +46,8 @@ urlpatterns = [
     # Category-2 (Slice 4): capture a user-supplied real number → profile fact.
     path('api/<uuid:resume_id>/ats-quantify/',
          views.resume_ats_quantify_api, name='resume_ats_quantify_api'),
+    # Slice 5 — best-effort auto-regenerate the bullet after a quantify save
+    # (separate endpoint so its failure can't roll back the committed save).
+    path('api/<uuid:resume_id>/ats-quantify-regen/',
+         views.resume_ats_quantify_regen_api, name='resume_ats_quantify_regen_api'),
 ]

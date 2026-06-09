@@ -907,3 +907,145 @@ class AtsPanelRedesignTests(TestCase):
         self.assertIn("Add evidence", html)
         self.assertNotIn("Quick wins", html)
         self.assertNotIn("Watch-outs", html)
+
+
+# ===========================================================================
+# Slice 5 — auto-regenerate-on-save. The GENERATION PATH is reused unchanged;
+# these patch _generate_one_bullet (the ONLY text-composition point) to drive
+# the three honest outcomes deterministically. The endpoint only orchestrates.
+# ===========================================================================
+
+class _FakeBullet:
+    """Stand-in for GeneratedBullet — the regen endpoint reads only .text."""
+    def __init__(self, text):
+        self.text = text
+
+
+class QuantifyRegenTests(TestCase):
+    GEN = "resumes.services.resume_generator_v2._generate_one_bullet"
+
+    def setUp(self):
+        self.user = _user("qregen@example.com")
+        self.profile, self.job, self.gap, self.resume = _quantify_chain(self.user)
+        self.client.force_login(self.user)
+        self.save_url = reverse("resume_ats_quantify_api", args=[self.resume.id])
+        self.regen_url = reverse("resume_ats_quantify_regen_api", args=[self.resume.id])
+        self.card = next(c for c in build_ats_cards(self.resume) if c["kind"] == "quantify")
+        self.orig_bullet = self.resume.content["experience"][0]["description"][0]
+
+    def _save(self, text):
+        return self.client.post(
+            self.save_url, data=json.dumps({"card_id": self.card["id"], "text": text}),
+            content_type="application/json")
+
+    def _regen(self, text, card_id=None):
+        return self.client.post(
+            self.regen_url,
+            data=json.dumps({"card_id": card_id or self.card["id"], "text": text}),
+            content_type="application/json")
+
+    # 1 — number lands → persist at the exact address + rescore + card drops out
+    def test_number_lands_persists_and_card_drops(self):
+        landed = "Reduced deploy time by 40% after migrating the billing service stack."
+        self._save("reduced deploy time by 40%")
+        with patch(self.GEN, return_value=_FakeBullet(landed)):
+            resp = self._regen("reduced deploy time by 40%")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["outcome"], "landed")
+        self.assertIn("panel_html", data)
+        self.resume.refresh_from_db()
+        self.assertEqual(self.resume.content["experience"][0]["description"][0], landed)
+        addrs = [(c["section"], c["item_idx"], c["bullet_idx"])
+                 for c in build_ats_cards(self.resume) if c["kind"] == "quantify"]
+        self.assertNotIn(("experience", 0, 0), addrs)   # bullet now quantified → card gone
+
+    # 4 — score recomputed against the new content (one-source: panel == DB)
+    def test_landed_rescores_consistently(self):
+        landed = "Cut error rate by 30% across the platform for the whole team last quarter."
+        self._save("cut errors by 30%")
+        with patch(self.GEN, return_value=_FakeBullet(landed)):
+            self._regen("cut errors by 30%")
+        self.resume.refresh_from_db()
+        from resumes.services.ats_breakdown import breakdown_for_resume
+        self.assertEqual(round(self.resume.ats_score, 1),
+                         round(breakdown_for_resume(self.resume)["score"], 1))
+
+    # 2 — permitted but not used → persist NOTHING, original bullet kept, card stays
+    def test_number_not_used_persists_nothing(self):
+        self._save("reduced deploy time by 40%")
+        no_number = "Streamlined the deployment workflow across multiple service teams."
+        with patch(self.GEN, return_value=_FakeBullet(no_number)):
+            resp = self._regen("reduced deploy time by 40%")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["outcome"], "not_used")
+        self.resume.refresh_from_db()
+        self.assertEqual(self.resume.content["experience"][0]["description"][0], self.orig_bullet)
+        addrs = [(c["section"], c["item_idx"], c["bullet_idx"])
+                 for c in build_ats_cards(self.resume) if c["kind"] == "quantify"]
+        self.assertIn(("experience", 0, 0), addrs)      # still asking — nothing landed
+
+    # 3 — regen failure preserves the (independent) profile-write; HTTP 200, never 500
+    def test_regen_none_is_failed_200_keeps_original(self):
+        self._save("improved throughput by 25%")
+        with patch(self.GEN, return_value=None):
+            resp = self._regen("improved throughput by 25%")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["outcome"], "failed")
+        self.resume.refresh_from_db()
+        self.assertEqual(self.resume.content["experience"][0]["description"][0], self.orig_bullet)
+        self.profile.refresh_from_db()
+        self.assertIn("improved throughput by 25%",
+                      self.profile.data_content["experiences"][0]["description"])
+
+    def test_regen_exception_is_failed_200_not_500(self):
+        self._save("cut latency by 50%")
+        with patch(self.GEN, side_effect=RuntimeError("LLM down")):
+            resp = self._regen("cut latency by 50%")
+        self.assertEqual(resp.status_code, 200)         # never 500
+        self.assertEqual(resp.json()["outcome"], "failed")
+        self.resume.refresh_from_db()
+        self.assertEqual(self.resume.content["experience"][0]["description"][0], self.orig_bullet)
+
+    # 5 — no splice / no new generation path: persist EXACTLY the generator output
+    def test_no_splice_persists_exactly_generator_output(self):
+        sentinel = "Boosted conversion by 12% via the redesigned onboarding funnel rebuild."
+        self._save("boosted conversion 12%")
+        with patch(self.GEN, return_value=_FakeBullet(sentinel)) as gen:
+            self._regen("boosted conversion 12%")
+        self.resume.refresh_from_db()
+        persisted = self.resume.content["experience"][0]["description"][0]
+        self.assertEqual(persisted, sentinel)            # exactly the generator output
+        self.assertNotIn(self.orig_bullet, persisted)    # NOT original + figure spliced
+        gen.assert_called()                              # the only text-composition path
+
+    # 6 — profile-write independence: save alone persists, with no regen call at all
+    def test_save_alone_persists_without_regen(self):
+        resp = self._save("delivered 3 launches this half")
+        self.assertEqual(resp.status_code, 200)
+        self.profile.refresh_from_db()
+        self.assertIn("delivered 3 launches this half",
+                      self.profile.data_content["experiences"][0]["description"])
+        self.resume.refresh_from_db()                    # résumé untouched by the save
+        self.assertEqual(self.resume.content["experience"][0]["description"][0], self.orig_bullet)
+
+    # 7 — number-lock holds at the seam: persisted bullet's numbers ⊆ allowed pool
+    def test_persisted_numbers_subset_of_allowed(self):
+        landed = "Reduced deploy time by 40% after the migration for the platform team."
+        self._save("reduced deploy time by 40%")
+        with patch(self.GEN, return_value=_FakeBullet(landed)):
+            self._regen("reduced deploy time by 40%")
+        self.resume.refresh_from_db()
+        persisted = self.resume.content["experience"][0]["description"][0]
+        self.profile.refresh_from_db()
+        from resumes.services.fact_extractor import extract_from_structured_profile
+        from resumes.services.resume_generator_v2 import _allowed_numbers_from_facts
+        import re as _re
+        allowed = _allowed_numbers_from_facts(
+            extract_from_structured_profile(data_content=self.profile.data_content))
+        nums = {float(m) for m in _re.findall(r"\d+(?:\.\d+)?", persisted)}
+        self.assertTrue(nums <= allowed, f"{nums} not subset of {allowed}")
+
+    def test_forged_card_id_409(self):
+        resp = self._regen("40%", card_id="deadbeefdeadbeef")
+        self.assertEqual(resp.status_code, 409)

@@ -175,7 +175,7 @@ it just under the 80px base nav. {% endcomment %}
         toggleGroup() are unchanged from Slices 1-4; syncTab() now mirrors the
         score into the toggle-bar badge instead of the removed edge tab. {% endcomment %}
         <script>
-          function atsPanel(applyUrl, quantifyUrl) {
+          function atsPanel(applyUrl, quantifyUrl, quantifyRegenUrl) {
             return {
               applying: false,
               error: '',
@@ -255,28 +255,65 @@ it just under the 80px base nav. {% endcomment %}
                 const text = (input ? input.value : '').trim();
                 if (!text) { if (input) input.focus(); return; }   // declining/empty = no-op
                 this.applying = true; this.error = '';
+                const dismiss = cardEl.querySelector('[data-quantify-dismiss]');
+                const body = cardEl.querySelector('[data-quantify-body]');
+                const cardId = cardEl.getAttribute('data-quantify-card');
                 if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+                if (dismiss) dismiss.disabled = true;
                 try {
                   const csrf = document.querySelector('input[name=csrfmiddlewaretoken]')?.value || '';
+                  // 1) Save the figure to the profile — guaranteed, fast, a SEPARATE
+                  //    committed request. Its success never depends on the regen.
                   const r = await fetch(quantifyUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-                    body: JSON.stringify({ card_id: cardEl.getAttribute('data-quantify-card'), text: text }),
+                    body: JSON.stringify({ card_id: cardId, text: text }),
                   });
                   const data = await r.json().catch(() => ({}));
-                  const body = cardEl.querySelector('[data-quantify-body]');
-                  if (r.ok && data.saved) {
-                    if (body) body.textContent = data.message || 'Saved to your profile.';
-                  } else if (r.status === 409 && data.error === 'no_match') {
-                    this.error = "Couldn't match this bullet to a profile entry, so nothing was saved.";
+                  if (!(r.ok && data.saved)) {
+                    if (r.status === 409 && data.error === 'no_match') {
+                      this.error = "Couldn't match this bullet to a profile entry, so nothing was saved.";
+                    } else {
+                      this.error = 'Could not save. Please try again.';
+                    }
                     if (btn) { btn.disabled = false; btn.textContent = 'Save to profile'; }
-                  } else {
-                    this.error = 'Could not save. Please try again.';
-                    if (btn) { btn.disabled = false; btn.textContent = 'Save to profile'; }
+                    if (dismiss) dismiss.disabled = false;
+                    return;
                   }
+                  // 2) Saved. Auto-regen THIS bullet through the grounded pipeline —
+                  //    best-effort, a real LLM call (show an honest working state, not
+                  //    a pretend-instant one). On failure the figure is already saved.
+                  if (btn) btn.textContent = 'Adding to your résumé…';
+                  if (body) body.innerHTML =
+                    '<div class="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">' +
+                    '<svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">' +
+                    '<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>' +
+                    '<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>' +
+                    '</svg>Adding to your résumé…</div>';
+                  let outcome = 'failed';
+                  try {
+                    const rr = await fetch(quantifyRegenUrl, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                      body: JSON.stringify({ card_id: cardId, text: text }),
+                    });
+                    const rd = await rr.json().catch(() => ({}));
+                    outcome = (rr.ok && rd.outcome) ? rd.outcome : 'failed';
+                    if (outcome === 'landed' && rd.panel_html) {
+                      this.$refs.panel.innerHTML = rd.panel_html;   // new bullet + score; card gone
+                      this.syncTab();
+                      return;
+                    }
+                  } catch (e) { outcome = 'failed'; }
+                  // not_used / failed — keep the original bullet, imply no change
+                  // that didn't happen; the figure is durable in the profile.
+                  if (body) body.textContent = (outcome === 'not_used')
+                    ? "Saved to your profile — it'll be used when it fits."
+                    : "Saved to your profile. Couldn't update your résumé just now — it'll be used next time.";
                 } catch (err) {
                   this.error = 'Could not reach the server. Check your connection.';
                   if (btn) { btn.disabled = false; btn.textContent = 'Save to profile'; }
+                  if (dismiss) dismiss.disabled = false;
                 } finally {
                   this.applying = false;
                 }
@@ -1061,7 +1098,7 @@ apply-swapped score persists across Edit↔Analyze toggles and dirty edits in th
 Edit form survive a round-trip. {% endcomment %}
 <div x-show="mode === 'analyze'" x-cloak class="min-h-[calc(100vh-80px)] bg-neutral-50 dark:bg-neutral-950">
   <div class="max-w-5xl mx-auto py-8 px-4 sm:px-6">
-    <div x-data="atsPanel('{% url 'resume_ats_apply_api' resume.id %}', '{% url 'resume_ats_quantify_api' resume.id %}')"
+    <div x-data="atsPanel('{% url 'resume_ats_apply_api' resume.id %}', '{% url 'resume_ats_quantify_api' resume.id %}', '{% url 'resume_ats_quantify_regen_api' resume.id %}')"
          x-init="syncTab()" @click="onClick($event)">
       <div x-ref="panel" class="rounded-2xl bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 shadow-sm overflow-hidden">{% include "components/ats_breakdown.html" %}</div>
       <p x-show="error" x-text="error" style="display:none"
