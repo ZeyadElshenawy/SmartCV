@@ -1495,3 +1495,131 @@ def resume_ats_quantify_api(request, resume_id):
         "saved": True,
         "message": "Saved to your profile as evidence. " + card["save_note"] + " " + regen_line,
     })
+
+
+def _numeric_tokens(text):
+    """Numeric runs in a string, for the deterministic land-check — e.g.
+    '40%' -> {'40'}, '5,110 predictions' -> {'5110'}. Pure string op; no LLM,
+    no generation. (Local import — views.py has no top-level ``re``.)"""
+    import re
+    return {m.group(0).replace(",", "")
+            for m in re.finditer(r"\d+(?:[.,]\d+)?", text or "")}
+
+
+@login_required
+@require_POST
+def resume_ats_quantify_regen_api(request, resume_id):
+    """Slice 5 — best-effort auto-regenerate ONE bullet after a quantify save.
+
+    SEPARATE from ``resume_ats_quantify_api`` (the guaranteed profile-write):
+    this endpoint's failure can never roll back the already-committed save, so
+    the user never loses their figure. It ORCHESTRATES the existing grounded
+    primitives only — ``_facts_for_bullet_from_profile`` +
+    ``_allowed_numbers_from_facts`` + ``_generate_one_bullet`` — exactly as
+    ``resume_propose_fix_api`` does. NO generation code lives here; the number
+    reaches the bullet ONLY via ``_generate_one_bullet`` (number-locked, and
+    independent of ``RESUME_GENERATOR_PIPELINE``), never a splice.
+
+    Card-id trust path: the address is re-derived from the quantify card by id
+    (stale/forged -> 409). ``text`` is the just-saved figure, used ONLY for the
+    read-only land-check; it is never persisted (the persisted bullet is exactly
+    ``_generate_one_bullet``'s output).
+
+    All three outcomes are HTTP 200 (the figure is already safe in the profile):
+      landed   -> the saved figure is now in a quantified bullet -> persist it +
+                  rescore + return the re-rendered panel (the card drops out).
+      not_used -> regen produced a bullet without the figure -> persist NOTHING.
+      failed   -> generator returned None / raised / no facts -> persist NOTHING.
+    """
+    resume = get_object_or_404(GeneratedResume, id=resume_id)
+    if resume.gap_analysis.job.user != request.user:
+        raise Http404
+    try:
+        body = json.loads((request.body or b"").decode("utf-8") or "{}")
+    except (ValueError, UnicodeDecodeError):
+        return JsonResponse({"error": "bad_request"}, status=400)
+    card_id = body.get("card_id")
+    saved_text = (body.get("text") or "").strip()
+    if not card_id:
+        return JsonResponse({"error": "bad_request"}, status=400)
+    card = next(
+        (c for c in build_ats_cards(resume)
+         if c["id"] == card_id and c["kind"] == "quantify"),
+        None,
+    )
+    if card is None:
+        return JsonResponse({"error": "stale_card"}, status=409)
+    profile = UserProfile.objects.filter(user=request.user).first()
+    if profile is None:
+        return JsonResponse({"error": "no_profile"}, status=409)
+
+    section, item_idx, bullet_idx = card["section"], card["item_idx"], card["bullet_idx"]
+    content = resume.content or {}
+    parent_list, b_idx, kind = _bullet_at_location(
+        content, {"section": section, "item_idx": item_idx, "bullet_idx": bullet_idx},
+    )
+    if kind is None or parent_list is None:
+        return JsonResponse({"outcome": "failed"}, status=200)
+    original_text = parent_list[b_idx]
+    item = (content.get(section) or [])[item_idx]
+
+    # Best-effort regen through the EXISTING grounded primitive. ANY failure
+    # (no facts, guard-drop -> None, LLM error) => 'failed', persist nothing,
+    # 200 — the committed profile-write already stands.
+    try:
+        facts = _facts_for_bullet_from_profile(profile.data_content or {}, section, item)
+        if not facts:
+            return JsonResponse({"outcome": "failed"}, status=200)
+        from resumes.services.resume_generator_v2 import (
+            _generate_one_bullet, _allowed_numbers_from_facts,
+        )
+        allowed = _allowed_numbers_from_facts(facts)
+        role_hint = (
+            f"a {section} entry: "
+            f"{(item.get('title') or item.get('name') or '')} @ {(item.get('company') or '')}"
+        )
+        events = []
+        new_bullet = _generate_one_bullet(
+            section=section, entity_id="", role_hint=role_hint,
+            facts=facts, allowed_numbers=allowed, events=events,
+            writing_rules_block="",
+        )
+    except Exception:
+        logger.exception(
+            "ats-quantify-regen failed (resume=%s addr=%s:%s:%s)",
+            resume_id, section, item_idx, bullet_idx,
+        )
+        return JsonResponse({"outcome": "failed"}, status=200)
+
+    new_text = (getattr(new_bullet, "text", None) or "").strip() if new_bullet else ""
+    if not new_text:
+        return JsonResponse({"outcome": "failed"}, status=200)
+
+    # Deterministic land-check (no LLM judgement): the saved figure's numeric
+    # token is now in the bullet, was NOT already there, AND the bullet now reads
+    # as quantified per the producer's OWN _has_quantification — the last clause
+    # guarantees build_ats_cards drops this card on the re-render (§4).
+    from resumes.services.bullet_validator import _has_quantification
+    saved_tokens = _numeric_tokens(saved_text)
+    landed = (
+        bool(saved_tokens & _numeric_tokens(new_text))
+        and not (saved_tokens & _numeric_tokens(original_text))
+        and _has_quantification(new_text)
+    )
+    if not landed:
+        return JsonResponse({"outcome": "not_used"}, status=200)
+
+    # Landed — persist EXACTLY what the generator returned (no splice) + rescore,
+    # via the same write mechanism resume_accept_fix_api uses.
+    parent_list[b_idx] = new_text
+    items = list(content.get(section) or [])
+    items[item_idx] = dict(items[item_idx])
+    items[item_idx]["description"] = parent_list
+    content[section] = items
+    resume.content = content
+    resume.save(update_fields=["content"])
+    refresh_ats_score(resume)
+    return JsonResponse({
+        "outcome": "landed",
+        "panel_html": _render_ats_panel(resume, request),
+    })
