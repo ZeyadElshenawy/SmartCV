@@ -124,21 +124,10 @@
             </nav>
         </div>
 
-        {# ATS score pinned to bottom #}
-        <div class="p-6 border-t border-neutral-200 dark:border-neutral-800 space-y-2">
-            {% include "components/section_label.html" with text="ATS score" %}
-            <div class="flex items-baseline font-display italic tabular-nums
-                {% if resume.ats_score >= 80 %}text-brand-600 dark:text-brand-400
-                {% elif resume.ats_score >= 50 %}text-accent-600 dark:text-accent-400
-                {% else %}text-red-600 dark:text-red-400{% endif %}"
-                style="font-variation-settings: 'opsz' 72;">
-                <span class="text-4xl leading-none font-semibold">{{ resume.ats_score|floatformat:0 }}</span>
-                <span class="text-xl leading-none not-italic font-medium ml-0.5 opacity-70">%</span>
-            </div>
-            <div class="h-1 w-full bg-neutral-200 dark:bg-neutral-800 rounded-full overflow-hidden">
-                <div class="h-1 {% if resume.ats_score >= 80 %}bg-brand-500{% elif resume.ats_score >= 50 %}bg-accent-500{% else %}bg-red-500{% endif %}" style="width: {{ resume.ats_score|floatformat:0 }}%;"></div>
-            </div>
-        </div>
+        {# ATS score breakdown — read-only "why this score" panel (Slice 1).
+           Renders the recomputed score (one computation, server-side) and its
+           must/nice/in-context/stuffing explanation. Subsumes the old headline. #}
+        {% include "components/ats_breakdown.html" %}
     </aside>
 <div id="editor-scroll" class="flex-grow p-4 sm:p-8 lg:p-12 overflow-y-auto" style="max-height: calc(100vh - 80px);">
         <div class="max-w-3xl mx-auto space-y-8">

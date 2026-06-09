@@ -34,4 +34,10 @@ urlpatterns = [
          views.resume_propose_fix_api, name='resume_propose_fix_api'),
     path('api/findings/<uuid:resume_id>/accept/',
          views.resume_accept_fix_api, name='resume_accept_fix_api'),
+
+    # Read-only "why this score" ATS breakdown (Slice 1). Not under
+    # api/findings/ — it isn't a finding; it recomputes the deterministic
+    # scorer's structured breakdown for the editor panel.
+    path('api/<uuid:resume_id>/ats-breakdown/',
+         views.resume_ats_breakdown_api, name='resume_ats_breakdown_api'),
 ]

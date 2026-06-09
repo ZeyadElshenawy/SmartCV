@@ -9,6 +9,7 @@ from profiles.models import UserProfile
 from analysis.models import GapAnalysis
 from .models import GeneratedResume, CoverLetter
 from .services.resume_generator import generate_resume_content, calculate_ats_score, regenerate_section
+from .services.ats_breakdown import breakdown_for_resume, refresh_ats_score, score_reconciles
 
 
 # The full set of body-section keys a resume can render. The user can
@@ -462,6 +463,9 @@ def resume_edit_view(request, resume_id):
         # Save to DB
         resume.content = updated_content
         resume.save()
+        # Sync the stored ATS score with the freshly-saved content (idempotent;
+        # persists only when the score moved) so no surface shows a stale number.
+        refresh_ats_score(resume)
         
         return redirect(f"{request.path}?saved=true")
     
@@ -602,6 +606,16 @@ def resume_edit_view(request, resume_id):
         resume_content=resume.content,
     )
 
+    # Read-only ATS breakdown — recompute from the live content so the panel
+    # and the headline render ONE number (invariant #1). The pure scorer is the
+    # sole authority; nothing here re-derives the score. `ats_stuffed` pairs each
+    # over-used keyword with its count for the (server-supplied) penalty copy.
+    ats_breakdown = breakdown_for_resume(resume)
+    ats_stuffed = [
+        {'skill': s, 'count': ats_breakdown['keyword_counts'].get(s, 0)}
+        for s in ats_breakdown['stuffing']['skills']
+    ]
+
     return render(request, 'resumes/edit.html', {
         'resume': resume,
         'profile': profile,
@@ -610,6 +624,10 @@ def resume_edit_view(request, resume_id):
         'section_order_with_labels': section_order_with_labels,
         'sync_banner': sync_banner,
         'review_summary': review_summary,
+        'ats_breakdown': ats_breakdown,
+        'ats_score_display': round(ats_breakdown['score']),
+        'ats_reconciles': score_reconciles(ats_breakdown),
+        'ats_stuffed': ats_stuffed,
     })
 
 
@@ -808,6 +826,7 @@ def regenerate_section_view(request, resume_id, section):
     saved[section] = new_value
     resume.content = saved
     resume.save(update_fields=['content'])
+    refresh_ats_score(resume)
 
     return JsonResponse({'section': section, 'value': new_value})
 
@@ -1307,6 +1326,7 @@ def resume_accept_fix_api(request, resume_id):
         content["professional_summary"] = new_text.strip()
         resume.content = content
         resume.save(update_fields=["content"])
+        refresh_ats_score(resume)
         return JsonResponse({"persisted": True, "section": "summary"})
 
     parent_list, parent_bullet_idx, kind = _bullet_at_location(
@@ -1326,5 +1346,24 @@ def resume_accept_fix_api(request, resume_id):
     content[section] = items
     resume.content = content
     resume.save(update_fields=["content"])
+    refresh_ats_score(resume)
     return JsonResponse({"persisted": True, "section": section,
                          "item_idx": item_idx, "bullet_idx": bullet_idx})
+
+
+@login_required
+@require_GET
+def resume_ats_breakdown_api(request, resume_id):
+    """Read-only: recompute and return the ATS breakdown for this résumé.
+
+    The structured views (must_have / nice_to_have / in_context / stuffing)
+    plus ``base`` let the editor explain the score with zero client-side math —
+    one computation, the pure scorer (resumes.services.scoring) is the sole
+    authority. Side-effect-free: a GET that explains a score never persists.
+    Slice 2's candidate-builder calls this to recompute after a hypothetical
+    edit, reusing ``breakdown_for_resume``.
+    """
+    resume = get_object_or_404(GeneratedResume, id=resume_id)
+    if resume.gap_analysis.job.user != request.user:
+        raise Http404
+    return JsonResponse(breakdown_for_resume(resume))
