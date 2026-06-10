@@ -266,7 +266,7 @@ strong { font-weight: 700; }
         <div class="item">
             <div class="item-head">
                 <span class="item-title">{{ edu.degree }}{% if edu.field %} in {{ edu.field }}{% endif %}</span>
-                {% with year=edu.graduation_year|default:edu.year %}{% if year %}<span class="item-date">{{ year }}</span>{% endif %}{% endwith %}
+                {% if edu.graduation_year %}<span class="item-date">{{ edu.graduation_year }}</span>{% elif edu.year %}<span class="item-date">{{ edu.year }}</span>{% endif %}
             </div>
             <div class="item-sub">{{ edu.institution }}{% if edu.location %} — {{ edu.location }}{% endif %}{% if edu.gpa %} · GPA {{ edu.gpa }}{% endif %}</div>
             {% if edu.honors %}<div style="font-size:10pt; margin-top:2px">{{ edu.honors|join:" · " }}</div>{% endif %}
