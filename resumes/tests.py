@@ -1081,30 +1081,36 @@ class SectionOrderEndpointTests(TestCase):
         self.assertEqual(resp.status_code, 404)
 
     def test_edit_page_renders_saved_order_in_drag_list_and_preview(self):
-        """The drag list AND the live preview must both honor the saved
-        section_order — not the default — when the page loads."""
+        """The drag list honors the saved section_order; the live preview — now
+        the shared-template render — honors the same order via the preview
+        endpoint (so preview and PDF can't drift on ordering)."""
         self.resume.content = {
             'professional_title': 'Engineer',
             'professional_summary': 'sum',
             'skills': ['Python'],
+            'projects': [{'name': 'Proj X', 'description': ['Did a thing here.']}],
             'section_order': ['projects', 'skills', 'summary'],
         }
         self.resume.save()
         from django.urls import reverse
         resp = self.client.get(reverse('resume_edit', args=[self.resume.id]))
         body = resp.content.decode('utf-8')
-        # Drag list: 'projects' chip should appear before 'skills' chip
+        # Drag list: 'projects' chip should appear before 'skills' before 'summary'
         proj_idx = body.index('data-section-key="projects"')
         skills_idx = body.index('data-section-key="skills"')
         summary_idx = body.index('data-section-key="summary"')
         self.assertLess(proj_idx, skills_idx)
         self.assertLess(skills_idx, summary_idx)
-        # Live preview: data-preview-section attributes must appear in same order
-        ppi = body.index('data-preview-section="projects"')
-        psi = body.index('data-preview-section="skills"')
-        psum = body.index('data-preview-section="summary"')
-        self.assertLess(ppi, psi)
-        self.assertLess(psi, psum)
+        # Live preview is now the SHARED template, rendered by the preview endpoint
+        # — it honors the same saved section_order (Projects < Skills < Summary).
+        import json
+        prev = self.client.post(
+            reverse('resume_preview_api', args=[self.resume.id]),
+            data=json.dumps({'content': {}, 'template_name': 'ats_clean'}),
+            content_type='application/json', HTTP_HOST='localhost')
+        html = prev.json()['html']
+        self.assertLess(html.index('>Projects<'), html.index('>Skills<'))
+        self.assertLess(html.index('>Skills<'), html.index('>Professional Summary<'))
 
 
 class RegenerateSectionEndpointTests(TestCase):
@@ -13055,3 +13061,91 @@ class V2AdapterMatchChainTests(SimpleTestCase):
         self.assertEqual(out["experience"][0]["duration"],
                          "Jan 2024 - Dec 2024 (preserved)")
 
+
+
+class ResumePreviewSyncTests(TestCase):
+    """Stage 1 — the live-preview endpoint renders the SAME template the PDF
+    renders (render_resume_html -> shared resolve_template + context-prep), so the
+    editor preview and the download cannot drift on labels/structure/grouping."""
+
+    def setUp(self):
+        from jobs.models import Job
+        from analysis.models import GapAnalysis
+        from profiles.models import UserProfile
+        from resumes.models import GeneratedResume
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='prevsync@example.com', email='prevsync@example.com', password='x')
+        self.profile = UserProfile.objects.create(
+            user=self.user, full_name='Pat Preview', email='prevsync@example.com')
+        job = Job.objects.create(
+            user=self.user, title='Backend Engineer', company='Acme',
+            description='Python backend.', extracted_skills=['Python', 'PostgreSQL'])
+        gap = GapAnalysis.objects.create(user=self.user, job=job, similarity_score=0.6)
+        self.resume = GeneratedResume.objects.create(
+            gap_analysis=gap,
+            content={
+                'professional_title': 'Backend Systems Engineer',
+                'professional_summary': 'Built distributed Python systems.',
+                'skills': ['Python', 'PostgreSQL', 'Redis', 'Docker', 'AWS'],
+                'experience': [{
+                    'title': 'Backend Engineer', 'company': 'PriorCo',
+                    'duration': '2023 - Present',
+                    'description': ['Cut p99 latency from 1.2s to 380ms.', 'Owned async migration.'],
+                }],
+                'template_name': 'ats_clean',
+            })
+        self.client.force_login(self.user)
+        self.url = reverse('resume_preview_api', args=[self.resume.id])
+
+    def _post(self, body):
+        import json
+        return self.client.post(self.url, data=json.dumps(body),
+                                content_type='application/json', HTTP_HOST='localhost')
+
+    def test_preview_renders_shared_pdf_template_labels(self):
+        # The preview carries the PDF template's labels + structure, NOT the old
+        # hand-written preview's "Core Competencies" / "Professional Experience".
+        html = self._post({'content': {}, 'template_name': 'ats_clean'}).json()['html']
+        self.assertIn('Skills', html)
+        self.assertIn('Work Experience', html)
+        self.assertNotIn('Core Competencies', html)
+        self.assertNotIn('Professional Experience', html)
+        self.assertIn('<li>', html)            # bullets as list items, like the PDF
+        self.assertIn('section-title', html)   # the PDF template's class
+
+    def test_preview_is_the_same_template_as_generate_pdf(self):
+        # The endpoint renders EXACTLY render_resume_html (the same path generate_pdf
+        # uses); it only APPENDS a screen-margin <style>, so the shared render is a prefix.
+        from resumes.services.resume_render import render_resume_html
+        direct = render_resume_html(self.resume.content, self.profile, template_name='ats_clean')
+        html = self._post({'content': {}, 'template_name': 'ats_clean'}).json()['html']
+        self.assertTrue(html.startswith(direct))
+
+    def test_live_unsaved_edits_override_saved(self):
+        # Posted (in-flight) content overrides the saved snapshot in the preview.
+        html = self._post({'content': {'professional_summary': 'ZZ_LIVE_EDIT_ZZ'}}).json()['html']
+        self.assertIn('ZZ_LIVE_EDIT_ZZ', html)
+
+    def test_template_choice_flows_into_preview(self):
+        # The accent theme renders its own template; the preview honors the choice.
+        accent = self._post({'content': {}, 'template_name': 'ats_clean_accent'}).json()['html']
+        clean = self._post({'content': {}, 'template_name': 'ats_clean'}).json()['html']
+        self.assertIn('Skills', accent)
+        self.assertNotEqual(accent, clean)   # different theme_css rendered
+
+    def test_editor_page_uses_iframe_not_old_inline_preview(self):
+        html = self.client.get(reverse('resume_edit', args=[self.resume.id]),
+                               HTTP_HOST='localhost').content.decode()
+        self.assertIn('id="preview-frame"', html)     # shared-render iframe target
+        self.assertNotIn('id="live-preview"', html)   # old inline preview removed
+        self.assertNotIn('Core Competencies', html)   # old label removed
+
+    def test_view_page_renders_shared_template(self):
+        # The read-only view page (resume_preview) now embeds the shared render too.
+        html = self.client.get(reverse('resume_preview', args=[self.resume.id]),
+                               HTTP_HOST='localhost').content.decode()
+        self.assertIn('id="view-frame"', html)        # shared-render iframe
+        self.assertNotIn('Core Competencies', html)   # old label gone
+        self.assertIn('Work Experience', html)        # rendered into srcdoc

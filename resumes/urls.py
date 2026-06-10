@@ -50,4 +50,8 @@ urlpatterns = [
     # (separate endpoint so its failure can't roll back the committed save).
     path('api/<uuid:resume_id>/ats-quantify-regen/',
          views.resume_ats_quantify_regen_api, name='resume_ats_quantify_regen_api'),
+    # Stage 1 — shared-template live preview: renders the SAME pdf_template the
+    # download renders, so the editor preview and the PDF can't drift.
+    path('api/<uuid:resume_id>/preview/',
+         views.resume_preview_api, name='resume_preview_api'),
 ]
