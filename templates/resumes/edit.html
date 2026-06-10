@@ -833,6 +833,34 @@ it just under the 80px base nav. {% endcomment %}
                         --p-section-title-border: 1px solid #1e3a8a;
                         --p-header-border: 1px solid #1e3a8a;
                     }
+                    /* Stage 2 themes — thumbnail hints; the big preview iframe (§7.9)
+                       renders the real pdf_template_{name}.html when selected. */
+                    /* Dense — tighter body + section gaps, black rules */
+                    .pdf-preview--ats_dense {
+                        --p-body-size: 6.5pt;
+                        --p-title-size: 11pt;
+                        --p-section-gap: 6px;
+                        --p-section-title-color: #000;
+                        --p-section-title-border: 1px solid #000;
+                        --p-subtitle-color: #000;
+                    }
+                    /* Spacious — airy gaps + a light slate rule */
+                    .pdf-preview--ats_spacious {
+                        --p-title-size: 14pt;
+                        --p-title-color: #334155;
+                        --p-section-gap: 14px;
+                        --p-section-title-color: #334155;
+                        --p-section-title-border: 1px solid #cbd5e1;
+                        --p-header-border: 1px solid #cbd5e1;
+                        --p-subtitle-color: #475569;
+                    }
+                    /* Strict — no rules/borders anywhere, black-only */
+                    .pdf-preview--ats_strict {
+                        --p-header-border: 0;
+                        --p-section-title-color: #000;
+                        --p-section-title-border: 0;
+                        --p-subtitle-color: #000;
+                    }
 
                     /* Legacy theme classes — kept so resumes saved with
                        removed template_name values still preview with the

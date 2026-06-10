@@ -1,0 +1,15 @@
+{% extends 'resumes/pdf_base.html' %}
+{% block theme_css %}
+/* Strict — maximum parser safety: NO rules/borders anywhere (some legacy ATS
+   choke on border CSS), plain bold uppercase headings, black-only. The
+   structurally safest variant; relies on spacing + weight for hierarchy. */
+.resume-header { border-bottom: none; padding-bottom: 2px; margin-bottom: 14px; }
+.name { font-size: 20pt; }
+.section-title {
+    border-bottom: none;
+    padding-bottom: 0;
+    font-size: 13pt;
+    letter-spacing: 1px;
+    margin: 0 0 7px 0;
+}
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends 'resumes/pdf_base.html' %}
+{% block theme_css %}
+/* Spacious — generous whitespace + a lighter slate rule for a calm, modern
+   read. Still single-column with black BODY text (ATS-safe — keyword ranking
+   improves on black); only the name + headers carry one dark-slate accent. */
+body { line-height: 1.55; }
+.name { font-size: 24pt; letter-spacing: 0.5px; color: #334155; }
+.professional-title { font-size: 12.5pt; margin: 0 0 10px 0; color: #475569; }
+.resume-header { margin-bottom: 22px; padding-bottom: 16px; border-bottom-color: #cbd5e1; }
+.section { margin-bottom: 22px; }
+.section-title {
+    font-size: 13pt;
+    letter-spacing: 2px;
+    color: #334155;
+    margin: 0 0 12px 0;
+    padding-bottom: 6px;
+    border-bottom-color: #cbd5e1;
+}
+.item-sub { color: #475569; }
+.item { margin-bottom: 16px; }
+.bullets { margin-top: 6px; }
+.bullets li { margin-bottom: 5px; }
+{% endblock %}
