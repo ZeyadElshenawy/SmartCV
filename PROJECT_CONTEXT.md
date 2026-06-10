@@ -41,7 +41,7 @@
 
 1. **Parses the CV into a single structured master profile** (`UserProfile.data_content`, one JSONB blob) and enriches it with live signals from GitHub, Google Scholar, Kaggle, and (opt-in) LinkedIn.
 2. **Runs a two-phase gap analysis** — an LLM categorises every required skill as matched / partial / missing, then a *deterministic* reconciliation pass guarantees that **every** job skill is accounted for and that every "match" is grounded in real evidence (no silent drops, no flattering hallucinations).
-3. **Generates an ATS-optimised, tailored résumé** whose bullets are grounded in extracted facts, scored by a *deterministic* ATS scorer (σ=0), and scrubbed of "AI tells" by a prompt-guard + validator system.
+3. **Generates an ATS-optimised, tailored résumé** whose bullets are grounded in extracted facts, scored by a *deterministic* ATS scorer (σ=0), and scrubbed of "AI tells" by a prompt-guard + validator system — then opens it in an `Edit | Analyze` editor whose interactive "why this score" panel proposes grounded improvements and **asks for real numbers instead of inventing them** (§7.8), with a live preview that renders the same template as the downloaded PDF (§7.9).
 4. **Drafts an outreach campaign** and pairs with a Chrome extension that discovers reachable people from inside the user's own LinkedIn tab and queues personalised connect-with-note drafts — **for review, never auto-sent.**
 
 **The core bet:** an LLM is a brilliant *writer* and a dangerous *bookkeeper*. So SmartCV lets the model **propose** (categorise, draft, phrase) and lets **deterministic Python dispose** (reconcile coverage, ground every claim, compute every number, enforce voice). The whole codebase is an essay on "model proposes, code disposes, fail toward honesty."
@@ -431,7 +431,7 @@ Both pipelines emit a `ResumeContentResult`-shaped dict and a v1-shaped `validat
 
 ### 7.4 · DETERMINISTIC ATS SCORING — `resumes/services/scoring.py`
 
-**Entry:** `compute_ats_breakdown(resume_content, job_skills, tiers=None) :158` (float-only wrapper `calculate_ats_score :437`). **Pure, deterministic, σ=0** (no LLM, no randomness, no IO — confirmed by the determinism benchmark).
+**Entry:** `compute_ats_breakdown(resume_content, job_skills, tiers=None) :163` (float-only wrapper `calculate_ats_score :443`). **Pure, deterministic, σ=0** (no LLM, no randomness, no IO — confirmed by the determinism benchmark). The `AtsBreakdown` TypedDict (`:123`) carries a **`base`** key (`:126`) — the tier-weighted base *before* the in-context/stuffing adjustments and *before* the [0,100] clamp — added so the interactive panel can show `base + in-context − stuffing = score` by hand; it is purely additive metadata and never affects `score`. → consumed by the editor's ATS panel, [§7.8](#78--interactive-ats-breakdown-the-editor-panel-feature).
 
 **Constants:**
 ```python
@@ -473,6 +473,31 @@ Campaign → target discovery → message drafting → review → extension disp
 
 > Live scraping is **fragile** — see [§11](#11--external-integrations).
 
+### 7.8 · INTERACTIVE ATS BREAKDOWN (the editor-panel feature)
+
+A "why this score" panel on the résumé editor that surfaces *how* the deterministic ATS number (§7.4) is built and lets the user act on it — **without ever fabricating a number**. All scoring is the one `compute_ats_breakdown` pass; the panel only re-presents and proposes.
+
+**Service layer:**
+- `resumes/services/ats_breakdown.py` (115L) — resume-aware wrappers over the pure scorer: `breakdown_for_resume(resume, content=None) :21` resolves the (content, job-skills, tiers) triple and scores `content` when given else `resume.content` — the **`content` param is the candidate-builder seam** (score a hypothetical edit without persisting); `apply_edit_to_content(content, edit) :84` is **pure** (deep-copies; idempotent `add_skill`); `score_with_edit(resume, edit, *, current=None) :104` returns `(new_breakdown, delta)`; `refresh_ats_score(resume) :40` recomputes + persists `ats_score` only when it changed (1 dp); `score_reconciles(breakdown) :59` is the clamp-didn't-bind flag.
+- `resumes/services/ats_cards.py` (280L) — `build_ats_cards(resume, *, current=None) :89` produces three **card kinds**: `actionable` (`:116` — a JD must/nice skill missing from the skills line but evidence-backed; carries the **real** recomputed coverage `delta`), `advisory` (`:144` — e.g. a stuffed keyword), `quantify` (`:180` — an achievement-shaped bullet with **no** number, via `bullet_validator._has_quantification`). Provenance gate `_evidence_backed_matched(gap) :58` admits only matches with a non-`user` evidence source + a real quote (⚠ known edge: a lenient fallback row). Card ids are **stable** (`_ats_card_id :50`). `save_quantification_to_profile(...) :244` appends the user's verbatim figure to the **matched profile entry** (`_match_profile_entry :210`).
+- `resumes/templatetags/ats_cards_extras.py` — `cards_of_kind(cards, kind) :14`, a **presentation-only** filter that groups the unchanged cards into the panel's three collapsible groups (Quick wins / Add evidence / Watch-outs).
+
+**Endpoints** (`resumes/views.py`, routes `resumes/api/<id>/ats-*`) — all **card-id-only trust path**: the request carries only a `card_id` (+ the user's text for quantify); the server re-derives the card from current state and applies the *server-produced* edit, so a tampered/stale payload can't persist arbitrary content and *previewed == realized*:
+- `resume_ats_breakdown_api :1376` (GET) → `{breakdown, cards}`. Shared context built by `_ats_panel_context :1393`, rendered by `_render_ats_panel :1410` — the single source for both the panel's initial render and the post-apply swap, so they can't drift.
+- `resume_ats_apply_api :1420` (POST) — applies ONE actionable card, persists, rescores, returns the re-rendered panel fragment.
+- `resume_ats_quantify_api :1462` (POST) — the **profile-write**: appends the real figure to `UserProfile.data_content` (**NOT** the résumé), where it becomes a grounded ACHIEVEMENT fact. Returns a pipeline-honest message.
+- `resume_ats_quantify_regen_api :1527` (POST, "Slice 5") — best-effort auto-regenerate of that one bullet, a **separate** request so its failure can never roll back the committed profile-write. Reuses the single-bullet primitives (`_facts_for_bullet_from_profile` + `_allowed_numbers_from_facts` → `_generate_one_bullet`); a deterministic land-check picks one of three honest outcomes (`landed` → persist + rescore; `not_used` / `failed` → persist nothing, always HTTP 200, never 500).
+
+**The honesty spine.** Cards never fabricate, suggest, or pre-fill a number the user didn't supply. The quantify flow *asks* for a real figure, writes it to the profile as a fact, then auto-regenerates the bullet through the **number-locked pipeline** (`_allowed_numbers_from_facts` → `_generate_one_bullet`), which permits only digits that appear in the facts. That regen path imports `_generate_one_bullet` directly, so it is number-locked **regardless of `RESUME_GENERATOR_PIPELINE`** — it works even though production ships v1 (§7.3). Backed by `resumes/test_ats_breakdown.py` (1,051L), whose backbone is anti-fabrication tests. Front-end: [§9](#9--front-end-architecture).
+
+### 7.9 · RÉSUMÉ RENDERING — PDF / SHARED-TEMPLATE PREVIEW / DOCX
+
+**PDF (the source of truth).** `resumes/services/pdf_exporter.py` (102L): `generate_pdf(resume, output, template_name) :51` → `resolve_template(template_name) :33` → `templates/resumes/pdf_template_{theme}.html`, rendered by **WeasyPrint**. Both live themes (`LIVE_THEMES :15` = `ats_clean` B&W / `ats_clean_accent`) extend `templates/resumes/pdf_base.html` (ATS guarantees in one place). Old theme names migrate via `THEME_MIGRATION` (never 500). Editor download is `export_pdf_view :921`; the picker (`template_choices`, set in the edit view) offers exactly those two, saved as `content['template_name']`.
+
+**Live preview — Stage 1 of the preview-sync refactor, COMMITTED at HEAD.** The editor preview and the read-only view page now render the **same template the PDF renders**, so they can't drift. `resume_render.render_resume_html(content, profile, *, template_name) :109` returns the shared template's HTML from a content dict via the *exact* `resolve_template` + context-prep `generate_pdf` uses. `resume_preview_api :1646` (POST `api/<id>/preview/`) merges the live, possibly-unsaved form content over the saved snapshot, renders it, returns the HTML; `edit.html` injects it into a scaled `<iframe>`, debounced (~400 ms, settle-on-pause). The View page (`resume_preview_view :310` → `preview.html`) embeds the same render. **Labeled "close approximation of your PDF"** — browser vs WeasyPrint are different engines, never pixel-exact. ⚠ This **replaced** the old bespoke inline `.pdf-preview` HTML (which said "Core Competencies"/"Professional Experience" and drifted). The legacy `pdf_generator.generate_optimized_pdf` → `resume_template.html` (xhtml2pdf) and its `download/<job_id>` route are **unlinked/dead**.
+
+**DOCX.** `resumes/services/docx_exporter.py` (777L): `generate_docx(resume) :705` builds an ATS-clean DOCX with python-docx (mixed-case name title, 13 pt rule'd section headings, right-aligned dates, italic company line — a hierarchy match to the PDF). It is **single-style** — it ignores `template_name`. ⚠ **NOT YET BUILT (deferred):** the per-template DOCX "theme hook" (so the accent variant / new templates carry into DOCX) and **Stage 2** of the preview refactor (additional templates, e.g. `ats_dense`/`ats_spacious`/`ats_strict`) are designed but not implemented.
+
 ---
 
 ## 8 · THE ANTI-AI-TELL / PROMPT-GUARD SYSTEM
@@ -506,7 +531,7 @@ Server-rendered Django templates + **Tailwind v4 (CSS-first)** + **Alpine.js (CD
 | `core/` | 6 | home, welcome, applications (kanban), insights, agent_chat, design_system |
 | `jobs/` | 4 | input, detail, review_job, recommended_detail |
 | `profiles/` | 12 | dashboard (687L kanban), chatbot, manual_form, upload_cv, outreach×3, connect_accounts, job_preferences, … |
-| `resumes/` | 11 + 1 | edit (1465L editor), preview, list, generate, cover-letter, export_error + 3 PDF templates; plus app-local `resumes/templates/resumes/resume_template.html` (340L) ⚠ duplicate name |
+| `resumes/` | 11 + 1 | edit (1487L editor — `Edit\|Analyze` toggle + shared-template preview iframe), preview, list, generate, cover-letter, export_error + `pdf_base.html` + 2 `pdf_template_*` themes + `components/ats_breakdown.html`; plus app-local legacy `resumes/templates/resumes/resume_template.html` (340L) ⚠ duplicate name, **dead path** |
 
 **`base.html` named systems:**
 - **Loading-overlay** (`:316-578`) — a `LoadingOps` registry mapping op keys to multi-step progress with per-step time budgets and per-op timeouts: `cv-upload`, `job-scrape`, `job-paste`, `gap-analysis` (45s), `resume-gen` (60s), `cover-letter` (90s), `outreach`, `outreach-campaign` (120s), `learning-path`, `salary`. The last step never auto-completes — it waits for `succeedLoading()`/`failLoading()`.
@@ -515,7 +540,9 @@ Server-rendered Django templates + **Tailwind v4 (CSS-first)** + **Alpine.js (CD
 
 **Tailwind v4 design tokens** (`static/src/input.css`, `@theme`): fonts `--font-sans` Inter / `--font-display` Fraunces / `--font-mono` IBM Plex Mono; `brand-*` blue ramp (primary `#3b82f6`), `accent-*` violet ramp (`#8b5cf6`), semantic `success/warning/danger`; **legacy `rn-*` tokens** (`rn-blue #2f5cf8`, `rn-navy #15255c`, `rn-gold`, `--radius-rn-pill: 58px`) preserved during the phased redesign. ⚠ Colors are **sRGB hex, not oklch** (the committed `output.css` may render oklch after Tailwind's compile, but the source tokens are hex).
 
-**Three distinct hand-rolled HTML5 drag-and-drop systems:** (1) gap-analysis 4-column skill board (Alpine `skillDragDrop()`, with a live JS score mirror of `skill_score.py`); (2) résumé section-reorder in `edit.html` (plain inline fns, live-preview mirroring); (3) applications/dashboard Kanban (Alpine `kanbanBoard()`, reverts on POST failure). DnD is mouse-only (⚠ no keyboard reordering).
+**Three distinct hand-rolled HTML5 drag-and-drop systems:** (1) gap-analysis 4-column skill board (Alpine `skillDragDrop()`, with a live JS score mirror of `skill_score.py`); (2) résumé section-reorder in `edit.html` (plain inline fns; the live preview is now a server-rendered shared-template `<iframe>`, §7.9, **not** a client-side mirror); (3) applications/dashboard Kanban (Alpine `kanbanBoard()`, reverts on POST failure). DnD is mouse-only (⚠ no keyboard reordering).
+
+**The résumé editor (`edit.html`, 1487L) — the `Edit | Analyze` redesign.** The page is one `resumeEditor` Alpine component with a `mode` state (`mode: 'edit'` :1457) and a top-centre segmented toggle (`role="tablist"` :58). **Edit** mode is the two-region editor (section nav + form | the shared-template preview iframe); **Analyze** mode is a full-width focused view of the ATS panel (§7.8) with the preview hidden. The panel is a single `atsPanel()` factory (`:178`) on a stable wrapper with delegated `data-*` handlers (`data-apply-card` / `data-quantify-submit` / `data-quantify-dismiss` / `data-group-toggle` / `data-toggle-details`), so a server-swapped fragment needs no Alpine re-init. `components/ats_breakdown.html` (304L) renders a **radial gauge** (fill is server-data-bound — `pathLength="100"` + `stroke-dasharray`, **no** client-side score math) + the four real readouts + the literal reconciliation equation + the three counted card groups; an **Edit-tab big-score + "View analysis" button** sits under the section nav. **One-source score rule:** the gauge centre, the toggle badge, and the Edit-tab block all carry/sync `data-ats-tab` from the one server figure (`syncTab()`), so the three displays can't disagree. The marketing footer is suppressed on the editor page (`{% block footer %}{% endblock %}` overrides `base.html`). ⚠ Historical: this **replaced** an interim "hybrid slide-over" panel — the slide-over is **gone**; the toggle is the shipped state.
 
 ---
 
@@ -649,10 +676,10 @@ Reproduce: `python -m benchmarks.run_all` (all phases except tailoring) · `--wi
 ## 15 · TESTING
 
 **Two parallel test systems:**
-- **(A) Per-app Django tests** (`<app>/tests.py` + extra `<app>/test_*.py`), run by `python manage.py test`, on **in-memory SQLite** (forced when `'test' in sys.argv`). Biggest: `resumes/tests.py` (13,057 lines, ~685 test methods), `profiles/tests.py` (4,243 lines, ~297).
+- **(A) Per-app Django tests** (`<app>/tests.py` + extra `<app>/test_*.py`), run by `python manage.py test`, on **in-memory SQLite** (forced when `'test' in sys.argv`). Biggest: `resumes/tests.py` (13,151 lines, ~690 test methods) + `resumes/test_ats_breakdown.py` (1,051L — the ATS-panel anti-fabrication suite, §7.8), `profiles/tests.py` (4,243 lines, ~297).
 - **(B) Top-level `tests/`** run by **pytest** (`pytest.ini` → `testpaths=tests`): `tests/services/` (12 unit modules) + `tests/integration/` (record/replay harness). ⚠ Note the two runners cover **different files** — the default `pytest` invocation does *not* collect the app-level `test_*.py`.
 
-**Static count (git-tracked):** **~1,869 `def test_` methods across 368 test classes** (a direct grep; a stricter enumeration counts ~1,792 — the spread is helper/comment lines). Either way, the real suite is far larger than the README badges suggest.
+**Static count (git-tracked):** **~1,945 `def test_` methods across 432 test classes** (a direct grep; grew with the ATS-panel, Slice-5 auto-regen, and preview-sync suites). Either way, the real suite is far larger than the README badges suggest.
 
 > **⚠ README test-count discrepancy:** the badge says **"337 passing"** (`README.md:6`), the body says **"398 Django tests passing"** (`:65`) — internally inconsistent *and* ~5× below the real ~1,800 test methods. Coverage badge claims **53%**. These are stale.
 
@@ -734,12 +761,12 @@ raise AllGroqKeysExhausted(task=self._task, keys_tried=len(self._keys)) from exc
 **Latent bugs / drift (⚠):**
 - `profiles/views.py:1256` `_refresh_signal` accesses `ProfileStrength` as attributes (`ps.score`), but `compute_profile_strength` returns a **TypedDict** (plain dict) → `AttributeError` swallowed by try/except → the live-patch strength payload is silently never populated on signal refresh.
 - `core/middleware.py:6-7` docstring says it ignores "401/302/304"; code ignores `(401, 404)`.
-- Two files named `resume_template.html` (`templates/resumes/` 198L vs `resumes/templates/resumes/` 340L) — ⚠ verify which Django resolves.
+- Two files named `resume_template.html` (`templates/resumes/` 198L vs `resumes/templates/resumes/` 340L) — both are the **legacy** "Core Competencies" render used only by the **dead** `pdf_generator.generate_optimized_pdf` / `download/<job_id>` path (xhtml2pdf, unlinked). The live PDF is WeasyPrint via `pdf_base.html` (§7.9). ⚠ verify which Django resolves before deleting either.
 - `skill_score.py` math is duplicated in JS in `gap_analysis.html` — can drift.
 
 **Empty/stub modules:** `core/models.py`, `core/admin.py`, `accounts/admin.py`, `resumes/admin.py`, `analysis/admin.py` (the custom `User` is not admin-registered).
 
-**Reserved / not wired:** `BULLET_RETRY` setting ("placeholder so .env edits don't surprise the eval scripts"). v2 reviewer is content-only (no visual-render review yet). `RESUME_GENERATOR_PIPELINE` defaults to **v1**, so the entire v2 evidence-first stack (FactStore, fact_extractor live path, planner/generator/reviewer v2) is OFF in production. `SUPERVISOR_ENABLED` defaults **False**, so the vision-supervisor loop is dormant.
+**Reserved / not wired:** `BULLET_RETRY` setting ("placeholder so .env edits don't surprise the eval scripts"). v2 reviewer is content-only (no visual-render review yet). `RESUME_GENERATOR_PIPELINE` defaults to **v1**, so the entire v2 evidence-first stack (FactStore, fact_extractor live path, planner/generator/reviewer v2) is OFF in production. `SUPERVISOR_ENABLED` defaults **False**, so the vision-supervisor loop is dormant. **Preview-sync Stage 2** (additional PDF templates such as `ats_dense`/`ats_spacious`/`ats_strict`) and the **DOCX per-template theme hook** are designed but **not yet built** — DOCX is single-style and ignores `template_name`, and the editor's template-picker thumbnails still use the old `.pdf-preview` CSS approximation (Stage-2 cleanup). See §7.9.
 
 **Config drift:** `RAG_ENABLED` defaults `True` though its own comment says "Default False until benchmarks confirm a lift" (`settings.py:308-309`). `smartcv/settings_constants.py` describes a 768-dim Gemini embedding stack that the code does not use.
 
@@ -864,9 +891,9 @@ Line counts are exact (`wc -l`, git-tracked). Bulk data groups (migrations, fixt
 **`analysis/services/`:** `gap_analyzer.py` (1165 — two-phase engine), `learning_path_generator.py` (179), `salary_negotiator.py` (49), `skill_score.py` (157). Migrations: 3 (0003 proximity-aware).
 
 ### `resumes` (largest app)
-**App modules:** `models.py` (51), `views.py` (1330), `urls.py` (37), `tasks.py` (56), `admin.py` (3 empty), `tests.py` (13057). Extra test modules: `test_fact_extractor.py` (2346), `test_resume_planner_v2.py` (1327), `test_resume_generator_v2.py` (1304), `test_kb_integration.py` (590), `test_resume_reviewer_v2.py` (498), `test_fact_store.py` (479), `test_seniority.py` (470), `test_pipeline_dispatch.py` (432), `test_benchmark_resumable.py` (274), `test_bullet_validator.py` (249).
+**App modules:** `models.py` (51), `views.py` (1687), `urls.py` (56), `tasks.py` (56), `admin.py` (3 empty), `tests.py` (13151). Extra test modules: `test_ats_breakdown.py` (1051, ATS panel), `test_fact_extractor.py` (2346), `test_resume_planner_v2.py` (1327), `test_resume_generator_v2.py` (1304), `test_kb_integration.py` (590), `test_resume_reviewer_v2.py` (498), `test_fact_store.py` (479), `test_seniority.py` (470), `test_pipeline_dispatch.py` (432), `test_benchmark_resumable.py` (274), `test_bullet_validator.py` (249).
 
-**`resumes/services/` (30 modules):**
+**`resumes/services/` (32 modules):**
 | File | Lines | Purpose |
 |---|---|---|
 | `resume_generator.py` | 3096 | **v1 generator** (default path) |
@@ -878,7 +905,9 @@ Line counts are exact (`wc -l`, git-tracked). Bulk data groups (migrations, fixt
 | `resume_normalizer.py` | 1920 | Deterministic post-LLM cleanup (40+ rules) |
 | `resume_validator.py` | 296 | Pass-2 grounding check (leak/metric flags) |
 | `role_identity_guard.py` | 190 | Drop phantom roles/projects |
-| `scoring.py` | 450 | **Deterministic ATS scorer (σ=0)** |
+| `scoring.py` | 456 | **Deterministic ATS scorer (σ=0)** — `compute_ats_breakdown` (§7.4) |
+| `ats_breakdown.py` | 115 | **ATS panel** — resume-aware scorer wrappers + candidate-builder seam (§7.8) |
+| `ats_cards.py` | 280 | **ATS panel** — 3 card kinds + provenance gate + profile-write |
 | `pipeline_dispatch.py` | 187 | v1/v2 selector |
 | `inclusion_planner.py` | 696 | v1 deterministic include/exclude planner |
 | `fact_extractor.py` | 1836 | v2 atomic-fact extractor (+deprecated stubs) |
@@ -892,10 +921,10 @@ Line counts are exact (`wc -l`, git-tracked). Bulk data groups (migrations, fixt
 | `seniority.py` | 294 | Honest job-title (tenure math) |
 | `skill_categorizer.py` | 201 | Skill→category for grouped display |
 | `cover_letter_generator.py` | 107 | LLM 3-paragraph cover letter |
-| `docx_exporter.py` | 755 | python-docx ATS-clean DOCX |
-| `pdf_exporter.py` | 102 | **WeasyPrint** PDF (primary) |
-| `pdf_generator.py` | 79 | **xhtml2pdf** PDF (legacy) |
-| `resume_render.py` | 111 | Dict→PNG (PyMuPDF) for supervisor |
+| `docx_exporter.py` | 777 | python-docx ATS-clean DOCX (single-style, §7.9) |
+| `pdf_exporter.py` | 102 | **WeasyPrint** PDF (primary) — `resolve_template`/`LIVE_THEMES` (§7.9) |
+| `pdf_generator.py` | 79 | **xhtml2pdf** PDF — ⚠ **legacy/dead** path |
+| `resume_render.py` | 166 | Dict→PNG (PyMuPDF, supervisor) + `render_resume_html` (shared preview, §7.9) |
 | `text_norm.py` | 24 | Shared `norm()` helper |
 | `resume_v2_adapter.py` / `resume_planner_v2.py` | (above) | |
 
