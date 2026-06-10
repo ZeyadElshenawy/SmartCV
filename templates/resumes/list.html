@@ -260,7 +260,7 @@
                             {% for edu in resume.content.education|slice:":1" %}
                             <div class="p-item">
                                 <div class="p-item-title">{{ edu.degree }}{% if edu.field %} in {{ edu.field }}{% endif %}</div>
-                                <div class="p-item-subtitle">{{ edu.institution }}{% if edu.year or edu.graduation_year %} · {{ edu.graduation_year|default:edu.year }}{% endif %}</div>
+                                <div class="p-item-subtitle">{{ edu.institution }}{% if edu.graduation_year %} · {{ edu.graduation_year }}{% elif edu.year %} · {{ edu.year }}{% endif %}</div>
                             </div>
                             {% endfor %}
                         </div>

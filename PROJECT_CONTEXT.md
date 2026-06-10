@@ -763,6 +763,7 @@ raise AllGroqKeysExhausted(task=self._task, keys_tried=len(self._keys)) from exc
 - `core/middleware.py:6-7` docstring says it ignores "401/302/304"; code ignores `(401, 404)`.
 - Two files named `resume_template.html` (`templates/resumes/` 198L vs `resumes/templates/resumes/` 340L) — both are the **legacy** "Core Competencies" render used only by the **dead** `pdf_generator.generate_optimized_pdf` / `download/<job_id>` path (xhtml2pdf, unlinked). The live PDF is WeasyPrint via `pdf_base.html` (§7.9). ⚠ verify which Django resolves before deleting either.
 - `skill_score.py` math is duplicated in JS in `gap_analysis.html` — can drift.
+- ⚠ **Django filter-arg gotcha (fixed in the LIVE templates):** `{{ x|default:obj.key }}` resolves the `obj.key` ARG eagerly, and a *missing* filter arg raises `VariableDoesNotExist` with **no** `string_if_invalid` fallback → a 500. It crashed the résumé list + the shared preview/PDF on education with `graduation_year` but no `year`; fixed to `if/elif` in `list.html` + `pdf_base.html`. ⚠ The same pattern survives in the **dead** `resume_template.html:157` (`exp.title|default:exp.position`) — harmless only because that template is unrendered.
 
 **Empty/stub modules:** `core/models.py`, `core/admin.py`, `accounts/admin.py`, `resumes/admin.py`, `analysis/admin.py` (the custom `User` is not admin-registered).
 

@@ -13236,3 +13236,53 @@ class Stage2TemplatesTests(TestCase):
             html = render(t)
             self.assertIn('Work Experience', html)
             self.assertNotEqual(html, clean)
+
+
+class EducationYearKeyRegressionTests(TestCase):
+    """Regression: education carrying `graduation_year` but no `year` key must
+    not 500 the résumé list / preview / PDF. Root cause was the Django filter-arg
+    gotcha — `{{ edu.graduation_year|default:edu.year }}` resolves the `edu.year`
+    ARG eagerly, and a missing filter arg raises VariableDoesNotExist with no
+    string_if_invalid fallback. Fixed to an if/elif (failure-tolerant resolution)
+    in list.html + the shared pdf_base.html."""
+
+    def setUp(self):
+        from jobs.models import Job
+        from analysis.models import GapAnalysis
+        from profiles.models import UserProfile
+        from resumes.models import GeneratedResume
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='gradyr@example.com', email='gradyr@example.com', password='x')
+        self.profile = UserProfile.objects.create(
+            user=self.user, full_name='Grad Yr', email='gradyr@example.com')
+        job = Job.objects.create(
+            user=self.user, title='Engineer', description='x', extracted_skills=['Python'])
+        gap = GapAnalysis.objects.create(user=self.user, job=job, similarity_score=0.5)
+        self.resume = GeneratedResume.objects.create(
+            gap_analysis=gap,
+            content={'skills': ['Python'],
+                     'education': [{'degree': 'Bachelor', 'field': 'CS',
+                                    'institution': 'KSIU', 'graduation_year': '2026'}],
+                     'template_name': 'ats_clean'})
+        self.client.force_login(self.user)
+
+    def test_list_page_renders_graduation_year_only_education(self):
+        resp = self.client.get(reverse('resume_list'), HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 200)   # was 500
+        self.assertContains(resp, '2026')
+
+    def test_preview_renders_graduation_year_only_education(self):
+        import json
+        resp = self.client.post(
+            reverse('resume_preview_api', args=[self.resume.id]),
+            data=json.dumps({'content': {}, 'template_name': 'ats_clean'}),
+            content_type='application/json', HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('2026', resp.json()['html'])
+
+    def test_shared_render_includes_graduation_year(self):
+        from resumes.services.resume_render import render_resume_html
+        html = render_resume_html(self.resume.content, self.profile, template_name='ats_clean')
+        self.assertIn('2026', html)
