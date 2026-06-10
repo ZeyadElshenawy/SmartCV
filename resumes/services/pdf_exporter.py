@@ -12,7 +12,10 @@ theme rather than 500-ing on a missing template file.
 """
 
 
-LIVE_THEMES = frozenset({"ats_clean", "ats_clean_accent"})
+LIVE_THEMES = frozenset({
+    "ats_clean", "ats_clean_accent",      # original pair (B&W / one-accent)
+    "ats_dense", "ats_spacious", "ats_strict",  # Stage 2 — each a pdf_template_{name}.html
+})
 
 # Old theme name → surviving theme. The two old "color" themes
 # (danette, zeyad) map to the accent variant so the user's prior intent

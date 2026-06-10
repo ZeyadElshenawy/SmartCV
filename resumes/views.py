@@ -582,8 +582,11 @@ def resume_edit_view(request, resume_id):
     # migrate through pdf_exporter.THEME_MIGRATION at render time so an
     # in-flight legacy value never 500s the export.
     template_choices = [
-        {'value': 'ats_clean',         'label': 'ATS Clean',  'subtitle': 'Single-column, black-only, recruiter-safe',  'tag': 'B&W'},
-        {'value': 'ats_clean_accent',  'label': 'ATS Accent', 'subtitle': 'Same structure, one restrained accent color', 'tag': 'Accent'},
+        {'value': 'ats_clean',         'label': 'ATS Clean',   'subtitle': 'Single-column, black-only, recruiter-safe',   'tag': 'B&W'},
+        {'value': 'ats_clean_accent',  'label': 'ATS Accent',  'subtitle': 'Same structure, one restrained accent color', 'tag': 'Accent'},
+        {'value': 'ats_dense',         'label': 'Dense',       'subtitle': 'Tighter type + spacing — fits more on a page', 'tag': 'Compact'},
+        {'value': 'ats_spacious',      'label': 'Spacious',    'subtitle': 'Generous whitespace, calm modern slate',      'tag': 'Airy'},
+        {'value': 'ats_strict',        'label': 'ATS Strict',  'subtitle': 'No rules/borders — maximum parser safety',     'tag': 'Safe'},
     ]
 
     # Pass the user's profile so the live preview's contact line can render

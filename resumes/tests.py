@@ -13149,3 +13149,90 @@ class ResumePreviewSyncTests(TestCase):
         self.assertIn('id="view-frame"', html)        # shared-render iframe
         self.assertNotIn('Core Competencies', html)   # old label gone
         self.assertIn('Work Experience', html)        # rendered into srcdoc
+
+
+class Stage2TemplatesTests(TestCase):
+    """Stage 2 — the new pdf_template themes register and flow into BOTH the
+    shared-render preview and the WeasyPrint PDF as one-file additions (the
+    payoff of the Stage-1 shared-template mechanism)."""
+
+    NEW = ['ats_dense', 'ats_spacious', 'ats_strict']
+
+    def setUp(self):
+        from jobs.models import Job
+        from analysis.models import GapAnalysis
+        from profiles.models import UserProfile
+        from resumes.models import GeneratedResume
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username='stage2@example.com', email='stage2@example.com', password='x')
+        self.profile = UserProfile.objects.create(
+            user=self.user, full_name='Sam Stage', email='stage2@example.com')
+        job = Job.objects.create(
+            user=self.user, title='Backend Engineer', company='Acme',
+            description='Python backend.', extracted_skills=['Python', 'PostgreSQL'])
+        gap = GapAnalysis.objects.create(user=self.user, job=job, similarity_score=0.6)
+        self.resume = GeneratedResume.objects.create(
+            gap_analysis=gap,
+            content={
+                'professional_title': 'Backend Systems Engineer',
+                'professional_summary': 'Built distributed Python systems.',
+                'skills': ['Python', 'PostgreSQL', 'Redis', 'Docker', 'AWS'],
+                'experience': [{
+                    'title': 'Backend Engineer', 'company': 'PriorCo',
+                    'duration': '2023 - Present',
+                    'description': ['Cut p99 latency from 1.2s to 380ms.', 'Owned async migration.'],
+                }],
+                'template_name': 'ats_clean',
+            })
+        self.client.force_login(self.user)
+
+    def test_registered_in_live_themes_and_resolve(self):
+        from resumes.services.pdf_exporter import LIVE_THEMES, resolve_template
+        for t in self.NEW:
+            self.assertIn(t, LIVE_THEMES)
+            theme, f = resolve_template(t)
+            self.assertEqual(theme, t)
+            self.assertEqual(f, 'resumes/pdf_template_%s.html' % t)
+
+    def test_each_new_template_renders_shared_structure_and_differs(self):
+        from resumes.services.resume_render import render_resume_html
+        clean = render_resume_html(self.resume.content, self.profile, template_name='ats_clean')
+        for t in self.NEW:
+            html = render_resume_html(self.resume.content, self.profile, template_name=t)
+            self.assertIn('Work Experience', html)   # same shared template structure
+            self.assertIn('Skills', html)
+            self.assertNotEqual(html, clean)          # theme_css actually differs
+
+    def test_each_new_template_renders_a_valid_pdf(self):
+        # WeasyPrint must accept the theme_css (a render-only smoke; no assertion
+        # on bytes beyond "non-trivial PDF produced").
+        import tempfile, os
+        from resumes.services.pdf_exporter import generate_pdf
+        for t in self.NEW:
+            fd, path = tempfile.mkstemp(suffix='.pdf'); os.close(fd)
+            try:
+                generate_pdf(self.resume, path, t)
+                self.assertGreater(os.path.getsize(path), 1000, '%s produced a trivial PDF' % t)
+            finally:
+                os.remove(path)
+
+    def test_picker_lists_all_choices_with_thumbnail_modifiers(self):
+        html = self.client.get(reverse('resume_edit', args=[self.resume.id]),
+                               HTTP_HOST='localhost').content.decode()
+        for t in ['ats_clean', 'ats_clean_accent'] + self.NEW:
+            self.assertIn('pdf-preview--%s' % t, html)   # thumbnail + CSS modifier present
+
+    def test_preview_endpoint_honors_new_template(self):
+        import json
+        url = reverse('resume_preview_api', args=[self.resume.id])
+        def render(t):
+            return self.client.post(
+                url, data=json.dumps({'content': {}, 'template_name': t}),
+                content_type='application/json', HTTP_HOST='localhost').json()['html']
+        clean = render('ats_clean')
+        for t in self.NEW:
+            html = render(t)
+            self.assertIn('Work Experience', html)
+            self.assertNotEqual(html, clean)
