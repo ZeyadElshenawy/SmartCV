@@ -106,6 +106,61 @@ def render_resume_png(
     return out.getvalue()
 
 
+def render_resume_html(
+    resume_content: dict,
+    profile=None,
+    *,
+    template_name: str = "ats_clean",
+) -> str:
+    """Render ``resume_content`` to the shared PDF template's HTML string.
+
+    The editor live preview (and the read-only view page) call this so they
+    render the EXACT template the downloaded PDF renders — same
+    ``resolve_template`` + the same context-prep ``generate_pdf`` /
+    ``render_resume_png`` use (heal + reverse-chronological sort, section-order
+    resolution, skill grouping). Preview and PDF therefore CANNOT drift on
+    labels, structure, ordering, grouping, bullets, or theme CSS.
+
+    Honest caveat: this HTML is rendered by the *browser*; the download is
+    rendered by *WeasyPrint*. Same template, different engines — a close
+    approximation (~90-95%), never pixel-identical.
+    """
+    from django.template.loader import render_to_string
+    # Local imports mirror render_resume_png — resumes.views imports services,
+    # so import lazily to avoid a circular import at module load.
+    from resumes.views import RESUME_SECTION_KEYS, DEFAULT_SECTION_ORDER
+    from .pdf_exporter import resolve_template
+    from .skill_categorizer import group_skills_for_display, should_show_grouped
+    from .resume_normalizer import (
+        heal_experience_durations, sort_experience_reverse_chronological,
+    )
+
+    theme, template_file = resolve_template(template_name)
+
+    content = resume_content or {}
+    if content.get("experience"):
+        content = {**content, "experience": heal_experience_durations(content["experience"])}
+        content = sort_experience_reverse_chronological(content)
+    saved = content.get("section_order") or []
+    valid_saved = [s for s in saved if s in RESUME_SECTION_KEYS]
+    section_order = valid_saved + [s for s in DEFAULT_SECTION_ORDER if s not in valid_saved]
+
+    skills_list = content.get("skills") or []
+    skill_groups = group_skills_for_display(skills_list)
+    show_grouped_skills = should_show_grouped(skill_groups, len(skills_list))
+
+    user = getattr(profile, "user", None)
+    return render_to_string(template_file, {
+        "resume": content,
+        "user": user,
+        "profile": profile,
+        "section_order": section_order,
+        "skill_groups": skill_groups,
+        "show_grouped_skills": show_grouped_skills,
+        "theme": theme,
+    })
+
+
 def png_to_data_url(png_bytes: bytes) -> str:
     """Base64 data URL for a langchain image_url content block."""
     return "data:image/png;base64," + base64.b64encode(png_bytes).decode("ascii")

@@ -80,133 +80,39 @@
                 <span aria-hidden="true" class="h-1.5 w-1.5 rounded-full bg-neutral-400"></span>
                 Preview · A4 · ATS-safe
             </div>
-            <style>
-                .pdf-preview {
-                    font-family: Arial, Helvetica, sans-serif;
-                    color: #000;
-                    font-size: 10pt;
-                    line-height: 1.3;
-                    background: white;
-                }
-                .pdf-preview .p-header { text-align: center; margin-bottom: 20px; }
-                .pdf-preview .p-name { font-size: 20pt; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
-                .pdf-preview .p-professional-title { font-size: 13pt; color: #000; margin-bottom: 8px; }
-                .pdf-preview .p-section { margin-bottom: 16px; }
-                .pdf-preview .p-section-title { font-size: 11.5pt; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #000; padding-bottom: 3px; margin-bottom: 10px; }
-                .pdf-preview .p-summary { font-size: 10pt; line-height: 1.5; text-align: justify; margin: 0; }
-                .pdf-preview .p-item { margin-bottom: 12px; }
-                .pdf-preview .p-item-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2px; }
-                .pdf-preview .p-item-title { text-align: left; font-weight: bold; font-size: 10pt; margin: 0; text-transform: uppercase; }
-                .pdf-preview .p-item-date { text-align: right; font-size: 10pt; font-weight: normal; margin: 0; }
-                .pdf-preview .p-item-subtitle { font-weight: bold; font-style: italic; font-size: 10pt; margin-bottom: 4px; }
-                .pdf-preview .p-item-description { margin: 0; padding-left: 20px; font-size: 10pt; }
-                .pdf-preview .p-item-description li { margin-bottom: 4px; list-style-type: disc; }
-                .pdf-preview a { color: #1a0dab; text-decoration: underline; }
-            </style>
-            <div class="p-8 sm:p-12">
-                <div class="pdf-preview">
-                    <div class="p-header">
-                        <div class="p-name">{{ request.user.first_name }} {{ request.user.last_name }}</div>
-                        <div id="preview-title" class="p-professional-title">{{ content.professional_title|default:"Professional Resume" }}</div>
-                    </div>
-
-                    {% if content.professional_summary %}
-                    <div class="p-section">
-                        <div class="p-section-title">Professional Summary</div>
-                        <div id="preview-summary" class="p-summary">{{ content.professional_summary }}</div>
-                    </div>
-                    {% endif %}
-
-                    {% if content.skills %}
-                    <div class="p-section" id="preview-skills-section">
-                        <div class="p-section-title">Skills</div>
-                        <div id="preview-skills" class="p-summary">
-                            <strong>Core Competencies:</strong> {{ content.skills|join:", " }}
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    {% if content.experience %}
-                    <div class="p-section">
-                        <div class="p-section-title">Professional Experience</div>
-                        <div id="preview-experience">
-                            {% for exp in content.experience %}
-                            <div class="p-item">
-                                <div class="p-item-header">
-                                    <div class="p-item-title">{{ exp.title }}</div>
-                                    <div class="p-item-date">{{ exp.duration }}</div>
-                                </div>
-                                <div class="p-item-subtitle">{{ exp.company }}</div>
-                                {% if exp.description %}
-                                <ul class="p-item-description">
-                                    {% for point in exp.description %}<li>{{ point }}</li>{% endfor %}
-                                </ul>
-                                {% endif %}
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    {% if content.education %}
-                    <div class="p-section">
-                        <div class="p-section-title">Education</div>
-                        <div id="preview-education">
-                            {% for edu in content.education %}
-                            <div class="p-item">
-                                <div class="p-item-header">
-                                    <div class="p-item-title">{{ edu.degree }}{% if edu.field %} in {{ edu.field }}{% endif %}</div>
-                                    <div class="p-item-date">{{ edu.year }}</div>
-                                </div>
-                                <div class="p-item-subtitle">{{ edu.institution }}</div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    {% if content.projects %}
-                    <div class="p-section" id="preview-projects-section">
-                        <div class="p-section-title">Projects</div>
-                        <div id="preview-projects">
-                            {% for proj in content.projects %}
-                            <div class="p-item">
-                                <div class="p-item-title" style="margin-bottom: 4px; text-transform: none;">
-                                    {% if proj.url %}<a href="{{ proj.url }}" target="_blank">{{ proj.name }}</a>{% else %}{{ proj.name }}{% endif %}
-                                </div>
-                                {% if proj.description %}
-                                <ul class="p-item-description">
-                                    {% for point in proj.description %}<li>{{ point }}</li>{% endfor %}
-                                </ul>
-                                {% endif %}
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    {% if content.certifications %}
-                    <div class="p-section" id="preview-certifications-section">
-                        <div class="p-section-title">Certifications</div>
-                        <ul id="preview-certifications" style="margin: 0; padding-left: 20px; font-size: 10pt; color: #000;">
-                            {% for cert in content.certifications %}
-                            <li style="margin-bottom: 4px; list-style-type: disc;">
-                                <strong>{% if cert.url %}<a href="{{ cert.url }}" target="_blank">{{ cert.name }}</a>{% else %}{{ cert.name }}{% endif %}</strong>
-                                {% if cert.issuer %}- {{ cert.issuer }}{% endif %}
-                            </li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                    {% endif %}
-
-                    {% if content.languages %}
-                    <div class="p-section" id="preview-languages-section">
-                        <div class="p-section-title">Languages</div>
-                        <div id="preview-languages" class="p-summary">{{ content.languages|join:", " }}</div>
-                    </div>
-                    {% endif %}
+            <div class="p-4 sm:p-6 bg-neutral-100 dark:bg-neutral-900/40">
+              <div id="view-preview-pane" class="mx-auto bg-white shadow-sm ring-1 ring-neutral-200" style="width:100%; max-width:794px; aspect-ratio:1/1.414; overflow:auto;">
+                <div id="view-frame-outer" style="width:100%;">
+                  <div id="view-frame-wrap" style="width:794px; transform-origin: top left;">
+                    <iframe id="view-frame" title="Résumé preview — close approximation of the PDF" srcdoc="{{ resume_html }}"
+                            style="width:794px; height:1123px; border:0; background:#fff; display:block;"></iframe>
+                  </div>
                 </div>
+              </div>
+              <p class="mt-2 text-center text-[10px] uppercase tracking-[0.14em] text-neutral-400 dark:text-neutral-500">Close approximation of your PDF</p>
             </div>
+            <script>
+              (function () {
+                function scaleViewFrame() {
+                  var pane = document.getElementById('view-preview-pane');
+                  var outer = document.getElementById('view-frame-outer');
+                  var wrap = document.getElementById('view-frame-wrap');
+                  var frame = document.getElementById('view-frame');
+                  if (!pane || !wrap || !frame) return;
+                  var scale = Math.max(0.1, pane.clientWidth / 794);
+                  var h = 1123;
+                  try { h = Math.max(frame.contentDocument.documentElement.scrollHeight, 400); } catch (e) {}
+                  frame.style.height = h + 'px';
+                  wrap.style.height = h + 'px';
+                  wrap.style.transform = 'scale(' + scale + ')';
+                  if (outer) outer.style.height = (h * scale) + 'px';
+                }
+                var f = document.getElementById('view-frame');
+                if (f) f.addEventListener('load', scaleViewFrame);
+                window.addEventListener('resize', scaleViewFrame);
+                scaleViewFrame();
+              })();
+            </script>
         </section>
 
         {# ---- Developer / raw JSON (collapsed) ---- #}

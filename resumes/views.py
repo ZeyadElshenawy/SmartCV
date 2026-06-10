@@ -317,13 +317,29 @@ def resume_preview_view(request, resume_id):
         return redirect('dashboard')
         
     _normalize_legacy_resume_content(resume)
-    
+
+    # Render the SAME shared template the editor preview + the PDF render, so this
+    # read-only view page stops drifting to the old "Core Competencies" labels.
+    profile = getattr(request.user, 'profile', None)
+    from .services.resume_render import render_resume_html
+    try:
+        resume_html = render_resume_html(
+            resume.content or {}, profile,
+            template_name=(resume.content or {}).get('template_name', 'ats_clean'),
+        )
+        resume_html += ("<style>@media screen{html,body{background:#fff}"
+                        "body{padding:1.6cm 1.8cm;box-sizing:border-box}}</style>")
+    except Exception:
+        logger.exception("preview view render failed for resume %s", resume_id)
+        resume_html = ""
+
     context = {
         'resume': resume,
         'job': job,
-        'content': resume.content
+        'content': resume.content,
+        'resume_html': resume_html,
     }
-    
+
     return render(request, 'resumes/preview.html', context)
 
 @login_required
@@ -1623,3 +1639,49 @@ def resume_ats_quantify_regen_api(request, resume_id):
         "outcome": "landed",
         "panel_html": _render_ats_panel(resume, request),
     })
+
+
+@login_required
+@require_POST
+def resume_preview_api(request, resume_id):
+    """Shared-template live preview (Stage 1). Renders the SAME template the PDF
+    renders — via ``render_resume_html`` → ``resolve_template`` + the exact
+    context-prep ``generate_pdf`` uses — from the user's in-flight edits, so the
+    editor preview and the downloaded PDF CANNOT drift on labels/structure/
+    grouping/bullets/ordering/theme. Browser vs WeasyPrint differ slightly — a
+    close approximation, not pixel-identical.
+
+    Body: ``{content: <collectCurrentContent() dict>, template_name}``. The
+    posted (live, possibly-unsaved) sections are merged OVER ``resume.content``
+    so unedited sections (education / certifications / languages / contact /
+    section_order) come from the saved snapshot. READ-ONLY — renders, never
+    persists; orchestrates the existing render path, adds no rendering logic.
+    """
+    resume = get_object_or_404(GeneratedResume, id=resume_id)
+    if resume.gap_analysis.job.user != request.user:
+        raise Http404
+    try:
+        body = json.loads((request.body or b"").decode("utf-8") or "{}")
+    except (ValueError, UnicodeDecodeError):
+        return JsonResponse({"error": "bad_request"}, status=400)
+    posted = body.get("content")
+    posted = posted if isinstance(posted, dict) else {}
+    merged = {**(resume.content or {}), **posted}
+    template_name = (body.get("template_name")
+                     or merged.get("template_name")
+                     or "ats_clean")
+    profile = UserProfile.objects.filter(user=request.user).first()
+    from .services.resume_render import render_resume_html
+    try:
+        html = render_resume_html(merged, profile, template_name=template_name)
+    except Exception:
+        logger.exception("preview render failed for resume %s", resume_id)
+        return JsonResponse({"error": "render_failed"}, status=200)
+    # Screen-only margin emulation: WeasyPrint's @page margin doesn't apply in a
+    # browser iframe, so add page padding for the PREVIEW only. WeasyPrint
+    # (print media) ignores @media screen, so the PDF/template are unaffected.
+    html += (
+        "<style>@media screen{html,body{background:#fff}"
+        "body{padding:1.6cm 1.8cm;box-sizing:border-box}}</style>"
+    )
+    return JsonResponse({"html": html})
