@@ -8,7 +8,7 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "project_name/wsgi.py"
+      "dest": "smartcv/wsgi.py"
     }
   ]
 }
