@@ -1,10 +1,14 @@
 {
-  "version": 2,
-  
+  "builds": [
+    {
+      "src": "SmartCV/wsgi.py",
+      "use": "@vercel/python"
+    }
+  ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "smartcv/wsgi.py"
+      "dest": "project_name/wsgi.py"
     }
   ]
 }
