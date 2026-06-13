@@ -304,7 +304,9 @@ def _fetch_repo_readme(session: requests.Session, full_name: str) -> Optional[st
         text = base64.b64decode(encoded).decode('utf-8', errors='replace')
     except (ValueError, TypeError):
         return None
-    text = text.strip()
+    # PostgreSQL's JSON type rejects the null character (\u0000). Some READMEs
+    # contain it in binary blobs or garbled encoding — strip before storing.
+    text = text.replace('\x00', '').strip()
     if not text:
         return None
     if len(text) > _README_EXCERPT_CAP:
@@ -334,6 +336,8 @@ def _fetch_profile_readme(session: requests.Session, username: str) -> Optional[
     if encoded and encoding == 'base64':
         try:
             content = base64.b64decode(encoded).decode('utf-8', errors='replace')
+            # Strip null bytes — PostgreSQL's JSON type rejects \u0000.
+            content = content.replace('\x00', '')
         except (ValueError, TypeError):
             content = ''
     return ProfileReadme(

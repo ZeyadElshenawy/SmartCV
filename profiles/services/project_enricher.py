@@ -60,8 +60,40 @@ def _recover_enriched_from_failed_generation(exc) -> list[EnrichedProject] | Non
     raw = err.get('failed_generation')
     if not raw or not isinstance(raw, str):
         return None
+
+    # The model may wrap the JSON in markdown code blocks or emit Chain-of-Thought
+    # text before the JSON. Extract the outermost JSON structure.
+    raw_json = raw
+    m = re.search(r'```(?:json)?\s*(\{.*?\}|\[.*?\])\s*```', raw, re.DOTALL)
+    if m:
+        raw_json = m.group(1)
+    else:
+        # Try to extract an object {...} or an array [...]
+        # Don't mix them up (e.g. start with [, end with })
+        obj_start = raw.find('{')
+        obj_end = raw.rfind('}')
+        arr_start = raw.find('[')
+        arr_end = raw.rfind(']')
+        
+        candidates = []
+        if obj_start != -1 and obj_end != -1 and obj_end > obj_start:
+            candidates.append((obj_start, raw[obj_start:obj_end+1]))
+        if arr_start != -1 and arr_end != -1 and arr_end > arr_start:
+            candidates.append((arr_start, raw[arr_start:arr_end+1]))
+            
+        # Try the one that appears earliest in the text first
+        candidates.sort(key=lambda x: x[0])
+        for _, text_slice in candidates:
+            try:
+                # If we can parse it, that's our target.
+                json.loads(text_slice)
+                raw_json = text_slice
+                break
+            except Exception:
+                pass
+
     try:
-        parsed = json.loads(raw)
+        parsed = json.loads(raw_json)
     except Exception:
         return None
     # Unwrap tool-call wrapper if present.

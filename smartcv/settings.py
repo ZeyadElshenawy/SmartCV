@@ -212,6 +212,21 @@ DEFAULT_FROM_EMAIL = 'SmartCV <noreply@smartcv.local>'
 CSRF_FAILURE_VIEW = 'core.views.csrf_failure'
 
 # Logging
+# Temporary diagnostic — file handler for the onboarding GitHub-pull
+# investigation. Captures rebuild_master_profile failures (the
+# logger.exception calls in the four broad except sites) and
+# signal_merger: added {...} so we can tell whether Stage 4 of the
+# rebuild actually ran on a failing pull. Bounded to ~50 MB total
+# (10 MB × 5 rotations) so it can't fill the disk. The log path is
+# already covered by `*.log` in .gitignore (line 12), so the file
+# never gets committed — important because it captures PII (emails,
+# URLs, profile data) at INFO level.
+#
+# After the reproduction is captured, revisit whether to keep file
+# logging permanently or revert to console-only.
+_LOG_DIR = BASE_DIR / 'logs'
+os.makedirs(_LOG_DIR, exist_ok=True)
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -226,14 +241,22 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'standard',
         },
+        'file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': str(_LOG_DIR / 'smartcv_debug.log'),
+            'maxBytes': 10 * 1024 * 1024,   # 10 MB per file
+            'backupCount': 5,               # 5 rotations → ~50 MB cap
+            'formatter': 'standard',
+            'encoding': 'utf-8',
+        },
     },
     'root': {
-        'handlers': ['console'],
+        'handlers': ['console', 'file'],
         'level': 'INFO',
     },
     'loggers': {
         'django': {
-            'handlers': ['console'],
+            'handlers': ['console', 'file'],
             'level': 'WARNING',
             'propagate': False,
         },
