@@ -47,18 +47,57 @@ def _recover_decisions_from_failed_generation(exc) -> list[dict] | None:
     raw = err.get('failed_generation')
     if not raw or not isinstance(raw, str):
         return None
+
+    # The model may wrap the JSON in markdown code blocks or emit Chain-of-Thought
+    # text before the JSON. Extract the outermost JSON structure.
+    raw_json = raw
+    m = re.search(r'```(?:json)?\s*(\{.*?\}|\[.*?\])\s*```', raw, re.DOTALL)
+    if m:
+        raw_json = m.group(1)
+    else:
+        # Try to extract an object {...} or an array [...]
+        # Don't mix them up (e.g. start with [, end with })
+        obj_start = raw.find('{')
+        obj_end = raw.rfind('}')
+        arr_start = raw.find('[')
+        arr_end = raw.rfind(']')
+        
+        candidates = []
+        if obj_start != -1 and obj_end != -1 and obj_end > obj_start:
+            candidates.append((obj_start, raw[obj_start:obj_end+1]))
+        if arr_start != -1 and arr_end != -1 and arr_end > arr_start:
+            candidates.append((arr_start, raw[arr_start:arr_end+1]))
+            
+        # Try the one that appears earliest in the text first
+        candidates.sort(key=lambda x: x[0])
+        for _, text_slice in candidates:
+            try:
+                # If we can parse it, that's our target.
+                json.loads(text_slice)
+                raw_json = text_slice
+                break
+            except Exception:
+                pass
+
     try:
-        parsed = json.loads(raw)
+        parsed = json.loads(raw_json)
     except Exception:
         return None
 
-    # Unwrap a bare list wrapper: [{"decisions": [...]}] → {"decisions": [...]}
-    if isinstance(parsed, list) and parsed and isinstance(parsed[0], dict):
-        parsed = parsed[0]
-
-    # Expect {"decisions": [...]}
+    # The model might return:
+    # 1. {"decisions": [{...}, {...}]}  (correct)
+    # 2. [{"decisions": [{...}, {...}]}]  (wrapped in tool call list)
+    # 3. [{...}, {...}]  (bare list of decisions)
+    
     if isinstance(parsed, dict) and isinstance(parsed.get('decisions'), list):
         raw_decisions = parsed['decisions']
+    elif isinstance(parsed, list) and parsed:
+        if isinstance(parsed[0], dict) and 'decisions' in parsed[0] and isinstance(parsed[0]['decisions'], list):
+            raw_decisions = parsed[0]['decisions']
+        elif isinstance(parsed[0], dict) and ('action' in parsed[0] or 'enriched_index' in parsed[0]):
+            raw_decisions = parsed
+        else:
+            return None
     else:
         return None
 

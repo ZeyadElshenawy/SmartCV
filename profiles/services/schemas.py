@@ -77,7 +77,11 @@ class Experience(BaseModel):
         return _fold_into_description(data)
 
 class Education(BaseModel):
-    degree: str
+    # Optional so Groq's server-side validator doesn't reject null when a
+    # training / bootcamp entry carries no formal degree title.
+    # The model_validator below coerces None → "" for downstream readers
+    # (same pattern as ResumeEducation in the resume-output schemas).
+    degree: Optional[str] = None
     institution: str
     graduation_year: Optional[str] = None
     field: Optional[str] = None
@@ -85,6 +89,14 @@ class Education(BaseModel):
     honors: Optional[List[str]] = Field(default_factory=list)
     location: Optional[str] = None
     model_config = ConfigDict(extra='allow')
+
+    @model_validator(mode='before')
+    @classmethod
+    def normalize(cls, values):
+        if not isinstance(values, dict):
+            return values
+        # Coerce null string fields to "" so downstream readers never see None.
+        return _coerce_null_strings(values, ('degree', 'institution', 'graduation_year', 'field', 'gpa', 'location'))
 
 class Project(BaseModel):
     """CV-parser project entry. Same canonical pattern as
