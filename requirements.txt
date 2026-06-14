@@ -11,7 +11,6 @@ python-docx==1.1.0
 numpy==1.26.2
 weasyprint>=67.0  # primary PDF render path (resumes/services/pdf_exporter.py, resumes/services/resume_render.py). Needs GTK3 runtime on Windows — see docs/PDF_RENDERING.md.
 tinycss2>=1.5  # WeasyPrint 67 imports tinycss2.color5; older 1.4 transitive install lacks it.
-xhtml2pdf>=0.2.16  # legacy profile-PDF path only (resumes/services/pdf_generator.py). 0.2.11 pinned reportlab<4, whose old sdist fails to fetch libart at build time on Python 3.13. 0.2.16+ supports reportlab 4.x.
 requests==2.31.0
 beautifulsoup4==4.12.2
 django-cors-headers==4.3.1
