@@ -4,7 +4,7 @@
 >
 > **How current is this?** Built by reading the actual source at commit `e9566db` with the working tree in its 2026-06-09 state (settings.py + docs/benchmarks.md have uncommitted edits; several `benchmarks/results/2026-06-0*` dirs are untracked). Every architectural claim is traceable to a real `file:line`. Benchmark numbers are pulled from the JSON artifacts and dated individually. Where a fact could not be verified it is tagged **⚠ unverified** or **⚠ assumption**. Maturity of every component is labelled **Implemented / Partial / Stub / Dead-or-unused / TODO**.
 >
-> This file is the deep reference. The slim `CLAUDE.md` summarises it and links back here by section. An older `SMARTCV_COMPLETE_CONTEXT.md` (2,332 lines) also exists in the repo root — it predates this document; prefer this one.
+> This file is the deep reference. The slim `CLAUDE.md` summarises it and links back here by section. An older `SMARTCV_COMPLETE_CONTEXT.md` (2,332 lines) is archived at `docs/archive/` — it predates this document; prefer this one.
 
 ---
 
@@ -171,7 +171,7 @@ SmartCV/
 ├── tests/                  pytest suite: services/ unit tests + integration/ record-replay harness (conftest.py)
 ├── tools/                  KB-snapshot capture + recording checks (capture_kb_snapshot, check_recordings, smoke_kb_snapshot)
 ├── docs/                   benchmarks.md, gap_analysis_system.md, PDF_RENDERING.md, outreach-v2-spec.md, qa/
-├── poster_mockups/         Static HTML poster mockups (dashboard, gap_analysis)
+├── docs/poster_mockups/       Static HTML poster mockups (dashboard, gap_analysis)
 ├── CLAUDE.md               Slim project guide (this rewrite) → links into PROJECT_CONTEXT.md
 ├── README.md               Public README (⚠ benchmark + test-count numbers are stale; see §14/§15)
 ├── requirements.txt · package.json · pytest.ini · .coveragerc · .env.example
