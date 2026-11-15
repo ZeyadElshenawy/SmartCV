@@ -17,6 +17,13 @@ and Groq (`meta-llama/llama-4-scout-17b-16e-instruct`).
 
 ![SmartCV dashboard — master profile, profile-strength score, and quick links to job tailoring](docs/images/dashboard.png)
 
+## How this was built
+
+SmartCV was my graduation project (B.Sc. Computer Science, King Salman International University, 2026).
+
+- **My part:** the product idea, feature definitions and requirements; running the automated test suite and the benchmark suite below, and reviewing the results.
+- **AI-built:** the application code was written by an AI coding assistant (Claude) from my feature descriptions. `CLAUDE.md` is the guidance file used for that work.
+
 ## Highlights
 
 - **Deterministic ATS scoring** with stuffing detection and in-context
